@@ -13,6 +13,12 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Coloured and highlighted text ranges (2026-11-02)
+
+- Text elements gain an optional `styleRanges` field, `{ start, end, strokeColor?, backgroundColor? }[]`, with half-open UTF-16 offsets into `originalText`. The field is absent when a text has no runs, and older builds ignore it.
+- While editing a text, a stroke or background pick with a non-empty selection colours or highlights only that range; with no selection the pickers behave as before. Ranges follow typing, wrapping, font changes, undo/redo and collaboration.
+- Ranges render on canvas and in SVG export (one `<tspan>` per run, a highlight `<rect>`), dark-mode filtered. Right-to-left text keeps its ranges but renders in the element's single colour.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

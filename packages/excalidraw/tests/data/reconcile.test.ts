@@ -1,4 +1,4 @@
-import { syncInvalidIndices } from "@excalidraw/element";
+import { newElementWith, syncInvalidIndices } from "@excalidraw/element";
 
 import { randomInteger, cloneJSON } from "@excalidraw/common";
 
@@ -8,6 +8,7 @@ import type {
 } from "@excalidraw/element/types";
 
 import { reconcileElements } from "../../data/reconcile";
+import { API } from "../helpers/api";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
 
@@ -382,5 +383,64 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+});
+
+describe("text style ranges reconciliation", () => {
+  it("a remote text with a higher version brings its styleRanges", () => {
+    const local = newElementWith(
+      API.createElement({
+        type: "text",
+        text: "hello world",
+        index: "a0" as any,
+      }),
+      { version: 1 },
+    );
+    const remote = newElementWith(local, {
+      version: 2,
+      styleRanges: [{ start: 0, end: 4, strokeColor: "#e03131" }],
+    });
+
+    const reconciled = reconcileElements(
+      [local] as OrderedExcalidrawElement[],
+      [remote] as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0].version).toEqual(2);
+    expect((reconciled[0] as any).styleRanges).toEqual([
+      { start: 0, end: 4, strokeColor: "#e03131" },
+    ]);
+  });
+
+  it("a remote text with a lower version does not overwrite local styleRanges", () => {
+    const base = newElementWith(
+      API.createElement({
+        type: "text",
+        text: "hello world",
+        index: "a0" as any,
+      }),
+      { version: 1 },
+    );
+    const local = newElementWith(base, {
+      version: 3,
+      styleRanges: [{ start: 0, end: 4, strokeColor: "#e03131" }],
+    });
+    const remote = newElementWith(base, {
+      version: 2,
+    });
+
+    const reconciled = reconcileElements(
+      [local] as OrderedExcalidrawElement[],
+      [remote] as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+
+    expect(reconciled).toHaveLength(1);
+    expect(reconciled[0].version).toEqual(3);
+    expect((reconciled[0] as any).styleRanges).toEqual([
+      { start: 0, end: 4, strokeColor: "#e03131" },
+    ]);
   });
 });

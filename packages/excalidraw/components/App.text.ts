@@ -40,6 +40,7 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  shiftStyleRangesForEdit,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -53,6 +54,7 @@ import type {
 } from "@excalidraw/element/types";
 
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
+import { getTextEditorSelection } from "../actions/colorTargets";
 import { withBatchedUpdates } from "../reactUtils";
 import { isPointHittingTextAutoResizeHandle } from "../textAutoResizeHandle";
 import { scrollBoundsIntoView } from "../viewport";
@@ -223,6 +225,17 @@ export class AppText {
             return newElementWith(_element, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
+              // shift style ranges when text changes during editing
+              ...(_element.styleRanges
+                ? {
+                    styleRanges: shiftStyleRangesForEdit(
+                      _element.styleRanges,
+                      _element.originalText,
+                      nextOriginalText,
+                      getTextEditorSelection(this.app)?.end,
+                    ),
+                  }
+                : {}),
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
                 refreshTextDimensions(

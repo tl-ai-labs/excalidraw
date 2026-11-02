@@ -10,6 +10,7 @@ import {
   getFontString,
   isProdEnv,
   invariant,
+  isRTL,
 } from "@excalidraw/common";
 
 import { pointFrom, pointRotateRads, type Radians } from "@excalidraw/math";
@@ -24,8 +25,9 @@ import { LinearElementEditor } from "./linearElementEditor";
 import { getPositionAfterHeightChange } from "./sizeHelpers";
 
 import { updateStickyNoteLayout } from "./stickyNote";
-import { measureText } from "./textMeasurements";
+import { getLineWidth, measureText } from "./textMeasurements";
 import { wrapText } from "./textWrapping";
+import { getStyleRunsForLines } from "./textStyleRanges";
 
 import {
   isBoundToContainer,
@@ -50,6 +52,8 @@ import type {
   ExcalidrawTextElementWithContainer,
   NonDeleted,
 } from "./types";
+
+import type { TextStyleRun } from "./textStyleRanges";
 
 export const redrawTextBoundingBox = (
   textElement: ExcalidrawTextElement,
@@ -630,3 +634,62 @@ export const getTextFromElements = (
 };
 
 export const DEFAULT_BOUND_TEXT_LABEL_POSITION = 0.5;
+
+export type PositionedTextStyleRun = TextStyleRun & {
+  x: number;
+  width: number;
+};
+
+/**
+ * Positions each style run of each rendered line of a text element
+ * (x from the element's left edge, measured width), for canvas and SVG
+ * to share. Returns null for plain or RTL text.
+ */
+export const getTextStyleRunLayout = (
+  element: ExcalidrawTextElement,
+  env: RenderEnvironment | undefined,
+): PositionedTextStyleRun[][] | null => {
+  if (!element.styleRanges?.length || isRTL(element.text)) {
+    return null;
+  }
+
+  const lines = element.text.replace(/\r\n?/g, "\n").split("\n");
+  const runsPerLine = getStyleRunsForLines(
+    element.originalText,
+    element.text,
+    element.styleRanges,
+  );
+  const font = getFontString(element);
+
+  return lines.map((line, index) => {
+    const runs = runsPerLine[index];
+    if (!runs || runs.length === 0) {
+      return [];
+    }
+
+    const lineWidth = getLineWidth(line, font, env);
+    const lineStartX =
+      element.textAlign === TEXT_ALIGN.CENTER
+        ? (element.width - lineWidth) / 2
+        : element.textAlign === TEXT_ALIGN.RIGHT
+        ? element.width - lineWidth
+        : 0;
+
+    let offset = 0;
+    let runEndWidth = 0;
+    return runs.map((run) => {
+      const prefixWidth = runEndWidth;
+      const nextOffset = offset + run.text.length;
+      runEndWidth = getLineWidth(line.slice(0, nextOffset), font, env);
+      const x = lineStartX + prefixWidth;
+      const width = runEndWidth - prefixWidth;
+      offset = nextOffset;
+
+      return {
+        ...run,
+        x,
+        width,
+      };
+    });
+  });
+};

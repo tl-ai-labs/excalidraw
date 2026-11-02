@@ -26,6 +26,7 @@ import {
 import { LinearElementEditor } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
+import { getTextStyleRunLayout } from "@excalidraw/element";
 import {
   isArrowElement,
   isIframeLikeElement,
@@ -812,24 +813,68 @@ const renderElementToSvg = (
             : element.textAlign === "right" || direction === "rtl"
             ? "end"
             : "start";
+        const runLayout = getTextStyleRunLayout(
+          element,
+          renderConfig.renderEnvironment,
+        );
+        const dark = renderConfig.theme === THEME.DARK;
         for (let i = 0; i < lines.length; i++) {
+          if (runLayout) {
+            const lineRuns = runLayout[i] || [];
+            for (const run of lineRuns) {
+              if (run.backgroundColor) {
+                const rect = svgRoot.ownerDocument.createElementNS(
+                  SVG_NS,
+                  "rect",
+                );
+                rect.setAttribute("x", `${run.x}`);
+                rect.setAttribute("y", `${i * lineHeightPx}`);
+                rect.setAttribute("width", `${run.width}`);
+                rect.setAttribute("height", `${lineHeightPx}`);
+                rect.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(run.backgroundColor, dark),
+                );
+                node.appendChild(rect);
+              }
+            }
+          }
           const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
-          text.textContent = lines[i];
           text.setAttribute("x", `${horizontalOffset}`);
           text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
           text.setAttribute("font-family", getFontFamilyString(element));
           text.setAttribute("font-size", `${element.fontSize}px`);
           text.setAttribute(
             "fill",
-            applyDarkModeFilter(
-              element.strokeColor,
-              renderConfig.theme === THEME.DARK,
-            ),
+            applyDarkModeFilter(element.strokeColor, dark),
           );
           text.setAttribute("text-anchor", textAnchor);
           text.setAttribute("style", "white-space: pre;");
           text.setAttribute("direction", direction);
           text.setAttribute("dominant-baseline", "alphabetic");
+
+          if (!runLayout) {
+            text.textContent = lines[i];
+          } else {
+            const lineRuns = runLayout[i] || [];
+            for (const run of lineRuns) {
+              if (run.text.length > 0) {
+                const tspan = svgRoot.ownerDocument.createElementNS(
+                  SVG_NS,
+                  "tspan",
+                );
+                tspan.textContent = run.text;
+                tspan.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(
+                    run.strokeColor ?? element.strokeColor,
+                    dark,
+                  ),
+                );
+                text.appendChild(tspan);
+              }
+            }
+          }
           node.appendChild(text);
         }
 

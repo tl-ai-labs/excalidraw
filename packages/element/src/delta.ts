@@ -45,6 +45,7 @@ import {
 import { LinearElementEditor } from "./linearElementEditor";
 import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId, redrawTextBoundingBox } from "./textElement";
+import { areStyleRangesEqual } from "./textStyleRanges";
 import {
   hasBoundTextElement,
   isArrowElement,
@@ -1878,6 +1879,10 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
             visibleBindings(before, previousElements),
             visibleBindings(after, nextElements),
           );
+        case "styleRanges":
+          return isTextElement(before) && isTextElement(after)
+            ? !areStyleRangesEqual(before.styleRanges, after.styleRanges)
+            : true;
         default:
           return true;
       }
@@ -2212,6 +2217,22 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         // delete the points from delta if there is no difference, otherwise leave them as they were captured due to consistency
         Reflect.deleteProperty(deleted, "points");
         Reflect.deleteProperty(inserted, "points");
+      }
+
+      // drop styleRanges when content is equal to avoid empty undo/redo steps
+      const deletedStyleRanges = (
+        deleted as ElementPartial<ExcalidrawTextElement>
+      ).styleRanges;
+      const insertedStyleRanges = (
+        inserted as ElementPartial<ExcalidrawTextElement>
+      ).styleRanges;
+      if (
+        (Object.prototype.hasOwnProperty.call(deleted, "styleRanges") ||
+          Object.prototype.hasOwnProperty.call(inserted, "styleRanges")) &&
+        areStyleRangesEqual(deletedStyleRanges, insertedStyleRanges)
+      ) {
+        Reflect.deleteProperty(deleted, "styleRanges");
+        Reflect.deleteProperty(inserted, "styleRanges");
       }
     } catch (e) {
       // if postprocessing fails, it does not make sense to bubble up, but let's make sure we know about it

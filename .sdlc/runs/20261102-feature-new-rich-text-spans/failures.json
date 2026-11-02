@@ -1,0 +1,6 @@
+[
+  {
+    "path": "packages/element/tests/textStyleRanges.test.ts",
+    "problem": "yarn test:typecheck: packages/element/tests/textStyleRanges.test.ts(274,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type (newTextElement options). In the test \"survives a bound-text container's wrapping\", newTextElement does not accept `id`. Fix: create the text first with newTextElement({ x: 0, y: 0, fontSize: 10, text: sample, containerId: container.id, styleRanges: range }) (no `id`), then create the container with API.createElement({ type: 'rectangle', width: 120, boundElements: [{ type: 'text', id: text.id }] }) and the text's containerId set afterwards via `const boundText = newElementWith(text, { containerId: container.id })` (or create the container first without boundElements and then `newElementWith(container, { boundElements: [{ type: 'text', id: text.id }] })`). Keep the wrap using the text's own font (getFontString(text)) and keep the assertion. Change nothing else; the vitest cases all pass today."
+  }
+]

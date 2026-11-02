@@ -273,6 +273,97 @@ describe("restoreElements", () => {
     expect(restoredText.baseFontSize).toBe(null);
   });
 
+  it("should restore a legacy text element without styleRanges", () => {
+    const textElement: any = API.createElement({
+      type: "text",
+      text: "hello world",
+    });
+    delete textElement.styleRanges;
+
+    const restoredText = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(Object.hasOwn(restoredText, "styleRanges")).toBe(false);
+  });
+
+  it("should keep and normalize valid styleRanges", () => {
+    const textElement: any = API.createElement({
+      type: "text",
+      text: "hello world",
+    });
+    textElement.styleRanges = [
+      { start: 6, end: 11, strokeColor: "#e03131" },
+      { start: 0, end: 5, backgroundColor: "#ffec99" },
+    ];
+
+    const restoredText = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restoredText.styleRanges).toEqual([
+      { start: 0, end: 5, backgroundColor: "#ffec99" },
+      { start: 6, end: 11, strokeColor: "#e03131" },
+    ]);
+  });
+
+  it("should clamp out-of-bounds styleRanges to the original text", () => {
+    const textElement: any = API.createElement({
+      type: "text",
+      text: "hello",
+    });
+    textElement.styleRanges = [{ start: 3, end: 40, strokeColor: "#e03131" }];
+
+    const restoredText = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restoredText.styleRanges).toEqual([
+      { start: 3, end: 5, strokeColor: "#e03131" },
+    ]);
+  });
+
+  it("should drop malformed styleRanges entries", () => {
+    const textElement: any = API.createElement({
+      type: "text",
+      text: "hello",
+    });
+    textElement.styleRanges = [
+      null,
+      "x",
+      { start: NaN, end: 2, strokeColor: "#e03131" },
+      { start: 0, end: 2 },
+      { start: 1, end: 2, strokeColor: "#e03131" },
+    ];
+
+    const restoredText = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restoredText.styleRanges).toEqual([
+      { start: 1, end: 2, strokeColor: "#e03131" },
+    ]);
+  });
+
+  it("should remove a non-array or fully invalid styleRanges", () => {
+    const nonArray: any = API.createElement({ type: "text", text: "hello" });
+    nonArray.styleRanges = "red";
+    const empty: any = API.createElement({ type: "text", text: "hello" });
+    empty.styleRanges = [{ start: 2, end: 2, strokeColor: "#e03131" }];
+
+    const restoredElements = restore.restoreElements(
+      [nonArray, empty],
+      null,
+    ) as ExcalidrawTextElement[];
+
+    expect(Object.hasOwn(restoredElements[0], "styleRanges")).toBe(false);
+    expect(Object.hasOwn(restoredElements[1], "styleRanges")).toBe(false);
+  });
+
   it("should clamp restored font ceilings to the sticky note maximum", () => {
     const textElement: any = API.createElement({
       type: "text",

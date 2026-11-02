@@ -57,6 +57,7 @@ import {
   getContainerElement,
   getBoundTextMaxHeight,
   getBoundTextMaxWidth,
+  getTextStyleRunLayout,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
 import {
@@ -703,12 +704,52 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
-            );
+          const dark = renderConfig.theme === THEME.DARK;
+          const runLayout = getTextStyleRunLayout(
+            element,
+            getRenderEnvironment(renderConfig.renderEnvironment),
+          );
+
+          if (runLayout) {
+            context.textAlign = "left";
+            for (let i = 0; i < runLayout.length; i++) {
+              const lineRuns = runLayout[i];
+              for (const run of lineRuns) {
+                if (run.backgroundColor) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.backgroundColor,
+                    dark,
+                  );
+                  context.fillRect(
+                    run.x,
+                    i * lineHeightPx,
+                    run.width,
+                    lineHeightPx,
+                  );
+                }
+              }
+              for (const run of lineRuns) {
+                if (run.text) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.strokeColor ?? element.strokeColor,
+                    dark,
+                  );
+                  context.fillText(
+                    run.text,
+                    run.x,
+                    i * lineHeightPx + verticalOffset,
+                  );
+                }
+              }
+            }
+          } else {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {

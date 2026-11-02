@@ -47,7 +47,11 @@ import {
   restoreOriginalGetBoundingClientRect,
 } from "../tests/test-utils";
 import * as dataModule from "../data";
-import { actionBindText } from "../actions";
+import {
+  actionBindText,
+  actionChangeBackgroundColor,
+  actionChangeStrokeColor,
+} from "../actions";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { getTextAutoResizeHandle } from "../textAutoResizeHandle";
 
@@ -3592,6 +3596,147 @@ describe("textWysiwyg", () => {
       Keyboard.undo();
 
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+    });
+  });
+
+  describe("text style ranges", () => {
+    let text: NonDeletedExcalidrawElement & ExcalidrawTextElement;
+    let editor: HTMLTextAreaElement;
+
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      text = API.createElement({
+        type: "text",
+        text: "Bid request timeout 120ms",
+        strokeColor: "#1e1e1e",
+      });
+      API.setElements([text]);
+      API.setSelectedElements([text]);
+      Keyboard.keyPress(KEYS.ENTER);
+      editor = await getTextEditor();
+    });
+
+    it("applies a stroke colour to the selected range only", () => {
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.styleRanges).toEqual([
+        { start: 20, end: 25, strokeColor: "#e03131" },
+      ]);
+      expect(current.strokeColor).toBe("#1e1e1e");
+      expect(h.state.editingTextElement?.id).toBe(text.id);
+      expect(editor.selectionStart).toBe(20);
+      expect(editor.selectionEnd).toBe(25);
+    });
+
+    it("applies a background colour as a highlight on the range", () => {
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeBackgroundColor, "ui", {
+          color: "#ffec99",
+        });
+      });
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.styleRanges).toEqual([
+        {
+          start: 20,
+          end: 25,
+          strokeColor: "#e03131",
+          backgroundColor: "#ffec99",
+        },
+      ]);
+      expect(current.backgroundColor).toBe(text.backgroundColor);
+    });
+
+    it("typing before the range shifts it", () => {
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      editor.value = `X${editor.value}`;
+      editor.setSelectionRange(1, 1);
+      fireEvent.input(editor);
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.styleRanges).toEqual([
+        { start: 21, end: 26, strokeColor: "#e03131" },
+      ]);
+    });
+
+    it("typing inside the range grows it", () => {
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      const prev = editor.value;
+      editor.value = `${prev.slice(0, 22)}0${prev.slice(22)}`;
+      editor.setSelectionRange(23, 23);
+      fireEvent.input(editor);
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.styleRanges).toEqual([
+        { start: 20, end: 26, strokeColor: "#e03131" },
+      ]);
+    });
+
+    it("with a collapsed selection the pick colours the whole element", () => {
+      editor.setSelectionRange(5, 5);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.strokeColor).toBe("#e03131");
+      expect(current.styleRanges).toBeUndefined();
+    });
+
+    it("with the whole text selected the pick colours the whole element", () => {
+      editor.setSelectionRange(0, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.strokeColor).toBe("#e03131");
+      expect(current.styleRanges).toBeUndefined();
+    });
+
+    it("ranges survive leaving the editor", () => {
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      Keyboard.exitTextEditor(editor);
+
+      const current = h.elements[0] as ExcalidrawTextElement;
+      expect(current.styleRanges).toEqual([
+        { start: 20, end: 25, strokeColor: "#e03131" },
+      ]);
+      expect(current.originalText).toBe("Bid request timeout 120ms");
     });
   });
 });

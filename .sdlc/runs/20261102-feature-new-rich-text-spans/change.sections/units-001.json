@@ -1,0 +1,336 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the TextStyleRange type and the optional readonly styleRanges field on ExcalidrawTextElement, both with JSDoc.",
+    "rules": [
+      "1. TextStyleRange is exported as `Readonly<{ start: number; end: number; strokeColor?: string; backgroundColor?: string }>`.",
+      "2. Its JSDoc says: start and end are UTF-16 offsets into `originalText`, half-open [start, end); a range carries at least one colour; ranges in an element are sorted, do not overlap and are merged when adjacent ranges share a style (see normalizeStyleRanges).",
+      "3. The field is `styleRanges?: readonly TextStyleRange[];`, placed after labelPosition. Its JSDoc says: colour and highlight runs that override the element's strokeColor (text colour) and add a highlight behind the text; absent (never []) when the text has no runs; replaced as a whole, never mutated in place."
+    ],
+    "exports": [
+      { "name": "TextStyleRange", "kind": "type", "params": [], "returns": "Readonly<{ start: number; end: number; strokeColor?: string; backgroundColor?: string }>" }
+    ],
+    "import_line": "import type { TextStyleRange } from \"@excalidraw/element/types\";",
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 253, "to": 253, "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &", "rule": "Insert the documented TextStyleRange type, followed by one blank line." },
+      { "id": "S2", "at": "insert_after", "from": 290, "to": 290, "first_line": "labelPosition?: number | null;", "rule": "Insert the documented `styleRanges?: readonly TextStyleRange[];` field, indented like labelPosition." }
+    ],
+    "style_from": { "path": "packages/element/src/types.ts", "lines": [253, 291], "reason": "JSDoc style of the text element's optional fields" },
+    "depends_on": [],
+    "covers": ["FR-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/textStyleRanges.ts",
+    "action": "create",
+    "phase": "codegen",
+    "behaviour": "Pure range model with no DOM or canvas: normalise, sanitise, compare, apply a style to a range, shift on text edits, and map ranges onto wrapped lines.",
+    "rules": [
+      "1. Imports: isTransparent from @excalidraw/common, and `import type { TextStyleRange } from \"./types\"`. Nothing else: no DOM, canvas or measurement.",
+      "2. Export `type TextStyleRun = { text: string; strokeColor?: string; backgroundColor?: string }`.",
+      "3. normalizeStyleRanges: return undefined when ranges is not a non-empty array. Clamp start and end into [0, textLength]. Drop entries with start >= end or with no non-empty string colour. Resolve overlaps per property, later entries in array order winning: split at every boundary, and each segment takes, for each property, the value from the last entry that covers it and defines it. Drop segments with no colour. Merge touching segments (end === next start) with equal strokeColor and backgroundColor. Return the result sorted by start, or undefined when it is empty.",
+      "4. sanitizeStyleRanges(value: unknown): return undefined when value is not an array. Keep only plain non-null, non-array objects whose start and end pass Number.isInteger and that carry at least one non-empty string strokeColor or backgroundColor. Copy only start, end and the string colour keys. Then return normalizeStyleRanges(kept, textLength).",
+      "5. areStyleRangesEqual: undefined, null and [] are all equal. Otherwise both arrays have the same length and every pair has equal start, end, strokeColor and backgroundColor.",
+      "6. applyStyleToRange: clamp start and end into [0, textLength]; if start >= end, return normalizeStyleRanges(ranges, textLength). Each key present in style is a property to set or clear. Clear strokeColor when its value is null or equals baseStrokeColor. Clear backgroundColor when its value is null or isTransparent(value). Otherwise set the value. Outside [start, end) existing ranges are unchanged. Inside it, existing ranges are split at start and end; the named properties are set or cleared, and the properties not named keep their values. Uncovered gaps inside the selection gain the set properties. Return the normalised result.",
+      "7. shiftStyleRangesForEdit: return ranges unchanged (same reference) when it is undefined or empty, or when prevText === nextText.",
+      "8. In shiftStyleRangesForEdit, derive the edit from the texts. prefix = length of the common prefix, capped at min(prev.length, next.length). When caret is a finite number, cap prefix at max(0, caret - max(0, next.length - prev.length)). suffix = length of the common suffix of the parts after prefix, capped at min(prev.length, next.length) - prefix. Then offset = prefix, deleted = prev.length - prefix - suffix, inserted = next.length - prefix - suffix.",
+      "9. Map each range through the deletion first: a position p <= offset stays p; p >= offset + deleted becomes p - deleted; anything between becomes offset. Then through the insertion: newStart = s >= offset ? s + inserted : s, and newEnd = e > offset ? e + inserted : e. So text inserted strictly inside a range grows it, and text inserted at a range's start or end is not coloured. Return normalizeStyleRanges(mapped, next.length), which drops ranges that collapse.",
+      "10. getStyleRunsForLines: split wrappedText on \\n. Keep a cursor into originalText, starting at 0. For a non-empty line, starting at the cursor, skip whitespace and \\n characters of originalText until originalText.startsWith(line, pos); test startsWith before skipping each character. The match sets lineStart = pos and moves the cursor to pos + line.length. If no match is found, the line becomes a single unstyled run and the cursor does not move.",
+      "11. getStyleRunsForLines output: one array per wrapped line. An empty line gives []. A matched line is split at the range boundaries inside [lineStart, lineStart + line.length) into runs whose text concatenates exactly to the line. A run copies the strokeColor and backgroundColor of the range covering it, and a run outside every range carries no colour keys. When ranges is undefined or empty, every non-empty line is [{ text: line }].",
+      "12. No returned object ever holds a key whose value is undefined. Inputs are never mutated."
+    ],
+    "exports": [
+      { "name": "TextStyleRun", "kind": "type", "params": [], "returns": "{ text: string; strokeColor?: string; backgroundColor?: string }" },
+      { "name": "normalizeStyleRanges", "kind": "function", "params": [ { "name": "ranges", "type": "readonly TextStyleRange[] | null | undefined" }, { "name": "textLength", "type": "number" } ], "returns": "readonly TextStyleRange[] | undefined" },
+      { "name": "sanitizeStyleRanges", "kind": "function", "params": [ { "name": "value", "type": "unknown" }, { "name": "textLength", "type": "number" } ], "returns": "readonly TextStyleRange[] | undefined" },
+      { "name": "areStyleRangesEqual", "kind": "function", "params": [ { "name": "a", "type": "readonly TextStyleRange[] | null | undefined" }, { "name": "b", "type": "readonly TextStyleRange[] | null | undefined" } ], "returns": "boolean" },
+      { "name": "applyStyleToRange", "kind": "function", "params": [ { "name": "ranges", "type": "readonly TextStyleRange[] | null | undefined" }, { "name": "start", "type": "number" }, { "name": "end", "type": "number" }, { "name": "style", "type": "{ strokeColor?: string | null; backgroundColor?: string | null }" }, { "name": "textLength", "type": "number" }, { "name": "baseStrokeColor", "type": "string | undefined" } ], "returns": "readonly TextStyleRange[] | undefined" },
+      { "name": "shiftStyleRangesForEdit", "kind": "function", "params": [ { "name": "ranges", "type": "readonly TextStyleRange[] | null | undefined" }, { "name": "prevText", "type": "string" }, { "name": "nextText", "type": "string" }, { "name": "caret", "type": "number | undefined" } ], "returns": "readonly TextStyleRange[] | undefined" },
+      { "name": "getStyleRunsForLines", "kind": "function", "params": [ { "name": "originalText", "type": "string" }, { "name": "wrappedText", "type": "string" }, { "name": "ranges", "type": "readonly TextStyleRange[] | null | undefined" } ], "returns": "TextStyleRun[][]" }
+    ],
+    "import_line": "import { applyStyleToRange, areStyleRangesEqual, getStyleRunsForLines, normalizeStyleRanges, sanitizeStyleRanges, shiftStyleRangesForEdit } from \"./textStyleRanges\";",
+    "style_from": { "path": "packages/element/src/textMeasurements.ts", "lines": [1, 110], "reason": "a small pure helper module in packages/element: import layout and arrow-function exports with JSDoc" },
+    "uses": [
+      { "path": "packages/element/src/textWrapping.ts", "lines": [392, 481], "reason": "how wrapText derives the wrapped text from the original (trimmed trailing whitespace, inserted line breaks), which getStyleRunsForLines must undo" }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-3", "FR-4", "FR-5", "FR-6", "NFR-1", "NFR-4"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Re-exports the range module from the element package barrel.",
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 101, "to": 101, "first_line": "export * from \"./textMeasurements\";", "rule": "Insert `export * from \"./textStyleRanges\";`." }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["FR-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "newTextElement accepts an optional styleRanges option and stores it normalised against originalText; when there are no valid runs the key is omitted.",
+    "rules": [
+      "1. Normalise with normalizeStyleRanges(opts.styleRanges, (opts.originalText ?? text).length).",
+      "2. Add the key to textElementProps only when the normalised value is defined, by a conditional spread after labelPosition. An element created without ranges has no styleRanges own key.",
+      "3. refreshTextDimensions is unchanged: ranges stay keyed to originalText, and renderers map them onto the re-wrapped text."
+    ],
+    "exports": [
+      { "name": "newTextElement", "kind": "function", "params": [ { "name": "opts", "type": "{ ...existing; styleRanges?: ExcalidrawTextElement[\"styleRanges\"] } & ElementConstructorOpts" } ], "returns": "NonDeleted<ExcalidrawTextElement>" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 33, "to": 33, "first_line": "import { wrapText } from \"./textWrapping\";", "rule": "Insert `import { normalizeStyleRanges } from \"./textStyleRanges\";`." },
+      { "id": "S2", "at": "insert_after", "from": 349, "to": 349, "first_line": "baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];", "rule": "Insert the option `styleRanges?: ExcalidrawTextElement[\"styleRanges\"];`." },
+      { "id": "S3", "at": "insert_before", "from": 370, "to": 370, "first_line": "const textElementProps: NonDeleted<ExcalidrawTextElement> = {", "rule": "Insert `const styleRanges = normalizeStyleRanges(...)` per rule 1, followed by one blank line." },
+      { "id": "S4", "at": "insert_after", "from": 386, "to": 386, "first_line": "labelPosition: opts.labelPosition ?? null,", "rule": "Insert `...(styleRanges ? { styleRanges } : {}),`." }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-2", "FR-7", "NFR-6"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/textElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds getTextStyleRunLayout, which positions each style run of each rendered line of a text element (x from the element's left edge, measured width), for canvas and SVG to share.",
+    "rules": [
+      "1. Return null when element.styleRanges is undefined or empty, or when isRTL(element.text). This is the only work done for a text without runs (NFR-2).",
+      "2. lines = element.text.replace(/\\r\\n?/g, \"\\n\").split(\"\\n\"), the split the renderers use. runsPerLine = getStyleRunsForLines(element.originalText, element.text, element.styleRanges). font = getFontString(element).",
+      "3. For each line: lineWidth = getLineWidth(line, font, env). lineStartX is (element.width - lineWidth) / 2 for textAlign center, element.width - lineWidth for right, and 0 otherwise.",
+      "4. For each run, with offset = the summed text length of the earlier runs on the line: x = lineStartX + getLineWidth(line.slice(0, offset), font, env), and width = getLineWidth(line.slice(0, offset + run.text.length), font, env) - getLineWidth(line.slice(0, offset), font, env).",
+      "5. The result has one array per line (an empty line gives []), and each item is the run spread with x and width."
+    ],
+    "exports": [
+      { "name": "PositionedTextStyleRun", "kind": "type", "params": [], "returns": "TextStyleRun & { x: number; width: number }" },
+      { "name": "getTextStyleRunLayout", "kind": "function", "params": [ { "name": "element", "type": "ExcalidrawTextElement" }, { "name": "env", "type": "RenderEnvironment | undefined" } ], "returns": "PositionedTextStyleRun[][] | null" }
+    ],
+    "import_line": "import { getTextStyleRunLayout } from \"@excalidraw/element\";",
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 12, "to": 12, "first_line": "invariant,", "rule": "Insert `isRTL,` into the @excalidraw/common import." },
+      { "id": "S2", "at": "replace", "from": 27, "to": 27, "first_line": "import { measureText } from \"./textMeasurements\";", "rule": "Replace with `import { getLineWidth, measureText } from \"./textMeasurements\";`." },
+      { "id": "S3", "at": "insert_after", "from": 28, "to": 28, "first_line": "import { wrapText } from \"./textWrapping\";", "rule": "Insert `import { getStyleRunsForLines } from \"./textStyleRanges\";`." },
+      { "id": "S4", "at": "insert_after", "from": 52, "to": 52, "first_line": "} from \"./types\";", "rule": "Insert `import type { TextStyleRun } from \"./textStyleRanges\";`." },
+      { "id": "S5", "at": "insert_after", "from": 632, "to": 632, "first_line": "export const DEFAULT_BOUND_TEXT_LABEL_POSITION = 0.5;", "rule": "Append one blank line, then the PositionedTextStyleRun type and the documented getTextStyleRunLayout per the rules." }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-7", "FR-9", "NFR-2"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U06",
+    "path": "packages/element/src/renderElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Canvas text drawing gains a run path: highlights first, then each run with its own fillStyle at its measured x. A text without runs keeps the existing one-fillText-per-line loop.",
+    "rules": [
+      "1. runLayout = getTextStyleRunLayout(element, getRenderEnvironment(renderConfig.renderEnvironment)); dark = renderConfig.theme === THEME.DARK.",
+      "2. When runLayout is null, run the existing for loop unchanged (same fillStyle, textAlign and arguments).",
+      "3. Otherwise set context.textAlign = \"left\". For each line index i: first, for every run with backgroundColor, set fillStyle = applyDarkModeFilter(run.backgroundColor, dark) and call fillRect(run.x, i * lineHeightPx, run.width, lineHeightPx). Then, for every run with non-empty text, set fillStyle = applyDarkModeFilter(run.strokeColor ?? element.strokeColor, dark) and call fillText(run.text, run.x, i * lineHeightPx + verticalOffset).",
+      "4. Everything else in the text branch is unchanged: RTL attach, font, withSavedContext."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 59, "to": 59, "first_line": "getBoundTextMaxWidth,", "rule": "Insert `getTextStyleRunLayout,` into the ./textElement import." },
+      { "id": "S2", "at": "replace", "from": 706, "to": 712, "first_line": "for (let index = 0; index < lines.length; index++) {", "last_line": "}", "rule": "Replace the per-line fillText loop with the run-aware branch per the rules, keeping the original loop as the null-layout path." }
+    ],
+    "uses": [
+      { "path": "packages/element/src/renderElement.ts", "lines": [660, 720], "reason": "the text branch being edited: lineHeightPx, verticalOffset and the saved context" }
+    ],
+    "depends_on": ["U05"],
+    "covers": ["FR-9", "FR-10", "FR-11", "NFR-2"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U07",
+    "path": "packages/element/src/delta.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The element delta carries styleRanges as a whole value for undo and redo. It drops the key when the contents are equal, and counts a content change as visible.",
+    "rules": [
+      "1. In ElementsDelta.postProcess, after the points handling: read styleRanges from deleted and inserted, cast as ElementPartial<ExcalidrawTextElement>. If either partial has the own key \"styleRanges\" and areStyleRangesEqual(deleted value, inserted value), Reflect.deleteProperty the key on both.",
+      "2. In checkForVisibleDifference's switch, add case \"styleRanges\": return isTextElement(before) && isTextElement(after) ? !areStyleRangesEqual(before.styleRanges, after.styleRanges) : true.",
+      "3. Applying a delta is unchanged: the generic path sets inserted.styleRanges (including undefined) through newElementWith(..., true), so undo restores the previous array or removes it."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 47, "to": 47, "first_line": "import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";", "rule": "Insert `import { areStyleRangesEqual } from \"./textStyleRanges\";`." },
+      { "id": "S2", "at": "insert_before", "from": 1881, "to": 1881, "first_line": "default:", "rule": "Insert the styleRanges case per rule 2." },
+      { "id": "S3", "at": "insert_after", "from": 2215, "to": 2215, "first_line": "}", "rule": "Insert, after the points if-block and inside the try, the styleRanges equality pruning per rule 1, with a one-line comment." }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["FR-23"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U08",
+    "path": "packages/excalidraw/actions/colorTargets.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the per-app text editor selection registry, and applyTextRangeColor, which turns a colour pick into a styleRanges update on the edited text when a non-empty editor selection is active.",
+    "rules": [
+      "1. A module-level `const textEditorSelectionGetters = new WeakMap<object, () => TextEditorSelection | null>()`.",
+      "2. registerTextEditorSelectionGetter sets the getter for app and returns an unregister function. The unregister deletes the entry only if the stored getter is still the one it registered.",
+      "3. getTextEditorSelection returns null for a missing app or getter. Otherwise it returns the getter's result with start <= end.",
+      "4. applyTextRangeColor returns null (the caller falls back to today's behaviour) when appState.editingTextElement is null, when the selection is null or collapsed (start >= end), when no non-deleted text element with the editing id is in elements, or when the selection covers the whole text (start <= 0 and end >= target.originalText.length).",
+      "5. Otherwise it computes nextRanges = applyStyleToRange(target.styleRanges, start, end, { [property]: color }, target.originalText.length, target.strokeColor).",
+      "6. If areStyleRangesEqual(target.styleRanges, nextRanges), it returns elements unchanged. Otherwise it returns elements mapped with the target replaced by newElementWith(target, { styleRanges: nextRanges }, true). Every other element and the target's own strokeColor and backgroundColor are left untouched."
+    ],
+    "exports": [
+      { "name": "TextEditorSelection", "kind": "type", "params": [], "returns": "{ start: number; end: number }" },
+      { "name": "registerTextEditorSelectionGetter", "kind": "function", "params": [ { "name": "app", "type": "object" }, { "name": "getter", "type": "() => TextEditorSelection | null" } ], "returns": "() => void" },
+      { "name": "getTextEditorSelection", "kind": "function", "params": [ { "name": "app", "type": "object | null | undefined" } ], "returns": "TextEditorSelection | null" },
+      { "name": "applyTextRangeColor", "kind": "function", "params": [ { "name": "elements", "type": "readonly T[] (T extends ExcalidrawElement)" }, { "name": "appState", "type": "Pick<AppState, \"editingTextElement\">" }, { "name": "app", "type": "object | null | undefined" }, { "name": "property", "type": "ColorProperty" }, { "name": "color", "type": "string" } ], "returns": "readonly T[] | null" }
+    ],
+    "import_line": "import { applyTextRangeColor, getTextEditorSelection, registerTextEditorSelectionGetter } from \"../actions/colorTargets\";",
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 13, "to": 13, "first_line": "getColorTargetElement,", "rule": "Insert `applyStyleToRange,` and `areStyleRangesEqual,` into the @excalidraw/element import." },
+      { "id": "S2", "at": "insert_after", "from": 18, "to": 18, "first_line": "isTextElement,", "rule": "Insert `newElementWith,` into the same import." },
+      { "id": "S3", "at": "insert_after", "from": 192, "to": 192, "first_line": "};", "rule": "Append one blank line, then the documented TextEditorSelection type, the registry, registerTextEditorSelectionGetter, getTextEditorSelection and applyTextRangeColor per the rules." }
+    ],
+    "depends_on": ["U01", "U02", "U03"],
+    "covers": ["FR-4", "FR-16", "FR-17", "FR-18"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U09",
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "changeStrokeColor and changeBackgroundColor apply a pick to the selected text range while the editor has a non-empty selection, and behave exactly as today otherwise.",
+    "rules": [
+      "1. actionChangeStrokeColor.perform takes the fourth argument app.",
+      "2. In both performs, right after the `color === undefined` early return: const rangeElements = applyTextRangeColor(elements, appState, app, \"strokeColor\" or \"backgroundColor\", color).",
+      "3. When rangeElements is non-null, return { elements: rangeElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }. This skips resolveColorTarget, getColorTargetAppStateUpdates, syncStickyNoteInk and the polygon and container paths.",
+      "4. When it is null, the existing code runs unchanged. A whole-element pick leaves styleRanges untouched (runs are explicit overrides)."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 175, "to": 178, "first_line": "import {", "last_line": "} from \"./colorTargets\";", "rule": "Import applyTextRangeColor alongside getColorTargetAppStateUpdates and resolveColorTarget from ./colorTargets." },
+      { "id": "S2", "at": "replace", "from": 372, "to": 372, "first_line": "perform: (elements, appState, value) => {", "rule": "Replace with `perform: (elements, appState, value, app) => {`." },
+      { "id": "S3", "at": "insert_after", "from": 379, "to": 379, "first_line": "}", "rule": "Insert the stroke-colour range branch per rules 2-3." },
+      { "id": "S4", "at": "insert_after", "from": 458, "to": 458, "first_line": "}", "rule": "Insert the background-colour range branch per rules 2-3." }
+    ],
+    "depends_on": ["U08"],
+    "covers": ["FR-17", "FR-18", "FR-19"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U10",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The text editor publishes its live textarea selection, as offsets into originalText, for the colour actions, and withdraws it on cleanup. The textarea keeps showing plain text.",
+    "rules": [
+      "1. Right after editable.value is set, register `() => ({ start: editable.selectionStart, end: editable.selectionEnd })` for app and keep the returned unregister function in a const.",
+      "2. cleanup calls that unregister function next to the other unbind calls.",
+      "3. Nothing else changes: blur and refocus handling already keep the editor open and the textarea selection intact while a picker is used."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 74, "to": 74, "first_line": "} from \"../actions/actionCanvas\";", "rule": "Insert `import { registerTextEditorSelectionGetter } from \"../actions/colorTargets\";`." },
+      { "id": "S2", "at": "insert_after", "from": 569, "to": 569, "first_line": "editable.value = element.originalText;", "rule": "Insert the registration per rule 1, with a one-line comment that the colour actions read it." },
+      { "id": "S3", "at": "insert_after", "from": 1111, "to": 1111, "first_line": "unbindOnScroll();", "rule": "Insert the call to the unregister function." }
+    ],
+    "depends_on": ["U08"],
+    "covers": ["FR-16", "FR-21"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/components/App.text.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Every committed editor update shifts the text element's styleRanges for the edit, in the same newElementWith call that writes the new originalText.",
+    "rules": [
+      "1. In handleTextWysiwyg's updateElement, in the newElementWith call for the text element, add `...(_element.styleRanges ? { styleRanges: shiftStyleRangesForEdit(_element.styleRanges, _element.originalText, nextOriginalText, getTextEditorSelection(this.app)?.end) } : {})`.",
+      "2. An element without ranges never gains a styleRanges key."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 42, "to": 42, "first_line": "refreshTextDimensions,", "rule": "Insert `shiftStyleRangesForEdit,` into the @excalidraw/element import." },
+      { "id": "S2", "at": "insert_after", "from": 55, "to": 55, "first_line": "import { actionTextAutoResize } from \"../actions/actionTextAutoResize\";", "rule": "Insert `import { getTextEditorSelection } from \"../actions/colorTargets\";`." },
+      { "id": "S3", "at": "insert_after", "from": 225, "to": 225, "first_line": "isDeleted: isDeleted ?? _element.isDeleted,", "rule": "Insert the conditional styleRanges spread per rule 1, with a one-line comment." }
+    ],
+    "depends_on": ["U03", "U08"],
+    "covers": ["FR-20"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "SVG export of a text with runs puts one <tspan> per run, with its own fill, inside each line's <text>, and a highlight <rect> behind runs with a background. A text without runs exports exactly as today.",
+    "rules": [
+      "1. Before the loop: runLayout = getTextStyleRunLayout(element, renderConfig.renderEnvironment); dark = renderConfig.theme === THEME.DARK.",
+      "2. For each line i, when runLayout is non-null, first append to node, for each run with backgroundColor, a SVG_NS \"rect\" with x = run.x, y = i * lineHeightPx, width = run.width, height = lineHeightPx and fill = applyDarkModeFilter(run.backgroundColor, dark).",
+      "3. Then create the <text> with exactly the existing attributes (x, y, font-family, font-size, fill of the element's filtered strokeColor, text-anchor, style, direction, dominant-baseline).",
+      "4. Its content is text.textContent = lines[i] when runLayout is null. Otherwise it is one SVG_NS \"tspan\" per run with non-empty text, with tspan.textContent = run.text and fill = applyDarkModeFilter(run.strokeColor ?? element.strokeColor, dark).",
+      "5. Values are set only through setAttribute and textContent, never through markup strings."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 28, "to": 28, "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";", "rule": "Insert `import { getTextStyleRunLayout } from \"@excalidraw/element\";`." },
+      { "id": "S2", "at": "replace", "from": 815, "to": 834, "first_line": "for (let i = 0; i < lines.length; i++) {", "last_line": "}", "rule": "Replace the per-line <text> loop with the run-aware loop per the rules." }
+    ],
+    "depends_on": ["U03", "U05"],
+    "covers": ["FR-12", "FR-13", "FR-14", "FR-15"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/data/restore.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Restoring a text element sanitises styleRanges against its originalText. A legacy element, or one with no valid range left, comes back with no styleRanges key.",
+    "rules": [
+      "1. Pass `styleRanges: sanitizeStyleRanges(element.styleRanges, (element.originalText || text).length)` in the extra object of the text case's restoreElementWithProperties call.",
+      "2. Right after that call, when element.styleRanges === undefined, run `delete (element as Mutable<ExcalidrawTextElement>).styleRanges` so no undefined-valued key survives."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 81, "to": 81, "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";", "rule": "Insert `import { sanitizeStyleRanges } from \"@excalidraw/element\";`." },
+      { "id": "S2", "at": "insert_after", "from": 594, "to": 594, "first_line": ": null,", "rule": "Insert the styleRanges property per rule 1, with a one-line comment." },
+      { "id": "S3", "at": "insert_after", "from": 595, "to": 595, "first_line": "});", "rule": "Insert the undefined-key deletion per rule 2." }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-22", "NFR-5", "NFR-6"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U14",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Adds an Unreleased entry for coloured and highlighted text ranges and the new optional styleRanges element field.",
+    "rules": [
+      "1. Heading: `### Coloured and highlighted text ranges (2026-11-02)`.",
+      "2. Bullet 1: text elements gain an optional `styleRanges` field, `{ start, end, strokeColor?, backgroundColor? }[]`, with half-open UTF-16 offsets into `originalText`. The field is absent when a text has no runs, and older builds ignore it.",
+      "3. Bullet 2: while editing a text, a stroke or background pick with a non-empty selection colours or highlights only that range; with no selection the pickers behave as before. Ranges follow typing, wrapping, font changes, undo/redo and collaboration.",
+      "4. Bullet 3: ranges render on canvas and in SVG export (one `<tspan>` per run, a highlight `<rect>`), dark-mode filtered. Right-to-left text keeps its ranges but renders in the element's single colour."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 14, "to": 14, "first_line": "## Unreleased", "rule": "Insert a blank line, then the heading and the three bullets, in the style of the sibling entries (no trailing blank line is needed, since line 15 is already blank)." }
+    ],
+    "style_from": { "path": "packages/excalidraw/CHANGELOG.md", "lines": [43, 49], "reason": "Unreleased entry format" },
+    "depends_on": [],
+    "covers": ["FR-25"],
+    "checks": ["prettier"]
+  },
+  {
+    "id": "U15",
+    "path": ".gitignore",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Ignores the pipeline's .sdlc/ working folder.",
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 29, "to": 29, "first_line": ".claude", "rule": "Insert the line `.sdlc/`." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-26"]
+  }
+]

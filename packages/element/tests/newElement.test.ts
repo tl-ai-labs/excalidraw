@@ -2,8 +2,13 @@ import * as common from "@excalidraw/common";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 
-import { newElement, newLinearElement } from "../src/newElement";
+import {
+  newElement,
+  newLinearElement,
+  newTextElement,
+} from "../src/newElement";
 import { mutateElement, newElementWith } from "../src/mutateElement";
+import { duplicateElement } from "../src/duplicate";
 
 describe("element creation time", () => {
   afterEach(() => {
@@ -49,4 +54,49 @@ describe("element creation time", () => {
       expect(converted).toMatchObject({ id: original.id, created });
     },
   );
+});
+
+describe("text style ranges", () => {
+  it("normalises styleRanges against originalText", () => {
+    const element = newTextElement({
+      x: 0,
+      y: 0,
+      text: "hello",
+      styleRanges: [
+        { start: 3, end: 99, strokeColor: "#f00" },
+        { start: 0, end: 0, strokeColor: "#0f0" },
+      ],
+    });
+    expect(element.styleRanges).toEqual([
+      { start: 3, end: 5, strokeColor: "#f00" },
+    ]);
+  });
+
+  it("omits styleRanges without runs", () => {
+    const withoutRanges = newTextElement({
+      x: 0,
+      y: 0,
+      text: "hello",
+    });
+    const emptyRanges = newTextElement({
+      x: 0,
+      y: 0,
+      text: "hello",
+      styleRanges: [],
+    });
+    expect("styleRanges" in withoutRanges).toBe(false);
+    expect("styleRanges" in emptyRanges).toBe(false);
+  });
+
+  it("duplicates do not share the styleRanges array", () => {
+    const original = newTextElement({
+      x: 0,
+      y: 0,
+      text: "hello",
+      styleRanges: [{ start: 0, end: 2, strokeColor: "#f00" }],
+    });
+    const copy = duplicateElement(null, new Map(), original);
+    expect(copy.styleRanges).toEqual(original.styleRanges);
+    expect(copy.styleRanges).not.toBe(original.styleRanges);
+  });
 });

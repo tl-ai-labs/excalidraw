@@ -72,6 +72,7 @@ import {
   actionZoomIn,
   actionZoomOut,
 } from "../actions/actionCanvas";
+import { registerTextEditorSelectionGetter } from "../actions/colorTargets";
 
 import type { ParsedDataTranferList } from "../clipboard";
 
@@ -567,6 +568,14 @@ export const textWysiwyg = ({
     boxSizing: "content-box",
   });
   editable.value = element.originalText;
+  // Expose the textarea selection for colour actions to read
+  const unregisterSelectionGetter = registerTextEditorSelectionGetter(
+    app,
+    () => ({
+      start: editable.selectionStart,
+      end: editable.selectionEnd,
+    }),
+  );
   updateWysiwygStyle();
 
   const getCaretIndexFromInitialSceneCoords = () => {
@@ -1109,6 +1118,7 @@ export const textWysiwyg = ({
     unbindUpdate();
     unsubOnChange();
     unbindOnScroll();
+    unregisterSelectionGetter();
     editorBox?.removeEventListener("scroll", onEditorBoxScroll);
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
