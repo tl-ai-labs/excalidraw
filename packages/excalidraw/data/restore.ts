@@ -34,6 +34,7 @@ import {
   type StrokeWidthKey,
   isTransparent,
   DEFAULT_ZOOM,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 import {
   calculateFixedPointForNonElbowArrowBinding,
@@ -43,6 +44,17 @@ import {
   isValidPolygon,
   projectFixedPointOntoDiagonal,
   isNonDeletedElement,
+  assignPageIndices,
+  getDefaultPage,
+  getElementPageId,
+  getLivePages,
+  getNextPageName,
+  groupElementsByPage,
+  getPageViewport,
+  hasPagedElements,
+  isValidPageIndex,
+  normalizePageName,
+  sortPages,
 } from "@excalidraw/element";
 import { normalizeFixedPoint } from "@excalidraw/element";
 import {
@@ -93,6 +105,8 @@ import type {
   ExcalidrawBindableElement,
   ExcalidrawElbowArrowElement,
   ExcalidrawElement,
+  ExcalidrawPage,
+  PageViewport,
   ExcalidrawLinearElement,
   ExcalidrawSelectionElement,
   ExcalidrawTextElement,
@@ -448,8 +462,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -534,6 +549,14 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+  // default-page elements never carry the field
+  if (
+    typeof ret.pageId !== "string" ||
+    !ret.pageId ||
+    ret.pageId === DEFAULT_PAGE_ID
+  ) {
+    delete ret.pageId;
+  }
 
   return ret;
 };
@@ -957,20 +980,136 @@ const restoreStickyNotes = (
   }
 };
 
-export const restoreElements = <T extends ExcalidrawElement>(
+export const restorePages = (pages: unknown): ExcalidrawPage[] => {
+  if (!Array.isArray(pages) || !pages.length) {
+    return [getDefaultPage()];
+  }
+
+  const seen = new Set<string>();
+  const accepted: ExcalidrawPage[] = [];
+
+  for (const entry of pages) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const page = entry as Record<string, unknown>;
+    if (typeof page.id !== "string" || !page.id || seen.has(page.id)) {
+      continue;
+    }
+    seen.add(page.id);
+    accepted.push({
+      id: page.id,
+      name: normalizePageName(
+        typeof page.name === "string" ? page.name : "",
+        getNextPageName(accepted),
+      ),
+      index: page.index as ExcalidrawPage["index"],
+      version:
+        isFiniteNumber(page.version) && page.version >= 1 ? page.version : 1,
+      versionNonce: isFiniteNumber(page.versionNonce) ? page.versionNonce : 0,
+      isDeleted: !!page.isDeleted,
+      updated: isFiniteNumber(page.updated) ? page.updated : 0,
+    });
+  }
+
+  const indices = accepted.map((page) => page.index);
+  const canKeepIndices =
+    indices.every((index) => isValidPageIndex(index)) &&
+    new Set(indices).size === indices.length;
+
+  const restored = canKeepIndices
+    ? sortPages(accepted)
+    : assignPageIndices(accepted);
+
+  return getLivePages(restored).length ? restored : [getDefaultPage()];
+};
+
+export const restoreActivePageId = (
+  activePageId: unknown,
+  pages: readonly ExcalidrawPage[],
+): string => {
+  const livePages = getLivePages(pages);
+  if (
+    typeof activePageId === "string" &&
+    livePages.some((page) => page.id === activePageId)
+  ) {
+    return activePageId;
+  }
+  return livePages[0]?.id ?? DEFAULT_PAGE_ID;
+};
+
+export const restorePageViewports = (
+  viewports: unknown,
+  pages: readonly ExcalidrawPage[],
+): Record<string, PageViewport> => {
+  const restored: Record<string, PageViewport> = {};
+  if (!viewports || typeof viewports !== "object") {
+    return restored;
+  }
+  const pageIds = new Set(pages.map((page) => page.id));
+  for (const [pageId, value] of Object.entries(viewports)) {
+    if (!pageIds.has(pageId) || !value || typeof value !== "object") {
+      continue;
+    }
+    const { scrollX, scrollY, zoom } = value as Record<string, unknown>;
+    if (
+      isFiniteNumber(scrollX) &&
+      isFiniteNumber(scrollY) &&
+      isFiniteNumber(zoom)
+    ) {
+      Object.defineProperty(restored, pageId, {
+        value: {
+          scrollX,
+          scrollY,
+          zoom: getNormalizedZoom(zoom),
+        },
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+    }
+  }
+  return restored;
+};
+
+export const restoreElementPages = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+  pages: readonly ExcalidrawPage[],
+): readonly T[] => {
+  const pageIds = new Set(pages.map((page) => page.id));
+  if (elements.every((element) => pageIds.has(getElementPageId(element)))) {
+    return elements;
+  }
+  const firstLive = getLivePages(pages)[0];
+  if (!firstLive) {
+    return elements;
+  }
+  return elements.map((element) => {
+    if (pageIds.has(getElementPageId(element))) {
+      return element;
+    }
+    if (firstLive.id === DEFAULT_PAGE_ID) {
+      const { pageId, ...rest } = element;
+      return rest as T;
+    }
+    return { ...element, pageId: firstLive.id };
+  });
+};
+
+const restorePageElements = <T extends ExcalidrawElement>(
   targetElements: readonly T[] | undefined | null,
   /** used for additional context (e.g. repairing arrow bindings) */
   existingElements: Readonly<ElementsMapOrArray> | null | undefined,
-  opts?:
+  opts:
     | {
         refreshDimensions?: boolean;
         repairBindings?: boolean;
         deleteInvisibleElements?: boolean;
       }
     | undefined,
+  /** used to detect duplicate top-level element ids */
+  existingIds: Set<string>,
 ): CombineBrandsIfNeeded<T, OrderedExcalidrawElement> => {
-  // used to detect duplicate top-level element ids
-  const existingIds = new Set<string>();
   const targetElementsMap = arrayToMap(targetElements || []);
   const existingElementsMap = existingElements
     ? arrayToMap(existingElements)
@@ -1149,6 +1288,34 @@ export const restoreElements = <T extends ExcalidrawElement>(
 
     return element;
   }) as CombineBrandsIfNeeded<T, OrderedExcalidrawElement>;
+};
+
+export const restoreElements = <T extends ExcalidrawElement>(
+  targetElements: readonly T[] | undefined | null,
+  /** used for additional context (e.g. repairing arrow bindings) */
+  existingElements: Readonly<ElementsMapOrArray> | null | undefined,
+  opts?:
+    | {
+        refreshDimensions?: boolean;
+        repairBindings?: boolean;
+        deleteInvisibleElements?: boolean;
+        pages?: readonly ExcalidrawPage[];
+      }
+    | undefined,
+): CombineBrandsIfNeeded<T, OrderedExcalidrawElement> => {
+  const elements =
+    opts?.pages && targetElements
+      ? restoreElementPages(targetElements, opts.pages)
+      : targetElements;
+  const existingIds = new Set<string>();
+
+  if (!elements || !hasPagedElements(elements)) {
+    return restorePageElements(elements, existingElements, opts, existingIds);
+  }
+
+  return [...groupElementsByPage(elements).values()].flatMap((group) =>
+    restorePageElements(group, existingElements, opts, existingIds),
+  ) as CombineBrandsIfNeeded<T, OrderedExcalidrawElement>;
 };
 
 /**
@@ -1338,8 +1505,23 @@ export const restoreAppState = (
       defaultAppState.currentItemStrokeWidthKey;
   }
 
+  // page keys come from the supplied data only, never from localAppState
+  const pages = restorePages(appState.pages);
+  const activePageId = restoreActivePageId(appState.activePageId, pages);
+  const pageViewports = restorePageViewports(appState.pageViewports, pages);
+  const viewport =
+    appState.scrollX === undefined
+      ? getPageViewport(pageViewports, activePageId)
+      : undefined;
+
   return {
     ...nextAppState,
+    pages,
+    activePageId,
+    pageViewports,
+    ...(viewport
+      ? { scrollX: viewport.scrollX, scrollY: viewport.scrollY }
+      : {}),
     cursorButton: localAppState?.cursorButton || "up",
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:
@@ -1361,7 +1543,9 @@ export const restoreAppState = (
       value: getNormalizedZoom(
         isFiniteNumber(appState.zoom)
           ? appState.zoom
-          : appState.zoom?.value ?? defaultAppState.zoom.value,
+          : appState.zoom?.value ??
+              viewport?.zoom ??
+              defaultAppState.zoom.value,
       ),
     },
     openSidebar:

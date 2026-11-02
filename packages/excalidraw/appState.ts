@@ -13,7 +13,10 @@ import {
   DEFAULT_GRID_STEP,
   isTestEnv,
   DEFAULT_STICKY_NOTE_BG,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
+
+import { getDefaultPage } from "@excalidraw/element";
 
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
 
@@ -149,6 +152,9 @@ export const getDefaultAppState = (): Omit<
       stickyNoteBackground: null,
     },
     fontTopPicks: null,
+    pages: [getDefaultPage()],
+    activePageId: DEFAULT_PAGE_ID,
+    pageViewports: {},
   };
 };
 
@@ -294,6 +300,9 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: false },
+  pageViewports: { browser: true, export: true, server: false },
 });
 
 const _clearAppStateForStorage = <

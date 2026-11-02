@@ -535,6 +535,10 @@ export const DEFAULT_ELEMENT_PROPS: {
 };
 
 export const LIBRARY_SIDEBAR_TAB = "library";
+// an element with no pageId is on DEFAULT_PAGE_ID
+export const DEFAULT_PAGE_ID = "default";
+export const PAGE_NAME_PREFIX = "Page";
+export const MAX_PAGE_NAME_LENGTH = 100;
 export const CANVAS_SEARCH_TAB = "search";
 
 export const DEFAULT_SIDEBAR = {

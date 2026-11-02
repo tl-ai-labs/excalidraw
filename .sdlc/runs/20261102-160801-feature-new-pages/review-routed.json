@@ -1,0 +1,101 @@
+{
+  "module": "pages",
+  "verdict": "needs_changes",
+  "tool_calls": 20,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/pagesExport.test.tsx",
+      "line": 123,
+      "issue": "yarn test:typecheck fails with TS2353: the options argument of exportCanvas passes viewBackgroundColor, which is not in its options type (exportPadding, name, fileHandle, exportingFrame, renderEnvironment). The background comes from appState.",
+      "fix": "Remove `viewBackgroundColor: \"#ffffff\"` from the options object at line 123. No assertion changes."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/components/SearchMenu.tsx",
+      "line": 266,
+      "issue": "With a focused search match, the user cannot leave that match's page (FR-7). Clicking another tab changes the scene nonce and elementsMap, so handleSearch re-runs and sets a new searchMatches. focusIndex is not reset, so the effect with deps [focusIndex, searchMatches, app] fires again, sees match.pageId !== activePageId, and queues setActivePage back to the match's page. A collaborator's follow-switch hits the same path. pagesSearch.test.tsx only covers the first activation. Confidence: high, from reading the effects; not reproduced.",
+      "fix": "Switch pages only when the user activates a match: keep a ref of the last activated focusIndex/element id, and when the effect re-fires for a new searchMatches alone and the match is on another page, skip both setActivePage and focusMatch. Add a test: activate a match on page 2, click the page 1 tab, wait for the re-search, expect activePageId stays page 1."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/components/PageTabs.tsx",
+      "line": 286,
+      "issue": "The tab menu opens in the wrong place. `.page-tabs__tab` and `.page-tabs__list` are not positioned, so trigger.offsetParent is the `.page-tabs` root, and its offsetLeft is about 50% of the editor width (left: 50%; the transform is not counted). The menu is absolutely positioned inside that root, so it lands near the right edge of the editor, away from its tab, and is clipped when half the bar is narrower than the menu, for example with one tab. Horizontal scroll of the list is also ignored. jsdom reports 0, so no test can see it.",
+      "fix": "Compute left as `trigger.getBoundingClientRect().left - root.getBoundingClientRect().left`, with root from `event.currentTarget.closest(\".page-tabs\")` or a ref on the root div, and clamp it so the menu stays inside the bar."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/components/PageTabs.scss",
+      "line": 29,
+      "issue": "Long page names break the tab. `.page-tabs__tab` sets overflow hidden and ellipsis, but its text is inside a flex child button with no styles and the default min-width: auto. The button keeps its full nowrap width, so no ellipsis shows (U23 rule 2) and the following options button is pushed past the 10rem limit and clipped. A long-named page then loses its menu, the only UI path to delete and to the move items. `.page-tabs__tab-button`, `.page-tabs__tab-menu-button`, `.page-tabs__add` and `.page-tabs__rename` have no rules at all.",
+      "fix": "Add `&__tab-button { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }` and `&__tab-menu-button { flex: 0 0 auto; }`. Give the other unstyled controls the island look."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/components/PageTabs.tsx",
+      "line": 116,
+      "issue": "Space and Enter on the tab bar reach the canvas keyboard handler, against NFR-5 and U24 rule 5. onTabKeyDown leaves them unhandled and App.onKeyDown does not bail for buttons. For Space (App.tsx:5605) it calls setSpaceHeld and preventDefault on keydown, which stops a focused button's Space click in browsers, so Space does not activate a tab, the add button or the menu items. Enter on the active tab with an element selected also runs the canvas Enter action (App.tsx:5559). jsdom's fireEvent.click cannot show this. Confidence: high for the handler path; browser click behaviour not run here.",
+      "fix": "Add an onKeyDown on the `.page-tabs` root that calls stopPropagation, without preventDefault, for \" \" and Enter, so the button's own activation runs. Add a test that a Space keydown on a tab is not defaultPrevented."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/PageTabs.tsx",
+      "line": 281,
+      "issue": "The trigger's toggle branch never runs. useOutsideClick fires on pointerdown, closes the menu and clears menuPageId before the click, so clicking the options button of an open menu closes then reopens it. The trigger cannot close its own menu.",
+      "fix": "Pass useOutsideClick an isInside callback that returns true when the target is inside the open menu's trigger, so only the click handler toggles."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/SearchMenu.tsx",
+      "line": 563,
+      "issue": "The MatchList memo's areEqual compares only matches.nonce and focusIndex, so the new showPageNames prop and the rename-sensitive pageName are ignored. Renaming a page or creating one with activate:false does not change the scene nonce, so open results keep the old name or miss the page label until the next search.",
+      "fix": "Compare showPageNames in areEqual, and resolve pageName at render from the current app.state.pages, or re-run the search when the page list changes."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/pages.ts",
+      "line": 321,
+      "issue": "reconcilePages compares result and localPages by position, but result is sorted and movePage keeps array order. After any reorder an unchanged merge returns a new array, against U03 rule 17, so every remote update does a needless flushSync setState in applyPages.",
+      "fix": "Compare by membership: same length and every result record is the same reference as the local record with that id."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/App.pages.ts",
+      "line": 274,
+      "issue": "applyPages commits any list a host passes. `updateScene({ pages: [] })` or an all-tombstone list leaves the drawing with no live page: empty tab bar, and activePageId naming no page. Collab is safe because reconcilePages revives a page; the host path is not.",
+      "fix": "Return early when the list has no live page, or normalize host input with restorePages before it reaches applyPages."
+    },
+    {
+      "severity": "minor",
+      "file": "excalidraw-app/data/firebase.ts",
+      "line": 173,
+      "issue": "isSavedToFirebase sums every page in appState.pages, but the cache is set from the stored list, which getSyncablePages filtered. Once a local tombstone outlives DELETED_ELEMENT_TIMEOUT the versions never match, so each save runs a transaction and leaving the page always warns about unsaved work.",
+      "fix": "Compare against getPagesVersion(getSyncablePages(pages))."
+    },
+    {
+      "severity": "minor",
+      "file": "excalidraw-app/data/firebase.ts",
+      "line": 126,
+      "issue": "DRY: encryptPages and decryptPages repeat encryptElements and decryptElements except for the parsed type.",
+      "fix": "Extract shared encryptJSON and decryptJSON helpers and call them from both pairs."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/data/restore.ts",
+      "line": 1019,
+      "issue": "DRY: restorePages re-implements the private comparePages comparator from packages/element/src/pages.ts as a nested ternary.",
+      "fix": "Export a sort helper from pages.ts, for example `sortPages`, and use it here and in getLivePages."
+    }
+  ],
+  "refinement_packets": [],
+  "passing_checks": [
+    "Sensitive files: the only JSON file touched is en.json (additive), and no manifest, .env, CLAUDE.md or settings file is touched. Provenance lists 47 paths and the plan has 47 units; counts compared, not path by path.",
+    "Snapshots U40-U42: every added line is a pages, activePageId or pageViewports entry, with no removals (NFR-9).",
+    "Env fixtures: not applicable, the stack has no validating config module.",
+    "Authz: not applicable, no server routes; view-mode gating of edit controls follows U24.",
+    "Page data privacy: page names stay inside the encrypted payload and Firestore fields; activePageId and pageViewports are server:false; tombstones are stripped from files and share links.",
+    "Layering, Scene paging, per-page history, page-key write protection and delete-wins match the plan.",
+    "Docs and CHANGELOG match the shipped API."
+  ]
+}

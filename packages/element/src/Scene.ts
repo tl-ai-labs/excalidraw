@@ -7,6 +7,7 @@ import {
   isDevEnv,
   isTestEnv,
   toArray,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
@@ -21,6 +22,7 @@ import {
 import { getSelectedElements } from "@excalidraw/element";
 
 import { mutateElement, type ElementUpdate } from "@excalidraw/element";
+import { adoptElementsIntoPage } from "@excalidraw/element";
 
 import type {
   ExcalidrawElement,
@@ -123,6 +125,13 @@ export class Scene {
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
+  private paged = false;
+  private activePageId: string = DEFAULT_PAGE_ID;
+  private elementsByPage = new Map<
+    string,
+    readonly OrderedExcalidrawElement[]
+  >();
+  private allElements: readonly OrderedExcalidrawElement[] | null = null;
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
     elements: readonly NonDeletedExcalidrawElement[] | null;
@@ -164,12 +173,45 @@ export class Scene {
     return this.frames;
   }
 
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  hasOtherPages() {
+    return this.elementsByPage.size > 1;
+  }
+
+  getAllElementsIncludingDeleted(): readonly OrderedExcalidrawElement[] {
+    if (this.elementsByPage.size <= 1) {
+      return this.elements;
+    }
+    if (!this.allElements) {
+      const all: OrderedExcalidrawElement[] = [];
+      for (const pageElements of this.elementsByPage.values()) {
+        for (const element of pageElements) {
+          all.push(element);
+        }
+      }
+      this.allElements = all;
+    }
+    return this.allElements;
+  }
+
+  getPageElements(pageId: string): readonly OrderedExcalidrawElement[] {
+    if (!this.paged) {
+      return this.elements;
+    }
+    return this.elementsByPage.get(pageId) ?? [];
+  }
+
   constructor(
     elements: ElementsMapOrArray | null = null,
     options?: {
       skipValidation?: true;
+      paged?: true;
     },
   ) {
+    this.paged = !!options?.paged;
     if (elements) {
       this.replaceAllElements(elements, options);
     }
@@ -276,6 +318,9 @@ export class Scene {
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
     const _nextElements = toArray(nextElements);
+    if (this.paged) {
+      adoptElementsIntoPage(_nextElements, this.activePageId);
+    }
     const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
 
     if (!options?.skipValidation) {
@@ -283,6 +328,10 @@ export class Scene {
     }
 
     this.elements = syncInvalidIndices(_nextElements);
+    if (this.paged) {
+      this.elementsByPage.set(this.activePageId, this.elements);
+      this.allElements = null;
+    }
     this.elementsMap.clear();
     this.elements.forEach((element) => {
       if (isFrameLikeElement(element)) {
@@ -298,6 +347,44 @@ export class Scene {
     this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
 
     this.triggerUpdate();
+  }
+
+  setActivePage(pageId: string) {
+    if (pageId === this.activePageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.replaceAllElements(this.elementsByPage.get(pageId) ?? [], {
+      skipValidation: true,
+    });
+  }
+
+  replaceElementsByPage(
+    groups: ReadonlyMap<string, readonly ExcalidrawElement[]>,
+    opts?: { replaceAll?: boolean; activePageId?: string },
+  ) {
+    if (opts?.activePageId) {
+      this.activePageId = opts.activePageId;
+    }
+    if (opts?.replaceAll) {
+      this.elementsByPage.clear();
+    }
+    this.allElements = null;
+    for (const [pageId, group] of groups) {
+      if (pageId === this.activePageId) {
+        continue;
+      }
+      this.elementsByPage.set(
+        pageId,
+        syncInvalidIndices(adoptElementsIntoPage(group, pageId)),
+      );
+    }
+    const activeGroup = groups.get(this.activePageId);
+    if (activeGroup || opts?.replaceAll) {
+      this.replaceAllElements(activeGroup ?? []);
+    } else {
+      this.triggerUpdate();
+    }
   }
 
   triggerUpdate() {
@@ -329,6 +416,8 @@ export class Scene {
     this.nonDeletedFramesLikes = [];
     this.frames = [];
     this.elementsMap.clear();
+    this.elementsByPage.clear();
+    this.allElements = null;
     this.selectedElementsCache.selectedElementIds = null;
     this.selectedElementsCache.elements = null;
     this.selectedElementsCache.cache.clear();

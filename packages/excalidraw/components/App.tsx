@@ -92,6 +92,7 @@ import {
   isSelectionLikeTool,
   oneOf,
   getStrokeWidthByKey,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import {
@@ -207,6 +208,7 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  getActivePageElements,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -388,6 +390,7 @@ import { AppDrawShape } from "./App.drawshape";
 import { AppDuplicate } from "./App.duplicate";
 import { AppFlowchart } from "./App.flowchart";
 import { AppModifiers } from "./App.modifiers";
+import { AppPages, omitPageState } from "./App.pages";
 import { AppPan } from "./App.pan";
 import { AppViewport, RIGHT_SIDEBAR_WIDTH } from "./App.viewport";
 import { AppWheel } from "./App.wheel";
@@ -701,6 +704,10 @@ class App extends React.Component<AppProps, AppState> {
   public selection: AppSelection = new AppSelection(this);
   public selectionTool: AppSelectionTool = new AppSelectionTool(this);
   public wrap: AppWrap = new AppWrap(this);
+  public pages: AppPages = new AppPages(this, {
+    getHistory: () => this.history,
+    addNewImagesToImageCache: () => this.addNewImagesToImageCache(),
+  });
 
   bindModeHandler: ReturnType<typeof setTimeout> | null = null;
 
@@ -798,6 +805,15 @@ class App extends React.Component<AppProps, AppState> {
       getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
       getSceneElementsMapIncludingDeleted:
         this.getSceneElementsMapIncludingDeleted,
+      getAllPagesElementsIncludingDeleted:
+        this.getAllPagesElementsIncludingDeleted,
+      getPages: this.pages.getPages,
+      getActivePageId: this.pages.getActivePageId,
+      setActivePage: this.pages.setActivePage,
+      createPage: this.pages.createPage,
+      renamePage: this.pages.renamePage,
+      movePage: this.pages.movePage,
+      deletePage: this.pages.deletePage,
       history: {
         clear: this.resetHistory,
       },
@@ -891,7 +907,7 @@ class App extends React.Component<AppProps, AppState> {
       () => this.scene.getElementsIncludingDeleted(),
       this,
     );
-    this.scene = new Scene();
+    this.scene = new Scene(null, { paged: true });
 
     this.canvas = this.ownerDocument.createElement("canvas");
     this.rc = rough.canvas(this.canvas);
@@ -2766,6 +2782,10 @@ class App extends React.Component<AppProps, AppState> {
     return this.scene.getElementsMapIncludingDeleted();
   };
 
+  public getAllPagesElementsIncludingDeleted = () => {
+    return this.scene.getAllElementsIncludingDeleted();
+  };
+
   public getSceneElements = () => {
     return this.scene.getNonDeletedElements();
   };
@@ -3137,7 +3157,19 @@ class App extends React.Component<AppProps, AppState> {
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      if (
+        actionResult.replaceDrawing &&
+        actionResult.appState?.pages &&
+        actionResult.appState.activePageId
+      ) {
+        this.pages.replaceDrawing(actionResult.elements, {
+          ...actionResult.appState,
+          pages: actionResult.appState.pages,
+          activePageId: actionResult.appState.activePageId,
+        });
+      } else {
+        this.scene.replaceAllElements(actionResult.elements);
+      }
       didUpdate = true;
     }
 
@@ -3190,6 +3222,14 @@ class App extends React.Component<AppProps, AppState> {
         return {
           ...prevAppState,
           ...actionAppState,
+          // only AppPages and a drawing replacement change these
+          ...(actionResult.replaceDrawing
+            ? {}
+            : {
+                pages: prevAppState.pages,
+                activePageId: prevAppState.activePageId,
+                pageViewports: prevAppState.pageViewports,
+              }),
           // NOTE this will prevent opening context menu using an action
           // or programmatically from the host, so it will need to be
           // rewritten later
@@ -3554,7 +3594,11 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
-      this.scene.replaceAllElements([]);
+      this.scene.replaceElementsByPage(new Map(), {
+        replaceAll: true,
+        activePageId: DEFAULT_PAGE_ID,
+      });
+      this.history.setActivePage(DEFAULT_PAGE_ID);
       this.setState((state) => ({
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
@@ -3618,11 +3662,12 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
+    let restoredAppState = restoreAppState(initialData?.appState, null);
     const restoredElements = restoreElements(initialData?.elements, null, {
       repairBindings: true,
       deleteInvisibleElements: true,
+      pages: restoredAppState.pages,
     });
-    let restoredAppState = restoreAppState(initialData?.appState, null);
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -3664,7 +3709,10 @@ class App extends React.Component<AppProps, AppState> {
     const initialViewport = this.props.initialState?.viewport;
 
     if (initialViewport) {
-      const restoredNonDeletedElements = restoredElements.filter(
+      const restoredNonDeletedElements = getActivePageElements(
+        restoredElements,
+        restoredAppState,
+      ).filter(
         (element) => !element.isDeleted,
       ) as readonly NonDeletedExcalidrawElement[];
       const restoredElementsMap = arrayToMap(
@@ -3686,7 +3734,10 @@ class App extends React.Component<AppProps, AppState> {
     } else if (initialData?.scrollToContent) {
       restoredAppState = {
         ...restoredAppState,
-        ...getScrollToContentState(restoredElements, viewportAppState),
+        ...getScrollToContentState(
+          getActivePageElements(restoredElements, restoredAppState),
+          viewportAppState,
+        ),
       };
     }
 
@@ -3697,6 +3748,7 @@ class App extends React.Component<AppProps, AppState> {
       appState: restoredAppState,
       files: initialData?.files,
       captureUpdate: CaptureUpdateAction.NEVER,
+      replaceDrawing: true,
     });
 
     // clear the shape and image cache so that any images in initialData
@@ -3935,7 +3987,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.renderer.destroy(this.canvas);
     this.scene.destroy();
-    this.scene = new Scene();
+    this.scene = new Scene(null, { paged: true });
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.renderer = new Renderer(this.scene);
     this.files = {};
@@ -4501,8 +4553,9 @@ class App extends React.Component<AppProps, AppState> {
     // init, which would trigger onChange with empty elements, which would then
     // override whatever is in localStorage currently.
     if (!this.state.isLoading) {
-      this.props.onChange?.(elements, this.state, this.files);
-      this.onChangeEmitter.trigger(elements, this.state, this.files);
+      const allElements = this.scene.getAllElementsIncludingDeleted();
+      this.props.onChange?.(allElements, this.state, this.files);
+      this.onChangeEmitter.trigger(allElements, this.state, this.files);
     }
   }
 
@@ -4988,11 +5041,25 @@ class App extends React.Component<AppProps, AppState> {
        * @default CaptureUpdateAction.EVENTUALLY
        */
       captureUpdate?: SceneData["captureUpdate"];
+      /** see {@link SceneData.pages} */
+      pages?: SceneData["pages"];
     }) => {
-      const { elements, appState, collaborators, captureUpdate } = sceneData;
+      const { elements, appState, collaborators, captureUpdate, pages } =
+        sceneData;
+
+      if (pages) {
+        this.pages.applyPages(pages);
+      }
+
+      const routedElements = elements
+        ? this.pages.routeElements(elements, !!pages)
+        : null;
+      const activeElements = routedElements
+        ? routedElements.get(this.scene.getActivePageId())
+        : elements;
 
       if (captureUpdate) {
-        const nextElements = elements ? elements : undefined;
+        const nextElements = activeElements ? activeElements : undefined;
         const observedAppState = appState
           ? getObservedAppState({
               ...this.store.snapshot.appState,
@@ -5008,10 +5075,14 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (appState) {
-        this.setState(appState as Pick<AppState, K> | null);
+        this.setState(omitPageState(appState) as Pick<AppState, K> | null);
       }
 
-      if (elements) {
+      if (routedElements) {
+        this.scene.replaceElementsByPage(routedElements, {
+          replaceAll: !!pages,
+        });
+      } else if (elements) {
         this.scene.replaceAllElements(elements);
       }
 
@@ -10965,16 +11036,18 @@ class App extends React.Component<AppProps, AppState> {
           });
           return;
         }
-        // restore the fractional indices by mutating elements
-        syncInvalidIndices(elements.concat(ret.data.elements));
+        if (this.pages.isUndoableReplace(ret.data.appState.pages)) {
+          // restore the fractional indices by mutating elements
+          syncInvalidIndices(elements.concat(ret.data.elements));
 
-        // don't capture and only update the store snapshot for old elements,
-        // otherwise we would end up with duplicated fractional indices on undo
-        this.store.scheduleMicroAction({
-          action: CaptureUpdateAction.NEVER,
-          elements,
-          appState: undefined,
-        });
+          // don't capture and only update the store snapshot for old elements,
+          // otherwise we would end up with duplicated fractional indices on undo
+          this.store.scheduleMicroAction({
+            action: CaptureUpdateAction.NEVER,
+            elements,
+            appState: undefined,
+          });
+        }
 
         this.setState({ isLoading: true });
         this.syncActionResult({
@@ -10984,6 +11057,7 @@ class App extends React.Component<AppProps, AppState> {
             isLoading: false,
           },
           replaceFiles: true,
+          replaceDrawing: true,
           captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         });
         return true;

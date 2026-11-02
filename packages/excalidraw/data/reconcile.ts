@@ -4,6 +4,7 @@ import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
   orderByFractionalIndex,
+  groupElementsByPage,
   syncInvalidIndices,
   validateFractionalIndices,
 } from "@excalidraw/element";
@@ -107,12 +108,18 @@ export const reconcileElements = (
     }
   }
 
-  const orderedElements = orderByFractionalIndex(reconciledElements);
+  const result: OrderedExcalidrawElement[] = [];
 
-  validateIndicesThrottled(orderedElements, localElements, remoteElements);
+  for (const group of groupElementsByPage(reconciledElements).values()) {
+    const orderedElements = orderByFractionalIndex(group);
 
-  // de-duplicate indices
-  syncInvalidIndices(orderedElements);
+    validateIndicesThrottled(orderedElements, localElements, remoteElements);
 
-  return orderedElements as ReconciledExcalidrawElement[];
+    // de-duplicate indices
+    syncInvalidIndices(orderedElements);
+
+    result.push(...orderedElements);
+  }
+
+  return result as ReconciledExcalidrawElement[];
 };

@@ -1,0 +1,3614 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/common/src/constants.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/common/src/constants.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 538 (line 538 reads `export const CANVAS_SEARCH_TAB = \"search\";`) — Add the three constants, one line each, with a one-line comment that an element with no pageId is on DEFAULT_PAGE_ID.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/constants.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/constants.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/constants.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 538,
+          "to": 538
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/src/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/types.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 33 (line 33 reads `export type FractionalIndex = string & { _brand: \"franctionalIndex\" };`) — Add ExcalidrawPage and PageViewport. Comment on `index`: orders pages, ties broken by id. Comment on `isDeleted`: a tombstone kept for collaboration. PageViewport's `zoom` is the plain number, not the Zoom object.\n- S2: insert after line 86 (line 86 reads `customData?: Record<string, any>;`) — Add `pageId?: string;` with a comment: the page the element belongs to; absent means the default page, and elements on the default page never carry it.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U03",
+    "unit": "U03",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/src/pages.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/element/src/pages.ts` (unit U03) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/sortElements.ts",
+        "reason": "style file: a pure-function module of this package"
+      },
+      {
+        "path": "packages/element/src/fractionalIndex.ts",
+        "lines": [
+          1,
+          12
+        ],
+        "reason": "uses: how this package imports generateNKeysBetween"
+      },
+      {
+        "path": "packages/element/src/mutateElement.ts",
+        "lines": [
+          140,
+          190
+        ],
+        "reason": "uses: newElementWith"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/src/sortElements.ts",
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U04",
+    "unit": "U04",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/src/index.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/index.ts` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 86 (line 86 reads `export * from \"./newElement\";`) — Add `export * from \"./pages\";`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U05",
+    "unit": "U05",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/Scene.ts` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 9 (line 9 reads `toArray,`) — Import DEFAULT_PAGE_ID.\n- S2: insert after line 23 (line 23 reads `import { mutateElement, type ElementUpdate } from \"@excalidraw/element\";`) — Import adoptElementsIntoPage from \"@excalidraw/element\", in this file's style.\n- S3: insert after line 125 (line 125 reads `private elementsMap = toBrandedType<SceneElementsMap>(new Map());`) — Add private fields: `paged = false`, `activePageId: string = DEFAULT_PAGE_ID`, `elementsByPage = new Map<string, readonly OrderedExcalidrawElement[]>()`, `allElements: readonly OrderedExcalidrawElement[] | null = null`.\n- S4: insert after line 165 (line 165 reads `}`) — Add getActivePageId, hasOtherPages (`elementsByPage.size > 1`), getAllElementsIncludingDeleted and getPageElements (the map's entry, or [] when missing; `this.elements` when unpaged).\n- S5: replace lines 167-176 (line 167 reads `constructor(`, line 176 reads `}`) — Add `paged?: true` to `options`. Assign `this.paged = !!options?.paged` before the existing replaceAllElements call.\n- S6: insert after line 278 (line 278 reads `const _nextElements = toArray(nextElements);`) — When `this.paged`, call adoptElementsIntoPage(_nextElements, this.activePageId).\n- S7: insert after line 285 (line 285 reads `this.elements = syncInvalidIndices(_nextElements);`) — When `this.paged`, set the active entry in elementsByPage to this.elements and reset `allElements` to null.\n- S8: insert after line 301 (line 301 reads `}`) — Add setActivePage and replaceElementsByPage.\n- S9: insert after line 331 (line 331 reads `this.elementsMap.clear();`) — Clear elementsByPage and reset allElements to null.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "lines": [
+          2045,
+          2065
+        ],
+        "reason": "uses: a temporary Scene over real elements, which must stay unpaged"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 23,
+          "to": 23
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 125,
+          "to": 125
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 165,
+          "to": 165
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 167,
+          "to": 176
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 278,
+          "to": 278
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 285,
+          "to": 285
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 301,
+          "to": 301
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 331,
+          "to": 331
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U06",
+    "unit": "U06",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/src/store.ts",
+    "depends_on": [
+      "tp_codegen_U05"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/store.ts` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 209 (line 209 reads `}`) — Add resetSnapshot: `this.snapshot = StoreSnapshot.empty().maybeClone(CaptureUpdateAction.NEVER, elements, appState)`. It emits no increment; maybeClone deep-copies the elements, so later in-place mutation is still detected. Doc comment: for a page switch, where the new page's elements are not a change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/store.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/store.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 209,
+          "to": 209
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U07",
+    "unit": "U07",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/types.ts",
+    "depends_on": [
+      "tp_codegen_U06"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/types.ts` (unit U07) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 41 (line 41 reads `StrokeVariability,`) — Import ExcalidrawPage and PageViewport in this type import.\n- S2: insert after line 98 (line 98 reads `isMuted?: boolean;`) — Add `pageId?: string;` with a comment: the collaborator's active page; absent for clients that predate pages, which are always shown.\n- S3: insert after line 245 (line 245 reads `collaborators: AppState[\"collaborators\"];`) — Add `activePageId: AppState[\"activePageId\"];`.\n- S4: insert after line 590 (line 590 reads `fontTopPicks: readonly FontFamilyValues[] | null;`) — Add to AppState, with doc comments: `pages: readonly ExcalidrawPage[]` (every record including tombstones; use getLivePages for the list a person sees), `activePageId: ExcalidrawPage[\"id\"]` (local to this editor, never shared), `pageViewports: Readonly<Record<ExcalidrawPage[\"id\"], PageViewport>>` (viewports of pages other than the active one, whose viewport is scrollX, scrollY and zoom).\n- S5: insert before line 879 (line 879 reads `onChange?: (`) — Add a doc comment: `elements` holds every page's elements, including deleted, so persisting it keeps all pages.\n- S6: insert after line 1125 (line 1125 reads `captureUpdate?: CaptureUpdateActionType;`) — Add `pages?: readonly ExcalidrawPage[];` with a doc comment: with `pages`, `elements` is the whole drawing and replaces every page; without it, elements are routed per element and only the pages they land on change. The page keys in `appState` are ignored: use the page API.\n- S7: insert after line 1172 (line 1172 reads `};`) — Add `pageTabs: boolean;` with a doc comment: whether the page tab bar shows, default true.\n- S8: insert after line 1255 (line 1255 reads `wrap: App[\"wrap\"];`) — Add `pages: App[\"pages\"];`.\n- S9: insert after line 1403 (line 1403 reads `>[\"getSceneElementsMapIncludingDeleted\"];`) — Add to ExcalidrawImperativeAPI, typed through InstanceType<typeof App>: getAllPagesElementsIncludingDeleted, and from `[\"pages\"]`: getPages, getActivePageId, setActivePage, createPage, renamePage, movePage, deletePage. Doc comment: the scene getters above are the active page; this one is the whole drawing.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 41,
+          "to": 41
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 98,
+          "to": 98
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 245,
+          "to": 245
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 590,
+          "to": 590
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 879,
+          "to": 879
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1125,
+          "to": 1125
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 1172,
+          "to": 1172
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 1255,
+          "to": 1255
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 1403,
+          "to": 1403
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U08",
+    "unit": "U08",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/appState.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04",
+      "tp_codegen_U07"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/appState.ts` (unit U08) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 15 (line 15 reads `DEFAULT_STICKY_NOTE_BG,`) — Import DEFAULT_PAGE_ID.\n- S2: insert after line 16 (line 16 reads `} from \"@excalidraw/common\";`) — Add a blank line and `import { getDefaultPage } from \"@excalidraw/element\";`.\n- S3: insert after line 151 (line 151 reads `fontTopPicks: null,`) — Add `pages: [getDefaultPage()]`, `activePageId: DEFAULT_PAGE_ID`, `pageViewports: {}`.\n- S4: insert after line 296 (line 296 reads `fontTopPicks: { browser: true, export: false, server: false },`) — Add `pages: { browser: true, export: true, server: true }`, `activePageId: { browser: true, export: true, server: false }`, `pageViewports: { browser: true, export: true, server: false }`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/appState.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/appState.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/appState.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 16,
+          "to": 16
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 151,
+          "to": 151
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 296,
+          "to": 296
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U09",
+    "unit": "U09",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/actions/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/types.ts` (unit U09) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 31 (line 31 reads `replaceFiles?: boolean;`) — Add `replaceDrawing?: boolean;` with a comment: `elements` is the whole drawing and `appState` supplies pages, activePageId and pageViewports; without it those keys in `appState` are ignored.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 31,
+          "to": 31
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U10",
+    "unit": "U10",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "depends_on": [
+      "tp_codegen_U01"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/history.ts` (unit U10) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 1 (line 1 reads `import { Emitter } from \"@excalidraw/common\";`) — Import DEFAULT_PAGE_ID as well.\n- S2: replace lines 102-103 (line 102 reads `public readonly undoStack: HistoryDelta[] = [];`, line 103 reads `public readonly redoStack: HistoryDelta[] = [];`) — Replace with a private `stacks` Map from page id to {undoStack, redoStack}, a private `activePageId = DEFAULT_PAGE_ID`, a private getter for the active pair, and public getters `undoStack` and `redoStack`.\n- S3: replace lines 115-118 (line 115 reads `public clear() {`, line 118 reads `}`) — clear does `this.stacks.clear()`. Add setActivePage and deletePage after it.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 102,
+          "to": 103
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 115,
+          "to": 118
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U11",
+    "unit": "U11",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04",
+      "tp_codegen_U07",
+      "tp_codegen_U08"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/restore.ts` (unit U11) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 36 (line 36 reads `DEFAULT_ZOOM,`) — Import DEFAULT_PAGE_ID.\n- S2: insert after line 45 (line 45 reads `isNonDeletedElement,`) — Import assignPageIndices, getDefaultPage, getElementPageId, getLivePages, getNextPageName, groupElementsByPage, hasPagedElements, isValidPageIndex, normalizePageName.\n- S3: insert after line 95 (line 95 reads `ExcalidrawElement,`) — Add ExcalidrawPage and PageViewport to this type import.\n- S4: replace lines 451-452 (line 451 reads `T extends Required<Omit<ExcalidrawElement, \"customData\">> & {`, line 452 reads `customData?: ExcalidrawElement[\"customData\"];`) — Omit \"pageId\" as well as \"customData\" from the Required part, and add `pageId?: ExcalidrawElement[\"pageId\"];` beside customData.\n- S5: insert after line 536 (line 536 reads `delete ret.moveMidPointsWithElement;`) — Delete `ret.pageId` when it is not a non-empty string, or when it equals DEFAULT_PAGE_ID, so default-page elements never carry the field.\n- S6: insert after line 958 (line 958 reads `};`) — Add restorePages, restoreActivePageId, restorePageViewports and restoreElementPages.\n- S7: replace lines 960-973 (line 960 reads `export const restoreElements = <T extends ExcalidrawElement>(`, line 973 reads `const existingIds = new Set<string>();`) — Rename to a private `restorePageElements` with the same generics, parameters and opts, plus a fourth parameter `existingIds: Set<string>`. Remove the local `existingIds`. Keep the rest of the body as it is, keeping the comment `used to detect duplicate top-level element ids` on the parameter.\n- S8: insert after line 1152 (line 1152 reads `};`) — Add the exported `restoreElements` with today's signature and return type, whose opts also take `pages?: readonly ExcalidrawPage[]`.\n- S9: replace lines 1341-1342 (line 1341 reads `return {`, line 1342 reads `...nextAppState,`) — Before the return, compute `pages` with restorePages(appState.pages), `activePageId` with restoreActivePageId, `pageViewports` with restorePageViewports, and `viewport`, which is pageViewports[activePageId] when appState.scrollX is undefined. None of the three keys falls back to localAppState. In the returned object, after `...nextAppState`, add the three keys, and scrollX and scrollY from `viewport` when it is set.\n- S10: replace line 1364 (line 1364 reads `: appState.zoom?.value ?? defaultAppState.zoom.value,`) — Fall back to `viewport?.zoom` before the default.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U11.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 36,
+          "to": 36
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 45,
+          "to": 45
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 95,
+          "to": 95
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 451,
+          "to": 452
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 536,
+          "to": 536
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 958,
+          "to": 958
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 960,
+          "to": 973
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 1152,
+          "to": 1152
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 1341,
+          "to": 1342
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 1364,
+          "to": 1364
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U12",
+    "unit": "U12",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/reconcile.ts",
+    "depends_on": [
+      "tp_codegen_U04"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/reconcile.ts` (unit U12) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 6 (line 6 reads `orderByFractionalIndex,`) — Import groupElementsByPage.\n- S2: replace lines 110-117 (line 110 reads `const orderedElements = orderByFractionalIndex(reconciledElements);`, line 117 reads `return orderedElements as ReconciledExcalidrawElement[];`) — Loop over groupElementsByPage(reconciledElements).values(). For each group run orderByFractionalIndex, validateIndicesThrottled(group, localElements, remoteElements) and syncInvalidIndices, keeping the `de-duplicate indices` comment, and push the group onto one result array, returned with the same cast. With no pageId there is one group, so a one-page drawing behaves as before.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/reconcile.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 110,
+          "to": 117
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U13",
+    "unit": "U13",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/json.ts",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U08"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/json.ts` (unit U13) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 6 (line 6 reads `} from \"@excalidraw/common\";`) — Add a blank line and `import { getLivePages, getPageViewportsForSave } from \"@excalidraw/element\";`.\n- S2: insert before line 58 (line 58 reads `const data: ExportedDataState = {`) — Compute `savedAppState`: when appState.pages is set, a copy with pages from getLivePages and pageViewports from getPageViewportsForSave; otherwise appState itself, so a host's partial appState serializes as before.\n- S3: replace lines 63-66 (line 63 reads `appState:`, line 66 reads `: clearAppStateForDatabase(appState),`) — Pass savedAppState instead of appState to both functions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/json.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/json.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/json.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 58,
+          "to": 58
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 63,
+          "to": 66
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U14",
+    "unit": "U14",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/blob.ts",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U11"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/blob.ts` (unit U14) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 10 (line 10 reads `import { getRenderEnvironment } from \"@excalidraw/element/renderEnvironment\";`) — Add `import { getActivePageElements } from \"@excalidraw/element\";`.\n- S2: insert after line 25 (line 25 reads `restoreAppState,`) — Import restoreActivePageId and restorePages.\n- S3: replace lines 163-166 (line 163 reads `const elements = restoreElements(data.elements, localElements, {`, line 166 reads `});`) — First compute `pages` with restorePages(data.appState?.pages) and `activePageId` with restoreActivePageId(data.appState?.activePageId, pages). Pass `pages` in the restoreElements options.\n- S4: replace lines 176-178 (line 176 reads `...(localAppState`, line 178 reads `: {}),`) — Apply getScrollToContentState only when localAppState is set and data.appState?.pageViewports?.[activePageId] is not, and pass it getActivePageElements(elements, { activePageId }).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/blob.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/blob.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U14.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/blob.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 10,
+          "to": 10
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 25,
+          "to": 25
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 163,
+          "to": 166
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 176,
+          "to": 178
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U15",
+    "unit": "U15",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/index.ts",
+    "depends_on": [
+      "tp_codegen_U04"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/index.ts` (unit U15) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 12 (line 12 reads `import { getNonDeletedElements } from \"@excalidraw/element\";`) — Add a blank line and `import { scopeAppStateToActivePage } from \"@excalidraw/element\";`.\n- S2: replace line 190 (line 190 reads `metadata: serializeAsJSON(elements, appState, files, \"local\"),`) — Pass scopeAppStateToActivePage(appState), keeping prettier's line width.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 12,
+          "to": 12
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 190,
+          "to": 190
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U16",
+    "unit": "U16",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/scene/export.ts",
+    "depends_on": [
+      "tp_codegen_U04"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/scene/export.ts` (unit U16) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 45 (line 45 reads `import { newTextElement } from \"@excalidraw/element\";`) — Add a blank line and an import of getActivePageElements and scopeAppStateToActivePage from \"@excalidraw/element\".\n- S2: replace line 572 (line 572 reads `restoreElements(data.elements, null, { deleteInvisibleElements: true }),`) — Pass getActivePageElements(data.elements, data.appState) as the first argument.\n- S3: replace line 1051 (line 1051 reads `payload: serializeAsJSON(elements, appState, data.files || {}, \"local\"),`) — Pass scopeAppStateToActivePage(appState).\n- S4: replace lines 1325-1326 (line 1325 reads `restoreElements(data.elements, null),`, line 1326 reads `data.appState ?? {},`) — Pass getActivePageElements(data.elements, data.appState) to restoreElements, and scopeAppStateToActivePage(data.appState ?? {}) as the app state.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/scene/export.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/scene/export.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 45,
+          "to": 45
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 572,
+          "to": 572
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 1051,
+          "to": 1051
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 1325,
+          "to": 1326
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U17",
+    "unit": "U17",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.pages.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04",
+      "tp_codegen_U05",
+      "tp_codegen_U06",
+      "tp_codegen_U07",
+      "tp_codegen_U10"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/excalidraw/components/App.pages.ts` (unit U17) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.clipboard.ts",
+        "lines": [
+          1,
+          100
+        ],
+        "reason": "style file: the helper-class shape: imports, constructor with dependencies, arrow members"
+      },
+      {
+        "path": "packages/excalidraw/components/App.selection.ts",
+        "lines": [
+          600,
+          640
+        ],
+        "reason": "uses: how a helper updates selection and app state"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "lines": [
+          90,
+          130
+        ],
+        "reason": "uses: History API this class calls (with setActivePage and deletePage added)"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/components/App.clipboard.ts",
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U18",
+    "unit": "U18",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04",
+      "tp_codegen_U05",
+      "tp_codegen_U07",
+      "tp_codegen_U09",
+      "tp_codegen_U10",
+      "tp_codegen_U11",
+      "tp_codegen_U17"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/App.tsx` (unit U18) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 390 (line 390 reads `import { AppModifiers } from \"./App.modifiers\";`) — Add `import { AppPages, omitPageState } from \"./App.pages\";`.\n- S2: insert after line 703 (line 703 reads `public wrap: AppWrap = new AppWrap(this);`) — Add `public pages: AppPages = new AppPages(this, { getHistory: () => this.history, addNewImagesToImageCache: () => this.addNewImagesToImageCache() });`, formatted by prettier. The thunks read the fields lazily because they are assigned in the constructor.\n- S3: insert after line 800 (line 800 reads `this.getSceneElementsMapIncludingDeleted,`) — Add getAllPagesElementsIncludingDeleted: this.getAllPagesElementsIncludingDeleted, and getPages, getActivePageId, setActivePage, createPage, renamePage, movePage and deletePage from this.pages.\n- S4: replace line 894 (line 894 reads `this.scene = new Scene();`) — `this.scene = new Scene(null, { paged: true });`\n- S5: insert after line 2767 (line 2767 reads `};`) — Add public getAllPagesElementsIncludingDeleted, an arrow function returning this.scene.getAllElementsIncludingDeleted().\n- S6: replace lines 3139-3142 (line 3139 reads `if (actionResult.elements) {`, line 3142 reads `}`) — When actionResult.replaceDrawing is true and actionResult.appState has pages and activePageId, call this.pages.replaceDrawing(actionResult.elements, actionResult.appState); otherwise this.scene.replaceAllElements(actionResult.elements). Keep `didUpdate = true`.\n- S7: insert after line 3192 (line 3192 reads `...actionAppState,`) — Unless actionResult.replaceDrawing, spread pages, activePageId and pageViewports from prevAppState, with a comment that only AppPages and a drawing replacement change these.\n- S8: replace line 3557 (line 3557 reads `this.scene.replaceAllElements([]);`) — `this.scene.replaceElementsByPage(new Map(), { replaceAll: true, activePageId: DEFAULT_PAGE_ID });` followed by `this.history.setActivePage(DEFAULT_PAGE_ID);`. The setState below already resets the page keys through getDefaultAppState.\n- S9: replace lines 3621-3625 (line 3621 reads `const restoredElements = restoreElements(initialData?.elements, null, {`, line 3625 reads `let restoredAppState = restoreAppState(initialData?.appState, null);`) — Restore app state first, then pass `pages: restoredAppState.pages` in the restoreElements options, keeping repairBindings and deleteInvisibleElements.\n- S10: replace line 3667 (line 3667 reads `const restoredNonDeletedElements = restoredElements.filter(`) — Filter getActivePageElements(restoredElements, restoredAppState), so the initial viewport resolves against the active page.\n- S11: replace line 3689 (line 3689 reads `...getScrollToContentState(restoredElements, viewportAppState),`) — Pass getActivePageElements(restoredElements, restoredAppState).\n- S12: insert after line 3699 (line 3699 reads `captureUpdate: CaptureUpdateAction.NEVER,`) — Add `replaceDrawing: true,`.\n- S13: replace line 3938 (line 3938 reads `this.scene = new Scene();`) — `this.scene = new Scene(null, { paged: true });`\n- S14: replace lines 4504-4505 (line 4504 reads `this.props.onChange?.(elements, this.state, this.files);`, line 4505 reads `this.onChangeEmitter.trigger(elements, this.state, this.files);`) — Read `const allElements = this.scene.getAllElementsIncludingDeleted();` and pass it to both, because onChange carries the whole drawing. Everything above this block keeps using `elements` and `elementsMap`, the active page.\n- S15: insert after line 4990 (line 4990 reads `captureUpdate?: SceneData[\"captureUpdate\"];`) — Add `pages?: SceneData[\"pages\"];` with a one-line comment pointing at SceneData.\n- S16: replace lines 4992-5016 (line 4992 reads `const { elements, appState, collaborators, captureUpdate } = sceneData;`, line 5016 reads `}`) — Destructure `pages` too. When pages is set, call this.pages.applyPages(pages) first, so a deleted active page moves before anything is written. Compute `routedElements = elements ? this.pages.routeElements(elements, !!pages) : null` and `activeElements`: the group for this.scene.getActivePageId() when routedElements is set, otherwise elements. Inside the captureUpdate block use activeElements as nextElements. Pass omitPageState(appState) to setState, with today's cast. Finally, when routedElements is set call this.scene.replaceElementsByPage(routedElements, { replaceAll: !!pages }); otherwise, when elements is set, call this.scene.replaceAllElements(elements).\n- S17: replace lines 10968-10977 (line 10968 reads `// restore the fractional indices by mutating elements`, line 10977 reads `});`) — Wrap the existing comment, syncInvalidIndices call and scheduleMicroAction call in `if (this.pages.isUndoableReplace(ret.data.appState.pages))`: a multi-page load isn't undoable and its groups must not be re-indexed as one list.\n- S18: insert after line 10986 (line 10986 reads `replaceFiles: true,`) — Add `replaceDrawing: true,`.\n- S19: insert after line 94 (line 94 reads `getStrokeWidthByKey,`) — Import DEFAULT_PAGE_ID.\n- S20: insert after line 209 (line 209 reads `isNonDeletedElement,`) — Import getActivePageElements.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6025
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6026,
+          11494
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 390,
+          "to": 390
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 703,
+          "to": 703
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 800,
+          "to": 800
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 894,
+          "to": 894
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 2767,
+          "to": 2767
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 3139,
+          "to": 3142
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 3192,
+          "to": 3192
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 3557,
+          "to": 3557
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 3621,
+          "to": 3625
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 3667,
+          "to": 3667
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 3689,
+          "to": 3689
+        },
+        {
+          "id": "S12",
+          "at": "insert_after",
+          "from": 3699,
+          "to": 3699
+        },
+        {
+          "id": "S13",
+          "at": "replace",
+          "from": 3938,
+          "to": 3938
+        },
+        {
+          "id": "S14",
+          "at": "replace",
+          "from": 4504,
+          "to": 4505
+        },
+        {
+          "id": "S15",
+          "at": "insert_after",
+          "from": 4990,
+          "to": 4990
+        },
+        {
+          "id": "S16",
+          "at": "replace",
+          "from": 4992,
+          "to": 5016
+        },
+        {
+          "id": "S17",
+          "at": "replace",
+          "from": 10968,
+          "to": 10977
+        },
+        {
+          "id": "S18",
+          "at": "insert_after",
+          "from": 10986,
+          "to": 10986
+        },
+        {
+          "id": "S19",
+          "at": "insert_after",
+          "from": 94,
+          "to": 94
+        },
+        {
+          "id": "S20",
+          "at": "insert_after",
+          "from": 209,
+          "to": 209
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U19",
+    "unit": "U19",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/actions/actionExport.tsx",
+    "depends_on": [
+      "tp_codegen_U05",
+      "tp_codegen_U09"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/actionExport.tsx` (unit U19) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 275 (line 275 reads `prepareDataForJSONExport(elements, appState, app.files, app);`) — Pass `isImageFileHandle(previousFileHandle) ? elements : app.scene.getAllElementsIncludingDeleted()` as the first argument: resaving to an image holds one page (FR-18), saving a file holds all (FR-19).\n- S2: replace line 341 (line 341 reads `prepareDataForJSONExport(elements, appState, app.files, app);`) — Pass app.scene.getAllElementsIncludingDeleted() as the first argument, in prettier's layout.\n- S3: insert after line 413 (line 413 reads `captureUpdate: CaptureUpdateAction.IMMEDIATELY,`) — Add `replaceDrawing: true,`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionExport.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionExport.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionExport.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 275,
+          "to": 275
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 341,
+          "to": 341
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 413,
+          "to": 413
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U20",
+    "unit": "U20",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/canvases/InteractiveCanvas.tsx",
+    "depends_on": [
+      "tp_codegen_U07"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/canvases/InteractiveCanvas.tsx` (unit U20) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 120 (line 120 reads `props.appState.collaborators.forEach((user, socketId) => {`) — Return early when user.pageId is set and differs from props.appState.activePageId. A collaborator with no pageId predates pages and stays visible.\n- S2: insert after line 272 (line 272 reads `collaborators: appState.collaborators, // Necessary for collab. sessions`) — Add `activePageId: appState.activePageId,`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/canvases/InteractiveCanvas.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/canvases/InteractiveCanvas.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/canvases/InteractiveCanvas.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 120,
+          "to": 120
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 272,
+          "to": 272
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U21",
+    "unit": "U21",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/laserTrails.ts",
+    "depends_on": [
+      "tp_codegen_U07"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/laserTrails.ts` (unit U21) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 88 (line 88 reads `if (collaborator.isCurrentUser) {`) — Also continue when collaborator.pageId is set and differs from this.app.state.activePageId. Keep the comment above and add one line saying why.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/laserTrails.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/laserTrails.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/laserTrails.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 88,
+          "to": 88
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U22",
+    "unit": "U22",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/locales/en.json",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/locales/en.json` (unit U22) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 234 (line 234 reads `},`) — Add a top-level `pages` object with these keys and values: tabList \"Pages\"; add \"Add page\"; options \"Page options\"; rename \"Rename\"; renameLabel \"Page name\"; moveLeft \"Move left\"; moveRight \"Move right\"; delete \"Delete page\"; deleteConfirmTitle \"Delete page\"; deleteConfirm \"Delete \\\"{{name}}\\\" and everything on it? This can't be undone.\".\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/locales/en.json\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/locales/en.json\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/locales/en.json",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 234,
+          "to": 234
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U23",
+    "unit": "U23",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/PageTabs.scss",
+    "depends_on": [],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/excalidraw/components/PageTabs.scss` (unit U23) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U23.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/Sidebar/SidebarTrigger.scss",
+        "reason": "style file: the global SCSS shape and the variables module use"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/components/Sidebar/SidebarTrigger.scss",
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U24",
+    "unit": "U24",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/PageTabs.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U04",
+      "tp_codegen_U05",
+      "tp_codegen_U07",
+      "tp_codegen_U17",
+      "tp_codegen_U22",
+      "tp_codegen_U23"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/excalidraw/components/PageTabs.tsx` (unit U24) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/ErrorDialog.tsx",
+        "reason": "style file: the function-component shape of this package"
+      },
+      {
+        "path": "packages/excalidraw/components/ConfirmDialog.tsx",
+        "lines": [
+          1,
+          81
+        ],
+        "reason": "uses: the confirmation dialog's props"
+      },
+      {
+        "path": "packages/excalidraw/hooks/useOutsideClick.ts",
+        "reason": "uses: closing the menu"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "lines": [
+          434,
+          473
+        ],
+        "reason": "uses: scrolling a highlighted row into view from a ref"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/components/ErrorDialog.tsx",
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U25",
+    "unit": "U25",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/LayerUI.tsx",
+    "depends_on": [
+      "tp_codegen_U05",
+      "tp_codegen_U07",
+      "tp_codegen_U24"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/LayerUI.tsx` (unit U25) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 13 (line 13 reads `import { getColorUpdate, mutateElement } from \"@excalidraw/element\";`) — Also import getNonDeletedElements.\n- S2: insert after line 59 (line 59 reads `import { Island } from \"./Island\";`) — Add the PageTabs import line. PageTabs.tsx imports its own stylesheet.\n- S3: replace line 207 (line 207 reads `elements={elements}`) — Pass `app.scene.hasOtherPages() ? getNonDeletedElements(app.scene.getAllElementsIncludingDeleted()) : elements`, so a one-page drawing costs a constant-time check on every LayerUI render (FR-28, NFR-2).\n- S4: insert before line 704 (line 704 reads `</>`) — Render `<PageTabs app={app} appState={appState} />` when defaultUIEnabled is true, appState.zenModeEnabled is false and UIOptions.pageTabs !== false (FR-12).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/LayerUI.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/LayerUI.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/LayerUI.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 13,
+          "to": 13
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 59,
+          "to": 59
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 207,
+          "to": 207
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 704,
+          "to": 704
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U26",
+    "unit": "U26",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/SearchMenu.tsx",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U05",
+      "tp_codegen_U07",
+      "tp_codegen_U17"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/SearchMenu.tsx` (unit U26) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 13-16 (line 13 reads `import {`, line 16 reads `} from \"@excalidraw/element\";`) — Also import getElementPageId, getLivePages and getNonDeletedElements.\n- S2: insert after line 73 (line 73 reads `matchedLines: SearchMatch[\"matchedLines\"];`) — Add `pageId: string;` and `pageName: string;` to SearchMatchItem.\n- S3: replace lines 195-255 (line 195 reads `useEffect(() => {`, line 255 reads `}, [focusIndex, searchMatches, app]);`) — Keep the existing logic in a local `focusMatch` inside the effect, with no change to what it does. When the match's pageId differs from app.state.activePageId, `queueMicrotask(() => { app.pages.setActivePage(match.pageId); focusMatch(); })`, because flushSync can't run inside an effect; otherwise call focusMatch() directly (FR-22).\n- S4: replace lines 434-439 (line 434 reads `const ListItem = (props: {`, line 439 reads `}) => {`) — Add a `pageName: string | null` prop.\n- S5: insert after line 470 (line 470 reads `</div>`) — When props.pageName is set, render `<div className=\"preview-page\">{props.pageName}</div>`.\n- S6: replace lines 503-509 (line 503 reads `<ListItem`, line 509 reads `/>`) — Pass pageName={props.showPageNames ? searchMatch.pageName : null}.\n- S7: replace lines 523-529 (line 523 reads `<ListItem`, line 529 reads `/>`) — Pass pageName={props.showPageNames ? searchMatch.pageName : null}.\n- S8: insert after line 479 (line 479 reads `searchQuery: SearchQuery;`) — Add `showPageNames: boolean;` to MatchListProps.\n- S9: insert after line 428 (line 428 reads `searchQuery={searchQuery}`) — Pass showPageNames={getLivePages(app.state.pages).length > 1}.\n- S10: replace lines 803-813 (line 803 reads `const elements = app.scene.getNonDeletedElements();`, line 813 reads `frames.sort((a, b) => a.y - b.y);`) — Search getNonDeletedElements(app.scene.getAllElementsIncludingDeleted()). Build from getLivePages(app.state.pages) a Map from page id to its position and name, and drop elements whose page isn't in it. Sort texts and frames by page position, then y.\n- S11: replace lines 833-839 (line 833 reads `textMatches.push({`, line 839 reads `});`) — Add pageId and pageName of textEl from the Map.\n- S12: replace lines 861-867 (line 861 reads `frameMatches.push({`, line 867 reads `});`) — Add pageId and pageName of frame from the Map.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 13,
+          "to": 16
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 73,
+          "to": 73
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 195,
+          "to": 255
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 434,
+          "to": 439
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 470,
+          "to": 470
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 503,
+          "to": 509
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 523,
+          "to": 529
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 479,
+          "to": 479
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 428,
+          "to": 428
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 803,
+          "to": 813
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 833,
+          "to": 839
+        },
+        {
+          "id": "S12",
+          "at": "replace",
+          "from": 861,
+          "to": 867
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U27",
+    "unit": "U27",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/SearchMenu.scss",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/SearchMenu.scss` (unit U27) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 127 (line 127 reads `}`) — Add `.preview-page` with margin-left 0.5rem, flex-shrink 0, max-width 6rem, font-size 0.75em, opacity 0.7, and ellipsis overflow.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/SearchMenu.scss\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/SearchMenu.scss\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.scss",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 127,
+          "to": 127
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U28",
+    "unit": "U28",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/data/index.ts",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/data/index.ts` (unit U28) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 21 (line 21 reads `FileId,`) — Add ExcalidrawPage to this type import.\n- S2: insert after line 63 (line 63 reads `) as SyncableExcalidrawElement[];`) — Add isSyncablePage and getSyncablePages.\n- S3: insert after line 86 (line 86 reads `elements: readonly OrderedExcalidrawElement[];`) — Add `pages?: readonly ExcalidrawPage[];` with a comment: absent from clients that predate pages.\n- S4: insert after line 92 (line 92 reads `elements: readonly OrderedExcalidrawElement[];`) — Add `pages?: readonly ExcalidrawPage[];`.\n- S5: insert after line 102 (line 102 reads `username: string;`) — Add `pageId?: string;`.\n- S6: insert after line 110 (line 110 reads `sceneBounds: SceneBounds;`) — Add `pageId?: string;`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 21,
+          "to": 21
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 63,
+          "to": 63
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 92,
+          "to": 92
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 102,
+          "to": 102
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 110,
+          "to": 110
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U29",
+    "unit": "U29",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/data/firebase.ts",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U28"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/data/firebase.ts` (unit U29) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 9 (line 9 reads `import { getSceneVersion } from \"@excalidraw/element\";`) — Also import applyPageTombstones, getPagesVersion and reconcilePages.\n- S2: insert after line 13 (line 13 reads `ExcalidrawElement,`) — Add ExcalidrawPage to this type import.\n- S3: replace line 26 (line 26 reads `import { getSyncableElements } from \".\";`) — Also import getSyncablePages.\n- S4: replace lines 86-90 (line 86 reads `type FirebaseStoredScene = {`, line 90 reads `};`) — Add optional `pagesIv?: Bytes` and `pagesCiphertext?: Bytes`, with a comment that `ciphertext` must keep decrypting to an element array for older clients.\n- S5: insert after line 115 (line 115 reads `};`) — Add encryptPages and decryptPages.\n- S6: replace lines 122-127 (line 122 reads `static set = (`, line 127 reads `};`) — Take `pages` as a third parameter and store the combined version.\n- S7: replace lines 130-142 (line 130 reads `export const isSavedToFirebase = (`, line 142 reads `};`) — Take `pages` as a third parameter and compare the combined version with the cache. Keep the comment on the no-room case.\n- S8: replace lines 176-188 (line 176 reads `const createFirebaseSceneDocument = async (`, line 188 reads `};`) — Take `pages` as the second parameter, encrypt them, and add pagesIv and pagesCiphertext to the document.\n- S9: replace lines 190-250 (line 190 reads `export const saveToFirebase = async (`, line 250 reads `};`) — As the rules say, keeping the existing comments.\n- S10: replace lines 252-275 (line 252 reads `export const loadFromFirebase = async (`, line 275 reads `};`) — As the rules say.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/firebase.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/firebase.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 9,
+          "to": 9
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 26,
+          "to": 26
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 86,
+          "to": 90
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 115,
+          "to": 115
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 122,
+          "to": 127
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 130,
+          "to": 142
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 176,
+          "to": 188
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 190,
+          "to": 250
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 252,
+          "to": 275
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U30",
+    "unit": "U30",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/data/FileManager.ts",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/data/FileManager.ts` (unit U30) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 282 (line 282 reads `.getSceneElementsIncludingDeleted()`) — Call getAllPagesElementsIncludingDeleted(). The updateScene call below routes each element back to its page.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/FileManager.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/FileManager.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/FileManager.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 282,
+          "to": 282
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U31",
+    "unit": "U31",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Portal.tsx",
+    "depends_on": [
+      "tp_codegen_U18",
+      "tp_codegen_U28"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/collab/Portal.tsx` (unit U31) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 15 (line 15 reads `import { isSyncableElement } from \"../data\";`) — Also import getSyncablePages.\n- S2: replace line 107 (line 107 reads `elements: this.collab.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted(), in prettier's layout.\n- S3: replace line 122 (line 122 reads `.getSceneElementsIncludingDeleted()`) — Call getAllPagesElementsIncludingDeleted().\n- S4: insert after line 169 (line 169 reads `elements: syncableElements,`) — Add `pages: getSyncablePages(this.collab.excalidrawAPI.getAppState().pages),`. Sent with every scene broadcast: a handful of small records, and a dropped message then can't strand a page.\n- S5: insert after line 215 (line 215 reads `username: this.collab.state.username,`) — Add `pageId: this.collab.excalidrawAPI.getAppState().activePageId,`.\n- S6: insert after line 238 (line 238 reads `sceneBounds: payload.sceneBounds,`) — Add `pageId: this.collab.excalidrawAPI.getAppState().activePageId,`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Portal.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Portal.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Portal.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 15,
+          "to": 15
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 107,
+          "to": 107
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 122,
+          "to": 122
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 169,
+          "to": 169
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 215,
+          "to": 215
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 238,
+          "to": 238
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U32",
+    "unit": "U32",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U18",
+      "tp_codegen_U28",
+      "tp_codegen_U29",
+      "tp_codegen_U31"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/collab/Collab.tsx` (unit U32) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 23 (line 23 reads `import { getVisibleSceneBounds } from \"@excalidraw/element\";`) — Also import applyPageTombstones, getLivePages, getNonDeletedElements, getPagesVersion and reconcilePages.\n- S2: insert after line 42 (line 42 reads `FileId,`) — Add ExcalidrawPage to this type import.\n- S3: insert after line 46 (line 46 reads `import type {`) — Add AppState to this type import.\n- S4: insert after line 148 (line 148 reads `private lastBroadcastedOrReceivedSceneVersion: number = -1;`) — Add `private lastBroadcastedOrReceivedPagesVersion: number = -1;`, `private lastActivePageId: string | null = null;`, and `private lastPointerPayload: Pick<SocketUpdateDataSource[\"MOUSE_LOCATION\"][\"payload\"], \"pointer\" | \"button\"> | null = null;`.\n- S5: replace line 318 (line 318 reads `!isSavedToFirebase(this.portal, syncableElements))`) — Pass this.excalidrawAPI.getAppState().pages as the third argument, in prettier's layout.\n- S6: replace lines 339-349 (line 339 reads `const storedElements = await saveToFirebase(`, line 349 reads `}`) — Name the result `storedScene`. Keep resetErrorIndicator. When collaborating and storedScene is set, call `this.handleRemoteSceneUpdate(this._reconcileElements(storedScene.elements), this._reconcilePages(storedScene.pages))`.\n- S7: replace line 384 (line 384 reads `this.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S8: replace line 409 (line 409 reads `.getSceneElementsIncludingDeleted()`) — Call getAllPagesElementsIncludingDeleted().\n- S9: insert after line 418 (line 418 reads `elements,`) — Add `pages: this.excalidrawAPI.getAppState().pages,`.\n- S10: insert after line 425 (line 425 reads `this.lastBroadcastedOrReceivedSceneVersion = -1;`) — Reset lastBroadcastedOrReceivedPagesVersion to -1, lastActivePageId to null and lastPointerPayload to null.\n- S11: replace line 563 (line 563 reads `const elements = this.excalidrawAPI.getSceneElements().map((element) => {`) — Map `getNonDeletedElements(this.excalidrawAPI.getAllPagesElementsIncludingDeleted())`, so a new room gets every page, in prettier's layout.\n- S12: insert after line 574 (line 574 reads `elements,`) — Add `pages: getLivePages(this.excalidrawAPI.getAppState().pages),`, which drops deleted page names for the same reason the comment above drops deleted elements.\n- S13: replace lines 613-618 (line 613 reads `this.handleRemoteSceneUpdate(reconciledElements);`, line 618 reads `});`) — Compute `const pages = this._reconcilePages(decryptedData.payload.pages);`, pass pages to handleRemoteSceneUpdate, keep the `noop if already resolved` comment, and resolve with `{ elements: reconciledElements, appState: { pages }, scrollToContent: true }`.\n- S14: replace lines 623-629 (line 623 reads `this.handleRemoteSceneUpdate(`, line 629 reads `);`) — Pass `this._reconcilePages(decryptedData.payload.pages)` as the second argument.\n- S15: replace lines 632-633 (line 632 reads `const { pointer, button, username, selectedElementIds } =`, line 633 reads `decryptedData.payload;`) — Also destructure pageId.\n- S16: replace lines 640-645 (line 640 reads `this.updateCollaborator(socketId, {`, line 645 reads `});`) — Also pass pageId.\n- S17: replace line 651 (line 651 reads `const { sceneBounds, socketId } = decryptedData.payload;`) — Also destructure pageId.\n- S18: replace line 669 (line 669 reads `const appState = this.excalidrawAPI.getAppState();`) — First, when pageId is set and differs from getActivePageId(), call this.excalidrawAPI.setActivePage(pageId), so following moves to the leader's page (FR-26). Then read appState, which setActivePage has already updated.\n- S19: replace lines 745-759 (line 745 reads `const elements = await loadFromFirebase(`, line 759 reads `}`) — Name the result `scene`. When set, set the scene version from scene.elements as today, set lastBroadcastedOrReceivedPagesVersion to getPagesVersion(scene.pages), and return `{ elements: scene.elements, appState: { pages: scene.pages }, scrollToContent: true }`.\n- S20: insert after line 804 (line 804 reads `};`) — Add _reconcilePages.\n- S21: replace line 809 (line 809 reads `elements: this.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S22: replace line 817 (line 817 reads `elements: this.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S23: replace lines 821-830 (line 821 reads `private handleRemoteSceneUpdate = (`, line 830 reads `};`) — As the rules say.\n- S24: replace line 940 (line 940 reads `return this.excalidrawAPI.getSceneElementsIncludingDeleted();`) — Call getAllPagesElementsIncludingDeleted().\n- S25: insert before line 949 (line 949 reads `payload.pointersMap.size < 2 &&`) — Store `{ pointer: payload.pointer, button: payload.button }` in lastPointerPayload.\n- S26: replace lines 971-985 (line 971 reads `broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {`, line 985 reads `};`) — Replace broadcastElements and syncElements as the rules say, keeping the queueBroadcastAllElements call inside the broadcast branch, and add relayActivePage.\n- S27: replace line 990 (line 990 reads `this.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S28: replace line 1006 (line 1006 reads `this.excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 23,
+          "to": 23
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 46,
+          "to": 46
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 148,
+          "to": 148
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 318,
+          "to": 318
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 339,
+          "to": 349
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 384,
+          "to": 384
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 409,
+          "to": 409
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 418,
+          "to": 418
+        },
+        {
+          "id": "S10",
+          "at": "insert_after",
+          "from": 425,
+          "to": 425
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 563,
+          "to": 563
+        },
+        {
+          "id": "S12",
+          "at": "insert_after",
+          "from": 574,
+          "to": 574
+        },
+        {
+          "id": "S13",
+          "at": "replace",
+          "from": 613,
+          "to": 618
+        },
+        {
+          "id": "S14",
+          "at": "replace",
+          "from": 623,
+          "to": 629
+        },
+        {
+          "id": "S15",
+          "at": "replace",
+          "from": 632,
+          "to": 633
+        },
+        {
+          "id": "S16",
+          "at": "replace",
+          "from": 640,
+          "to": 645
+        },
+        {
+          "id": "S17",
+          "at": "replace",
+          "from": 651,
+          "to": 651
+        },
+        {
+          "id": "S18",
+          "at": "replace",
+          "from": 669,
+          "to": 669
+        },
+        {
+          "id": "S19",
+          "at": "replace",
+          "from": 745,
+          "to": 759
+        },
+        {
+          "id": "S20",
+          "at": "insert_after",
+          "from": 804,
+          "to": 804
+        },
+        {
+          "id": "S21",
+          "at": "replace",
+          "from": 809,
+          "to": 809
+        },
+        {
+          "id": "S22",
+          "at": "replace",
+          "from": 817,
+          "to": 817
+        },
+        {
+          "id": "S23",
+          "at": "replace",
+          "from": 821,
+          "to": 830
+        },
+        {
+          "id": "S24",
+          "at": "replace",
+          "from": 940,
+          "to": 940
+        },
+        {
+          "id": "S25",
+          "at": "insert_before",
+          "from": 949,
+          "to": 949
+        },
+        {
+          "id": "S26",
+          "at": "replace",
+          "from": 971,
+          "to": 985
+        },
+        {
+          "id": "S27",
+          "at": "replace",
+          "from": 990,
+          "to": 990
+        },
+        {
+          "id": "S28",
+          "at": "replace",
+          "from": 1006,
+          "to": 1006
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U33",
+    "unit": "U33",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/App.tsx",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U11",
+      "tp_codegen_U18",
+      "tp_codegen_U32"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/App.tsx` (unit U33) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 50 (line 50 reads `import { isElementLink } from \"@excalidraw/element\";`) — Also import getNonDeletedElements and reconcilePages.\n- S2: insert after line 54 (line 54 reads `restoreElements,`) — Import restorePages.\n- S3: insert after line 233 (line 233 reads `const localDataState = importFromLocalStorage();`) — Add `const localAppState = restoreAppState(localDataState?.appState, null);`.\n- S4: replace lines 243-247 (line 243 reads `elements: restoreElements(localDataState?.elements, null, {`, line 247 reads `appState: restoreAppState(localDataState?.appState, null),`) — Pass `pages: localAppState.pages` in the restoreElements options, and use localAppState as `appState` (FR-23).\n- S5: replace lines 267-281 (line 267 reads `scene = {`, line 281 reads `};`) — Compute `const importedAppState = restoreAppState(imported.appState, localDataState?.appState);` first, keeping its comment. Pass `pages: importedAppState.pages` to restoreElements and use importedAppState as `appState`, keeping bumpElementVersions (FR-28).\n- S6: insert after line 343 (line 343 reads `...scene?.appState,`) — Add `pages: reconcilePages(excalidrawAPI.getAppState().pages, scene?.appState?.pages ?? []),`, because socket updates may already have reached the editor, as the comment above says for elements.\n- S7: replace line 354 (line 354 reads `excalidrawAPI.getSceneElementsIncludingDeleted() as RemoteExcalidrawElement[],`) — Call getAllPagesElementsIncludingDeleted(), keeping the cast.\n- S8: replace line 496 (line 496 reads `elements: excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S9: replace line 525 (line 525 reads `elements: excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S10: replace line 545 (line 545 reads `elements: excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S11: replace lines 585-591 (line 585 reads `excalidrawAPI.updateScene({`, line 591 reads `});`) — Compute `const appState = restoreAppState(data.scene.appState, null);` first. Pass `pages: appState.pages` to restoreElements with repairBindings, and pass `appState` and `pages: appState.pages` to updateScene, keeping captureUpdate.\n- S12: replace lines 610-613 (line 610 reads `excalidrawAPI.updateScene({`, line 613 reads `});`) — This browser tab keeps its own active page (FR-3). When localDataState.appState is set and its activePageId differs from excalidrawAPI.getActivePageId(), drop scrollX, scrollY and zoom from it. Call updateScene with elements, that appState, captureUpdate NEVER, and `pages: restorePages(localDataState.appState.pages)` when appState is set (FR-23).\n- S13: replace line 625 (line 625 reads `const elements = excalidrawAPI.getSceneElementsIncludingDeleted();`) — Call getAllPagesElementsIncludingDeleted().\n- S14: replace line 648 (line 648 reads `elements: excalidrawAPI.getSceneElementsIncludingDeleted(),`) — Call getAllPagesElementsIncludingDeleted().\n- S15: replace line 697 (line 697 reads `excalidrawAPI.getSceneElements(),`) — Pass getNonDeletedElements(excalidrawAPI.getAllPagesElementsIncludingDeleted()), in prettier's layout.\n- S16: replace line 721 (line 721 reads `collabAPI.syncElements(elements);`) — `collabAPI.syncElements(elements, appState);`\n- S17: replace line 732 (line 732 reads `.getSceneElementsIncludingDeleted()`) — Call getAllPagesElementsIncludingDeleted().\n- S18: replace line 1058 (line 1058 reads `excalidrawAPI.getSceneElements(),`) — Pass getNonDeletedElements(excalidrawAPI.getAllPagesElementsIncludingDeleted()) (FR-28).\n- S19: replace line 1100 (line 1100 reads `excalidrawAPI.getSceneElements(),`) — Pass getNonDeletedElements(excalidrawAPI.getAllPagesElementsIncludingDeleted()) (FR-28).\n- S20: replace line 1276 (line 1276 reads `excalidrawAPI.getSceneElements(),`) — Pass getNonDeletedElements(excalidrawAPI.getAllPagesElementsIncludingDeleted()) (FR-28).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U33.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/App.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 50,
+          "to": 50
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 54,
+          "to": 54
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 233,
+          "to": 233
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 243,
+          "to": 247
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 267,
+          "to": 281
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 343,
+          "to": 343
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 354,
+          "to": 354
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 496,
+          "to": 496
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 525,
+          "to": 525
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 545,
+          "to": 545
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 585,
+          "to": 591
+        },
+        {
+          "id": "S12",
+          "at": "replace",
+          "from": 610,
+          "to": 613
+        },
+        {
+          "id": "S13",
+          "at": "replace",
+          "from": 625,
+          "to": 625
+        },
+        {
+          "id": "S14",
+          "at": "replace",
+          "from": 648,
+          "to": 648
+        },
+        {
+          "id": "S15",
+          "at": "replace",
+          "from": 697,
+          "to": 697
+        },
+        {
+          "id": "S16",
+          "at": "replace",
+          "from": 721,
+          "to": 721
+        },
+        {
+          "id": "S17",
+          "at": "replace",
+          "from": 732,
+          "to": 732
+        },
+        {
+          "id": "S18",
+          "at": "replace",
+          "from": 1058,
+          "to": 1058
+        },
+        {
+          "id": "S19",
+          "at": "replace",
+          "from": 1100,
+          "to": 1100
+        },
+        {
+          "id": "S20",
+          "at": "replace",
+          "from": 1276,
+          "to": 1276
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U34",
+    "unit": "U34",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/element/tests/pages.test.ts",
+    "depends_on": [
+      "tp_codegen_U05"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/element/tests/pages.test.ts` (unit U34) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U34.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/sortElements.test.ts",
+        "reason": "style file: a pure test of this package using API.createElement"
+      }
+    ],
+    "acceptance": [
+      "default page is deterministic: given getDefaultPage() called twice, expect equal records with id DEFAULT_PAGE_ID, name `Page 1`, version 1, nonce 0",
+      "next page name: given live names `Page 1`, `Roadmap`, `Page 7`, and a tombstoned `Page 9`, expect getNextPageName returns `Page 8`",
+      "name normalization: given a 150-character name with spaces around it, and a blank name, expect trimmed to 100 characters; the blank name keeps the fallback",
+      "move between neighbours: given three pages and movePage to position 0, expect getLivePages order changes, only the moved record's version rises",
+      "move with equal neighbour indices: given two pages sharing an index plus a third, expect no throw, the target order holds, and all indices are distinct",
+      "neighbour after delete: given pages A, B, C, expect neighbour of B is C, of C is B, and a set excluding C makes B's neighbour A",
+      "reconcile keeps both creates: given local adds X, remote adds Y, expect both are present, in the same order on both sides",
+      "rename conflict resolves like elements: given same version, different nonces, expect the lower nonce wins on both sides",
+      "tombstone beats a higher version: given a remote rename at version 5 and a local delete at version 2, expect the result is deleted on both sides",
+      "pristine default is dropped: given local [default v1] and remote [P2], expect only P2 remains, on either argument order",
+      "no page is left deleted: given both sides tombstone the only pages, expect the lowest record is revived, on either argument order",
+      "tombstones delete elements: given a non-deleted element at a higher version on a tombstoned page, expect applyPageTombstones marks it deleted; with no tombstones the input reference comes back",
+      "adoption keeps the default page bare: given an element with pageId P adopted into DEFAULT_PAGE_ID, expect the `pageId` key is gone and version is unchanged",
+      "Scene shows one page: given a paged Scene with groups for two pages via replaceElementsByPage, expect getNonDeletedElements holds the active page only, getAllElementsIncludingDeleted holds both, setActivePage swaps them",
+      "replaceAllElements writes the active page only: given a paged Scene on P2, expect elements without pageId are stamped P2, foreign pageIds are re-stamped, and the other page's group is untouched",
+      "indices are per page: given two pages with the same indices, expect neither page's indices change after replaceElementsByPage",
+      "unpaged Scene never adopts: given new Scene(elements) with a pageId on an element, expect the element keeps its pageId"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/tests/sortElements.test.ts",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U35",
+    "unit": "U35",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/data/pages.test.ts",
+    "depends_on": [
+      "tp_codegen_U11",
+      "tp_codegen_U12",
+      "tp_codegen_U13"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/excalidraw/tests/data/pages.test.ts` (unit U35) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          1,
+          60
+        ],
+        "reason": "style file: restore test scaffolding"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "lines": [
+          1,
+          80
+        ],
+        "reason": "uses: calling reconcileElements in a test"
+      }
+    ],
+    "acceptance": [
+      "legacy data lands on one default page: given elements with indices and no pages (AC-5), expect restorePages returns the default page, elements keep order and indices and have no pageId",
+      "restoreAppState ignores local pages: given no pages in the data and a localAppState with two pages, expect one default page",
+      "empty or malformed list: given pages is [], a string, and [{}] in turn, expect one default page each time",
+      "duplicate ids: given two records with the same id, expect the first is kept",
+      "element on an unknown page: given restoreElements with `pages` and an element naming a missing page, expect it moves to the first page, after that page's existing elements, with valid indices",
+      "unknown active page: given activePageId naming no page, and one naming a tombstone, expect falls back to the first live page",
+      "missing indices keep list order: given records with no index, expect indices are assigned in array order",
+      "viewports are sanitized: given entries with NaN and for unknown pages, expect those entries are dropped",
+      "cross-page references are repaired: given a text whose container and an arrow whose binding are on another page, expect containerId and the binding are cleared with repairBindings",
+      "round trip: given serializeAsJSON then parse then restore of three pages with viewports, on the second page (AC-9), expect pages, order, names, membership, viewports and activePageId are intact",
+      "tombstones aren't saved: given a deleted page in appState, expect serializeAsJSON output doesn't contain its name",
+      "share payload: given serializeAsJSON with type database, expect pages are present, activePageId and pageViewports are not",
+      "partial appState: given serializeAsJSON with appState {}, expect no page keys appear",
+      "reconcile keeps pages ordered: given two pages with equal indices on both sides of reconcileElements, expect each page keeps its order and no index on either page changes"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/tests/data/restore.test.ts",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U36",
+    "unit": "U36",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "depends_on": [
+      "tp_codegen_U18",
+      "tp_codegen_U25"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/excalidraw/tests/pages.test.tsx` (unit U36) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionDuplicateSelection.test.tsx",
+        "reason": "style file: a rendered-editor test using API and window.h"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          60,
+          200
+        ],
+        "reason": "uses: API.setElements, createElement, getUndoStack"
+      }
+    ],
+    "acceptance": [
+      "starts with one tab: given a render with no initial data, expect `page-tab-default` shows, marked aria-selected",
+      "create: given a click on `page-tab-add`, expect a second tab named `Page 2` exists after the first and is active, at the default viewport (AC-1)",
+      "switch: given elements on two pages and a click on a tab, expect activePageId changes and h.elements holds only that page's (AC-1, AC-2)",
+      "rename commits: given a double-click, typing, then Enter; and again with blur, expect the name changes both times (AC-1)",
+      "rename cancels: given Escape in the input, expect the name is unchanged, and blur doesn't commit",
+      "empty name keeps the old name: given a rename to blanks, expect the name is unchanged",
+      "delete an empty page: given two pages, delete on the empty active one, expect the neighbour is active, with no dialog (AC-1)",
+      "delete asks with elements: given a page with an element, expect a confirm dialog opens, cancel keeps the page, and confirm deletes it and marks its elements deleted",
+      "last page stays: given one page, expect `page-menu-delete` is disabled and app.pages.deletePage returns false (AC-1)",
+      "reorder by drag: given dragStart on the third tab and drop on the first, expect tab order changes and the saved order changes in serializeAsJSON (AC-7)",
+      "reorder by menu: given `page-menu-move-right` and `page-menu-move-left`, expect tab order changes, and each is disabled at its edge (AC-7)",
+      "keyboard: given ArrowRight on a tab, then Enter, then F2, expect focus moves, the page activates, and rename opens (NFR-5)",
+      "only the active page is selectable: given elements on two pages and select all (AC-2), expect selectedElementIds holds only the active page's ids",
+      "hit test: given an element on another page at the pointer position, expect a click selects nothing (AC-2)",
+      "render scope: given two pages, expect app.visibleElements holds only the active page's elements (AC-2)",
+      "selection clears on switch: given a selected element and a switch, expect selectedElementIds is empty, and no undo entry is added",
+      "text edit commits on switch: given a text being edited and a switch, expect the text is on the leaving page, not the target",
+      "undo stays on its page: given edits on two pages, undo and redo on one (AC-3), expect only that page changes",
+      "stack survives a switch: given an edit, a switch away and back (AC-3), expect undo reverts the edit, and a switch itself adds no entry",
+      "deleting a page discards its stack: given a page with undo entries deleted, expect h.history's other pages are unaffected, and undoing on the neighbour doesn't touch the deleted page",
+      "viewport per page: given different scroll and zoom on two pages (AC-8), expect each is restored on switch; a new page opens at 0, 0 and zoom 1",
+      "paste lands on the active page: given cut on one page and paste on another, expect the pasted elements have the target's pageId and the source has none left",
+      "updateScene goes to the active page: given API.updateScene with a new element while on page 2, expect it has pageId of page 2, and page 1 is unchanged",
+      "updateScene routes known elements: given onChange's elements written back with one element changed, expect every page keeps its elements",
+      "view mode: given viewModeEnabled, expect tabs switch, and add, menus, rename and drag are absent (FR-12)",
+      "hidden tab bar: given UIOptions pageTabs false, and zen mode, in turn, expect `page-tabs` isn't rendered",
+      "host initialData and API: given initialData with two pages and activePageId (AC-13), expect api.getPages, getActivePageId and getAllPagesElementsIncludingDeleted report them; setActivePage, createPage, renamePage, movePage and deletePage work and take effect synchronously",
+      "onChange carries all pages: given a host onChange on a two-page drawing, expect its elements include both pages, and appState has pages (FR-29)",
+      "host that ignores pages: given a host using only initialData elements, updateScene and onChange (AC-13), expect one default page, elements have no pageId",
+      "load replaces the drawing: given a multi-page file through app.loadFileToCanvas, expect pages and active page are the file's, and history is empty",
+      "clear canvas keeps pages: given actionClearCanvas on page 2, expect page 1's elements and the page list are unchanged"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/actions/actionDuplicateSelection.test.tsx",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U37",
+    "unit": "U37",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pagesExport.test.tsx",
+    "depends_on": [
+      "tp_codegen_U15",
+      "tp_codegen_U16",
+      "tp_codegen_U18"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/excalidraw/tests/pagesExport.test.tsx` (unit U37) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U37.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/export.test.tsx",
+        "reason": "style file: export test scaffolding, including the TextDecoder polyfill and embedded-scene decoding"
+      }
+    ],
+    "acceptance": [
+      "image export: given exportScene type svg with elements of two pages and appState activePageId (AC-4), expect the output holds only the active page's elements",
+      "embedded SVG scene: given embedScene true (AC-4), expect the decoded payload has one page record and only that page's elements",
+      "embedded PNG scene: given exportCanvas type png with exportEmbedScene (AC-4), expect the metadata has one page record and only that page's elements",
+      "no page named: given exportScene with elements and no appState, expect every element is exported, as today",
+      "only selected: given prepareElementsForExport with selection on the active page, expect the selected elements of that page only"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/tests/export.test.tsx",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U38",
+    "unit": "U38",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pagesSearch.test.tsx",
+    "depends_on": [
+      "tp_codegen_U26"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/excalidraw/tests/pagesSearch.test.tsx` (unit U38) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U38.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/search.test.tsx",
+        "reason": "style file: opening the search sidebar and waiting on searchMatches"
+      }
+    ],
+    "acceptance": [
+      "finds matches on every page: given text on two pages and a frame name on one (AC-12), expect searchMatches covers all of them",
+      "shows page names: given two pages, expect each result shows its page name in `.preview-page`",
+      "one page shows no page name: given one page, expect no `.preview-page` in the DOM",
+      "activating a match switches page: given a click on a result on another page (AC-12), expect activePageId becomes that page",
+      "deleted pages aren't searched: given a deleted page with matching text, expect no match from it"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/tests/search.test.tsx",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U39",
+    "unit": "U39",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.test.tsx",
+    "depends_on": [
+      "tp_codegen_U33"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `excalidraw-app/tests/pages.test.tsx` (unit U39) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U39.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "lines": [
+          1,
+          70
+        ],
+        "reason": "style file: the crypto, Firebase and socket mocks"
+      },
+      {
+        "path": "excalidraw-app/data/LocalData.ts",
+        "lines": [
+          120,
+          175
+        ],
+        "reason": "uses: LocalData.save and flushSave"
+      },
+      {
+        "path": "excalidraw-app/data/localStorage.ts",
+        "lines": [
+          37,
+          75
+        ],
+        "reason": "uses: importFromLocalStorage"
+      }
+    ],
+    "acceptance": [
+      "local storage round trip: given three pages written with LocalData.save and flushSave, then read back with importFromLocalStorage and restore (AC-10), expect pages, order, active page, membership and viewports are intact",
+      "legacy local data: given localStorage holding elements and app state with no page keys (AC-10), expect one default page holding every element",
+      "elements converge: given two clients on different pages each editing their own page (AC-11), expect both end with every element on its page",
+      "page list converges: given concurrent create, rename, reorder and delete on two clients (AC-11), expect both end with equal live lists in equal order",
+      "late joiner: given a fresh editor receiving a whole-drawing updateScene with all pages (AC-11), expect it has every page and element, on the first page",
+      "active page is local: given a remote page list while on page 2, expect activePageId stays page 2",
+      "viewer moves when their page is deleted: given a remote tombstone for the active page (FR-27), expect the neighbouring page is active",
+      "delete beats a concurrent edit: given a remote edit at a higher version on a tombstoned page (FR-27), expect the element is deleted on both clients",
+      "cursors follow the page: given collaborators with pageId equal to, differing from, and missing against the active page, with a vi.spyOn on renderInteractiveScene (FR-26), expect renderConfig.remotePointerViewportCoords of the last call holds the first and third only",
+      "page records hold no viewport: given getSyncablePages of the state after pages have viewports (FR-13), expect no record has a viewport key"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "excalidraw-app/tests/collab.test.tsx",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tooling_U40",
+    "unit": "U40",
+    "phase": "codegen",
+    "task_type": "tooling",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+    "depends_on": [
+      "tp_codegen_U18",
+      "tp_codegen_U25",
+      "tp_codegen_U26"
+    ],
+    "instruction": "Orchestrator shell step, no model (unit U40): in one Bash call, write-provenance.mjs --before --run-id=20261102-160801-feature-new-pages --packet-id=tooling_U40 for `packages/excalidraw/tests/__snapshots__/history.test.tsx.snap` and every other file the step writes, then `node_modules/.bin/vitest run --update packages/excalidraw/tests/history.test.tsx`, then write-provenance.mjs --after --run-id=20261102-160801-feature-new-pages for each of them, whether the step succeeded or not (brownfield-runs.md, Phase 5). Regenerates this snapshot for the new app state keys. The diff must hold only activePageId, pageViewports and pages lines.",
+    "inputs": [],
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 0,
+      "maxOutputTokens": 0
+    }
+  },
+  {
+    "id": "tooling_U41",
+    "unit": "U41",
+    "phase": "codegen",
+    "task_type": "tooling",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+    "depends_on": [
+      "tp_codegen_U18",
+      "tp_codegen_U25",
+      "tp_codegen_U26"
+    ],
+    "instruction": "Orchestrator shell step, no model (unit U41): in one Bash call, write-provenance.mjs --before --run-id=20261102-160801-feature-new-pages --packet-id=tooling_U41 for `packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap` and every other file the step writes, then `node_modules/.bin/vitest run --update packages/excalidraw/tests/regressionTests.test.tsx`, then write-provenance.mjs --after --run-id=20261102-160801-feature-new-pages for each of them, whether the step succeeded or not (brownfield-runs.md, Phase 5). Regenerates this snapshot for the new app state keys. The diff must hold only activePageId, pageViewports and pages lines.",
+    "inputs": [],
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 0,
+      "maxOutputTokens": 0
+    }
+  },
+  {
+    "id": "tooling_U42",
+    "unit": "U42",
+    "phase": "codegen",
+    "task_type": "tooling",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap",
+    "depends_on": [
+      "tp_codegen_U18",
+      "tp_codegen_U25",
+      "tp_codegen_U26"
+    ],
+    "instruction": "Orchestrator shell step, no model (unit U42): in one Bash call, write-provenance.mjs --before --run-id=20261102-160801-feature-new-pages --packet-id=tooling_U42 for `packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap` and every other file the step writes, then `node_modules/.bin/vitest run --update packages/excalidraw/tests/contextmenu.test.tsx`, then write-provenance.mjs --after --run-id=20261102-160801-feature-new-pages for each of them, whether the step succeeded or not (brownfield-runs.md, Phase 5). Regenerates this snapshot for the new app state keys. The diff must hold only activePageId, pageViewports and pages lines.",
+    "inputs": [],
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    },
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 0,
+      "maxOutputTokens": 0
+    }
+  },
+  {
+    "id": "tp_docs_U43",
+    "unit": "U43",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U43) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 14 (line 14 reads `## Unreleased`) — Add a blank line and a `### Pages (2026-11-02)` section in the style of the entry below it: drawings hold ordered, named pages; the tab bar and `UIOptions.pageTabs`; `appState.pages`, `activePageId`, `pageViewports`; the optional element `pageId`; the imperative API; `onChange`'s elements now carry every page; `getSceneElements*` remain the active page; `updateScene`'s `pages` and its routing; `exportScene` honours `appState.activePageId`; `onIncrement` describes the active page. State that files stay at version 2 and older versions show all pages overlapped.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U43.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U44",
+    "unit": "U44",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx` (unit U44) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 29 (line 29 reads `| [getSceneElements](#getsceneelements) | `function` | Returns all the elements excluding the deleted in the scene |`) — Add table rows for getAllPagesElementsIncludingDeleted, getPages, getActivePageId, setActivePage, createPage, renamePage, movePage and deletePage, each linking to its anchor under a `Pages` section.\n- S2: insert after line 68 (line 68 reads `| `captureUpdate` | [`CaptureUpdateAction`](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/store.ts#L40) | Controls which updates should be captured by the `Store`. Captured updates are emmitted and listened to by other components, such as `History` for undo / redo purposes. |`) — Add a `pages` row: with it, `elements` is the whole drawing and replaces every page. Below the table add a short note on routing without `pages`, and that page keys in `appState` are ignored.\n- S3: replace line 245 (line 245 reads `Returns all the elements including the deleted in the scene.`) — Say the elements are the active page's, and point to getAllPagesElementsIncludingDeleted for the whole drawing.\n- S4: replace line 257 (line 257 reads `Returns all the elements excluding the deleted in the scene`) — Say the elements are the active page's.\n- S5: insert before line 259 (line 259 reads `## getAppState`) — Add a `## Pages` section: what a page record holds, each method with its signature, that methods apply synchronously and must not be called from inside `onChange`, that `createPage` switches unless `activate: false`, and that `deletePage` returns false for the last page and isn't undoable.\n- S6: insert after line 415 (line 415 reads `Subscribes to change events, similar to [`props.onChange`](/docs/@excalidraw/excalidraw/api/props#onchange).`) — Add that `elements` holds every page.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U44.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 29,
+          "to": 29
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 68,
+          "to": 68
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 245,
+          "to": 245
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 257,
+          "to": 257
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 259,
+          "to": 259
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 415,
+          "to": 415
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U45",
+    "unit": "U45",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx` (unit U45) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 17 (line 17 reads `You might want to use this when you want to load excalidraw with some initial elements and app state.`) — Add a short paragraph: pages are supplied as `appState.pages`, `appState.activePageId` and `appState.pageViewports`, each element naming its page with `pageId`. Elements with no `pageId` are on the default page. Damaged data is repaired, and with no pages everything is on one default page.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U45.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 17,
+          "to": 17
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U46",
+    "unit": "U46",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx` (unit U46) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 64 (line 64 reads `1. `excalidrawElements`: Array of [excalidrawElements](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/element/types.ts#L114) in the scene.`) — Keep the link, and say the array holds every page's elements, so persisting it with `appState` keeps all pages.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U46.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/props.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 64,
+          "to": 64
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U47",
+    "unit": "U47",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx",
+    "depends_on": [
+      "tp_codegen_U18"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx` (unit U47) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 3 (line 3 reads `This prop can be used to customise UI of Excalidraw. Currently we support customising [`canvasActions`](#canvasactions), [`dockedSidebarBreakpoint`](#dockedsidebarbreakpoint) [`welcomeScreen`](#welcmescreen) and [`tools`](#tools).`) — Add [`pageTabs`](#pagetabs) to the list.\n- S2: insert after line 81 (line 81 reads `| image | boolean | true | Decides whether `image` tool should be visible.`) — Add a `## pageTabs` section: a boolean, default true, that shows the page tab bar. Hiding it doesn't remove pages, which stay reachable through the imperative API. The bar also hides in zen mode.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U47.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/ui-options.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 3,
+          "to": 3
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81
+        }
+      ],
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

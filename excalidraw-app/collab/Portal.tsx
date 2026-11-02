@@ -12,7 +12,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 
 import { WS_EVENTS, FILE_UPLOAD_TIMEOUT, WS_SUBTYPES } from "../app_constants";
-import { isSyncableElement } from "../data";
+import { getSyncablePages, isSyncableElement } from "../data";
 
 import type {
   SocketUpdateData,
@@ -104,7 +104,8 @@ class Portal {
   queueFileUpload = throttle(async () => {
     try {
       await this.collab.fileManager.saveFiles({
-        elements: this.collab.excalidrawAPI.getSceneElementsIncludingDeleted(),
+        elements:
+          this.collab.excalidrawAPI.getAllPagesElementsIncludingDeleted(),
         files: this.collab.excalidrawAPI.getFiles(),
       });
     } catch (error: any) {
@@ -119,7 +120,7 @@ class Portal {
 
     let isChanged = false;
     const newElements = this.collab.excalidrawAPI
-      .getSceneElementsIncludingDeleted()
+      .getAllPagesElementsIncludingDeleted()
       .map((element) => {
         if (this.collab.fileManager.shouldUpdateImageElementStatus(element)) {
           isChanged = true;
@@ -167,6 +168,7 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages: getSyncablePages(this.collab.excalidrawAPI.getAppState().pages),
       },
     };
 
@@ -213,6 +215,7 @@ class Portal {
           selectedElementIds:
             this.collab.excalidrawAPI.getAppState().selectedElementIds,
           username: this.collab.state.username,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
         },
       };
 
@@ -236,6 +239,7 @@ class Portal {
           socketId: this.socket.id as SocketId,
           username: this.collab.state.username,
           sceneBounds: payload.sceneBounds,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
         },
       };
 

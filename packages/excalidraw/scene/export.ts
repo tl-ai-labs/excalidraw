@@ -44,6 +44,11 @@ import { type Mutable } from "@excalidraw/common/utility-types";
 
 import { newTextElement } from "@excalidraw/element";
 
+import {
+  getActivePageElements,
+  scopeAppStateToActivePage,
+} from "@excalidraw/element";
+
 import type { RenderEnvironment } from "@excalidraw/element";
 
 import type {
@@ -569,7 +574,9 @@ const configExportDimension = async ({
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
   const elements = getNonDeletedElements(
-    restoreElements(data.elements, null, { deleteInvisibleElements: true }),
+    restoreElements(getActivePageElements(data.elements, data.appState), null, {
+      deleteInvisibleElements: true,
+    }),
   );
 
   // initialize defaults
@@ -1048,7 +1055,12 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          elements,
+          scopeAppStateToActivePage(appState),
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);
@@ -1322,8 +1334,11 @@ const exportToBlob = async (
               // NOTE as long as we're using the Scene hack, we need to ensure
               // we pass the original, uncloned elements when serializing
               // so that we keep ids stable (restoring keeps the ids)
-              restoreElements(data.elements, null),
-              data.appState ?? {},
+              restoreElements(
+                getActivePageElements(data.elements, data.appState),
+                null,
+              ),
+              scopeAppStateToActivePage(data.appState ?? {}),
               data.files || {},
               "local",
             ),

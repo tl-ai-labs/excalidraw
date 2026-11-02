@@ -32,6 +32,25 @@ type VerticalAlignKeys = keyof typeof VERTICAL_ALIGN;
 export type VerticalAlign = typeof VERTICAL_ALIGN[VerticalAlignKeys];
 export type FractionalIndex = string & { _brand: "franctionalIndex" };
 
+export type ExcalidrawPage = Readonly<{
+  id: string;
+  name: string;
+  /** Orders pages, ties broken by id. */
+  index: FractionalIndex;
+  version: number;
+  versionNonce: number;
+  /** A tombstone kept for collaboration. */
+  isDeleted: boolean;
+  updated: number;
+}>;
+
+export type PageViewport = Readonly<{
+  scrollX: number;
+  scrollY: number;
+  /** The plain zoom number, not the Zoom object. */
+  zoom: number;
+}>;
+
 export type BoundElement = Readonly<{
   id: ExcalidrawLinearElement["id"];
   type: "arrow" | "text";
@@ -84,6 +103,9 @@ type _ExcalidrawElementBase = Readonly<{
   link: string | null;
   locked: boolean;
   customData?: Record<string, any>;
+  /** The page the element belongs to. Absent means the default page, and
+      elements on the default page never carry it. */
+  pageId?: string;
 }>;
 
 export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {

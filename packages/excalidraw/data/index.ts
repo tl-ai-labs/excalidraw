@@ -11,6 +11,11 @@ import {
 
 import { getNonDeletedElements } from "@excalidraw/element";
 
+import {
+  getActivePageElements,
+  scopeAppStateToActivePage,
+} from "@excalidraw/element";
+
 import { isFrameLikeElement } from "@excalidraw/element";
 
 import { getElementsOverlappingFrame } from "@excalidraw/element";
@@ -187,7 +192,12 @@ export const exportCanvas = async (
         import("./image").then(({ encodePngMetadata }) =>
           encodePngMetadata({
             blob,
-            metadata: serializeAsJSON(elements, appState, files, "local"),
+            metadata: serializeAsJSON(
+              getActivePageElements(elements, appState),
+              scopeAppStateToActivePage(appState),
+              files,
+              "local",
+            ),
           }),
         ),
       );

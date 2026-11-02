@@ -1,0 +1,94 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/index.ts",
+    "instruction": "Fix `packages/excalidraw/data/index.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Source bug, AC-4 and FR-18: packages/excalidraw/tests/pagesExport.test.tsx > export of paged drawings > embedded PNG scene holds one page and only its elements fails with `expected [ 'active_1', 'active_2', 'other_1' ] to deeply equal [ 'active_1', 'active_2' ]`. In exportCanvas's `type === \"png\"` branch, the embedded metadata calls serializeAsJSON(elements, scopeAppStateToActivePage(appState), files, \"local\") without filtering elements by page, so the scene embedded in a PNG can hold other pages' elements. Pass getActivePageElements(elements, appState), the same filter scene/export.ts applies to its own embedded metadata (exportToBlob). Import it the way scene/export.ts does. Check that no other embed in exportCanvas serializes unfiltered elements, and leave the JSON file save, which writes the whole drawing, alone.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/data/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pagesExport.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pagesExport.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/tests/pagesExport.test.tsx(120,7): error TS2345: Argument of type '{ exportEmbedScene: true; pages: ...; ... }' is not assignable to parameter of type 'AppState': missing width, height, offsetTop, offsetLeft. Cast the third argument of that exportCanvas call to AppState through unknown. Change only the type at that line; keep every assertion.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pagesExport.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pagesExport.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U37.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pagesExport.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]
