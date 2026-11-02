@@ -1,0 +1,67 @@
+{
+  "module": "rich-text-spans",
+  "verdict": "needs_changes",
+  "tool_calls": 12,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/element/src/textStyleRanges.ts",
+      "line": 757,
+      "issue": "applyTextStyleDelta treats every entry of `added` as a re-add, so undoing a plain text edit brings back a range a peer deliberately cleared. A text edit that shifts range X puts X in both `removed` and `added` (an offset change). If a peer then clears X, the local undo finds the tombstone, sets seq = tombstone.seq + 1 and deletes the tombstone. X is then live above its tombstone, and the version bump broadcasts it to every client. This breaks FR-9 'undo must revert only the local step' and FR-29. Same block: the tombstone is deleted before the `start < end` check, so a clamped-out entry loses both the range and its tombstone. Confidence: high, from reading the code path; no test covers it. The rule 18 text in change_plan.md does not separate the two cases, so this is a gap in the plan as well as the code.",
+      "fix": "In the `added` loop, skip an entry when its id is also in `removed`, is not live in `rangesById` after the remap, and has a tombstone with seq >= entry.seq, and keep the tombstone. A real undo of a clear has the id in `added` only, so it still re-adds. Delete the tombstone only after the start < end check passes, and add a delta test for a peer clear followed by undo of a text edit."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/src/renderElement.ts",
+      "line": 483,
+      "issue": "drawStyledTextLine sets textAlign but not direction. getStyledTextLines tests RTL per line, but the caller sets the canvas dir from isRTL(element.text), which is true when the element's first strong character is RTL. So an LTR line under a Hebrew first line is styled and drawn run by run on an rtl canvas. Each fillText then resolves bidi with an RTL base, and neutrals at a run edge flip sides: the run 'hello ' draws its space on the left, and 'world!' draws as '!world'. layoutTextStyleRuns assumes logical LTR order, so glyphs and highlights no longer match (FR-10). The test 'leaves an RTL line plain' only checks the run data, and jsdom cannot show this. Confidence: medium, from canvas bidi rules; not checked in a browser.",
+      "fix": "Next to context.textAlign = \"left\", set context.direction = \"ltr\" inside withSavedContext, since a styled line holds no RTL characters and save/restore covers the property. Add a test that asserts it for a two-line text whose first line is Hebrew."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "line": 836,
+      "issue": "Same cause as the canvas finding: a styled LTR line in an element where isRTL(element.text) is true keeps direction=\"rtl\" and the element-wide text-anchor, while highlight rects use the LTR layout from layoutTextStyleRuns. Trailing neutrals move, so a rect no longer sits under its run. For a right-aligned element the anchor is `end` at x = width, which in rtl is the left edge of the text, so the text starts at width while the rect stays at width - lineWidth (FR-22). Confidence: medium, from SVG text-anchor and bidi rules; not checked in a browser.",
+      "fix": "When `runs` is truthy, write direction=\"ltr\" and a text-anchor taken from textAlign alone (start, middle or end). Lines with no runs keep today's attributes, so FR-23 still holds. Add a test beside the existing rect position case."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 464,
+      "issue": "The isAutoSelection branch is not in change_plan.md and overrides U18 S9. Offsets alone cannot tell the editor's auto-select from a user's select-all, so a deliberate select-all on unstyled text changes strokeColor and the current-item default instead of adding a range, which FR-15 says must stay alone. The highlight action has no such branch, so the same selection behaves differently between the two controls. The branch also repeats the lookup and the saveCaretPosition call from getTextEditSelection, and runs that DOM query on every stroke pick, editing or not. No test names this branch.",
+      "fix": "Keep the behaviour only if it is wanted, and then record it in the plan. Either way, derive the check from getTextEditSelection's result so there is one lookup and one caret read, and pin both outcomes (auto-selected unstyled text, styled text) with a test."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 414,
+      "issue": "changeTextStyleAttribute always writes a new element when a selection exists. Clear on a selection with no matching range returns an unchanged state, yet replaceTextStyles still bumps version and the action captures IMMEDIATELY, so a no-op click broadcasts and records an invisible history entry.",
+      "fix": "Return null from changeTextStyleAttribute when the state's lists equal the element's current lists, so the clear action returns false, as it does for a collapsed selection."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textStyleRanges.ts",
+      "line": 659,
+      "issue": "In reconcile's remote-wins branch merged is never the local element, so noteMergedTextStyles runs for every remote text element. Unstyled text allocates two arrays and two Sets per reconcile, against the plan's 'unstyled text allocates nothing', and every plain remote range add or removal stays in mergedRangeVersions for the session.",
+      "fix": "Return early when neither local nor merged has textStyleRanges. Consider also skipping the note in mergeStyleRanges when the merge returned the winner unchanged and the winner's version is above local.version, since the store snapshot moves with that update."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textStyleRanges.ts",
+      "line": 823,
+      "issue": "The run merge check in getTextStyleRuns is a nested test with a dead fall-through: the outer `previous?.` condition is true for an unstyled first segment, and the inner `if (previous)` then undoes it.",
+      "fix": "Use one condition: `if (previous && previous.color === color && previous.highlight === highlight) { previous.end = end; continue; }`."
+    }
+  ],
+  "refinement_packets": [],
+  "passed": [
+    "Correctness: the model, merge, restore, delta wiring and editor layer match U01-U19 apart from the findings above; no originalText writer outside the plan bypasses remapping.",
+    "Type safety: casts are limited to the planned delta and Mutable sites; no new `any` in source.",
+    "Error handling: no new swallowed errors; invalid ranges drop at restore and creation.",
+    "Authz: not applicable, no routes.",
+    "PII and untrusted input: range ids are random, no collaborator identity is stored; colours reach SVG through setAttribute and the DOM through element.style and textContent.",
+    "Tests: every case listed for U20-U27 is present; no snapshot calls, .skip or .only added; the collab cases sit in a new describe rather than inside the existing one, which changes nothing.",
+    "Sensitive files: no manifest, .env, CLAUDE.md or settings file touched; en.json only adds keys.",
+    "Env fixtures: skipped, the stack has no validating config module."
+  ]
+}

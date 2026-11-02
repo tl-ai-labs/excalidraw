@@ -40,7 +40,9 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  remapTextStyles,
   updateBoundElements,
+  withTextStyles,
 } from "@excalidraw/element";
 
 import type { ArrowEndpoint } from "@excalidraw/element";
@@ -184,7 +186,11 @@ export class AppText {
   ) {
     const elementsMap = this.app.scene.getElementsMapIncludingDeleted();
 
-    const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
+    const updateElement = (
+      nextOriginalText: string,
+      isDeleted: boolean,
+      caret?: number,
+    ) => {
       const latestTextElement =
         this.app.scene.getElement<ExcalidrawTextElement>(element.id);
 
@@ -220,7 +226,11 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
-            return newElementWith(_element, {
+            // reads the previous originalText, so it must run before the copy
+            const textStyles = remapTextStyles(_element, nextOriginalText, {
+              caret,
+            });
+            const nextElement = newElementWith(_element, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
@@ -234,6 +244,9 @@ export class AppText {
                   this.app.renderEnvironment,
                 )),
             });
+            return textStyles
+              ? withTextStyles(nextElement, textStyles)
+              : nextElement;
           }
           return _element;
         }),
@@ -293,8 +306,8 @@ export class AppText {
           viewportY - this.app.state.offsetTop,
         ];
       },
-      onChange: withBatchedUpdates((nextOriginalText) => {
-        updateElement(nextOriginalText, false);
+      onChange: withBatchedUpdates(({ nextOriginalText, caret }) => {
+        updateElement(nextOriginalText, false, caret);
         if (isNonDeletedElement(element)) {
           updateBoundElements(element, this.app.scene, {
             renderEnvironment: this.app.renderEnvironment,

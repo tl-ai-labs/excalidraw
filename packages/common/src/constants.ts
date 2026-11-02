@@ -624,3 +624,27 @@ export const MOBILE_ACTION_BUTTON_BG = {
 
 export const DEFAULT_STROKE_STREAMLINE = 0.5;
 export const DEFAULT_STROKE_STREAMLINE_PRECISE = 0.2;
+
+/**
+ * how many tombstones a text element keeps, so a stale peer cannot bring a
+ * cleared text style range back. Past the limit the oldest are evicted first
+ */
+export const MAX_CLEARED_TEXT_STYLE_RANGES = 64;
+
+// live text style ranges kept per text element
+export const MAX_TEXT_STYLE_RANGES = 1000;
+
+// highest valid range seq (2^31 - 1)
+export const MAX_TEXT_STYLE_SEQ = 2147483647;
+
+// entries of the merged-text-style undo map, across all elements
+export const MAX_MERGED_TEXT_STYLE_RECORDS = 4096;
+
+// the highlight swatches offered for text
+export const TEXT_HIGHLIGHT_PICKS = [
+  "#ffec99",
+  "#b2f2bb",
+  "#a5d8ff",
+  "#ffc9c9",
+  "#eebefa",
+] as const;

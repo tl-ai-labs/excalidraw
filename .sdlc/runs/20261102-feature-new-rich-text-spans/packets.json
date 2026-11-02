@@ -1,0 +1,2210 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/common/src/constants.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/common/src/constants.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 626 (line 626 reads `export const DEFAULT_STROKE_STREAMLINE_PRECISE = 0.2;`) — Append, after a blank line: a doc comment saying the tombstones a text element keeps so a stale peer cannot bring a cleared range back, oldest evicted first, then `export const MAX_CLEARED_TEXT_STYLE_RANGES = 64;`. Then a blank line and `export const TEXT_HIGHLIGHT_PICKS = [\"#ffec99\", \"#b2f2bb\", \"#a5d8ff\", \"#ffc9c9\", \"#eebefa\"] as const;` with a one-line comment that these are the highlight swatches.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/constants.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/constants.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/constants.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 626,
+          "to": 626
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/types.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 253 (line 253 reads `export type ExcalidrawTextElement = _ExcalidrawElementBase &`) — Add `export type TextStyleRange = Readonly<{ id: string; seq: number; start: number; end: number; color?: string; highlight?: string }>;` with field comments: id is random and holds nothing about a user, seq is an element-local Lamport clock and paint order, start and end are UTF-16 offsets into originalText with end exclusive, and at least one colour is set. Then `export type ClearedTextStyleRange = Readonly<{ id: string; seq: number }>;` with a comment that it is the tombstone of a deliberately removed range, and a live range of that id with seq at or below this one stays dead.\n- S2: insert after line 271 (line 271 reads `originalText: string;`) — Add `textStyleRanges?: readonly TextStyleRange[];` and `clearedTextStyleRanges?: readonly ClearedTextStyleRange[];` with their doc comments.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 271,
+          "to": 271
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U03",
+    "unit": "U03",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/element/src/textStyleRanges.ts` (unit U03) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/listMarker.ts",
+        "lines": [
+          1,
+          60
+        ],
+        "reason": "style file: A framework-free element module: imports, arrow-function consts, doc comments on the why."
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/src/listMarker.ts",
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U04",
+    "unit": "U04",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/index.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/index.ts` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 101 (line 101 reads `export * from \"./textMeasurements\";`) — Add `export * from \"./textStyleRanges\";`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U05",
+    "unit": "U05",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/newElement.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/newElement.ts` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 32 (line 32 reads `import { normalizeText, measureText } from \"./textMeasurements\";`) — Add `import { createTextStyleRanges } from \"./textStyleRanges\";`.\n- S2: insert after line 37 (line 37 reads `import type { RenderEnvironment } from \"./renderEnvironment\";`) — Add `import type { TextStyleRangeInput } from \"./textStyleRanges\";`.\n- S3: insert after line 349 (line 349 reads `baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];`) — Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the opts type.\n- S4: insert before line 357 (line 357 reads `const metrics = measureText(`) — Add `const textStyleRanges = createTextStyleRanges(opts.textStyleRanges, opts.originalText ?? text);`.\n- S5: insert after line 386 (line 386 reads `labelPosition: opts.labelPosition ?? null,`) — Add `...(textStyleRanges ? { textStyleRanges } : null),` as the last property, so unstyled text has no key.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/newElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/newElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/newElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 32,
+          "to": 32
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 37,
+          "to": 37
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 349,
+          "to": 349
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 357,
+          "to": 357
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U06",
+    "unit": "U06",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/transform.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/transform.ts` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 133 (line 133 reads `labelPosition?: ExcalidrawTextElement[\"labelPosition\"];`) — Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the linear element's label.\n- S2: insert after line 230 (line 230 reads `verticalAlign?: VerticalAlign;`) — Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the container's label.\n- S3: replace line 265 (line 265 reads `} & Partial<ExcalidrawTextElement>)`) — Change the text skeleton to `} & Merge<Partial<ExcalidrawTextElement>, { textStyleRanges?: readonly TextStyleRangeInput[] }>)`, formatted by Prettier.\n- S4: replace line 293 (line 293 reads `Pick<Partial<ExcalidrawTextElement>, \"labelPosition\">,`) — Extend to `Pick<Partial<ExcalidrawTextElement>, \"labelPosition\"> & { textStyleRanges?: readonly TextStyleRangeInput[] },`, formatted by Prettier.\n- S5: insert before line 85 (line 85 reads `import type {`) — Add `import type { TextStyleRangeInput } from \"./textStyleRanges\";` immediately before this type import.\n- S6: replace line 33 (line 33 reads `import type { MarkOptional } from \"@excalidraw/common/utility-types\";`) — Import Merge too: `import type { MarkOptional, Merge } from \"@excalidraw/common/utility-types\";`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/transform.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/transform.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/transform.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 133,
+          "to": 133
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 230,
+          "to": 230
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 265,
+          "to": 265
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 293,
+          "to": 293
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 85,
+          "to": 85
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 33,
+          "to": 33
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U07",
+    "unit": "U07",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/listMarker.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/listMarker.ts` (unit U07) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 8 (line 8 reads `} from \"./textElement\";`) — Add `import { remapTextStyles, withTextStyles } from \"./textStyleRanges\";`.\n- S2: insert before line 214 (line 214 reads `if (container) {`) — Add `const textStyles = remapTextStyles(element, originalText, { replace: true });` and, when it is non-null, `withTextStyles(element, textStyles);`, with a comment that a renumbered marker replaces its characters in place, so a range on the marker stays on it. It must run before the mutateElement calls below, which change originalText.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/listMarker.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/listMarker.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/listMarker.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 214,
+          "to": 214
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U08",
+    "unit": "U08",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/delta.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/delta.ts` (unit U08) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 47 (line 47 reads `import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";`) — Add `import { applyTextStyleDelta, omitMergedTextStyleChanges, withTextStyles } from \"./textStyleRanges\";`.\n- S2: replace lines 1344-1345 (line 1344 reads `switch (key) {`, line 1345 reads `case \"boundElements\":`) — Use `switch (key as string) {`, keep `case \"boundElements\":` and add `case \"textStyleRanges\":` to fall through to the same branch, which keeps the partial. Extend the comment above: both hold only their diff.\n- S3: replace line 1756 (line 1756 reads `if (key === \"boundElements\") {`) — Also skip the textStyleRanges key: `if (key === \"boundElements\" || (key as string) === \"textStyleRanges\") {`, formatted by Prettier.\n- S4: insert before line 1784 (line 1784 reads `// visibility is not decided here: `applyTo` compares the applied result`) — Add: `const textStyles = isTextElement(element) && delta.inserted.isDeleted !== true ? applyTextStyleDelta(element, insertedText.originalText ?? element.originalText, deletedText.textStyleRanges, insertedText.textStyleRanges) : null;` where insertedText and deletedText are delta.inserted and delta.deleted cast as ElementPartial<ExcalidrawTextElement>. A delta that ends the element deleted leaves its ranges alone.\n- S5: replace line 1791 (line 1791 reads `return newElementWith(element, directlyApplicablePartial, true);`) — Keep the call, store its result as nextElement, and return `textStyles ? withTextStyles(nextElement as ExcalidrawTextElement, textStyles) : nextElement` typed as the original return. nextElement is a fresh copy because force is true.\n- S6: insert after line 1874 (line 1874 reads `case \"created\":`) — Add `case \"clearedTextStyleRanges\":` so tombstones count as metadata, not as a visible change.\n- S7: insert after line 2192 (line 2192 reads `Delta.diffArrays(deleted, inserted, \"boundElements\", (x) => x.id);`) — Add a `Delta.diffArrays` call on the two partials cast as ElementPartial<ExcalidrawTextElement> for \"textStyleRanges\" with (x) => x.id, then `omitMergedTextStyleChanges(...)` on the same casts, with a comment that a merge keeps version, so the store's snapshot never saw it and it must not land in a local undo step.\n- S8: insert after line 2231 (line 2231 reads `const { id, updated, ...strippedPartial } = partial;`) — Add `Reflect.deleteProperty(strippedPartial, \"clearedTextStyleRanges\");` with a comment that tombstones only grow, so undo never rewinds them.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 47,
+          "to": 47
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1344,
+          "to": 1345
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 1756,
+          "to": 1756
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 1784,
+          "to": 1784
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 1791,
+          "to": 1791
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1874,
+          "to": 1874
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 2192,
+          "to": 2192
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 2231,
+          "to": 2231
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U09",
+    "unit": "U09",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/renderElement.ts` (unit U09) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 61 (line 61 reads `import { getLineHeightInPx } from \"./textMeasurements\";`) — Add `import { getStyledTextLines, layoutTextStyleRuns, type TextStyleRun } from \"./textStyleRanges\";`, formatted by Prettier.\n- S2: insert before line 460 (line 460 reads `const drawElementOnCanvas = (`) — Add `const drawStyledTextLine = (context, element: NonDeleted<ExcalidrawTextElement>, lineText: string, runs: readonly TextStyleRun[], lineTop: number, baseline: number, lineHeightPx: number, renderConfig: StaticCanvasRenderConfig) => { ... }`. Inside withSavedContext: layout = layoutTextStyleRuns(element, lineText, runs, renderConfig.renderEnvironment); set context.textAlign to \"left\". First pass over the layout: for a run with highlight set fillStyle to applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK) and fillRect(x, lineTop, width, lineHeightPx). Second pass: fillStyle = applyDarkModeFilter(run.color ?? element.strokeColor, same theme test), fillText(lineText.slice(run.start, run.end), x, baseline). Skip a run with empty text.\n- S3: replace lines 706-712 (line 706 reads `for (let index = 0; index < lines.length; index++) {`, line 712 reads `}`) — Before the loop add `const styledLines = getStyledTextLines(element);`. In the loop, `const runs = styledLines?.[index];` and when runs is truthy call drawStyledTextLine(context, element, lines[index], runs, index * lineHeightPx, index * lineHeightPx + verticalOffset, lineHeightPx, renderConfig); otherwise keep the existing fillText call unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 61,
+          "to": 61
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 460,
+          "to": 460
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 706,
+          "to": 712
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U10",
+    "unit": "U10",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/renderer/staticSvgScene.ts` (unit U10) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 28 (line 28 reads `import { getLineHeightInPx } from \"@excalidraw/element\";`) — Add `import { getStyledTextLines, layoutTextStyleRuns } from \"@excalidraw/element\";`.\n- S2: insert before line 815 (line 815 reads `for (let i = 0; i < lines.length; i++) {`) — Add `const styledLines = getStyledTextLines(element);`.\n- S3: replace line 817 (line 817 reads `text.textContent = lines[i];`) — Add `const runs = styledLines?.[i];` and set textContent only when runs is falsy.\n- S4: replace line 833 (line 833 reads `node.appendChild(text);`) — When runs is truthy, loop over layoutTextStyleRuns(element, lines[i], runs, renderConfig.renderEnvironment). For a run with highlight, create an SVG_NS rect with x, y = i * lineHeightPx, width, height = lineHeightPx, and fill = applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK), and append it to node. Then create an SVG_NS tspan with textContent = lines[i].slice(run.start, run.end), set its fill to applyDarkModeFilter(run.color, same theme test) only when run.color is set, and append it to text. Keep `node.appendChild(text);` last, so the rects sit behind the text.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 815,
+          "to": 815
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 817,
+          "to": 817
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 833,
+          "to": 833
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U11",
+    "unit": "U11",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/restore.ts` (unit U11) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 64 (line 64 reads `import { detectLineHeight } from \"@excalidraw/element\";`) — Add `import { sanitizeTextStyles } from \"@excalidraw/element\";`.\n- S2: insert before line 597 (line 597 reads `// if empty text, mark as deleted. We keep in array`) — Add `element = sanitizeTextStyles(element);` with a one-line comment that unknown fields survive restore unvalidated, so ranges from files and peers are checked here.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U11.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 64,
+          "to": 64
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 597,
+          "to": 597
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U12",
+    "unit": "U12",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/data/reconcile.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/reconcile.ts` (unit U12) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 5-9 (line 5 reads `import {`, line 9 reads `} from \"@excalidraw/element\";`) — Keep the three imports and add isTextElement, mergeTextStyles and noteMergedTextStyles.\n- S2: insert before line 73 (line 73 reads `export const reconcileElements = (`) — Add `const mergeStyleRanges = <T extends OrderedExcalidrawElement>(winner: T, loser: OrderedExcalidrawElement, localElement: OrderedExcalidrawElement): T`, with a doc comment that the text still has one winner and only its ranges merge. Return winner unless winner and loser are both text elements. merged = mergeTextStyles(winner, loser). If merged !== localElement and localElement is text, call noteMergedTextStyles(localElement, merged). Return merged.\n- S3: replace lines 92-98 (line 92 reads `if (localElement && discardRemoteElement) {`, line 98 reads `}`) — The discard branch pushes mergeStyleRanges(localElement, remoteElement, localElement); this also covers the mid-edit discard. The other branch pushes localElement ? mergeStyleRanges(remoteElement, localElement, localElement) : remoteElement. The added.add calls stay as they are.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/reconcile.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 5,
+          "to": 9
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 73,
+          "to": 73
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 92,
+          "to": 98
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U13",
+    "unit": "U13",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.tsx` (unit U13) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 19 (line 19 reads `getTextFromElements,`) — Add `getTextStyleRuns,` to the import.\n- S2: replace line 268 (line 268 reads `onChange?: (nextOriginalText: string) => void;`) — Change to `onChange?: (data: { nextOriginalText: string; caret: number }) => void;`.\n- S3: insert after line 313 (line 313 reads `} | null = null;`) — Add `let styleOverlay: HTMLDivElement | null = null;` and `let overlayContent: { text: string; ranges: ExcalidrawTextElement[\"textStyleRanges\"]; isDark: boolean } | null = null;`, then `const syncStyleOverlay = (textElement: ExcalidrawTextElement) => {...}` with a doc comment that a textarea cannot draw coloured runs, so a layer behind it does. Steps: 1. ranges = textElement.textStyleRanges. If there are none: remove the overlay and reset it and overlayContent to null, remove class excalidraw-wysiwyg--styled, remove the caret-color property, and return. 2. Create the overlay when missing: an ownerDocument div with class excalidraw-wysiwyg-styles, aria-hidden true and dir auto, added with editorBox?.prepend(overlay). 3. Read baseColor = editable.style.color, set overlay.style.cssText = editable.style.cssText, then Object.assign pointerEvents none, userSelect none and unicodeBidi plaintext onto overlay.style. 4. Set editable.style.caretColor = baseColor, editable.style.color = transparent, and add class excalidraw-wysiwyg--styled. 5. isDark = app.state.theme === THEME.DARK. Return if overlayContent has the same text (editable.value), the same ranges reference and the same isDark. 6. Otherwise overlay.replaceChildren(), and for each run of getTextStyleRuns(editable.value, 0, ranges): text = value.slice(run.start, run.end); a run with no colour appends a text node; a styled run appends a span with textContent = text, style.color from applyDarkModeFilter(run.color, isDark) when set, style.backgroundColor from applyDarkModeFilter(run.highlight, isDark) when set. Then store overlayContent.\n- S4: insert before line 529 (line 529 reads `app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });`) — Add `syncStyleOverlay(updatedTextElement);`. The style assignment above has just reset editable.style.color to the base colour.\n- S5: replace line 863 (line 863 reads `onChange(editable.value);`) — Change to `onChange({ nextOriginalText: editable.value, caret: editable.selectionEnd });`, formatted by Prettier.\n- S6: insert after line 1116 (line 1116 reads `editable.remove();`) — Add `styleOverlay?.remove();`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 19,
+          "to": 19
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 268,
+          "to": 268
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 313,
+          "to": 313
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 529,
+          "to": 529
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 863,
+          "to": 863
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1116,
+          "to": 1116
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U14",
+    "unit": "U14",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/components/App.text.ts",
+    "depends_on": [
+      "tp_codegen_U03",
+      "tp_codegen_U13"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/App.text.ts` (unit U14) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 42 (line 42 reads `refreshTextDimensions,`) — Add `remapTextStyles,` to the import.\n- S2: insert after line 43 (line 43 reads `updateBoundElements,`) — Add `withTextStyles,` to the import.\n- S3: replace line 187 (line 187 reads `const updateElement = (nextOriginalText: string, isDeleted: boolean) => {`) — Add a third optional parameter `caret?: number`, formatted by Prettier.\n- S4: replace lines 223-236 (line 223 reads `return newElementWith(_element, {`, line 236 reads `});`) — First `const textStyles = remapTextStyles(_element, nextOriginalText, { caret });` so it reads the previous originalText. Keep the newElementWith call and its arguments unchanged, store it as nextElement, and return `textStyles ? withTextStyles(nextElement, textStyles) : nextElement`. remapTextStyles returns null when the text is unchanged, so nextElement is a fresh copy whenever it is written to.\n- S5: replace lines 296-297 (line 296 reads `onChange: withBatchedUpdates((nextOriginalText) => {`, line 297 reads `updateElement(nextOriginalText, false);`) — Take `({ nextOriginalText, caret })` and call updateElement(nextOriginalText, false, caret).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.text.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.text.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U14.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.text.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 187,
+          "to": 187
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 223,
+          "to": 236
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 296,
+          "to": 297
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U15",
+    "unit": "U15",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/css/styles.scss",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/css/styles.scss` (unit U15) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 148 (line 148 reads `}`) — Inside .excalidraw-textEditorContainer, after the `> textarea` block and a blank line, add a one-line comment that the coloured text is the layer behind, and `> textarea.excalidraw-wysiwyg--styled::selection { color: transparent; background: rgba(105, 101, 219, 0.3); }` on separate lines.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/css/styles.scss\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/css/styles.scss\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/css/styles.scss",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "format",
+          "run": "./node_modules/.bin/prettier --check '{path}'",
+          "fix": "./node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 148,
+          "to": 148
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U16",
+    "unit": "U16",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/locales/en.json",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/locales/en.json` (unit U16) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 33 (line 33 reads `\"textColor\": \"Text color\",`) — Add `\"textHighlight\": \"Highlight\",`, `\"clearTextColor\": \"Clear text color\",` and `\"clearTextHighlight\": \"Clear highlight\",`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/locales/en.json\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/locales/en.json\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/locales/en.json",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "format",
+          "run": "./node_modules/.bin/prettier --check '{path}'",
+          "fix": "./node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U17",
+    "unit": "U17",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/types.ts` (unit U17) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 66 (line 66 reads `| \"changeStrokeColor\"`) — Add `| \"changeTextHighlight\"` and `| \"clearTextStyle\"`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 66,
+          "to": 66
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U18",
+    "unit": "U18",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "depends_on": [
+      "tp_codegen_U03",
+      "tp_codegen_U16",
+      "tp_codegen_U17"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/actionProperties.tsx` (unit U18) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 25 (line 25 reads `FONT_SIZES,`) — Add `TEXT_HIGHLIGHT_PICKS,` to the @excalidraw/common import.\n- S2: insert after line 34 (line 34 reads `syncStickyNoteInk,`) — Add `applyTextStyle,`, `clearTextStyle,` and `withTextStyles,` to the import.\n- S3: replace line 100 (line 100 reads `import type { ElementUpdate, Scene } from \"@excalidraw/element\";`) — Also import the types TextStyleAttribute and TextStyleState, formatted by Prettier.\n- S4: insert after line 107 (line 107 reads `import { ColorPicker } from \"../components/ColorPicker/ColorPicker\";`) — Add `import { TopPicks } from \"../components/ColorPicker/TopPicks\";`.\n- S5: insert after line 156 (line 156 reads `strokeVariabilityVariableIcon,`) — Add `EraserIcon,` to the icons import.\n- S6: insert after line 169 (line 169 reads `withCaretPositionPreservation,`) — Add `saveCaretPosition,` to the import.\n- S7: insert before line 364 (line 364 reads `// -----------------------------------------------------------------------------`) — Add `getTextEditSelection(elements, appState, app)`: find the element with appState.editingTextElement's id in elements; return null unless it is a text element; caret = saveCaretPosition(app.ownerDocument); return null when caret is null or caret.start === caret.end; else return { element, selection: { start: caret.start, end: caret.end } }. textarea offsets are originalText offsets, and FR-14 is this mapping. Add `replaceTextStyles(elements, element, state: TextStyleState)`: elements.map replacing the element with that id by withTextStyles(newElementWith(el as ExcalidrawTextElement, {}, true), state). Add `changeTextStyleAttribute(elements, appState, app, attribute: TextStyleAttribute, color: string | null)`: null when getTextEditSelection is null; otherwise replaceTextStyles with clearTextStyle(element, selection, attribute) when color is null or isTransparent(color), else applyTextStyle(element, selection, attribute === \"color\" ? { color } : { highlight: color }).\n- S8: replace line 372 (line 372 reads `perform: (elements, appState, value) => {`) — Take the fourth parameter: `perform: (elements, appState, value, app) => {`.\n- S9: insert before line 380 (line 380 reads `// resolved from the state the action runs against — never from the`) — Add: `const styledElements = changeTextStyleAttribute(elements, appState, app, \"color\", color);` and, when non-null, return { elements: styledElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }, with a comment that a selection colours the range and leaves the base colour and the defaults alone.\n- S10: insert before line 445 (line 445 reads `export const actionChangeBackgroundColor = register<`) — Add `export const actionChangeTextHighlight = register<string>({ name: \"changeTextHighlight\", label: \"labels.textHighlight\", trackEvent: false, predicate: (_, appState) => !!appState.editingTextElement, perform, PanelComponent })`. perform: changeTextStyleAttribute(elements, appState, app, \"highlight\", value ?? null); return false when null; else { elements, appState, captureUpdate: IMMEDIATELY }. PanelComponent: an h3 aria-hidden with t(\"labels.textHighlight\") when stylesPanelMode is full, then <TopPicks theme={appState.theme} type=\"elementBackground\" activeColor={null} topPicks={TEXT_HIGHLIGHT_PICKS} onChange={(color) => updateData(color)} />. Then add `export const actionClearTextStyle = register<TextStyleAttribute>({ name: \"clearTextStyle\", label: \"labels.clearTextColor\", trackEvent: false, predicate same, perform, PanelComponent })`. perform: changeTextStyleAttribute with attribute = value and color null, same return shape. PanelComponent: a div.buttonList with two <IconButton type=\"button\" icon={EraserIcon}> with title and aria-label t(\"labels.clearTextColor\") and data-testid clear-text-color calling updateData(\"color\"), and t(\"labels.clearTextHighlight\") and data-testid clear-text-highlight calling updateData(\"highlight\").\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 25,
+          "to": 25
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 34,
+          "to": 34
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 100,
+          "to": 100
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 107,
+          "to": 107
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 156,
+          "to": 156
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 169,
+          "to": 169
+        },
+        {
+          "id": "S7",
+          "at": "insert_before",
+          "from": 364,
+          "to": 364
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 372,
+          "to": 372
+        },
+        {
+          "id": "S9",
+          "at": "insert_before",
+          "from": 380,
+          "to": 380
+        },
+        {
+          "id": "S10",
+          "at": "insert_before",
+          "from": 445,
+          "to": 445
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U19",
+    "unit": "U19",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/components/Actions.tsx",
+    "depends_on": [
+      "tp_codegen_U17",
+      "tp_codegen_U18"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/Actions.tsx` (unit U19) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 162 (line 162 reads `<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>`) — Add `{appState.editingTextElement && (<div>{renderAction(\"changeTextHighlight\")}{renderAction(\"clearTextStyle\")}</div>)}`, formatted by Prettier.\n- S2: insert before line 478 (line 478 reads `{predicates.text && renderAction(\"changeFontSize\")}`) — Add the same two renderAction calls guarded by appState.editingTextElement, inside a fragment.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/Actions.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 162,
+          "to": 162
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 478,
+          "to": 478
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U20",
+    "unit": "U20",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/tests/textStyleRanges.test.ts",
+    "depends_on": [
+      "tp_codegen_U03",
+      "tp_codegen_U04",
+      "tp_codegen_U05",
+      "tp_codegen_U06",
+      "tp_codegen_U07"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/element/tests/textStyleRanges.test.ts` (unit U20) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/textElement.test.ts",
+        "lines": [
+          1,
+          30
+        ],
+        "reason": "style file: Test file imports and describe layout in this package."
+      }
+    ],
+    "acceptance": [
+      "shifts a range on an insert before it: given range on \"world\" in \"hello world\", insert \"big \" at 6, expect the range covers \"world\" in the new text",
+      "shifts a range on a delete before it: given same range, delete \"hello \", expect start 0, end 5",
+      "grows on an insert inside and shrinks on a delete inside: given range on \"world\", insert \"XX\" inside, then a separate delete of 2 characters inside, expect end grows by 2 in the first and falls by 2 in the second, start unchanged",
+      "keeps an insert at either edge outside the range: given range on \"world\", insert exactly at its start, then exactly at its end, expect the range still covers exactly \"world\"",
+      "drops a range whose characters are all gone, with no tombstone: given range on \"world\", delete the word, expect remapTextStyles gives no such range and no cleared entry",
+      "places an insert correctly among repeated characters: given text \"aa\", range [1,2), insert \"a\" with caret 2, expect range [2,3)",
+      "keeps ranges through a multi-line indent: given text \"one\\ntwo\\nthree\", range on \"two\", next text with four spaces before each line, expect the range still covers \"two\"",
+      "keeps ranges through two separate edits: given \"foo bar baz\" with a range on \"bar\", next text \"Xfoo bar bazY\", expect the range covers \"bar\" in the new text",
+      "does not carry a range onto a stray shared letter: given \"abc def\" with a range on \"def\", next text \"xyz qex\", expect the range is dropped",
+      "keeps ranges through list renumbering and back: given text \"9. foo\" with ranges on \"9\" and on \"foo\", advanceDuplicatedListMarkers on a Scene, then applyListMarkerAdvances with prev, expect after the advance \"10\" and \"foo\" are covered; after going back the offsets equal the originals",
+      "withTextStyles deletes empty fields: given a copy with ranges, state with no ranges and no cleared entries, expect neither key is in the object",
+      "applyTextStyle adds a range after the highest seq: given a range at seq 2 and a tombstone at seq 5, expect the new range has seq 6 and the requested span",
+      "applyTextStyle replaces a range it fully covers on the same attributes: given a colour range, then a colour over the same span, expect one live range, one cleared entry with the old id",
+      "applyTextStyle keeps a covered range that sets another attribute: given a colour and highlight range, then a colour over it, expect the old range stays and the new one has the higher seq",
+      "clearTextStyle splits a range and tombstones the original: given range [0,10), clear colour on [3,5), expect cleared holds the id; live pieces [0,3) and [5,10) with new ids and the same seq",
+      "clearTextStyle removes one attribute and keeps the other: given colour and highlight on [0,5), clear highlight on [0,5), expect one live range [0,5) with colour only",
+      "keeps cleared entries within the bound: given 66 applications that each replace the previous range, expect cleared holds MAX_CLEARED_TEXT_STYLE_RANGES entries, the oldest seq gone",
+      "maps a range across a soft wrap: given text \"hello\\nworld\", originalText \"hello world\", range on \"lo wo\", expect line 0 has a styled run on \"lo\", line 1 on \"wo\", and the removed space belongs to neither",
+      "stays aligned when only the wrapping changes: given same originalText and range, text changed to \"hello world\", expect one line with a styled run on \"lo wo\"",
+      "handles hard and empty lines: given text and originalText \"a\\n\\nb\", range on \"b\", expect lines 0 and 1 are null, line 2 holds the run",
+      "returns null for unstyled text and for a line with no styled run: given one element with no ranges, one with a range on its second line only, expect null overall for the first; null for line 0 of the second",
+      "returns null when a line cannot be found in originalText: given text \"changed\" with originalText \"hello\" and a range, expect null",
+      "leaves an RTL line plain: given a two-line text whose first line is Hebrew, ranges on both lines, expect line 0 null, line 1 styled",
+      "never splits a surrogate pair: given text \"a😀b\", range [0,2) ending inside the emoji, expect the run covers \"a😀\" whole",
+      "resolves overlaps by seq per attribute: given range A colour red seq 1 on [0,5), range B colour blue seq 2 on [2,7), range C highlight seq 3 on [0,3), expect red on [0,2), blue on [2,7), highlight on [0,3)",
+      "lays runs out from the line start per alignment: given width 200, line \"hello world\", runs split at 6, for left, center and right, expect first x is 0, 45 and 90 and second x adds 60; widths are 60 and 50",
+      "createTextStyleRanges fills ids and drops invalid input: given one valid input with no id, one with colour \"red;x\", one with start >= end, expect one range with an id and seq 1",
+      "newTextElement carries ranges and adds no key without them: given newTextElement with and without textStyleRanges, expect field present with ids; key absent",
+      "convertToExcalidrawElements accepts ranges on text and labels: given a text skeleton and a rectangle with a label, each with an id-less range, expect both text elements carry a range with an id and seq",
+      "duplicates keep their ranges: given duplicateElement(null, new Map(), element), expect ranges deep-equal the source and are not the same reference"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/tests/textElement.test.ts",
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U21",
+    "unit": "U21",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/tests/delta.test.tsx",
+    "depends_on": [
+      "tp_codegen_U08"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/tests/delta.test.tsx` (unit U21) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 14 (line 14 reads `import { mutateElement, newElementWith } from \"../src/mutateElement\";`) — Add `import { noteMergedTextStyles } from \"../src/textStyleRanges\";`.\n- S2: insert after line 853 (line 853 reads `});`) — Add a top-level `describe(\"ElementsDelta text style ranges\", ...)` holding the listed cases. Helper: `apply(before, after)` as in the file's first describe, comparing with ElementsDelta.calculate(before, after).applyTo(before, before, { excludedProperties: new Set([\"version\", \"versionNonce\"]) }), and arrayToMap with an `as SceneElementsMap` cast. Build the after element with newElementWith so version moves. Undo is ElementsDelta.calculate(before, after).inverse().applyTo(after, after, same options).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/delta.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/delta.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/delta.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "carries only the ranges that changed: given before with ranges A and B, after with A unchanged and C added, expect the delta's inserted list holds C alone and its deleted list is empty",
+      "keeps tombstones out of the delta: given after has a new cleared entry, expect neither partial has clearedTextStyleRanges",
+      "undo restores offsets with the text: given text edit that shifted a range by 4, expect undo restores originalText and the original offsets",
+      "undo of an apply tombstones the range: given after adds range X, expect undone element has no ranges and a cleared entry for X",
+      "undo of a clear re-adds the range above its tombstone: given before holds X at seq 3, after has X cleared at seq 3, expect undone element holds X at seq 4 and no cleared entry",
+      "undo leaves a range it did not touch: given a delta adding X, applied to an element that also holds Y, expect undo removes X and keeps Y",
+      "undo remaps a range the delta did not name onto the restored text: given text edit delta, applied to an element also holding Y on a word after the edit, expect Y covers the same word in the restored text",
+      "omits a range a merge added: given noteMergedTextStyles(local, merged) with merged holding B, then a delta from local to a later copy of merged, expect the delta has no entry for B and undo keeps B",
+      "omits a range a merge cleared: given noteMergedTextStyles with merged lacking X, then a delta from local to a later copy of merged, expect the delta has no entry for X",
+      "stops omitting after the snapshot moves on: given same id, delta whose base version is above the recorded one, expect the delta holds the entry",
+      "does not count a tombstone as a visible change: given before and after differ only in clearedTextStyleRanges, version and versionNonce, expect the second value applyTo returns is false"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 853,
+          "to": 853
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U22",
+    "unit": "U22",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/history.test.tsx",
+    "depends_on": [
+      "tp_codegen_U08",
+      "tp_codegen_U12"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/history.test.tsx` (unit U22) at these sites only, as its brief says, following the conventions in the shared brief:\n- S2: replace line 11 (line 11 reads `import { newElementWith } from \"@excalidraw/element\";`) — Change to `import { newElementWith, noteMergedTextStyles } from \"@excalidraw/element\";`.\n- S1: insert after line 5308 (line 5308 reads `});`) — Add a top-level `describe(\"text style ranges\", ...)`, outside the snapshot checkpoints, with `beforeEach(async () => { unmountComponent(); await render(<Excalidraw handleKeyboardGlobally={true} />); });`. Never call checkpoint() or toMatchSnapshot here. Put a text element in with API.updateScene({ elements: [...], captureUpdate: CaptureUpdateAction.IMMEDIATELY }). Simulate a merge with { ...h.elements[0], textStyleRanges: [...] } (same version) through API.updateScene with CaptureUpdateAction.NEVER, after calling noteMergedTextStyles from @excalidraw/element.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/history.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/history.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "undo and redo a styled range: given a text, then an update adding a range, captured, expect undo removes it and redo brings it back on the same characters",
+      "undo restores a range with its text: given a captured text change that shifted a range, expect undo restores both the text and the offsets",
+      "a remote merge is not a local undo step: given a merge adds range B at the same version, then a local x move is captured, expect the undo stack grew by one, and undo reverts x and keeps B"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 11,
+          "to": 11
+        },
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 5308,
+          "to": 5308
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U23",
+    "unit": "U23",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/data/restore.test.ts",
+    "depends_on": [
+      "tp_codegen_U11"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/data/restore.test.ts` (unit U23) at these sites only, as its brief says, following the conventions in the shared brief:\n- S2: insert after line 9 (line 9 reads `getLineHeight,`) — Add `MAX_CLEARED_TEXT_STYLE_RANGES,` to the import.\n- S1: insert after line 1659 (line 1659 reads `});`) — Add a top-level `describe(\"restoreElements text style ranges\", ...)`. Use `{ ...API.createElement({ type: \"text\", text: \"hello world\" }), textStyleRanges: [...] } as any` for malformed input, and restore.restoreElements([...], null).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U23.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "adds no field to legacy text: given a text with neither field, expect neither key is on the restored element",
+      "clamps out-of-bounds offsets: given range start -3, end 99, expect start 0, end the text length",
+      "drops ranges that collapse: given start 20, end 30 on an 11-character text, expect dropped, and the key is gone",
+      "drops malformed ranges: given non-object, missing id, non-integer offset, seq 0, no colour, expect all dropped",
+      "drops a bad colour value: given colour \"red\\\" onload=\\\"x\" beside a valid range, expect only the valid range is left",
+      "accepts hex, named and functional colours: given #f00, #ff000080, red, rgb(1, 2, 3), expect all kept",
+      "strips unknown keys from a range: given a valid range with an extra key, expect the key is gone",
+      "keeps id, seq and tombstones: given a valid range and a valid cleared entry, expect deep-equal after restore",
+      "removes a range its tombstone covers: given range id X seq 2, cleared X seq 2, expect no ranges, cleared kept",
+      "drops malformed tombstones and caps the rest: given 70 valid entries and one with no id, expect MAX_CLEARED_TEXT_STYLE_RANGES entries with the highest seq",
+      "treats a non-array field as empty: given textStyleRanges: 5, expect the key is gone"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9
+        },
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1659,
+          "to": 1659
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U24",
+    "unit": "U24",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "depends_on": [
+      "tp_codegen_U12",
+      "tp_codegen_U14"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/data/reconcile.test.ts` (unit U24) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 1 (line 1 reads `import { syncInvalidIndices } from \"@excalidraw/element\";`) — Import getTextStyleRuns, newElementWith, remapTextStyles, syncInvalidIndices and withTextStyles from @excalidraw/element, formatted by Prettier.\n- S3: replace line 3 (line 3 reads `import { randomInteger, cloneJSON } from \"@excalidraw/common\";`) — Also import MAX_CLEARED_TEXT_STYLE_RANGES, formatted by Prettier.\n- S4: insert after line 6 (line 6 reads `ExcalidrawElement,`) — Add `FractionalIndex,` to the type import.\n- S5: replace line 10 (line 10 reads `import { reconcileElements } from \"../../data/reconcile\";`) — Keep the line and add `import { API } from \"../helpers/api\";` before it and `import { bumpElementVersions } from \"../../data/restore\";` after it.\n- S2: insert after line 386 (line 386 reads `});`) — Add a top-level `describe(\"reconcileElements text style ranges\", ...)` holding the listed cases.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "AC-6: different ranges end up on both clients: given common text; A adds range X at v2, B adds range Y at v2, expect both results hold X and Y, whichever nonce is lower",
+      "AC-7: a style survives an insert elsewhere: given A styles \"timeout\" at v2; B inserts a word at the start at v3, expect text is B's; the range covers \"timeout\"",
+      "AC-7: a style survives a delete elsewhere: given A styles \"timeout\" at v2; B deletes the first word at v3, expect the range covers \"timeout\"",
+      "AC-8: a range grows with an edit inside it: given A styles \"timeout\" at v2; B changes it to \"time-out\" at v3, expect the range covers \"time-out\"",
+      "AC-8: a range shrinks with an edit inside it: given A styles \"timeout\" at v2; B changes it to \"tout\" at v3, expect the range covers \"tout\"",
+      "AC-9: both edit text: given A edits the start and styles \"timeout\" and \"request\" at v3; B edits the end, keeps \"timeout\" and removes \"request\", at v4, expect text is B's; a range covers \"timeout\"; the range on \"request\" is gone",
+      "AC-9: a winner's range stays when the loser deleted its characters: given X on \"timeout\" on both; A deletes the word and drops X at v3; B edits elsewhere at v4, expect X stays on B's \"timeout\" (a text edit writes no tombstone)",
+      "AC-10: overlap gives one result: given A colours \"timeout\" red, B colours it blue, both at v2 with the same seq, expect both results' ranges are deep-equal, in canonical order, and getTextStyleRuns gives one colour",
+      "AC-11: a cleared range does not come back from a stale peer: given common X; A clears X at v3; B stays at v2 with X, expect both results hold no X and a cleared entry for X",
+      "AC-11: a clear survives a stale peer that wins: given common X; A clears X at v3; B, without seeing it, edits text at v5, expect text is B's, X is gone",
+      "AC-11: a concurrent range survives a clear: given common X; A clears X; B adds Y on the same span, expect X gone, Y kept",
+      "AC-12: order independence: given a mix of the above with each of A and B as the higher nonce, expect ranges and cleared entries are deep-equal between the two directions",
+      "AC-12: repeating a merge changes nothing: given the merged element reconciled again with either input, expect the result's ranges and cleared lists deep-equal the first merge's",
+      "FR-31: a version bump tie causes no drift: given merge, then bumpElementVersions against the local element, then reconcile with the other side, expect ranges unchanged",
+      "FR-28: the merge keeps the winner's version and nonce: given merge where ranges change, expect version and versionNonce equal the winner's",
+      "FR-13: a changed merge returns a new object: given local wins and gains a remote range, expect the result is not the local object, same version; with nothing to add the result is the local object",
+      "AC-13: a remote update during an edit keeps its ranges: given local mid-edit at text L with appState.editingTextElement set; remote holds range Y on a word L still has, expect the text stays L and Y is on the same word; after newElementWith commit-style text change through remapTextStyles the range stays",
+      "AC-14: unstyled text reconciles as before: given two unstyled text copies with different versions, then with equal versions, expect the result is the same winner object as before the change, with neither key added",
+      "FR-29: tombstone only on the loser still carries over: given winner has no fields, loser has a cleared entry, expect the result holds the cleared entry",
+      "NFR-5: a merge keeps the tombstone bound: given each side with 40 distinct cleared entries, expect MAX_CLEARED_TEXT_STYLE_RANGES entries, highest seq kept, same both ways"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 3,
+          "to": 3
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 10,
+          "to": 10
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U25",
+    "unit": "U25",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/scene/export.test.ts",
+    "depends_on": [
+      "tp_codegen_U09",
+      "tp_codegen_U10",
+      "tp_codegen_U11"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/scene/export.test.ts` (unit U25) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1100 (line 1100 reads `});`) — Add a top-level `describe(\"text style ranges\", ...)` holding the listed cases. Elements are { ...API.createElement({ type: \"text\", text, index: \"a0\" as FractionalIndex }), width, height, textStyleRanges }, exported with exportScene({ type, data: { elements, files: null } }).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "AC-5: writes tspans with the right fill: given \"hello world\" with \"world\" red, expect one <text> holds tspans \"hello \" with no fill and \"world\" with fill red; the <text> keeps the base fill",
+      "AC-5: writes highlights behind the text: given a highlight on \"world\", expect a rect with that fill comes before the <text> in the same <g>, y and height from the line",
+      "FR-22: positions match the canvas: given centre-aligned text with a highlight, expect the rect's x equals the x of the matching canvas fillText run",
+      "FR-23: an unstyled line stays byte for byte: given a two-line text styled on line 2 only, and the same element with no ranges, expect the outerHTML of line 1's <text> is identical in both",
+      "NFR-1: unstyled text exports identically: given an element with no ranges and a copy with an empty run set (no field), expect identical SVG markup and no tspan",
+      "NFR-4: a hostile colour reaches no markup: given a range with colour \"red\\\" onload=\\\"x\", expect the SVG holds no onload attribute and no tspan",
+      "FR-10: draws runs in place, one fillText each: given left, centre and right aligned text with a coloured word, expect fillText is called per run, at the line start for that alignment plus the width before the run, and the canvas textAlign is left for those calls",
+      "FR-10: draws a highlight behind its text: given a highlight on a word, expect a fillRect event at the run's x, the line's top and lineHeightPx comes before that run's fillText",
+      "FR-10: holds for line height and bound text: given a label bound to a rectangle with lineHeight 2 and a coloured word, expect the run's y equals the unstyled y for that line",
+      "FR-11: range colours follow dark mode: given export with config.theme dark, expect the fill equals applyDarkModeFilter of the range colour, on canvas and SVG, highlight included",
+      "FR-12: a line with no styled run is one fillText: given a two-line text styled on line 2 only, expect line 1 is drawn by one fillText with the whole line and the element's alignment",
+      "PNG export uses the same runs: given exportScene type png with a coloured word, expect resolves, and the canvas it drew on (config.environment.createCanvas) shows the run's fillText"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1100,
+          "to": 1100
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U26",
+    "unit": "U26",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "depends_on": [
+      "tp_codegen_U13",
+      "tp_codegen_U14",
+      "tp_codegen_U15",
+      "tp_codegen_U18",
+      "tp_codegen_U19"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` (unit U26) at these sites only, as its brief says, following the conventions in the shared brief:\n- S3: insert after line 9 (line 9 reads `newElementWith,`) — Add `getStyledTextLines,` to the import.\n- S5: insert after line 13 (line 13 reads `CODES,`) — Add `COLOR_PALETTE,` and `DEFAULT_ELEMENT_STROKE_COLOR_INDEX,` to the import.\n- S4: replace line 50 (line 50 reads `import { actionBindText } from \"../actions\";`) — Import actionBindText, actionChangeFontFamily, actionChangeFontSize, actionCopyStyles, actionPasteStyles and actionUnbindText from \"../actions\", formatted by Prettier, and add `import { actionWrapTextInContainer } from \"../actions/actionBoundText\";` below it.\n- S1: insert before line 49 (line 49 reads `import * as dataModule from \"../data\";`) — Add `import { serializeAsClipboardJSON } from \"../clipboard\";`.\n- S2: insert after line 3596 (line 3596 reads `});`) — Add `describe(\"styled ranges\", ...)` inside the textWysiwyg describe, holding the listed cases.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "AC-4: colours a selection: given \"hello world\" with \"world\" selected, the red top pick clicked, expect the element holds one range on [6,11) with that colour, base strokeColor unchanged",
+      "FR-15: stays open with the selection in place: given same, after the pick, expect the editor is still in the document, selectionStart and selectionEnd are unchanged, editingTextElement is set",
+      "FR-15: keeps the selection through the popover: given open the stroke popover and pick a palette colour, expect the range is applied and the selection offsets are unchanged",
+      "FR-15: highlights a selection: given a highlight top pick with a selection, expect one range with highlight and no color",
+      "FR-16: no selection colours the base and keeps ranges: given a text with a range, caret collapsed, stroke pick while editing, expect strokeColor changes and the ranges are deep-equal",
+      "FR-16: a canvas pick keeps ranges: given a selected text with a range, not editing, stroke pick, expect strokeColor changes and the ranges are deep-equal",
+      "FR-16: no selection makes the highlight a no-op: given collapsed caret, highlight pick, expect no ranges added",
+      "FR-17: clears a colour and a highlight from a selection: given a range with both on the selection, each clear button in turn, expect colour goes first, then the range goes and the cleared list holds its id",
+      "FR-18: shows a range behind the textarea: given a text with a coloured and a highlighted range, opened in the editor, expect .excalidraw-wysiwyg-styles holds spans with those colours and the same text as the textarea, the textarea has color transparent and class excalidraw-wysiwyg--styled",
+      "FR-18: an unstyled text has no layer: given a text with no ranges in the editor, expect no .excalidraw-wysiwyg-styles, textarea color is the base colour",
+      "FR-18: the layer goes with the last range and with the editor: given clear the only range, and separately exit the editor, expect no layer left, textarea colour restored",
+      "FR-13: the layer shows a merge that keeps version: given while editing, API.updateScene with a same-version copy holding a new range, expect the layer gains that span",
+      "FR-19: ranges follow typing and commit: given a range on \"world\", updateTextEditor inserts text before it, exit, expect the committed range covers \"world\"",
+      "FR-19: committing empty text behaves as today: given a range, then text cleared, exit, expect the element is deleted and no ranges are left on it",
+      "FR-20: pasted text into the editor follows the edit rule: given a range, fireEvent input with text pasted before it, expect the range stays on its word",
+      "FR-20: an element copy keeps its ranges: given serializeAsClipboardJSON of the element, parsed with JSON.parse, passed through h.app.addElementsFromPasteOrLibrary, expect the pasted element holds equal ranges and its own id",
+      "FR-20: paste styles leaves the target's ranges: given actionCopyStyles on a text with ranges, actionPasteStyles on a text with other ranges, expect the target's base colour changes and its ranges are unchanged",
+      "FR-4: keeps ranges through a font change, a resize and an auto-resize toggle: given a wrapped text with a range, then actionChangeFontFamily, then actionChangeFontSize, then actionTextAutoResize, expect the offsets are unchanged, and getStyledTextLines still styles the same characters",
+      "FR-6: keeps ranges bound, unbound and wrapped: given actionBindText onto a rectangle, actionUnbindText, actionWrapTextInContainer, expect the offsets are unchanged after each step",
+      "FR-6: sticky note ink sync changes the base colour only: given a sticky note label with a range, a stroke pick on the note, expect the label's strokeColor changes and its ranges are deep-equal"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 50,
+          "to": 50
+        },
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 49,
+          "to": 49
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 3596,
+          "to": 3596
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U27",
+    "unit": "U27",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "excalidraw-app/tests/collab.test.tsx",
+    "depends_on": [
+      "tp_codegen_U11",
+      "tp_codegen_U12"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `excalidraw-app/tests/collab.test.tsx` (unit U27) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 251 (line 251 reads `});`) — Add the listed cases as `it(...)` inside the collab describe, after the last test. Start with await render(<ExcalidrawApp />), then build elements with API.createElement({ type: \"text\", id: \"T\", text: \"hello world\" }) and syncInvalidIndices.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "AC-15: a remote update with ranges reaches the scene: given a local text at v2; a remote copy at v3 with a range, expect after _reconcileElements and handleRemoteSceneUpdate, h.elements holds the range",
+      "AC-15: ranges survive the restore before reconcile: given a remote copy with a valid range, a tombstone and one malformed range, expect the scene holds the valid range and tombstone with their id and seq, and the malformed one is gone",
+      "FR-34: a losing remote copy merges with no broadcast: given a remote copy at a lower version with a range the local copy lacks, and lastBroadcastedOrReceivedSceneVersion read before, expect the scene holds the range, the element's version and versionNonce are unchanged, and getSceneVersion matches the value read before"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 251,
+          "to": 251
+        }
+      ],
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U28",
+    "unit": "U28",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "dev-docs/docs/codebase/json-schema.mdx",
+    "depends_on": [
+      "tp_codegen_U11"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/codebase/json-schema.mdx` (unit U28) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 77 (line 77 reads `## Excalidraw clipboard format`) — Add a `### Styled text ranges` section, ending with a blank line. Say that a text element may carry textStyleRanges, a list of { id, seq, start, end, color?, highlight? }, with a small JSON example. Say that start and end are UTF-16 offsets into originalText, never text, with end exclusive; that at least one of color and highlight is set; that the field is absent when empty; that seq orders overlaps, so a higher seq paints over a lower one per attribute; and that id is random and holds no user data. Then say that clearedTextStyleRanges, a list of { id, seq }, records deliberately removed ranges so a stale collaborator cannot bring them back, is capped at 64 entries per element, and is also absent when empty.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/codebase/json-schema.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/codebase/json-schema.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/codebase/json-schema.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 77,
+          "to": 77
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U29",
+    "unit": "U29",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+    "depends_on": [
+      "tp_codegen_U06"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx` (unit U29) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 146 (line 146 reads `### Lines and Arrows`) — Add a `#### With styled ranges` subsection, ending with a blank line. Show a text skeleton with textStyleRanges: [{ start: 6, end: 11, color: \"#e03131\", highlight: \"#ffec99\" }], matching the file's example style. Say that offsets index the text as given, that id and seq are optional and generated when missing, that invalid entries are dropped, and that a container's or arrow's label accepts the same field.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 146,
+          "to": 146
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U30",
+    "unit": "U30",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+    "depends_on": [
+      "tp_codegen_U11"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx` (unit U30) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 68 (line 68 reads `### restore`) — Add a paragraph, ending with a blank line, saying that restoreElements leaves text without textStyleRanges alone and adds no field. It clamps out-of-bounds offsets, drops malformed ranges (bad id, seq, offsets or colour value, and an id-less range), and removes the field when no range is left. It keeps id, seq and clearedTextStyleRanges, which collaboration relies on.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 68,
+          "to": 68
+        }
+      ],
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U31",
+    "unit": "U31",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [
+      "tp_codegen_U12"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U31) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 15 (line 15 reads ``) — Add `### Partial text color and highlight (2026-11-02)`, with no PR link since no PR exists yet, then bullets, then a blank line. Bullets: text elements gain optional textStyleRanges and clearedTextStyleRanges; select text while editing and pick a color or highlight, with new clear controls; canvas draws runs and SVG export writes tspans, and lines holding RTL characters draw in the base color; restoreElements validates the field and leaves legacy text alone; reconcileElements keeps its signature and merges ranges on both outcomes; ExcalidrawElementSkeleton accepts the field on text and labels.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "format",
+          "run": "./node_modules/.bin/prettier --check '{path}'",
+          "fix": "./node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

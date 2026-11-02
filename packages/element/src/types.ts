@@ -250,6 +250,32 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+export type TextStyleRange = Readonly<{
+  /** Random id (nanoid). Holds nothing about a user, socket or session. */
+  id: string;
+  /**
+   * Element-local Lamport clock: a new range takes 1 + the highest seq among
+   * the element's ranges and tombstones. Also the paint order.
+   */
+  seq: number;
+  /** UTF-16 offset into `originalText` (never `text`) where the range starts */
+  start: number;
+  /** UTF-16 offset into `originalText`, exclusive */
+  end: number;
+  /** At least one of `color` and `highlight` is set */
+  color?: string;
+  highlight?: string;
+}>;
+
+/**
+ * Tombstone of a deliberately removed range. A live range of the same id with
+ * a seq at or below this one stays dead.
+ */
+export type ClearedTextStyleRange = Readonly<{
+  id: string;
+  seq: number;
+}>;
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -269,6 +295,18 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
     verticalAlign: VerticalAlign;
     containerId: ExcalidrawTextContainer["id"] | null;
     originalText: string;
+    /**
+     * Colour and highlight ranges over `originalText`, in canonical order
+     * (ascending by seq, then id). Offsets index `originalText`, never `text`.
+     * Absent, never empty, when there are no ranges.
+     */
+    textStyleRanges?: readonly TextStyleRange[];
+    /**
+     * Tombstones of deliberately removed ranges, kept so a merge does not
+     * bring them back. Bounded in size. Absent, never empty, when there are
+     * none.
+     */
+    clearedTextStyleRanges?: readonly ClearedTextStyleRange[];
     /**
      * If `true` the width will fit the text. If `false`, the text will
      * wrap to fit the width.

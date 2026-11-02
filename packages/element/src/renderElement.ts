@@ -60,6 +60,11 @@ import {
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
 import {
+  getStyledTextLines,
+  layoutTextStyleRuns,
+  type TextStyleRun,
+} from "./textStyleRanges";
+import {
   isTextElement,
   isLinearElement,
   isFreeDrawElement,
@@ -457,6 +462,50 @@ export const withSavedContext = (
   }
 };
 
+const drawStyledTextLine = (
+  context: CanvasRenderingContext2D,
+  element: NonDeleted<ExcalidrawTextElement>,
+  lineText: string,
+  runs: readonly TextStyleRun[],
+  lineTop: number,
+  baseline: number,
+  lineHeightPx: number,
+  renderConfig: StaticCanvasRenderConfig,
+) => {
+  withSavedContext(context, () => {
+    const isDark = renderConfig.theme === THEME.DARK;
+    const layout = layoutTextStyleRuns(
+      element,
+      lineText,
+      runs,
+      renderConfig.renderEnvironment,
+    );
+    context.textAlign = "left";
+    // a styled line holds no RTL characters, and the canvas direction is set
+    // from the element's first strong character, so pin it for this line
+    context.direction = "ltr";
+
+    for (const { run, x, width } of layout) {
+      if (run.highlight) {
+        context.fillStyle = applyDarkModeFilter(run.highlight, isDark);
+        context.fillRect(x, lineTop, width, lineHeightPx);
+      }
+    }
+
+    for (const { run, x } of layout) {
+      const text = lineText.slice(run.start, run.end);
+      if (!text) {
+        continue;
+      }
+      context.fillStyle = applyDarkModeFilter(
+        run.color ?? element.strokeColor,
+        isDark,
+      );
+      context.fillText(text, x, baseline);
+    }
+  });
+};
+
 const drawElementOnCanvas = (
   element: NonDeletedExcalidrawElement,
   rc: RoughCanvas,
@@ -703,12 +752,28 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
+          const styledLines = getStyledTextLines(element);
+
           for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
-            );
+            const runs = styledLines?.[index];
+            if (runs) {
+              drawStyledTextLine(
+                context,
+                element,
+                lines[index],
+                runs,
+                index * lineHeightPx,
+                index * lineHeightPx + verticalOffset,
+                lineHeightPx,
+                renderConfig,
+              );
+            } else {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {

@@ -65,6 +65,8 @@ This function will make sure all properties of element is correctly set and if a
 
 Parameter `refreshDimensions` indicates whether we should also `recalculate` text element dimensions. Defaults to `false`. Since this is a potentially costly operation, you may want to disable it if you restore elements in tight loops, such as during collaboration.
 
+`restoreElements` leaves text elements without `textStyleRanges` alone and adds no field to them. For text with styled ranges, it clamps out-of-bounds offsets and drops malformed ranges: a bad `id`, `seq`, offsets or colour value, and any range without an `id`. An element keeps at most 1000 live ranges, the highest by `seq`, and a `seq` above 2147483647 makes its range malformed, so it is dropped. When no range is left, it removes the field. It keeps `id`, `seq` and `clearedTextStyleRanges`, which collaboration relies on.
+
 ### restore
 
 **_Signature_**

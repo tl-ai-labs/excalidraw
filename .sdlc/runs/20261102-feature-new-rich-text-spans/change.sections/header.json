@@ -1,0 +1,152 @@
+{
+  "conventions": [
+    "TypeScript strict. Prettier 2.6 through eslint-plugin-prettier: 80 columns, double quotes, trailing commas, always-parenthesised arrow parameters.",
+    "Named exports and arrow-function consts. Comments explain why, not what; a non-obvious type field gets a doc comment.",
+    "Prefer const, readonly, ?. and ??, and low-allocation code on rendering paths. Prefer Merge<Base, Overrides> from @excalidraw/common/utility-types over Omit<...> & Overrides.",
+    "import/order fails lint (test:code runs --max-warnings=0): external packages, then @excalidraw/* values and types, then parent, sibling, then relative type imports, with a blank line between groups.",
+    "packages/element imports @excalidraw/excalidraw for types only, never at runtime. packages/common imports nothing from element or excalidraw.",
+    "New DOM use goes through app.ownerDocument, app.ownerWindow or the file's existing ownerDocument and ownerWindow, never the globals.",
+    "An element change goes through newElementWith, mutateElement or bumpVersion. The only exception is mergeTextStyles, which must keep version and versionNonce.",
+    "UI strings go through t() and are added to packages/excalidraw/locales/en.json only.",
+    "Range colours are untrusted. They reach SVG through setAttribute and the DOM through element.style, never through built markup or innerHTML.",
+    "Tests: Vitest globals, jsdom and vitest-canvas-mock. Never call toMatchSnapshot or toMatchInlineSnapshot in new tests, and never run yarn test:update: **/__snapshots__/** is off-limits.",
+    "In tests text width is the mock's: getLineWidth returns the character count times 10.",
+    "No new dependency in any package.json. No file under excalidraw-app changes except excalidraw-app/tests/collab.test.tsx."
+  ],
+  "decisions": [
+    {
+      "topic": "FR-18: how a styled range shows while editing (for Gate 2)",
+      "choice": "The <textarea> stays and stays the only input. When the edited element has ranges, textWysiwyg puts one extra layer behind it: a div.excalidraw-wysiwyg-styles, aria-hidden, pointer-events none, user-select none, prepended to .excalidraw-textEditorContainer. The div copies the textarea's inline style through cssText on every updateWysiwygStyle, so font, line height, box, transform, opacity and wrapping match. It holds the same text as the textarea, built from getTextStyleRuns as text nodes and <span>s with textContent, style.color and style.backgroundColor, colours passed through applyDarkModeFilter as on the canvas. The textarea then gets color transparent, caret-color set to the base colour and class excalidraw-wysiwyg--styled, whose ::selection is a translucent tint with transparent text, so colours stay visible through a live selection. The user sees each run in its real colour and highlight, at its real position, and types and selects in the native textarea. With no ranges no layer exists and the textarea is exactly as today. The layer rebuilds when the text, the ranges or the theme change, which includes a merge that keeps version. While focus is in a colour popover the selection offsets stay on the textarea, and the browser may paint that inactive selection faintly or not at all.",
+      "rejected": [
+        "contenteditable editor (out of scope: the textarea stays)",
+        "drawing the runs on the canvas under the textarea (the canvas skips the element being edited, and its layer sits below the UI)",
+        "markers or underlines in place of real colours (the user could not check the result while editing)"
+      ],
+      "reason": "A mirror behind a transparent textarea shows real colour per character and keeps native typing, IME, selection and undo in the textarea; unstyled text pays nothing."
+    },
+    {
+      "topic": "FR-29: range identity and clear tracking (for Gate 2)",
+      "choice": "Each range carries id (randomId(), a nanoid; nothing derived from a user, socket or session) and seq (positive integer, an element-local Lamport clock: a new range takes 1 + the highest seq among the element's ranges and tombstones). A range's colours never change under its id: restyling makes a new id. A deliberate removal (a clear, a new range that fully replaces it, an undo of the apply that made it) writes a tombstone {id, seq} into the optional element field clearedTextStyleRanges. A range lost because a text edit deleted its characters writes no tombstone, so a winning text that kept those characters keeps it. Per id the state is a register ordered by seq, with a tombstone beating a live range at the same seq. Undo of a clear re-adds the range at tombstone seq + 1 and removes the tombstone, so one id never holds more than one entry. The merge takes the union of ids and the higher state per id. A peer merely behind holds id X with no tombstone, and the other side's tombstone for X kills it. An id live on one side and unknown to the other, with no tombstone anywhere, was made concurrently and survives. version plays no part in this. Clearing part of a range tombstones it and writes the remaining pieces as new ids at the same seq, so paint order holds. Two concurrent partial clears of one range keep both sides' pieces, so each side's cleared span can stay covered by the other's piece; both clients still reach the same result.",
+      "rejected": [
+        "plain union of ranges (a stale peer brings cleared ranges back)",
+        "per-peer version vectors or a client id on each range (grows with peers and stores collaborator identity, which the PII inventory forbids)",
+        "timestamps (clock skew breaks order independence)"
+      ],
+      "reason": "An observed-remove register per id needs no peer identity and no version comparison, and its join is commutative and idempotent."
+    },
+    {
+      "topic": "NFR-5: the bound on clear tracking (for Gate 2)",
+      "choice": "clearedTextStyleRanges holds at most MAX_CLEARED_TEXT_STYLE_RANGES = 64 entries per text element, about 3 KB of JSON at worst, and is absent when empty. Every write keeps the 64 highest by (seq, then id); keeping the top N of a union stays commutative, associative and idempotent. Text edits add no entry, and undo and redo of one range reuse its single entry. The accepted limit: a peer that stayed behind through more than 64 later clears on that one element can bring back a range whose tombstone was evicted.",
+      "rejected": [
+        "unbounded tombstones (never collectable without knowing every peer has seen them)",
+        "time-based expiry (not deterministic across clients)",
+        "a seq floor that drops old one-sided ranges (loses live ranges from peers that were not stale)"
+      ],
+      "reason": "64 clears on one text element is far past normal use, and the bound costs one sort on write."
+    },
+    {
+      "topic": "Range data model",
+      "choice": "Element field textStyleRanges?: readonly TextStyleRange[], each {id, seq, start, end, color?, highlight?} with at least one colour, and start < end as offsets into originalText in UTF-16 code units, end exclusive. The list is always in canonical order, ascending by (seq, then id with <). The field is absent when empty, as a deleted key, not undefined and not []. All field writes go through withTextStyles, which deletes an empty field. The renderer checks textStyleRanges only, so tombstones cost it nothing.",
+      "reason": "Offsets into originalText survive every re-wrap, and one canonical order makes equal sets compare equal."
+    },
+    {
+      "topic": "FR-3: text edits and the edge rule",
+      "choice": "Ranges follow text by character alignment, one function for typing, list renumbering, undo and merge. A range's new start is the mapped position of its first surviving character and its new end is one past the mapped position of its last surviving one. So characters inserted between two surviving characters join the range, an insert exactly at a range's start or end stays outside it, and a range with no surviving character is dropped. Alignment trims the common suffix then prefix, then takes an LCS of the middle when the middle's cell count is at most MAX_TEXT_ALIGN_CELLS = 1,000,000; past that the middle counts as replaced. Inside the middle a matched block under 2 code units counts as unmatched, so a stray shared letter does not carry a range onto unrelated text. While typing, the suffix is capped at the text after the caret, which places an insert correctly inside a run of repeated characters.",
+      "rejected": [
+        "a single prefix and suffix edit (indent on several lines and two concurrent edits would drop ranges that still have their characters)",
+        "edge inserts joining the range (typing after a coloured word would extend it, and the result would depend on merge order)"
+      ],
+      "reason": "One rule gives shift, grow, shrink and drop, and the same mapping places losing-side ranges on the winning text."
+    },
+    {
+      "topic": "FR-27 to FR-33 and FR-13: where the merge runs and how it shows",
+      "choice": "reconcileElements picks the winner exactly as today, then on both outcomes, with a local and a remote element present, replaces the winner with mergeTextStyles(winner, loser). On the mid-edit discard the local element counts as winner, so the remote ranges land on the text being edited, in the scene element that updateElement reads at commit. For an id on the winner the winner's offsets stand; a loser-only id is mapped from the loser's text to the winner's. mergeTextStyles returns the winner itself when nothing changes, and when both sides have no ranges and no tombstones, so unstyled text allocates nothing. Otherwise it returns a new object with the winner's version, versionNonce and updated. The new object is what FR-13 needs: elementWithCanvasCache is keyed by object identity, not version, and Scene.replaceAllElements moves sceneNonce, so the canvas repaints with no version change. The merge is idempotent, so the tie bump by bumpElementVersions and the following rebroadcast change nothing. A merged change stays unbroadcast until the next version bump or the periodic full-scene broadcast, which keeps FR-28.",
+      "rejected": [
+        "mutating the winner in place (the canvas cache would keep the old bitmap)",
+        "bumping version on merge (starts a broadcast, against FR-28)"
+      ],
+      "reason": "reconcileElements is the one path all collab routes share, so no excalidraw-app source changes."
+    },
+    {
+      "topic": "FR-31: overlapping styles",
+      "choice": "Colour and highlight resolve independently per character. Walking the canonical list, the last range that sets the attribute wins, so the higher seq wins and id breaks a tie. Ranges stay overlapping in the data and merge never flattens them.",
+      "reason": "A deterministic order over an identical list gives both clients one result with no conflict rule beyond the sort."
+    },
+    {
+      "topic": "FR-9: undo and redo",
+      "choice": "textStyleRanges goes into deltas as an id-keyed diff like boundElements, through Delta.diffArrays: only ranges added, removed or changed in offsets or seq, so undo leaves ranges it did not touch. clearedTextStyleRanges is never in a delta (tombstones only grow), and it does not count as a visible difference. applyDelta rebuilds the field with applyTextStyleDelta: it maps the element's current ranges onto the delta's text, removes the delta's removed ids with a tombstone, then upserts its added ids, re-adding a tombstoned id at tombstone seq + 1. A merge that keeps version is invisible to the store, whose snapshot compares versions, and store.ts is outside the write contract. So reconcile records each range id whose presence the merge changed on the local element, in a module-level map from id to that local element's version, and ElementsDelta.postProcess omits an id found in only one side of the diff while the recorded version is at or above the delta's base version. After the next capture the snapshot's version is higher and the record stops applying. ElementsDelta.squash stays last-write-wins for the field: it serves the host applyDeltas API, not undo.",
+      "rejected": [
+        "whole-list replacement on undo (wipes ranges that peers added after the step)",
+        "a change in store.ts or history.ts (outside the write contract)",
+        "an origin tag on each range (a collaborator identity by another name)"
+      ],
+      "reason": "Undo must revert only the local step, and the module map is the smallest in-scope way to tell the delta what the snapshot cannot see."
+    },
+    {
+      "topic": "Colour rendering and positions",
+      "choice": "Canvas and SVG share getStyledTextLines and layoutTextStyleRuns. Each line of element.text is located in originalText by walking forward and skipping only whitespace, which covers the whitespace wrapping removes. A line that cannot be located returns null for the whole element and draws plain, so a stale or tab-normalised text never misplaces colour. A run's x is the line's start for its alignment plus getLineWidth of the line text before the run, so kerning across a run edge stays. Highlights are lineHeightPx tall from the line's top and painted before that line's text. Boundaries inside a surrogate pair snap outward. Both colours pass through applyDarkModeFilter.",
+      "reason": "One layout function keeps canvas and SVG positions equal, and wrapping needs no range bookkeeping at all."
+    },
+    {
+      "topic": "RTL lines",
+      "choice": "A line holding any RTL character draws as today, as one fillText or one <text> in the base colour with no highlight, on both canvas and SVG. Its ranges stay in the data and still show in the editor layer, which the browser lays out natively. This is a known limit of this change and needs sign-off at Gate 2.",
+      "rejected": [
+        "right-to-left run placement (wrong on the common mixed line, e.g. Hebrew with a Latin word or a number)",
+        "DOM measurement per run (no DOM in a host's render environment)"
+      ],
+      "reason": "FR-10 ranks position above styling, and canvas cannot place a logical run in a bidi line without a layout engine."
+    },
+    {
+      "topic": "FR-15 to FR-17: controls",
+      "choice": "actionChangeStrokeColor gains a branch: with a non-collapsed textarea selection on the text being edited it applies a range, leaves the base colour and currentItem defaults alone, and stays open. A collapsed selection takes today's path. New action changeTextHighlight renders five swatches (TEXT_HIGHLIGHT_PICKS) through the existing TopPicks strip, and new action clearTextStyle renders two buttons, Clear text color and Clear highlight, shown only while editing text, in the full panel and in the compact text popover. Both do nothing with a collapsed selection, returning false. A transparent pick clears that attribute. The selection is read with saveCaretPosition from hooks/useTextEditorFocus.ts at action time; nothing writes the textarea's value, so selectionStart and selectionEnd survive the popover, and ColorPicker already restores focus.",
+      "rejected": [
+        "a highlight ColorPicker popover (ColorPicker.tsx and its popup type union are outside the write contract, and the elementBackground popup id collides with the note fill picker while editing a sticky note label)"
+      ],
+      "reason": "The swatch strip needs no popup id, and the panel already sits inside the areas the editor's pointerdown guard keeps open."
+    },
+    {
+      "topic": "Colour validation (FR-25, NFR-4)",
+      "choice": "A range colour is valid only if it is a string of at most 64 characters matching one of: #rgb, #rgba, #rrggbb, #rrggbbaa; a bare CSS name /^[a-z]{3,30}$/i; or rgb(), rgba(), hsl() or hsla() whose arguments hold only digits, whitespace and . , % / characters. Anything else drops the whole range.",
+      "reason": "An allowlist needs no DOM, so it works in packages/element and in a host's render environment."
+    },
+    {
+      "topic": "Skeleton input (FR-8)",
+      "choice": "The skeleton and newTextElement take TextStyleRangeInput: start, end, color?, highlight?, with id and seq optional. createTextStyleRanges fills missing ids from randomId() and missing seq by position, clamps offsets to originalText and drops invalid entries. restore never assigns ids: restore runs per client before reconcile, so it would give one range two ids, and an id-less range there is malformed.",
+      "reason": "Hosts should not need to invent ids, and restore must stay deterministic across clients."
+    },
+    {
+      "topic": "FR-20: clipboard and styles",
+      "choice": "No code change. Element copy and paste carry the field through JSON, deepCopyElement and restore. The textarea copies plain text. Paste into the editor goes through oninput, so FR-3 applies. actionPasteStyles copies named base fields only, so the target's ranges stay.",
+      "reason": "Existing code already does what FR-20 asks; tests pin it."
+    },
+    {
+      "topic": "Allowed files this change leaves unedited",
+      "choice": "These stay untouched because ranges index originalText and the code keeps unknown fields: textElement.ts, textMeasurements.ts, textWrapping.ts, stickyNote.ts, App.clipboard.ts, actionStyles.ts, actionBoundText.tsx, actionTextAutoResize.ts, staticScene.ts, scene/export.ts, tests/helpers/api.ts, tests/export.test.tsx, element tests textElement.test.ts and textWrapping.test.ts. FR-4 and FR-6 are pinned by tests, not by edits.",
+      "reason": "Keeps the file set to what the requirements need."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "lint",
+      "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx {path}",
+      "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx {path}",
+      "timeout_s": 120
+    },
+    {
+      "id": "format",
+      "run": "./node_modules/.bin/prettier --check {path}",
+      "fix": "./node_modules/.bin/prettier --write {path}",
+      "timeout_s": 30
+    },
+    {
+      "id": "vitest",
+      "run": "./node_modules/.bin/vitest run {path}",
+      "timeout_s": 300
+    }
+  ],
+  "project_checks": [
+    { "id": "typecheck", "run": "yarn test:typecheck" },
+    { "id": "code", "run": "yarn test:code" },
+    { "id": "app", "run": "yarn test:app --watch=false" }
+  ]
+}

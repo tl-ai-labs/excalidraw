@@ -8,7 +8,7 @@ import {
 import { vi } from "vitest";
 import { pointFrom } from "@excalidraw/math";
 
-import { newElementWith } from "@excalidraw/element";
+import { newElementWith, noteMergedTextStyles } from "@excalidraw/element";
 
 import {
   EXPORT_DATA_TYPES,
@@ -5304,5 +5304,138 @@ describe("history", () => {
         ]);
       });
     });
+  });
+});
+
+describe("text style ranges", () => {
+  beforeEach(async () => {
+    unmountComponent();
+    await render(<Excalidraw handleKeyboardGlobally={true} />);
+  });
+
+  const getText = () => h.elements[0] as ExcalidrawTextElement;
+
+  it("undo and redo a styled range", () => {
+    const text = API.createElement({
+      type: "text",
+      id: "styled-text",
+      text: "hello world",
+    });
+    API.updateScene({
+      elements: [text],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    const rangeA = {
+      id: "range-a",
+      seq: 1,
+      start: 0,
+      end: 5,
+      color: "#ff0000",
+    };
+    API.updateScene({
+      elements: [newElementWith(getText(), { textStyleRanges: [rangeA] })],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    expect(getText().textStyleRanges).toEqual([rangeA]);
+
+    Keyboard.undo();
+    expect(getText().textStyleRanges).toBeUndefined();
+    expect(getText().originalText).toBe("hello world");
+
+    Keyboard.redo();
+    // a redo re-adds the range above its tombstone, so only seq may differ
+    expect(getText().textStyleRanges).toEqual([
+      expect.objectContaining({
+        id: "range-a",
+        start: 0,
+        end: 5,
+        color: "#ff0000",
+      }),
+    ]);
+    expect(getText().originalText).toBe("hello world");
+  });
+
+  it("undo restores a range with its text", () => {
+    const text = API.createElement({
+      type: "text",
+      id: "shift-text",
+      text: "hello world",
+    });
+    API.updateScene({
+      elements: [text],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    const range = {
+      id: "range-w",
+      seq: 1,
+      start: 6,
+      end: 11,
+      color: "#0000ff",
+    };
+    API.updateScene({
+      elements: [newElementWith(getText(), { textStyleRanges: [range] })],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    API.updateScene({
+      elements: [
+        newElementWith(getText(), {
+          text: "oh hello world",
+          originalText: "oh hello world",
+          textStyleRanges: [{ ...range, start: 9, end: 14 }],
+        }),
+      ],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    expect(getText().originalText).toBe("oh hello world");
+
+    Keyboard.undo();
+    expect(getText().originalText).toBe("hello world");
+    expect(getText().textStyleRanges).toEqual([
+      expect.objectContaining({ id: "range-w", start: 6, end: 11 }),
+    ]);
+  });
+
+  it("a remote merge is not a local undo step", () => {
+    const text = API.createElement({
+      type: "text",
+      id: "merge-text",
+      text: "hello world",
+      x: 10,
+    });
+    API.updateScene({
+      elements: [text],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    expect(API.getUndoStack().length).toBe(1);
+
+    const rangeB = {
+      id: "range-b",
+      seq: 1,
+      start: 0,
+      end: 5,
+      color: "#00ff00",
+    };
+    const local = getText();
+    const merged = { ...local, textStyleRanges: [rangeB] };
+    noteMergedTextStyles(local, merged);
+    API.updateScene({
+      elements: [merged],
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+    expect(API.getUndoStack().length).toBe(1);
+
+    API.updateScene({
+      elements: [newElementWith(getText(), { x: 50 })],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    expect(API.getUndoStack().length).toBe(2);
+
+    Keyboard.undo();
+    expect(getText().x).toBe(10);
+    expect(getText().textStyleRanges).toEqual([
+      expect.objectContaining({ id: "range-b", start: 0, end: 5 }),
+    ]);
   });
 });

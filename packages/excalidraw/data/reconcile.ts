@@ -3,6 +3,9 @@ import throttle from "lodash.throttle";
 import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
+  isTextElement,
+  mergeTextStyles,
+  noteMergedTextStyles,
   orderByFractionalIndex,
   syncInvalidIndices,
   validateFractionalIndices,
@@ -70,6 +73,25 @@ const validateIndicesThrottled = throttle(
   { leading: true, trailing: false },
 );
 
+/**
+ * The text still has exactly one winner, only its style ranges are merged
+ * with the loser's.
+ */
+const mergeStyleRanges = <T extends OrderedExcalidrawElement>(
+  winner: T,
+  loser: OrderedExcalidrawElement,
+  localElement: OrderedExcalidrawElement,
+): T => {
+  if (!isTextElement(winner) || !isTextElement(loser)) {
+    return winner;
+  }
+  const merged = mergeTextStyles(winner, loser);
+  if (merged !== localElement && isTextElement(localElement)) {
+    noteMergedTextStyles(localElement, merged);
+  }
+  return merged;
+};
+
 export const reconcileElements = (
   localElements: readonly OrderedExcalidrawElement[],
   remoteElements: readonly RemoteExcalidrawElement[],
@@ -90,10 +112,16 @@ export const reconcileElements = (
       );
 
       if (localElement && discardRemoteElement) {
-        reconciledElements.push(localElement);
+        reconciledElements.push(
+          mergeStyleRanges(localElement, remoteElement, localElement),
+        );
         added.add(localElement.id);
       } else {
-        reconciledElements.push(remoteElement);
+        reconciledElements.push(
+          localElement
+            ? mergeStyleRanges(remoteElement, localElement, localElement)
+            : remoteElement,
+        );
         added.add(remoteElement.id);
       }
     }

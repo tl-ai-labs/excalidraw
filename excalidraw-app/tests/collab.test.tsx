@@ -1,3 +1,4 @@
+import { MAX_TEXT_STYLE_RANGES } from "@excalidraw/common";
 import { CaptureUpdateAction, newElementWith } from "@excalidraw/excalidraw";
 import {
   createRedoAction,
@@ -11,6 +12,7 @@ import { vi } from "vitest";
 import { StoreIncrement } from "@excalidraw/element";
 
 import type { DurableIncrement, EphemeralIncrement } from "@excalidraw/element";
+import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 
 import ExcalidrawApp from "../App";
 
@@ -248,5 +250,144 @@ describe("collaboration", () => {
         expect.objectContaining({ ...rect2Props, isDeleted: true }),
       ]);
     });
+  });
+});
+
+describe("collaboration text style ranges", () => {
+  const range = { id: "r1", seq: 1, start: 0, end: 5, color: "#ff0000" };
+
+  const renderLocalText = async () => {
+    await render(<ExcalidrawApp />);
+
+    API.updateScene({
+      elements: syncInvalidIndices([
+        API.createElement({ type: "text", id: "T", text: "hello world" }),
+      ]),
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+
+    // read after the update, because syncing indices bumps the version
+    return h.elements[0];
+  };
+
+  const receiveRemoteElements = (
+    remoteElements: readonly typeof h.elements[number][],
+  ) => {
+    // eslint-disable-next-line dot-notation
+    const reconciled = window.collab["_reconcileElements"](
+      remoteElements as readonly RemoteExcalidrawElement[],
+    );
+    act(() => {
+      // eslint-disable-next-line dot-notation
+      window.collab["handleRemoteSceneUpdate"](reconciled);
+    });
+  };
+
+  it("should bring a remote update with ranges into the scene", async () => {
+    const local = await renderLocalText();
+
+    receiveRemoteElements([
+      {
+        ...local,
+        version: local.version + 1,
+        textStyleRanges: [range],
+      } as typeof local,
+    ]);
+
+    await waitFor(() => {
+      expect(h.elements[0]).toEqual(
+        expect.objectContaining({ textStyleRanges: [range] }),
+      );
+    });
+  });
+
+  it("should keep valid ranges and tombstones through restore before reconcile", async () => {
+    const local = await renderLocalText();
+    const tombstone = { id: "r0", seq: 1 };
+
+    receiveRemoteElements([
+      {
+        ...local,
+        version: local.version + 1,
+        textStyleRanges: [
+          range,
+          { id: "bad", seq: 2, start: 0, end: 5, color: "url(evil)" },
+        ],
+        clearedTextStyleRanges: [tombstone],
+      } as typeof local,
+    ]);
+
+    await waitFor(() => {
+      expect(h.elements[0]).toEqual(
+        expect.objectContaining({
+          textStyleRanges: [range],
+          clearedTextStyleRanges: [tombstone],
+        }),
+      );
+    });
+  });
+
+  it("should merge a losing remote copy without a broadcast", async () => {
+    const { getSceneVersion } = await import("@excalidraw/element");
+
+    const local = await renderLocalText();
+    const { version, versionNonce } = local;
+    const sceneVersionBefore = getSceneVersion(h.elements);
+
+    receiveRemoteElements([
+      {
+        ...local,
+        version: version - 1,
+        versionNonce: versionNonce + 1,
+        textStyleRanges: [range],
+      } as typeof local,
+    ]);
+
+    await waitFor(() => {
+      expect(h.elements[0]).toEqual(
+        expect.objectContaining({
+          textStyleRanges: [range],
+          version,
+          versionNonce,
+        }),
+      );
+    });
+    expect(getSceneVersion(h.elements)).toBe(sceneVersionBefore);
+    expect(window.collab.getLastBroadcastedOrReceivedSceneVersion()).toBe(
+      sceneVersionBefore,
+    );
+  });
+
+  it("should cap a remote update with too many ranges to the highest seq", async () => {
+    const local = await renderLocalText();
+    const ranges = Array.from(
+      { length: MAX_TEXT_STYLE_RANGES + 5 },
+      (_, index) => ({
+        id: `r${index}`,
+        seq: index + 1,
+        start: 0,
+        end: 5,
+        color: "#ff0000",
+      }),
+    );
+
+    receiveRemoteElements([
+      {
+        ...local,
+        version: local.version + 1,
+        textStyleRanges: ranges,
+      } as typeof local,
+    ]);
+
+    await waitFor(() => {
+      expect(h.elements[0]).toEqual(
+        expect.objectContaining({
+          textStyleRanges: ranges.slice(5),
+        }),
+      );
+    });
+    expect((h.elements[0] as any).textStyleRanges).toHaveLength(
+      MAX_TEXT_STYLE_RANGES,
+    );
   });
 });

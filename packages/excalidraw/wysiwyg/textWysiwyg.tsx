@@ -17,6 +17,7 @@ import { pointFrom, pointRotateRads, type Radians } from "@excalidraw/math";
 
 import {
   getTextFromElements,
+  getTextStyleRuns,
   originalContainerCache,
   updateBoundElements,
   updateOriginalContainerCache,
@@ -265,7 +266,7 @@ export const textWysiwyg = ({
    * Note: `text`, which can be wrapped and therefore different from `originalText`,
    *       is derived from `originalText`
    */
-  onChange?: (nextOriginalText: string) => void;
+  onChange?: (data: { nextOriginalText: string; caret: number }) => void;
   onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;
   getViewportCoords: (x: number, y: number) => [number, number];
   element: ExcalidrawTextElement;
@@ -311,6 +312,80 @@ export const textWysiwyg = ({
     x: number;
     y: number;
   } | null = null;
+  let styleOverlay: HTMLDivElement | null = null;
+  let overlayContent: {
+    text: string;
+    ranges: ExcalidrawTextElement["textStyleRanges"];
+    isDark: boolean;
+  } | null = null;
+
+  /**
+   * A textarea cannot draw coloured runs, so a layer behind it does: it holds
+   * the same text in the same box, and the textarea above it turns its own
+   * text transparent and keeps the caret and the selection.
+   */
+  const syncStyleOverlay = (textElement: ExcalidrawTextElement) => {
+    const ranges = textElement.textStyleRanges;
+    if (!ranges) {
+      styleOverlay?.remove();
+      styleOverlay = null;
+      overlayContent = null;
+      editable.classList.remove("excalidraw-wysiwyg--styled");
+      editable.style.removeProperty("caret-color");
+      return;
+    }
+
+    if (!styleOverlay) {
+      styleOverlay = ownerDocument.createElement("div");
+      styleOverlay.classList.add("excalidraw-wysiwyg-styles");
+      styleOverlay.setAttribute("aria-hidden", "true");
+      styleOverlay.dir = "auto";
+      editorBox?.prepend(styleOverlay);
+    }
+    const overlay = styleOverlay;
+
+    const baseColor = editable.style.color;
+    overlay.style.cssText = editable.style.cssText;
+    Object.assign(overlay.style, {
+      pointerEvents: "none",
+      userSelect: "none",
+      unicodeBidi: "plaintext",
+    });
+
+    editable.style.caretColor = baseColor;
+    editable.style.color = "transparent";
+    editable.classList.add("excalidraw-wysiwyg--styled");
+
+    const isDark = app.state.theme === THEME.DARK;
+    if (
+      overlayContent &&
+      overlayContent.text === editable.value &&
+      overlayContent.ranges === ranges &&
+      overlayContent.isDark === isDark
+    ) {
+      return;
+    }
+
+    overlay.replaceChildren();
+    const value = editable.value;
+    for (const run of getTextStyleRuns(value, 0, ranges)) {
+      const text = value.slice(run.start, run.end);
+      if (!run.color && !run.highlight) {
+        overlay.append(ownerDocument.createTextNode(text));
+        continue;
+      }
+      const span = ownerDocument.createElement("span");
+      span.textContent = text;
+      if (run.color) {
+        span.style.color = applyDarkModeFilter(run.color, isDark);
+      }
+      if (run.highlight) {
+        span.style.backgroundColor = applyDarkModeFilter(run.highlight, isDark);
+      }
+      overlay.append(span);
+    }
+    overlayContent = { text: value, ranges, isDark };
+  };
 
   const textPropertiesUpdated = (
     updatedTextElement: ExcalidrawTextElement,
@@ -526,6 +601,7 @@ export const textWysiwyg = ({
         editable.style.fontFamily = getFontFamilyString(updatedTextElement);
       }
 
+      syncStyleOverlay(updatedTextElement);
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
     }
   };
@@ -860,7 +936,10 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      onChange(editable.value);
+      onChange({
+        nextOriginalText: editable.value,
+        caret: editable.selectionEnd,
+      });
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1114,6 +1193,7 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("right");
 
     editable.remove();
+    styleOverlay?.remove();
   };
 
   const bindBlurEvent = (event?: MouseEvent) => {

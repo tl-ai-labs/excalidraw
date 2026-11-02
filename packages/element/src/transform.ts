@@ -30,7 +30,7 @@ import {
   DEFAULT_ZOOM,
 } from "@excalidraw/common";
 
-import type { MarkOptional } from "@excalidraw/common/utility-types";
+import type { MarkOptional, Merge } from "@excalidraw/common/utility-types";
 import type { Zoom } from "@excalidraw/excalidraw/types";
 
 import {
@@ -82,6 +82,7 @@ import { Scene } from "./Scene";
 
 import type { RenderEnvironment } from "./renderEnvironment";
 
+import type { TextStyleRangeInput } from "./textStyleRanges";
 import type {
   Arrowhead,
   ElementsMap,
@@ -131,6 +132,7 @@ export type ValidLinearElement = {
     verticalAlign?: VerticalAlign;
     /** where along an arrow's path (0-1) the label is centered */
     labelPosition?: ExcalidrawTextElement["labelPosition"];
+    textStyleRanges?: readonly TextStyleRangeInput[];
   } & FragmentConstructorOpts;
   end?:
     | (
@@ -228,6 +230,7 @@ export type ValidContainer =
         fontFamily?: FontFamilyValues;
         textAlign?: TextAlign;
         verticalAlign?: VerticalAlign;
+        textStyleRanges?: readonly TextStyleRangeInput[];
       } & FragmentConstructorOpts;
     } & ElementConstructorOpts;
 
@@ -262,7 +265,10 @@ export type ExcalidrawElementSkeleton =
       x: number;
       y: number;
       id?: ExcalidrawTextElement["id"];
-    } & Partial<ExcalidrawTextElement>)
+    } & Merge<
+      Partial<ExcalidrawTextElement>,
+      { textStyleRanges?: readonly TextStyleRangeInput[] }
+    >)
   | ({
       type: Extract<ExcalidrawImageElement["type"], "image">;
       x: number;
@@ -290,7 +296,9 @@ const DEFAULT_DIMENSION = 100;
 const bindTextToContainer = (
   container: ExcalidrawElement,
   textProps: { text: string } & FragmentConstructorOpts &
-    Pick<Partial<ExcalidrawTextElement>, "labelPosition">,
+    Pick<Partial<ExcalidrawTextElement>, "labelPosition"> & {
+      textStyleRanges?: readonly TextStyleRangeInput[];
+    },
   scene: Scene,
   renderEnvironment?: RenderEnvironment,
 ) => {

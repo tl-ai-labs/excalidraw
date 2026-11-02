@@ -6,6 +6,7 @@ import {
   getContainerElement,
   redrawTextBoundingBox,
 } from "./textElement";
+import { remapTextStyles, withTextStyles } from "./textStyleRanges";
 import { isBoundToContainer, isTextElement } from "./typeChecks";
 
 import type { RenderEnvironment } from "./renderEnvironment";
@@ -211,6 +212,14 @@ const setText = (
   scene: Scene,
   renderEnvironment: RenderEnvironment | undefined,
 ) => {
+  // a renumbered marker replaces its characters in place, so a range on the
+  // marker stays on it (this must run before the mutations below change
+  // originalText)
+  const textStyles = remapTextStyles(element, originalText, { replace: true });
+  if (textStyles) {
+    withTextStyles(element, textStyles);
+  }
+
   if (container) {
     scene.mutateElement(element, { originalText });
     // re-wraps the label, and grows the container if need be

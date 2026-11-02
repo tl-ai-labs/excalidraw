@@ -160,6 +160,12 @@ export const SelectedShapeActions = ({
   return (
     <div className="selected-shape-actions">
       <div>{predicates.strokeColor && renderAction("changeStrokeColor")}</div>
+      {appState.editingTextElement && (
+        <div>
+          {renderAction("changeTextHighlight")}
+          {renderAction("clearTextStyle")}
+        </div>
+      )}
       {predicates.backgroundColor && (
         <div>{renderAction("changeBackgroundColor")}</div>
       )}
@@ -475,6 +481,12 @@ const CombinedTextProperties = ({
             }}
           >
             <div className="selected-shape-actions">
+              {appState.editingTextElement && (
+                <>
+                  {renderAction("changeTextHighlight")}
+                  {renderAction("clearTextStyle")}
+                </>
+              )}
               {predicates.text && renderAction("changeFontSize")}
               {predicates.textAlign && renderAction("changeTextAlign")}
               {predicates.verticalAlign && renderAction("changeVerticalAlign")}

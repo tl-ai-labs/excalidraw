@@ -1,13 +1,28 @@
-import { syncInvalidIndices } from "@excalidraw/element";
+import {
+  getTextStyleRuns,
+  newElementWith,
+  remapTextStyles,
+  syncInvalidIndices,
+  withTextStyles,
+} from "@excalidraw/element";
 
-import { randomInteger, cloneJSON } from "@excalidraw/common";
+import {
+  randomInteger,
+  cloneJSON,
+  MAX_CLEARED_TEXT_STYLE_RANGES,
+  MAX_TEXT_STYLE_RANGES,
+} from "@excalidraw/common";
 
 import type {
   ExcalidrawElement,
+  FractionalIndex,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
+import { API } from "../helpers/api";
+
 import { reconcileElements } from "../../data/reconcile";
+import { bumpElementVersions } from "../../data/restore";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
 
@@ -382,5 +397,412 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+});
+
+describe("reconcileElements text style ranges", () => {
+  type TextEl = Parameters<typeof withTextStyles>[0];
+  type Ranges = NonNullable<TextEl["textStyleRanges"]>;
+  type Cleared = NonNullable<TextEl["clearedTextStyleRanges"]>;
+
+  const BASE = "a timeout in the request";
+
+  const textCopy = (
+    originalText: string,
+    version: number,
+    versionNonce: number,
+    ranges?: Ranges,
+    cleared?: Cleared,
+  ) => {
+    const el = {
+      ...API.createElement({
+        type: "text",
+        id: "T",
+        text: originalText,
+        index: "a0" as FractionalIndex,
+      }),
+      originalText,
+      text: originalText,
+      version,
+      versionNonce,
+    } as TextEl;
+    return withTextStyles(el, {
+      ranges: ranges ?? [],
+      cleared: cleared ?? [],
+    });
+  };
+
+  const both = (a: TextEl, b: TextEl, appState: Partial<AppState> = {}) => {
+    const run = (local: TextEl, remote: TextEl) =>
+      reconcileElements(
+        [cloneJSON(local)] as unknown as OrderedExcalidrawElement[],
+        [cloneJSON(remote)] as unknown as RemoteExcalidrawElement[],
+        appState as AppState,
+      )[0] as TextEl;
+    return [run(a, b), run(b, a)] as const;
+  };
+
+  const span = (text: string, word: string) => {
+    const start = text.indexOf(word);
+    return { start, end: start + word.length };
+  };
+
+  const range = (
+    id: string,
+    seq: number,
+    text: string,
+    word: string,
+    color = "#ff0000",
+  ) => ({ id, seq, ...span(text, word), color });
+
+  const getText = (el: TextEl, r: { start: number; end: number }) =>
+    el.originalText.slice(r.start, r.end);
+
+  const rangesOf = (el: TextEl) => el.textStyleRanges ?? [];
+  const clearedOf = (el: TextEl) => el.clearedTextStyleRanges ?? [];
+  const idsOf = (el: TextEl) => rangesOf(el).map((r) => r.id);
+
+  it("keeps different ranges from both clients", () => {
+    for (const [na, nb] of [
+      [1, 2],
+      [2, 1],
+    ]) {
+      const a = textCopy(BASE, 2, na, [range("x", 1, BASE, "timeout")]);
+      const b = textCopy(BASE, 2, nb, [range("y", 1, BASE, "request")]);
+      for (const res of both(a, b)) {
+        expect(idsOf(res)).toEqual(["x", "y"]);
+      }
+    }
+  });
+
+  it("keeps a style through an insert elsewhere", () => {
+    const a = textCopy(BASE, 2, 1, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy(`so ${BASE}`, 3, 2);
+    for (const res of both(a, b)) {
+      expect(res.originalText).toBe(`so ${BASE}`);
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["timeout"]);
+    }
+  });
+
+  it("keeps a style through a delete elsewhere", () => {
+    const a = textCopy(BASE, 2, 1, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy("timeout in the request", 3, 2);
+    for (const res of both(a, b)) {
+      expect(res.originalText).toBe("timeout in the request");
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["timeout"]);
+    }
+  });
+
+  it("grows a range with an edit inside it", () => {
+    const a = textCopy(BASE, 2, 1, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy("a time-out in the request", 3, 2);
+    for (const res of both(a, b)) {
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["time-out"]);
+    }
+  });
+
+  it("shrinks a range with an edit inside it", () => {
+    const a = textCopy(BASE, 2, 1, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy("a tout in the request", 3, 2);
+    for (const res of both(a, b)) {
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["tout"]);
+    }
+  });
+
+  it("maps loser ranges onto the winning text when both edit", () => {
+    const aText = `so ${BASE}`;
+    const bText = "a timeout in the end";
+    const a = textCopy(aText, 3, 1, [
+      range("t", 1, aText, "timeout"),
+      range("r", 2, aText, "request", "#00ff00"),
+    ]);
+    const b = textCopy(bText, 4, 2, [range("t", 1, bText, "timeout")]);
+    for (const res of both(a, b)) {
+      expect(res.originalText).toBe(bText);
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["timeout"]);
+      expect(idsOf(res)).toEqual(["t"]);
+    }
+  });
+
+  it("keeps a winner's range when the loser deleted its characters", () => {
+    const bText = `${BASE}!`;
+    const a = textCopy("a in the request", 3, 1);
+    const b = textCopy(bText, 4, 2, [range("x", 1, bText, "timeout")]);
+    for (const res of both(a, b)) {
+      expect(res.originalText).toBe(bText);
+      expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["timeout"]);
+      expect(clearedOf(res)).toEqual([]);
+    }
+  });
+
+  it("gives one result for overlapping styles", () => {
+    const a = textCopy(BASE, 2, 1, [range("a", 1, BASE, "timeout", "#ff0000")]);
+    const b = textCopy(BASE, 2, 2, [range("b", 1, BASE, "timeout", "#0000ff")]);
+    const [r1, r2] = both(a, b);
+    expect(rangesOf(r1)).toEqual(rangesOf(r2));
+    expect(idsOf(r1)).toEqual(["a", "b"]);
+    const colors = getTextStyleRuns(r1.originalText, 0, rangesOf(r1))
+      .filter((run) => run.color)
+      .map((run) => run.color);
+    expect(colors).toEqual(["#0000ff"]);
+  });
+
+  it("does not bring a cleared range back from a stale peer", () => {
+    const x = range("x", 1, BASE, "timeout");
+    const a = textCopy(BASE, 3, 1, [], [{ id: "x", seq: 1 }]);
+    const b = textCopy(BASE, 2, 2, [x]);
+    for (const res of both(a, b)) {
+      expect(idsOf(res)).toEqual([]);
+      expect(clearedOf(res).map((c) => c.id)).toEqual(["x"]);
+    }
+  });
+
+  it("keeps a clear when the stale peer wins", () => {
+    const bText = `so ${BASE}`;
+    const a = textCopy(BASE, 3, 1, [], [{ id: "x", seq: 1 }]);
+    const b = textCopy(bText, 5, 2, [range("x", 1, bText, "timeout")]);
+    for (const res of both(a, b)) {
+      expect(res.originalText).toBe(bText);
+      expect(idsOf(res)).toEqual([]);
+    }
+  });
+
+  it("keeps a concurrent range through a clear", () => {
+    const a = textCopy(BASE, 3, 1, [], [{ id: "x", seq: 1 }]);
+    const b = textCopy(BASE, 2, 2, [
+      range("x", 1, BASE, "timeout"),
+      range("y", 2, BASE, "timeout", "#0000ff"),
+    ]);
+    for (const res of both(a, b)) {
+      expect(idsOf(res)).toEqual(["y"]);
+    }
+  });
+
+  const makePairs = (na: number, nb: number) => {
+    const longer = `so ${BASE}`;
+    return [
+      [
+        textCopy(BASE, 2, na, [range("x", 1, BASE, "timeout")]),
+        textCopy(BASE, 2, nb, [range("y", 1, BASE, "request")]),
+      ],
+      [
+        textCopy(BASE, 2, na, [range("x", 1, BASE, "timeout")]),
+        textCopy(longer, 3, nb),
+      ],
+      [
+        textCopy(BASE, 3, na, [], [{ id: "x", seq: 1 }]),
+        textCopy(BASE, 2, nb, [range("x", 1, BASE, "timeout")]),
+      ],
+      [
+        textCopy(BASE, 3, na, [], [{ id: "x", seq: 1 }]),
+        textCopy(BASE, 2, nb, [
+          range("x", 1, BASE, "timeout"),
+          range("y", 2, BASE, "timeout", "#0000ff"),
+        ]),
+      ],
+    ] as const;
+  };
+
+  it("is independent of which side has the higher nonce", () => {
+    for (const [na, nb] of [
+      [1, 2],
+      [2, 1],
+    ]) {
+      for (const [a, b] of makePairs(na, nb)) {
+        const [r1, r2] = both(a, b);
+        expect(rangesOf(r1)).toEqual(rangesOf(r2));
+        expect(clearedOf(r1)).toEqual(clearedOf(r2));
+      }
+    }
+  });
+
+  it("changes nothing when a merge is repeated", () => {
+    for (const [a, b] of makePairs(1, 2)) {
+      const merged = both(a, b)[0];
+      const again = [
+        reconcileElements(
+          [cloneJSON(merged)] as unknown as OrderedExcalidrawElement[],
+          [cloneJSON(a)] as unknown as RemoteExcalidrawElement[],
+          {} as AppState,
+        )[0],
+        reconcileElements(
+          [cloneJSON(a)] as unknown as OrderedExcalidrawElement[],
+          [cloneJSON(merged)] as unknown as RemoteExcalidrawElement[],
+          {} as AppState,
+        )[0],
+      ] as TextEl[];
+      for (const res of again) {
+        expect(rangesOf(res)).toEqual(rangesOf(merged));
+        expect(clearedOf(res)).toEqual(clearedOf(merged));
+      }
+    }
+  });
+
+  it("causes no drift on a version bump tie", () => {
+    const a = textCopy(BASE, 2, 1, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy(BASE, 2, 2, [range("y", 1, BASE, "request")]);
+    const merged = both(a, b)[0];
+    const bumped = bumpElementVersions(
+      [cloneJSON(merged)] as unknown as OrderedExcalidrawElement[],
+      [cloneJSON(a)] as unknown as OrderedExcalidrawElement[],
+    );
+    const res = reconcileElements(
+      bumped,
+      [cloneJSON(b)] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    )[0] as TextEl;
+    expect(rangesOf(res)).toEqual(rangesOf(merged));
+  });
+
+  it("keeps the winner's version and nonce on merge", () => {
+    const a = textCopy(BASE, 2, 5, [range("x", 1, BASE, "timeout")]);
+    const b = textCopy(BASE, 3, 7, [range("y", 1, BASE, "request")]);
+    for (const res of both(a, b)) {
+      expect(idsOf(res)).toEqual(["x", "y"]);
+      expect(res.version).toBe(3);
+      expect(res.versionNonce).toBe(7);
+    }
+  });
+
+  it("returns a new object only when the merge changes something", () => {
+    const local = textCopy(BASE, 3, 1, [range("x", 1, BASE, "timeout")]);
+    const remote = textCopy(BASE, 2, 2, [range("y", 1, BASE, "request")]);
+    const merged = reconcileElements(
+      [local] as unknown as OrderedExcalidrawElement[],
+      [remote] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    )[0] as TextEl;
+    expect(merged).not.toBe(local);
+    expect(merged.version).toBe(local.version);
+    expect(idsOf(merged)).toEqual(["x", "y"]);
+
+    const plainRemote = textCopy(BASE, 2, 2);
+    const same = reconcileElements(
+      [local] as unknown as OrderedExcalidrawElement[],
+      [plainRemote] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    )[0];
+    expect(same).toBe(local);
+  });
+
+  it("keeps remote ranges during an edit", () => {
+    const remoteText = `${BASE} more`;
+    const local = textCopy(BASE, 3, 1);
+    const remote = textCopy(remoteText, 4, 2, [
+      range("y", 1, remoteText, "request"),
+    ]);
+    const res = reconcileElements(
+      [local] as unknown as OrderedExcalidrawElement[],
+      [remote] as unknown as RemoteExcalidrawElement[],
+      { editingTextElement: local } as unknown as AppState,
+    )[0] as TextEl;
+    expect(res.originalText).toBe(BASE);
+    expect(rangesOf(res).map((r) => getText(res, r))).toEqual(["request"]);
+
+    const next = `${BASE}!`;
+    const state = remapTextStyles(res, next, undefined)!;
+    const committed = withTextStyles(
+      newElementWith(res, { originalText: next, text: next }),
+      state,
+    );
+    expect(rangesOf(committed).map((r) => getText(committed, r))).toEqual([
+      "request",
+    ]);
+  });
+
+  it("reconciles unstyled text as before", () => {
+    const a = textCopy(BASE, 1, 1);
+    const b = textCopy(BASE, 2, 2);
+    const res = reconcileElements(
+      [a] as unknown as OrderedExcalidrawElement[],
+      [b] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    )[0] as TextEl;
+    expect(res.version).toBe(2);
+    expect(res).not.toHaveProperty("textStyleRanges");
+    expect(res).not.toHaveProperty("clearedTextStyleRanges");
+
+    const c = textCopy(BASE, 2, 1);
+    const tie = reconcileElements(
+      [c] as unknown as OrderedExcalidrawElement[],
+      [b] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    )[0] as TextEl;
+    expect(tie.version).toBe(2);
+    expect(tie).not.toHaveProperty("textStyleRanges");
+    expect(tie).not.toHaveProperty("clearedTextStyleRanges");
+  });
+
+  it("carries over a tombstone that only the loser has", () => {
+    const a = textCopy(BASE, 3, 1);
+    const b = textCopy(BASE, 2, 2, [], [{ id: "x", seq: 1 }]);
+    for (const res of both(a, b)) {
+      expect(clearedOf(res)).toEqual([{ id: "x", seq: 1 }]);
+    }
+  });
+
+  it("keeps the tombstone bound on merge", () => {
+    const ca: Cleared = Array.from({ length: 40 }, (_, i) => ({
+      id: `a${i}`,
+      seq: i * 2 + 1,
+    }));
+    const cb: Cleared = Array.from({ length: 40 }, (_, i) => ({
+      id: `b${i}`,
+      seq: i * 2 + 2,
+    }));
+    const a = textCopy(BASE, 2, 1, [], ca);
+    const b = textCopy(BASE, 3, 2, [], cb);
+    const [r1, r2] = both(a, b);
+    expect(clearedOf(r1)).toHaveLength(MAX_CLEARED_TEXT_STYLE_RANGES);
+    expect(Math.min(...clearedOf(r1).map((c) => c.seq))).toBe(
+      80 - MAX_CLEARED_TEXT_STYLE_RANGES + 1,
+    );
+    expect(clearedOf(r1)).toEqual(clearedOf(r2));
+  });
+
+  it("keeps the range bound on merge", () => {
+    const make = (prefix: string): Ranges =>
+      Array.from({ length: MAX_TEXT_STYLE_RANGES }, (_, i) =>
+        range(`${prefix}${i}`, i + 1, BASE, "timeout"),
+      );
+    const ra = make("a");
+    const rb = make("b");
+    const expected = [...ra, ...rb]
+      .sort((x, y) => x.seq - y.seq || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0))
+      .slice(-MAX_TEXT_STYLE_RANGES);
+
+    // remote taken, then remote discarded
+    for (const [va, vb] of [
+      [2, 3],
+      [3, 2],
+    ]) {
+      const a = textCopy(BASE, va, 1, ra);
+      const b = textCopy(BASE, vb, 2, rb);
+      const winner = va > vb ? a : b;
+      const [r1, r2] = both(a, b);
+      for (const res of [r1, r2]) {
+        expect(rangesOf(res)).toHaveLength(MAX_TEXT_STYLE_RANGES);
+        expect(rangesOf(res)).toEqual(expected);
+        expect(res.version).toBe(winner.version);
+        expect(res.versionNonce).toBe(winner.versionNonce);
+      }
+      expect(rangesOf(r1)).toEqual(rangesOf(r2));
+
+      const again = [
+        reconcileElements(
+          [cloneJSON(r1)] as unknown as OrderedExcalidrawElement[],
+          [cloneJSON(a)] as unknown as RemoteExcalidrawElement[],
+          {} as AppState,
+        )[0],
+        reconcileElements(
+          [cloneJSON(b)] as unknown as OrderedExcalidrawElement[],
+          [cloneJSON(r1)] as unknown as RemoteExcalidrawElement[],
+          {} as AppState,
+        )[0],
+      ] as TextEl[];
+      for (const res of again) {
+        expect(rangesOf(res)).toEqual(expected);
+      }
+    }
   });
 });
