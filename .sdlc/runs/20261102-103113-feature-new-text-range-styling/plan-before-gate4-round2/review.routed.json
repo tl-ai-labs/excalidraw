@@ -1,0 +1,46 @@
+{
+  "module": "text-range-styling",
+  "verdict": "needs_changes",
+  "tool_calls": 25,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 272,
+      "issue": "A kept token with no 3-character anchor collapses, so ranges are still lost on Tab with no race. This is not in any Known limit. oldText under 3 characters returns the trimmed hunk (line 273), a gap whose old side is under 3 is never searched (lines 315-316, 329-330), and a text with no shared gram finds no block (line 341). Measured: Tab on all 500 one-character lines (999 characters): 499 of 500 collapse. Tab on a 200-line note where every third line is 'x': all 67 of those lines collapse, while the other 133 keep their place. mapTextSpan('1\\n2\\n3\\n4\\n5', indented text, 4, 5) gives {28, 28}. 'OK' to 'Not OK at all' and 'v2' to 'release v2 now' collapse too, which also hits a carried range in a merge. The edit is one keystroke, the characters are all still there, and a native range stays collapsed. Item 1 of the request names Tab and Shift+Tab on all lines, and FR-3 says ranges must survive.",
+      "fix": "Add a second bounded pass for gaps with no block or an old side under MIN_MATCH_LENGTH: find the old token in the new gap nearest the diagonal, or align by whole lines first, charging the meter and staying deterministic. Add Tab and Shift+Tab tests on one-character lines and a test for 'OK' to 'Not OK at all'; the test 'drops matches shorter than three' pins the current floor and must be revisited with the plan."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 287,
+      "issue": "An addition beside a word can land inside it, and the range then widens over all the added text. The prefix or suffix seed keeps letters the addition shares with the word, and the last-gap trim (line 367) does the same, so the insertion sits strictly inside the range. Measured with mapTextSpan: 'foo Bid' to 'foo Before Bid' styles 'Before Bid'; T to 'Bid request timeout 1 second or 120ms' styles '1 second or 120ms' instead of '120ms'; in the 326-character prose, pasting 'daily ' before 'dashboard' styles 'daily dashboard' and 'escalation ' before 'engineer' styles 'escalation engineer'; 'Bid request' to 'Bid and kid request' styles 'Bid and kid'; 'the red car' with ' and bed' after 'red' styles 'red and bed'. change_plan.md line 40 names this as the third cause and treats it as fixed, but the code only fixes it when the suffix run beats the prefix run or the word is the whole text. The test 'a word added in front that starts with the same letter' (packages/element/tests/textRanges.test.ts:236) uses only the whole-text case, so it passes on this defect. This breaks the FR-3 boundary rule and the run's own bar that the styled text is the same word.",
+      "fix": "After the gaps are built, slide each pure insertion or deletion within its repeat window and prefer a position on a whitespace or line boundary, deterministically, at a cost bounded by the hunk length and charged to the meter. Add tests with text before and after the word: the cases above on prose and on a long text. Keep 'abc' to 'abcabc' as it is."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/renderElement.ts",
+      "line": 506,
+      "issue": "drawStyledTextLines sets context.direction per piece (line 521) but the branch for a line with no run does not reset it. On an element with mixed-direction text, an unstyled line after a styled line inherits the last piece's direction, so neutral characters at its edges can reorder. The plan's bidi Known limit says lines with no visible run take today's path.",
+      "fix": "Pass the element's direction in and set context.direction to it in the no-layout branch. Add a draw-call test that records context.direction for an unstyled line after a line with an rtl piece."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+      "line": 735,
+      "issue": "expect(diffText('ab', 'bb')).toBeDefined() cannot fail: diffText always returns an array, and nothing uses the result.",
+      "fix": "Delete the line, or assert the exact hunk the test depends on."
+    }
+  ],
+  "refinement_packets": [],
+  "passing": [
+    "Hunks rebuild the new text and stay in order: by reading, and on the 20,000-case fuzz above; no surrogate pair is split.",
+    "Work is bounded: 33 ms on the hostile 100,000-character diff, 2 ms to map 1,024 records through its 1,084 hunks, 121 ms for 300 long distinct origins on one meter.",
+    "FR-19: 400 three-way races in all 6 orders gave no divergence and no stale offset.",
+    "Random multi-edit prose: at least 99.1% of untouched words land exactly in every scenario; the non-exact cases sampled trace to word-edge slides like finding 2 or to repeated text.",
+    "Replacing 'stops at the cell cap' was right: it pinned the defect, and 'an empty meter returns the trimmed hunk' keeps its input and one-hunk result through the real limit.",
+    "The Gate 3 budget test exists, keeps 5010, and fails on a mutant that drops the highest-first order or the shared meter.",
+    "The three Gate 3 decisions are in the plan (lines 41, 42 and 47); apart from findings 2, 6 and 7, the plan matches the code read.",
+    "Env fixtures do not apply: the repo has no validating config module. Manifests, .env files and CLAUDE.md are not touched."
+  ]
+}

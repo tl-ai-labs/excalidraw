@@ -6,6 +6,7 @@ import {
   getContainerElement,
   redrawTextBoundingBox,
 } from "./textElement";
+import { getTextRangesUpdate } from "./textRanges";
 import { isBoundToContainer, isTextElement } from "./typeChecks";
 
 import type { RenderEnvironment } from "./renderEnvironment";
@@ -212,12 +213,16 @@ const setText = (
   renderEnvironment: RenderEnvironment | undefined,
 ) => {
   if (container) {
-    scene.mutateElement(element, { originalText });
+    scene.mutateElement(element, {
+      originalText,
+      ...getTextRangesUpdate(element, originalText),
+    });
     // re-wraps the label, and grows the container if need be
     redrawTextBoundingBox(element, container, scene, renderEnvironment);
   } else {
     scene.mutateElement(element, {
       originalText,
+      ...getTextRangesUpdate(element, originalText),
       // re-wraps the text, and keeps it anchored as per its alignment
       ...refreshTextDimensions(
         element,

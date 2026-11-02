@@ -58,7 +58,12 @@ import {
   getBoundTextMaxHeight,
   getBoundTextMaxWidth,
 } from "./textElement";
-import { getLineHeightInPx } from "./textMeasurements";
+import { getLineHeightInPx, getLineWidth } from "./textMeasurements";
+import {
+  getTextLineLeft,
+  getTextLineRuns,
+  layoutTextLine,
+} from "./textRangeLayout";
 import {
   isTextElement,
   isLinearElement,
@@ -81,6 +86,7 @@ import {
 } from "./stickyNote";
 
 import type { RenderEnvironment } from "./renderEnvironment";
+import type { TextLineRun } from "./textRangeLayout";
 
 import type {
   ExcalidrawElement,
@@ -440,6 +446,86 @@ const strokeStickyNoteEdge = (
   context.restore();
 };
 
+const drawStyledTextLines = (
+  context: CanvasRenderingContext2D,
+  element: ExcalidrawTextElement,
+  lines: readonly string[],
+  lineRuns: readonly (readonly TextLineRun[] | null)[],
+  options: {
+    horizontalOffset: number;
+    lineHeightPx: number;
+    verticalOffset: number;
+    direction: "ltr" | "rtl";
+    renderConfig: StaticCanvasRenderConfig;
+  },
+) => {
+  const {
+    horizontalOffset,
+    lineHeightPx,
+    verticalOffset,
+    direction,
+    renderConfig,
+  } = options;
+  const isDark = renderConfig.theme === THEME.DARK;
+  const font = getFontString(element);
+  const measure = (text: string) =>
+    getLineWidth(text, font, renderConfig.renderEnvironment);
+  const baseColor = context.fillStyle;
+  const layouts = lines.map((line, index) =>
+    lineRuns[index]
+      ? layoutTextLine(line, lineRuns[index]!, direction, measure)
+      : null,
+  );
+
+  for (let index = 0; index < layouts.length; index++) {
+    const layout = layouts[index];
+    if (!layout) {
+      continue;
+    }
+    const left = getTextLineLeft(
+      element.textAlign,
+      element.width,
+      layout.width,
+    );
+    for (const piece of layout.pieces) {
+      if (piece.highlight) {
+        context.fillStyle = applyDarkModeFilter(piece.highlight, isDark);
+        context.fillRect(
+          left + piece.x,
+          index * lineHeightPx,
+          piece.width,
+          lineHeightPx,
+        );
+      }
+    }
+  }
+
+  for (let index = 0; index < lines.length; index++) {
+    const layout = layouts[index];
+    const y = index * lineHeightPx + verticalOffset;
+    if (!layout) {
+      context.textAlign = element.textAlign as CanvasTextAlign;
+      context.fillStyle = baseColor;
+      context.direction = direction;
+      context.fillText(lines[index], horizontalOffset, y);
+    } else {
+      const left = getTextLineLeft(
+        element.textAlign,
+        element.width,
+        layout.width,
+      );
+      context.textAlign = "left";
+      for (const piece of layout.pieces) {
+        context.fillStyle = piece.color
+          ? applyDarkModeFilter(piece.color, isDark)
+          : baseColor;
+        context.direction = piece.direction;
+        context.fillText(piece.text, left + piece.x, y);
+      }
+    }
+  }
+};
+
 /**
  * `save()`s the context around `draw`, restoring it even when `draw` throws:
  * the scene renderer logs a failing element and carries on, and the element
@@ -702,6 +788,18 @@ const drawElementOnCanvas = (
             element.fontSize,
             lineHeightPx,
           );
+
+          const lineRuns = getTextLineRuns(element);
+          if (lineRuns !== null) {
+            drawStyledTextLines(context, element, lines, lineRuns, {
+              horizontalOffset,
+              lineHeightPx,
+              verticalOffset,
+              direction: rtl ? "rtl" : "ltr",
+              renderConfig,
+            });
+            return;
+          }
 
           for (let index = 0; index < lines.length; index++) {
             context.fillText(

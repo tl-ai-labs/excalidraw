@@ -250,6 +250,56 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+/**
+ * Where a carried range's offsets came from: the version it was last placed in,
+ * and that version's text.
+ */
+export type ExcalidrawTextRangeOrigin = Readonly<{
+  version: number;
+  versionNonce: number;
+  text: string;
+  start: number;
+  end: number;
+}>;
+
+/**
+ * An origin whose text is the same as another record's. textFrom is the id of
+ * the record in the same container that holds it, so a merge stores each
+ * distinct text once however many records carry it.
+ */
+export type ExcalidrawTextRangeSharedOrigin = Readonly<{
+  version: number;
+  versionNonce: number;
+  textFrom: string;
+  start: number;
+  end: number;
+}>;
+
+/**
+ * One styled layer. id, z, color and highlight never change after creation;
+ * offsets are half-open code-unit offsets into originalText; null clears an
+ * attribute and absent leaves it alone; retired is a sticky tombstone.
+ */
+export type ExcalidrawTextRange = Readonly<{
+  id: string;
+  start: number;
+  end: number;
+  z: number;
+  color?: string | null;
+  highlight?: string | null;
+  retired?: true;
+  origin?: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin;
+}>;
+
+/**
+ * Range container for a text element. textHash is hashString(originalText),
+ * and ranges are sorted by z then id.
+ */
+export type ExcalidrawTextRanges = Readonly<{
+  textHash: number;
+  ranges: readonly ExcalidrawTextRange[];
+}>;
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -288,6 +338,11 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * so it survives midpoint insertion and other geometry changes.
      * */
     labelPosition?: number | null;
+    /**
+     * Optional styled ranges on originalText. Absent on an element that has
+     * never had ranges. A text change must remap it via getTextRangesUpdate.
+     */
+    textRanges?: ExcalidrawTextRanges;
   }>;
 
 export type ExcalidrawBindableElement =

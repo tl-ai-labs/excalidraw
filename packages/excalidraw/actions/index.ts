@@ -9,6 +9,8 @@ export { actionSelectAll } from "./actionSelectAll";
 export { actionDuplicateSelection } from "./actionDuplicateSelection";
 export {
   actionChangeStrokeColor,
+  actionChangeTextHighlight,
+  actionResetTextStyle,
   actionChangeBackgroundColor,
   actionChangeBucketFillBackgroundColor,
   actionChangeStrokeWidth,

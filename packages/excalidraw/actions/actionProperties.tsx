@@ -32,6 +32,8 @@ import {
   getNonDeletedElements,
   isNonDeletedElement,
   syncStickyNoteInk,
+  applyTextRangeStyle,
+  getTextStyleRuns,
 } from "@excalidraw/element";
 
 import {
@@ -97,7 +99,7 @@ import type {
   VerticalAlign,
 } from "@excalidraw/element/types";
 
-import type { ElementUpdate, Scene } from "@excalidraw/element";
+import type { ElementUpdate, Scene, TextRangeStyle } from "@excalidraw/element";
 
 import type { CaptureUpdateActionType } from "@excalidraw/element";
 
@@ -154,6 +156,7 @@ import {
   ArrowheadCardinalityZeroOrOneIcon,
   strokeVariabilityConstantIcon,
   strokeVariabilityVariableIcon,
+  eraser,
 } from "../components/icons";
 
 import { Fonts } from "../fonts";
@@ -168,6 +171,7 @@ import {
 import {
   withCaretPositionPreservation,
   restoreCaretPosition,
+  getTextEditorSelection,
 } from "../hooks/useTextEditorFocus";
 
 import { getShortcutKey } from "../shortcut";
@@ -363,18 +367,82 @@ const changeFontSize = (
 
 // -----------------------------------------------------------------------------
 
+const applyStyleToEditorSelection = (
+  elements: readonly ExcalidrawElement[],
+  appState: Readonly<AppState>,
+  app: AppClassProperties,
+  style: TextRangeStyle,
+  resolvedSelection?: ReturnType<typeof getTextEditorSelection>,
+): readonly ExcalidrawElement[] | null => {
+  const editing = appState.editingTextElement;
+  const selection =
+    resolvedSelection !== undefined
+      ? resolvedSelection
+      : editing
+      ? getTextEditorSelection(app.ownerDocument)
+      : null;
+  if (!editing || !selection) {
+    return null;
+  }
+
+  return elements.map((element) => {
+    if (element.id === editing.id && isTextElement(element)) {
+      const textRanges = applyTextRangeStyle(element, selection, style);
+      return textRanges === element.textRanges
+        ? element
+        : newElementWith(element, { textRanges });
+    }
+    return element;
+  });
+};
+
 export const actionChangeStrokeColor = register<
   Partial<AppState> & { color?: string }
 >({
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    const editing = appState.editingTextElement;
+    const selection = editing
+      ? getTextEditorSelection(app.ownerDocument)
+      : null;
+    const editingElement = editing
+      ? elements.find((el) => el.id === editing.id)
+      : null;
+    // When the element has no styled color runs, a whole-text selection is
+    // treated as styling the element (setting strokeColor) rather than a range.
+    const isWholeTextSelected =
+      editingElement &&
+      isTextElement(editingElement) &&
+      selection !== null &&
+      selection.start === 0 &&
+      selection.end === editingElement.originalText.length &&
+      getTextStyleRuns(editingElement).every((run) => run.color === null);
+
+    const nextElements = isWholeTextSelected
+      ? null
+      : applyStyleToEditorSelection(
+          elements,
+          appState,
+          app,
+          {
+            color,
+          },
+          selection,
+        );
+    if (nextElements !== null) {
+      return {
+        elements: nextElements,
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       };
     }
     // resolved from the state the action runs against — never from the
@@ -438,6 +506,99 @@ export const actionChangeStrokeColor = register<
           updateData={updateData}
         />
       </>
+    );
+  },
+});
+
+export const actionChangeTextHighlight = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextHighlight",
+  label: "labels.textHighlight",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const { color, ...appStateUpdates } = value ?? {};
+    if (color === undefined) {
+      return {
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    const nextElements = applyStyleToEditorSelection(elements, appState, app, {
+      highlight: color,
+    });
+    if (nextElements === null) {
+      return {
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    return {
+      elements: nextElements,
+      appState: { ...appState, ...appStateUpdates },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+
+    return (
+      <>
+        {stylesPanelMode === "full" && (
+          <h3 aria-hidden="true">{t("labels.textHighlight")}</h3>
+        )}
+        <ColorPicker
+          palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+          type="elementBackground"
+          popup="textHighlight"
+          label={t("labels.textHighlight")}
+          color={null}
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={appState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+export const actionResetTextStyle = register<null>({
+  name: "resetTextStyle",
+  label: "labels.resetTextStyle",
+  trackEvent: false,
+  perform: (elements, appState, _, app) => {
+    const nextElements = applyStyleToEditorSelection(elements, appState, app, {
+      color: null,
+      highlight: null,
+    });
+    if (nextElements === null) {
+      return false;
+    }
+    return {
+      elements: nextElements,
+      appState,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ appState, updateData, app }) => {
+    return (
+      <IconButton
+        type="button"
+        icon={eraser}
+        title={t("labels.resetTextStyle")}
+        aria-label={t("labels.resetTextStyle")}
+        data-testid="reset-text-style"
+        onClick={() =>
+          withCaretPositionPreservation(
+            () => updateData(null),
+            getStylesPanelInfo(app).isCompact,
+            !!appState.editingTextElement,
+            undefined,
+            app.ownerDocument,
+          )
+        }
+      />
     );
   },
 });

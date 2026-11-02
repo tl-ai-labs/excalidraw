@@ -79,6 +79,7 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import { sanitizeTextRanges } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -581,7 +582,9 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText:
+          (typeof element.originalText === "string" && element.originalText) ||
+          text,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -593,6 +596,16 @@ export const restoreElement = (
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
       });
+
+      const textRanges = sanitizeTextRanges(
+        element.textRanges,
+        element.originalText,
+      );
+      if (textRanges !== undefined && textRanges !== element.textRanges) {
+        element = { ...element, textRanges };
+      } else if (textRanges === undefined && "textRanges" in element) {
+        delete (element as any).textRanges;
+      }
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)

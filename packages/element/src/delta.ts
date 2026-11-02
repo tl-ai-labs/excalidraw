@@ -45,6 +45,8 @@ import {
 import { LinearElementEditor } from "./linearElementEditor";
 import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId, redrawTextBoundingBox } from "./textElement";
+import { applyTextRangesDelta } from "./textRangeMerge";
+import { areTextRangesEqual } from "./textRanges";
 import {
   hasBoundTextElement,
   isArrowElement,
@@ -1753,7 +1755,7 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
     for (const key of Object.keys(delta.inserted) as Array<
       keyof typeof delta.inserted
     >) {
-      if (key === "boundElements") {
+      if (key === "boundElements" || (key as string) === "textRanges") {
         continue;
       }
 
@@ -1779,6 +1781,24 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
       Object.assign(directlyApplicablePartial, {
         boundElements: mergedBoundElements,
       });
+    }
+
+    if (isTextElement(element)) {
+      const deleted =
+        delta.deleted as unknown as Partial<ExcalidrawTextElement>;
+      const inserted =
+        delta.inserted as unknown as Partial<ExcalidrawTextElement>;
+
+      if (
+        "textRanges" in inserted ||
+        "textRanges" in deleted ||
+        (typeof inserted.originalText === "string" && element.textRanges)
+      ) {
+        const result = applyTextRangesDelta(element, deleted, inserted);
+        if (typeof result !== "undefined") {
+          Reflect.set(directlyApplicablePartial, "textRanges", result);
+        }
+      }
     }
 
     // visibility is not decided here: `applyTo` compares the applied result
@@ -2212,6 +2232,22 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         // delete the points from delta if there is no difference, otherwise leave them as they were captured due to consistency
         Reflect.deleteProperty(deleted, "points");
         Reflect.deleteProperty(inserted, "points");
+      }
+
+      const deletedTextRanges = (
+        deleted as ElementPartial<ExcalidrawTextElement>
+      ).textRanges;
+      const insertedTextRanges = (
+        inserted as ElementPartial<ExcalidrawTextElement>
+      ).textRanges;
+
+      if (
+        typeof deletedTextRanges !== "undefined" &&
+        typeof insertedTextRanges !== "undefined" &&
+        areTextRangesEqual(deletedTextRanges, insertedTextRanges)
+      ) {
+        Reflect.deleteProperty(deleted, "textRanges");
+        Reflect.deleteProperty(inserted, "textRanges");
       }
     } catch (e) {
       // if postprocessing fails, it does not make sense to bubble up, but let's make sure we know about it

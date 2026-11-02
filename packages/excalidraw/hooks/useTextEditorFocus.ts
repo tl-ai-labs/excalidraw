@@ -27,6 +27,15 @@ export const saveCaretPosition = (
   return null;
 };
 
+// A textarea keeps selectionStart and selectionEnd while blurred, so colour
+// controls can read them after taking focus.
+export const getTextEditorSelection = (
+  ownerDocument: Document = document,
+): CaretPosition | null => {
+  const position = saveCaretPosition(ownerDocument);
+  return position && position.start !== position.end ? position : null;
+};
+
 export const restoreCaretPosition = (
   position: CaretPosition | null,
   ownerDocument: Document = document,

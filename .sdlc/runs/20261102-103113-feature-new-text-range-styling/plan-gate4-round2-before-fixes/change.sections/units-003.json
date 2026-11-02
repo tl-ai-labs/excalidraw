@@ -1,0 +1,443 @@
+[
+  {
+    "id": "U25",
+    "path": "packages/element/tests/textRanges.test.ts",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import {",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "Unit tests of the diff, of insert and delete shifting, and of style operations on the range model.",
+    "rules": [
+      "Import from ../src/textDiff and ../src/textRanges; hashString from ../src/index. Build elements as plain { originalText, textRanges } objects. T = \"Bid request timeout 120ms\", where \"120ms\" is [20, 25). RED = \"#e03131\", BLUE = \"#1971c2\", YELLOW = \"#ffec99\".",
+      "Seed a range with applyTextRangeStyle({ originalText: T }, { start: 20, end: 25 }, { color: RED }). Assert offsets through textRanges.ranges and getTextStyleRuns, never on an id value.",
+      "Fixtures, text: const PROSE = \"Bid request timeout 120ms applies to every exchange in the primary region. When the auction server misses that window the request is dropped and the slot is sold through the fallback path. Review the latency dashboard before changing this value, and tell the on-call engineer about any change that touches the pricing service.\"; const ADDED = \"Before the next release the team agreed to review every setting that controls how long a request may wait, and to write down who owns each one. The list below is the current state of that work, and it will change as the review goes on through the rest of the quarter, so please read it again before you rely on any of these numbers. \"; (it ends with a space and is 333 characters; ADDED.slice(0, 100) is the 100-character form). const DIGITS = Array.from({ length: 2500 }, (_, i) => String(i).padStart(4, \"0\")).join(\"\"); const seeded = (length: number, seed: number) => { let state = seed; let out = \"\"; for (let i = 0; i < length; i++) { state = (state * 1103515245 + 12345) & 0x7fffffff; out += String.fromCharCode(97 + ((state >>> 16) % 26)); } return out; }; const W = seeded(10_000, 12345);",
+      "Fixtures, helpers: const repeatTo = (text: string, length: number) => { let out = \"\"; while (out.length < length) { out += `${text} `; } return out.slice(0, length); }; const proseNote = (lineCount: number) => { const lines: string[] = []; let at = 0; while (lines.length < lineCount) { lines.push(PROSE.slice(at, at + 58).trim()); at = (at + 58) % (PROSE.length - 60); } return lines.join(\"\\n\"); }; const digitNote = (lineCount: number) => Array.from({ length: lineCount }, (_, i) => DIGITS.slice(i * 60, i * 60 + 58)).join(\"\\n\"); const indentAll = (text: string) => text.split(\"\\n\").map((line) => `    ${line}`).join(\"\\n\"); const spansOf = (text: string): [number, number][] => [...text.matchAll(/[^\\s]+/g)].map((match) => [match.index!, match.index! + match[0].length]); const applyHunks = (oldText: string, newText: string, hunks: readonly TextHunk[]) => { let out = \"\"; let at = 0; for (const hunk of hunks) { out += oldText.slice(at, hunk.oldStart) + newText.slice(hunk.newStart, hunk.newEnd); at = hunk.oldEnd; } return out + oldText.slice(at); };",
+      "Every long-edit test asserts true offsets and that the text at those offsets is the same word. Never widen an assertion to pass: if a true offset fails, the code is wrong."
+    ],
+    "tests": [
+      { "name": "returns no hunks for equal texts", "given": "diffText(T, T)", "expect": "[]" },
+      { "name": "finds both ends of a text changed", "given": "diffText(T, `Urgent: ${T}!`)", "expect": "[{ oldStart: 0, oldEnd: 0, newStart: 0, newEnd: 8 }, { oldStart: 25, oldEnd: 25, newStart: 33, newEnd: 34 }]" },
+      { "name": "never splits a surrogate pair", "given": "diffText(\"a😀b\", \"a😁b\")", "expect": "[{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }]" },
+      { "name": "drops matches shorter than three", "given": "diffText(\"abcdef\", \"axcyef\")", "expect": "[{ oldStart: 1, oldEnd: 4, newStart: 1, newEnd: 4 }]" },
+      { "name": "a repeating middle keeps both ends", "given": "a = `a${\"bc\".repeat(1000)}d`, b = `e${\"bc\".repeat(1000)}f`, diffText(a, b)", "expect": "[{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: a.length - 1, oldEnd: a.length, newStart: b.length - 1, newEnd: b.length }]" },
+      { "name": "an empty meter returns the trimmed hunk", "given": "the same a and b, meter = { left: 0 }, diffText(a, b, meter)", "expect": "[{ oldStart: 0, oldEnd: a.length, newStart: 0, newEnd: b.length }], and meter.left is still 0" },
+      { "name": "a word changed at each end of 1,100 characters of prose keeps every word", "given": "oldText = repeatTo(PROSE, 1100), lastThe = oldText.lastIndexOf(\"the \"), newText = `Ad${oldText.slice(3, lastThe)}our${oldText.slice(lastThe + 3)}`, hunks = diffText(oldText, newText)", "expect": "hunks toEqual [{ oldStart: 0, oldEnd: 2, newStart: 0, newEnd: 1 }, { oldStart: lastThe, oldEnd: lastThe + 3, newStart: lastThe - 1, newEnd: lastThe + 2 }]; for every [start, end] of spansOf(oldText.slice(0, lastThe)).slice(1), mapSpanThroughHunks(hunks, start, end) toEqual { start: start - 1, end: end - 1 } and newText.slice(start - 1, end - 1) toBe oldText.slice(start, end)" },
+      { "name": "a change at each end of 1,100 generated characters keeps the middle", "given": "oldText = seeded(1100, 77), newText = `QQ${oldText.slice(1, 1099)}ZZ`", "expect": "diffText toEqual [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 2 }, { oldStart: 1099, oldEnd: 1100, newStart: 1100, newEnd: 1102 }]; mapTextSpan(oldText, newText, 500, 510) toEqual { start: 501, end: 511 }" },
+      { "name": "an exact substring lands at its true position", "given": "mapTextSpan(DIGITS.slice(5000, 5100), DIGITS, 10, 20) and mapTextSpan(W.slice(5000, 5100), W, 10, 20)", "expect": "both toEqual { start: 5010, end: 5020 }" },
+      { "name": "text added at both ends of 10,000 characters keeps the middle", "given": "mapTextSpan(W, `NEW${W}END`, 5010, 5020)", "expect": "{ start: 5013, end: 5023 }" },
+      { "name": "long generated additions keep a short text", "given": "mapTextSpan(W.slice(0, 100), `${W.slice(200, 3200)}${W.slice(0, 100)}${W.slice(3200, 6200)}`, 10, 20)", "expect": "{ start: 3010, end: 3020 }" },
+      { "name": "long prose additions on both sides keep the label's words", "given": "for size 100 and 333: added = ADDED.slice(0, size), newText = `${added}${T} ${added}`, hunks = diffText(T, newText), for every [start, end] of spansOf(T)", "expect": "mapSpanThroughHunks(hunks, start, end) toEqual { start: start + size, end: end + size }, and newText.slice(start + size, end + size) toBe T.slice(start, end)" },
+      { "name": "long prose additions on both sides keep a paragraph's words", "given": "newText = `${ADDED}${PROSE} ${ADDED}`, hunks = diffText(PROSE, newText), for every [start, end] of spansOf(PROSE)", "expect": "mapSpanThroughHunks(hunks, start, end) toEqual { start: start + ADDED.length, end: end + ADDED.length }" },
+      { "name": "a word added in front that starts with the same letter", "given": "mapTextSpan(\"Bid\", \"Before Bid\", 0, 3), mapTextSpan(\"Bid\", \"Bold Bid\", 0, 3), mapTextSpan(\"Bid\", \"Before Bid after\", 0, 3)", "expect": "{ start: 7, end: 10 }, { start: 5, end: 8 }, { start: 7, end: 10 }" },
+      { "name": "text removed around a word keeps the word", "given": "mapTextSpan(\"Before Bid\", \"Bid\", 7, 10)", "expect": "{ start: 0, end: 3 }" },
+      { "name": "a repeat of the whole text stays behind the original", "given": "diffText(\"abc\", \"abcabc\")", "expect": "[{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 6 }]" },
+      { "name": "a typed character is the trimmed hunk", "given": "diffText(\"ab\", \"abb\") and diffText(\"Bid request\", \"Bid requests\")", "expect": "[{ oldStart: 2, oldEnd: 2, newStart: 2, newEnd: 3 }] and [{ oldStart: 11, oldEnd: 11, newStart: 11, newEnd: 12 }]" },
+      { "name": "indenting every line keeps a range on prose and on digits", "given": "for oldText of proseNote(24) and digitNote(24): at = 1003, lineIndex = oldText.slice(0, at).split(\"\\n\").length, newText = indentAll(oldText), ranges = applyTextRangeStyle({ originalText: oldText }, { start: at, end: at + 5 }, { color: RED }), shifted = shiftTextRanges(oldText, newText, ranges), trueStart = at + 4 * lineIndex", "expect": "getTextStyleRuns({ originalText: newText, textRanges: shifted }) toEqual [{ start: trueStart, end: trueStart + 5, color: RED, highlight: null }]; newText.slice(trueStart, trueStart + 5) toBe oldText.slice(at, at + 5)" },
+      { "name": "outdenting every line keeps a range on prose and on digits", "given": "the same, then back = shiftTextRanges(newText, oldText, shifted)", "expect": "back.ranges[0].start is at and back.ranges[0].end is at + 5" },
+      { "name": "indenting 100 identical lines keeps a range on its own line", "given": "line = \"the same line of text here\", oldText = Array(100).fill(line).join(\"\\n\"), newText = indentAll(oldText), start = 50 * (line.length + 1) + 4, mapTextSpan(oldText, newText, start, start + 4)", "expect": "{ start: start + 204, end: start + 208 }, and newText.slice(start + 204, start + 208) is \"same\"" },
+      { "name": "a block never starts inside a surrogate pair", "given": "diffText(\"q😀defghq\", \"zz\\u{1FA00}defghzz\"), where the two emoji share their low surrogate", "expect": "[{ oldStart: 0, oldEnd: 3, newStart: 0, newEnd: 4 }, { oldStart: 8, oldEnd: 9, newStart: 9, newEnd: 11 }]" },
+      { "name": "a meter that runs out keeps what it found", "given": "a = `Q${W}Z`, b = `R${W}Y`, diffText(a, b, { left: 60_000 })", "expect": "[{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: 10001, oldEnd: 10002, newStart: 10001, newEnd: 10002 }]" },
+      { "name": "hostile text stops at the budget", "given": "hostileOld = seeded(100_000, 21).replace(/[n-z]/g, \"a\").replace(/[b-m]/g, \"b\"), hostileNew = the same from seed 22, meter = { left: MAX_DIFF_WORK }, hunks = diffText(hostileOld, hostileNew, meter). Count work, never time", "expect": "meter.left <= 0 and meter.left >= -200_002, a looser bound than the limit a + b + 1, which is 200,001 here; applyHunks(hostileOld, hostileNew, hunks) toBe hostileNew" },
+      { "name": "a text the meter cannot index is one hunk and costs nothing", "given": "meter = { left: 1000 }, diffText(`Q${W}Z`, `R${W}Y`, meter)", "expect": "[{ oldStart: 0, oldEnd: 10002, newStart: 0, newEnd: 10002 }], and meter.left is still 1000" },
+      { "name": "insertion before a range shifts it", "given": "T to \"Bid very request timeout 120ms\"", "expect": "range is [25, 30)" },
+      { "name": "insertion inside a range extends it", "given": "T to \"Bid request timeout 12x0ms\"", "expect": "range is [20, 26)" },
+      { "name": "deletion before a range shifts it", "given": "T to \"request timeout 120ms\"", "expect": "range is [16, 21)" },
+      { "name": "deletion inside a range shrinks it", "given": "T to \"Bid request timeout 1ms\"", "expect": "range is [20, 23)" },
+      { "name": "a range whose characters are all deleted styles nothing", "given": "T to \"Bid request timeout \"", "expect": "one record [20, 20) with no origin; getTextStyleRuns is []; textHash is hashString of the new text" },
+      { "name": "retyping deleted text does not reopen its range", "given": "then \"Bid request timeout \" to T", "expect": "the record is collapsed at [25, 25); getTextStyleRuns is []" },
+      { "name": "insertion at a range's start does not extend it", "given": "T to \"Bid request timeout x120ms\"", "expect": "range is [21, 26)" },
+      { "name": "insertion at a range's end does not extend it", "given": "T to `${T}x`", "expect": "range is [20, 25)" },
+      { "name": "replacing a selection inside a range keeps it", "given": "T to \"Bid request timeout 1999ms\"", "expect": "range is [20, 26)" },
+      { "name": "shiftTextRanges with equal texts is the identity", "given": "shiftTextRanges(T, T, textRanges)", "expect": "the same object" },
+      { "name": "shiftTextRanges leaves a stale container alone", "given": "a container whose textHash does not match T", "expect": "the same object" },
+      { "name": "shiftTextRanges does not mutate its input", "given": "a cloneJSON of the container taken before the call", "expect": "the input still toEqual the clone" },
+      { "name": "a retired range survives deletion of its characters", "given": "a retired record on [20, 25), T to \"Bid request timeout \"", "expect": "the record is still present, retired, collapsed" },
+      { "name": "shifting drops origin", "given": "a record with an origin", "expect": "no record in the result has origin" },
+      { "name": "getTextRangesUpdate is empty with no ranges", "given": "an element with no textRanges", "expect": "{}" },
+      { "name": "a colour over part of a range wins there", "given": "RED on [0, 10), then BLUE on [3, 5)", "expect": "runs [0,3) RED, [3,5) BLUE, [5,10) RED, all highlight null" },
+      { "name": "colour and highlight are independent", "given": "RED on [0, 5), then { highlight: YELLOW } on [3, 8)", "expect": "runs [0,3) RED, [3,5) RED and YELLOW, [5,8) highlight YELLOW" },
+      { "name": "removing a style splits a range", "given": "RED on [0, 10), then { color: null, highlight: null } on [3, 5)", "expect": "runs [0,3) and [5,10), both RED" },
+      { "name": "a removal retires what it fully covers", "given": "RED on [20, 25), then { color: null, highlight: null } on [20, 25)", "expect": "two records: the RED one retired on [20, 25), and a clear on [20, 25) at z 2; getTextStyleRuns is []" },
+      { "name": "a partial removal retires the record and keeps its remainder", "given": "RED on [0, 10), then { color: null, highlight: null } on [3, 5)", "expect": "the original record is retired; two new RED records [0, 3) and [5, 10) at its z, with other ids and no retired key; a clear on [3, 5) at z 2" },
+      { "name": "a removal leaves an attribute it does not clear", "given": "RED on [0, 5), { highlight: YELLOW } on [0, 5), then { highlight: null } on [0, 5)", "expect": "the RED record is not retired, the highlight record is; one run [0, 5) RED with highlight null" },
+      { "name": "a removal does not retire a record it does not touch", "given": "RED on [0, 3), BLUE on [5, 8), then { color: null, highlight: null } on [0, 3)", "expect": "the BLUE record is not retired; one run [5, 8) BLUE" },
+      { "name": "a colour pick retires nothing", "given": "RED on [0, 10), then BLUE on [0, 10)", "expect": "no record has retired" },
+      { "name": "a clear beats a colour at equal z", "given": "crafted records with the same z, one color RED and one color null, same span", "expect": "getTextStyleRuns is []" },
+      { "name": "higher id wins at equal z", "given": "crafted records with the same z and span, ids \"a\" RED and \"b\" BLUE", "expect": "one run in BLUE" },
+      { "name": "a no-op leaves an element with no ranges without the key", "given": "applyTextRangeStyle({ originalText: T }, { start: 0, end: 5 }, { color: null, highlight: null })", "expect": "undefined" },
+      { "name": "the same colour again adds nothing", "given": "a range, then the same colour on the same span", "expect": "the same container object" },
+      { "name": "a transparent highlight is stored as a clear", "given": "{ highlight: \"transparent\" } over a highlighted span", "expect": "the new record has highlight null and the run is gone" },
+      { "name": "a style operation drops origin", "given": "a record with an origin, then a style operation", "expect": "no record has origin" },
+      { "name": "canonicalizeTextRanges keeps the top of the stack", "given": "1100 records with z from 1 to 1100, shuffled", "expect": "length 1024, sorted by z, lowest z is 77" }
+    ],
+    "style_from": {
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "reason": "Plain describe/it over pure functions in this folder."
+    },
+    "depends_on": ["U02", "U03", "U06"],
+    "covers": ["FR-1", "FR-3", "FR-4", "AC-1"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U26",
+    "path": "packages/element/tests/textRangeLayout.test.ts",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import {",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "Unit tests that ranges map onto wrapped lines exactly, and that line runs are positioned for every alignment and direction.",
+    "rules": [
+      "Import from ../src/textRangeLayout and ../src/textRanges. T = \"Bid request timeout 120ms\". measure = (text: string) => text.length * 10. Build plain { text, originalText, textRanges } objects with applyTextRangeStyle."
+    ],
+    "tests": [
+      { "name": "offsets across explicit newlines", "given": "getRenderedLineOffsets(\"ab\\ncd\", \"ab\\ncd\")", "expect": "[[0, 1, 2], [3, 4, 5]]" },
+      { "name": "offsets skip whitespace dropped at a soft break", "given": "getRenderedLineOffsets(\"hello\\nworld\", \"hello world\")", "expect": "[[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]]" },
+      { "name": "offsets follow NFC normalization of a wrapped token", "given": "text \"café\\nau lait\" with composed é, originalText \"cafe\\u0301 au lait\"", "expect": "the first line is [0, 1, 2, 3, 5]" },
+      { "name": "a text out of step with its source gives null", "given": "getRenderedLineOffsets(\"xyz\", \"abc\")", "expect": "null" },
+      { "name": "no ranges gives null", "given": "an element with no textRanges", "expect": "getTextLineRuns returns null" },
+      { "name": "a range lands on its wrapped line", "given": "text \"Bid request\\ntimeout 120ms\", originalText T, RED on [20, 25)", "expect": "line 0 is null; line 1 is { 0, 8, \"timeout \" } unstyled and { 8, 13, \"120ms\" } RED" },
+      { "name": "a range across a soft wrap splits and skips the dropped space", "given": "same text, RED on [8, 16)", "expect": "line 0 has a RED run \"est\" at [8, 11); line 1 has a RED run \"time\" at [0, 4)" },
+      { "name": "re-wrapping keeps the same characters", "given": "the same ranges with text T, then with text \"Bid\\nrequest\\ntimeout\\n120ms\"", "expect": "the RED run's text is \"120ms\" both times" },
+      { "name": "a fixed-width wrap maps exactly", "given": "text \"Bid request\\ntimeout 120ms\" with autoResize false", "expect": "the RED run is on line 1" },
+      { "name": "a stale text renders unstyled", "given": "ranges valid for T, text \"something else\"", "expect": "getTextLineRuns returns null" },
+      { "name": "a surrogate pair stays in one run", "given": "text and originalText \"a😀b\", RED on [1, 2) which splits the pair", "expect": "no run starts at offset 2" },
+      { "name": "left-to-right pieces", "given": "layoutTextLine(T, runs for RED on [20, 25), \"ltr\", measure)", "expect": "width 250; pieces at x 0 width 200 and x 200 width 50 RED" },
+      { "name": "right-to-left pieces run from the right", "given": "line \"אבג דה\", runs unstyled [0, 3) and RED [3, 6), direction \"rtl\"", "expect": "width 60; first piece x 30 width 30, RED piece x 0 width 30, both direction rtl" },
+      { "name": "an ltr word inside rtl text keeps its order", "given": "line \"אב abc גד\", runs [0, 3), RED [3, 5), [5, 9), direction \"rtl\"", "expect": "the RED piece \"ab\" is at x 30 width 20 with direction ltr" },
+      { "name": "getTextLineLeft", "given": "elementWidth 400, lineWidth 250", "expect": "left 0, center 75, right 150" },
+      { "name": "an emoji on an rtl line", "given": "line \"😀אב\", one RED run over it, direction \"rtl\"", "expect": "the pieces' text joins back to the line, and no piece holds a lone surrogate" }
+    ],
+    "style_from": {
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "reason": "Plain describe/it over pure functions in this folder."
+    },
+    "depends_on": ["U03", "U05", "U06"],
+    "covers": ["FR-5", "FR-6", "AC-2"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U27",
+    "path": "packages/excalidraw/tests/data/restore.textRanges.test.ts",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import { hashString, getTextStyleRuns } from \"@excalidraw/element\";",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "Tests that legacy text restores unchanged, ranges survive save and load, and malformed ranges are repaired or dropped without a throw.",
+    "rules": [
+      "Use restore.restoreElements([element], null) with `import * as restore from \"../../data/restore\"`, and API.createElement({ type: \"text\", text: T }) with T = \"Bid request timeout 120ms\". Malformed input is built with `as any` and textHash: hashString(T) unless the case is about the hash."
+    ],
+    "tests": [
+      { "name": "legacy text gets no key", "given": "a text element with no textRanges", "expect": "\"textRanges\" in restored is false" },
+      { "name": "ranges survive save and load", "given": "an element with a range, through JSON.stringify and JSON.parse", "expect": "restored.textRanges toEqual the original" },
+      { "name": "valid ranges are the same object", "given": "an element with a range", "expect": "restored.textRanges toBe the input container" },
+      { "name": "a container of the wrong type is dropped", "given": "textRanges: \"nope\", then { ranges: 3 }", "expect": "no key and no throw" },
+      { "name": "stale ranges are dropped", "given": "textHash: hashString(\"other\")", "expect": "no key" },
+      { "name": "records of the wrong type are dropped", "given": "ranges with null, a number, and a record with start: \"0\" beside one valid record", "expect": "only the valid record remains" },
+      { "name": "out-of-bounds offsets are clamped", "given": "a record with start: -5, end: 900", "expect": "start 0, end 25" },
+      { "name": "an inverted range is dropped", "given": "a record with start: 10, end: 5", "expect": "no key" },
+      { "name": "an unusable colour never survives", "given": "a record with color: \"\\\"><script>\" and a record with color: \"#e03131\" and highlight: 12", "expect": "the first is dropped; the second keeps color only" },
+      { "name": "an overlap resolves to disjoint runs", "given": "two valid records of different z overlapping on [5, 10)", "expect": "both records stay, and getTextStyleRuns gives disjoint runs with the higher z on the overlap" },
+      { "name": "too many ranges are capped", "given": "5000 valid records", "expect": "no throw and length 1024" },
+      { "name": "retired and collapsed records stay", "given": "a retired record, a record with start === end and a valid origin, and a record with start === end and no origin", "expect": "all three remain" },
+      { "name": "an invalid origin is removed", "given": "a record with origin: { version: \"x\" }", "expect": "the record stays with no origin key" },
+      { "name": "restore is idempotent", "given": "restoring a restored element", "expect": "textRanges toBe the first result's" }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/data/restore.test.ts",
+      "lines": [1, 60],
+      "reason": "Imports and restore calls of the sibling test."
+    },
+    "depends_on": ["U03", "U06", "U11"],
+    "covers": ["FR-2", "FR-18", "NFR-2", "AC-3", "AC-17"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U28",
+    "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1138,
+        "to": 1138,
+        "first_line": "});",
+        "rule": "This line closes the test 'typed character, \"hello world\" to \"hello, world\"'. After it, add a blank line and the one test of rule 10, inside describe(\"diffText alignment and meter\"). Change no other line of the file. Every other test in this file is already typed."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "Tests of concurrent edits: carrying in both arrival orders, no stale offsets, convergence across clients, removals staying removed, and a remote update dropped while editing. Also the diff budget, the meter's charges, and the final diff pass.",
+    "rules": [
+      "Helpers: T = \"Bid request timeout 120ms\", W = `Urgent: ${T}`, RED = \"#e03131\". version(element, text, version, versionNonce) returns { ...element, originalText: text, text, version, versionNonce, index: \"a0\" }. run(local, remote, appState = {}) returns reconcileElements(cloneJSON([local]), cloneJSON([remote]) as RemoteExcalidrawElement[], appState as AppState)[0]. Text changes on a version go through shiftTextRanges when that version already has ranges.",
+      "A range edit is { ...element, textRanges: applyTextRangeStyle(element, span, style), version, versionNonce } built by spreading, so the test sets version and nonce itself. Lower versionNonce wins a tie, as in reconcile today.",
+      "sync(local, remote) is the path Collab._reconcileElements takes after restore: existing = cloneJSON([local]); return bumpElementVersions(reconcileElements(existing, cloneJSON([remote]) as RemoteExcalidrawElement[], {} as AppState), existing)[0]. bumpElementVersions comes from ../../data/restore. Never assert a bumped versionNonce's value, which is random: spread a fixed versionNonce over a bumped element where a test needs to know who wins next.",
+      "Client convergence is expect(a).toEqual(b) on whole elements, so version, versionNonce, originalText and textRanges must all agree. Between run calls that holds at once. After sync, the two clients of an equal-version race differ in version, versionNonce and updated until the next delivery, so before it assert originalText and textRanges only, and after it assert whole elements.",
+      "Assert a carried offset with text.slice(start, end) === \"120ms\", which is what stale offsets would break.",
+      "vi.mock block, exactly: vi.mock(\"@excalidraw/element/textDiff\", async (importOriginal) => { const actual = await importOriginal<typeof import(\"@excalidraw/element/textDiff\")>(); return { ...actual, diffText: vi.fn(actual.diffText) }; }); It wraps diffText over the original, so every other test in the file behaves as before, and it also catches the relative import inside textRangeMerge.ts. The unit of work this test counts is the diffText call and its result. No test here reads a clock.",
+      "diff budget fixtures. const seeded = (length: number, seed: number) => { let state = seed; let out = \"\"; for (let i = 0; i < length; i++) { state = (state * 1103515245 + 12345) & 0x7fffffff; out += String.fromCharCode(97 + ((state >>> 16) % 26)); } return out; }; const LONG = seeded(10_000, 12345); (W already names another text in this file.) const element = (text: string, ver: number, versionNonce: number, ranges: ExcalidrawTextRange[]): ExcalidrawTextElement => ({ ...version({ ...newTextElement({ text: T, originalText: T, x: 0, y: 0 }), id: \"budget\" }, text, ver, versionNonce), textRanges: { textHash: hashString(text), ranges } }); textHash must be hashString of that element's own originalText, or sanitizeTextRanges drops the whole container. const carried = (id: string, z: number, text: string): ExcalidrawTextRange => ({ id, start: 0, end: 5, z, color: RED, origin: { version: 1, versionNonce: z, text, start: 10, end: 20 } }); The record's own start and end are ignored, since the merge maps from origin.",
+      "diff budget scenario, shared by the first two tests of that describe. const winner = element(LONG, 9, 1, Array.from({ length: 1024 }, (_, i) => carried(`r${String(i).padStart(4, \"0\")}`, i + 2, seeded(100, i + 1)))); const l1 = element(T, 5, 2, [carried(\"zzzz\", 5000, LONG.slice(5000, 5100))]); const l2 = element(T, 4, 3, [0, 1, 2].map((i) => carried(`a${i}`, 1, seeded(100, 5000 + i)))); Every version holds ranges, because mergeTextRanges returns early when the other side has none. The union is over MAX_TEXT_RANGES: l2's records have the lowest z, so the cap drops them, and they are the doomed records of Gate 3. mergeTextRanges is called directly, because the arrival order under test is the order of merges, and reconcile would pick the same base in both.",
+      "The true offset is [5010, 5020). It is right, and it stays: if the test fails there, the mapping is wrong, so fix the code. Never change that expected value to match an output.",
+      "The test \"a meter pays for the whole run it reads\". Why this input: the exact spent tests above never reach meter.left -= length, because each pair has no common run, or a run the trim's seed already holds, so every candidate returns at the bestLength check. This pair has a run the seed does not hold, and the test reads what a limited meter buys, not a total. Its body, exactly, in this order, in one it: const letters = (from: number, length: number) => String.fromCharCode(...Array.from({ length }, (_, i) => from + i)); const short = letters(0x5600, 500); const long = letters(0x6000, 1000); const a = `${letters(0x4e00, 250)}${short}${letters(0x5000, 250)}${long}q`; const b = `${letters(0x5200, 250)}${short}${letters(0x5400, 250)}${long}z`; const index = 4 * a.length + b.length; const edge = { oldStart: 2000, oldEnd: 2001, newStart: 2000, newEnd: 2001 }; const bothRuns = [{ oldStart: 0, oldEnd: 250, newStart: 0, newEnd: 250 }, { oldStart: 750, oldEnd: 1000, newStart: 750, newEnd: 1000 }, edge]; then expect(diffText(a, b)).toEqual(bothRuns); expect(diffText(a, b, { left: index + 1100 })).toEqual(bothRuns); expect(diffText(a, b, { left: index + 1000 })).toEqual([{ oldStart: 0, oldEnd: 1000, newStart: 0, newEnd: 1000 }, edge]); Before the first expect add the one comment: // long starts where the search first looks, so nothing is read backward. a and b are 2,001 characters each and every letters range is a different block of code points, so the only common runs are short and long. long starts at offset 1000 of both, which is (0 + 2001) >>> 1, and the characters before it differ, so back is 0 and the run's whole price is the forward charge of 1,000. A meter of index + 1000 is emptied by that run, so the search stops before it reaches short; a meter of index + 1100 is not, so it finds both. No test here reads a clock. Never change an expected value to pass: if this fails, the charge is wrong."
+    ],
+    "tests": [
+      { "name": "a losing colour is carried onto the winning text", "given": "A: T, RED on [20, 25), v6 nonce 300. B: W, no ranges, v6 nonce 200. run(A, B) and run(B, A)", "expect": "equal; originalText W; version 6; versionNonce 200; the range is [28, 33) with origin { version: 6, versionNonce: 300, text: T, start: 20, end: 25 }; slice is \"120ms\"" },
+      { "name": "a winning range edit keeps a losing text's offsets out", "given": "A as above with nonce 100, B as above", "expect": "equal in both orders; originalText T; range [20, 25) with no origin" },
+      { "name": "both ends of the text changed", "given": "A: T, RED on [20, 25), v6 nonce 300. B: `Urgent: ${T}!`, v7", "expect": "range [28, 33) in both orders" },
+      { "name": "the word's edge changed on the winning side", "given": "A: T, RED on [20, 25), v6. B: \"Bid request timeout 150ms\", v7", "expect": "range [20, 25) in both orders" },
+      { "name": "characters gone on the winning side leave nothing visible", "given": "A: T, RED on [20, 25), v6. B: \"Bid request timeout \", v7", "expect": "getTextStyleRuns is [] in both orders; the record stays collapsed with its origin" },
+      { "name": "every arrival order of three versions converges", "given": "A: T, RED on [20, 25), v6 nonce 300. B: W, v6 nonce 200. C: `${T}!`, v7 nonce 100. All six orders applied to a client that starts from each first element", "expect": "all six results toEqual one another; slice is \"120ms\"; no version above 7" },
+      { "name": "an intermediate merge does not change the mapping", "given": "merge A into B, then merge that into C; compared with merging A directly into C", "expect": "toEqual" },
+      { "name": "merging keeps the winner's version and nonce", "given": "run(A, B)", "expect": "version and versionNonce equal B's" },
+      { "name": "only the client that took the remote is bumped", "given": "A: T, RED on [20, 25), v6 nonce 300. B: W, no ranges, v6 nonce 200. a = sync(A, B), b = sync(B, A)", "expect": "a.version 7 and a.versionNonce is not 200; b.version 6 and b.versionNonce 200; a.originalText equals b.originalText, which is W; a.textRanges toEqual b.textRanges; the range is [28, 33), slice \"120ms\", origin { version: 6, versionNonce: 300, text: T, start: 20, end: 25 } on both" },
+      { "name": "the next delivery ends the difference in both directions", "given": "a and b as above. Then the same race with A at nonce 100, so B's client is the one bumped", "expect": "for each race, with x the bumped client and y the other, sync(y, x) and sync(x, y) both toEqual x, and x.version stays 7" },
+      { "name": "two bumped clients converge on the delivery after next", "given": "c = { ...sync(A, B), versionNonce: 500 }, d = { ...sync(A, B), versionNonce: 600 }. Then e = sync(d, c), f = sync(c, d)", "expect": "e.version 8; f toEqual c; e.textRanges toEqual c.textRanges; sync(f, e) and sync(e, f) both toEqual e" },
+      { "name": "a bumped register places a record where the unbumped one does", "given": "A: T, no ranges, v6 nonce 300. B: W, RED on [28, 33), v6 nonce 200. a = { ...sync(A, B), versionNonce: 500 }, b = sync(B, A). C: `${W}!`, no ranges, v8 nonce 100. p = run(a, C), q = run(b, C)", "expect": "the range in p and in q is [28, 33); origin differs, with version 7 in p and 6 in q; run(p, q) and run(q, p) both toEqual p" },
+      { "name": "merging again changes nothing", "given": "merged element reconciled against each input and against a clone of itself", "expect": "toEqual merged; with a clone as remote the local object is returned, so toBe" },
+      { "name": "a full sync at the same version delivers merged ranges", "given": "local: the winner with no ranges. Remote: the merged element, same version and nonce", "expect": "result toEqual merged" },
+      { "name": "a removed range stays removed in both orders", "given": "base v7 with RED on [20, 25). A: reset on [20, 25), v8 nonce 300. B: W with shifted ranges, v8 nonce 200. Then the same with the nonces swapped", "expect": "getTextStyleRuns is [] in both orders of both cases; a recolour racing the removal at the same z is also hidden" },
+      { "name": "two partial removals do not bring a range back", "given": "base v7 with RED on [20, 25). A: reset on [20, 23), v8. B: reset on [23, 25), v8", "expect": "getTextStyleRuns is [] in both orders" },
+      { "name": "a retired id stays retired", "given": "A holds the record with retired: true, B holds it alive at a higher version", "expect": "the merged record is retired in both orders and getTextStyleRuns is []" },
+      { "name": "a deleted styled word leaves nothing on the peer", "given": "base v5, T with RED on [20, 25), held by both. A: \"Bid request timeout \" through shiftTextRanges, v6. run(base, A) and run(A, base)", "expect": "equal; the record is collapsed and no record has origin; JSON.stringify of the element does not contain \"120ms\"; a restoreElements([result], null) keeps the record" },
+      { "name": "retyping a deleted word stays unstyled on both clients", "given": "then A2: A's text back to T through shiftTextRanges, v7. p = run(A, A2), q = run(base, A2)", "expect": "p toEqual q; originalText T; the record is collapsed with no origin; getTextStyleRuns is []" },
+      { "name": "a deletion that loses the race keeps the range on the surviving word", "given": "base as above. A: the word deleted, v6 nonce 300. B: W with shifted ranges, v6 nonce 200. run(A, B) and run(B, A)", "expect": "equal; originalText W; range [28, 33), slice \"120ms\", no origin" },
+      { "name": "a deletion that wins the race styles nothing", "given": "the same with A at nonce 100", "expect": "equal; originalText \"Bid request timeout \"; getTextStyleRuns is []; the record is collapsed with no origin" },
+      { "name": "a removal at a repeated character leaves no sliver", "given": "base \"ab\" v7, RED on [1, 2). A: reset on [1, 2), v8 nonce 300. B: \"ab\" to \"abb\" then \"abb\" to \"bb\" through shiftTextRanges, v8 nonce 200, which leaves B's record on [0, 1) while diffText(\"ab\", \"bb\") carries the clear to [1, 2). Then the same with the nonces swapped", "expect": "getTextStyleRuns is [] in both orders of both cases" },
+      { "name": "a partial removal at a repeated character shows only its kept part", "given": "base \"abc\" v7, RED on [1, 3). A: reset on [1, 2), v8 nonce 300. B: \"abc\" to \"abbc\" then \"abbc\" to \"bbc\" through shiftTextRanges, v8 nonce 200, which leaves B's record on [0, 3). Then the same with the nonces swapped", "expect": "getTextStyleRuns is [{ start: 2, end: 3, color: RED, highlight: null }] in both orders of both cases" },
+      { "name": "a dropped update's ranges reach the editing client", "given": "local: T, v6, appState { editingTextElement: local }. Remote: W, RED on [28, 33), v9", "expect": "result originalText T; version 6; range [20, 25); slice is \"120ms\"" },
+      { "name": "a dropped update's removal reaches the editing client", "given": "local: T with RED on [20, 25), editing. Remote: W, shifted, reset on [28, 33), v9", "expect": "originalText T and getTextStyleRuns is []" },
+      { "name": "clients converge once editing ends", "given": "the absorbed local element, then run(local, remote) with no editing state, and run(remote, local) on the other client", "expect": "toEqual; originalText W; version 9" },
+      { "name": "elements with no ranges reconcile as today", "given": "reconcileElements with two text elements with no ranges, no cloning", "expect": "the kept element toBe the same object, and it has no textRanges key" },
+      { "name": "merging is pure", "given": "deep-frozen inputs, with Math.random and Date.now spied", "expect": "no throw, equal results on two calls, spies not called" },
+      { "name": "a merged element passes restore unchanged", "given": "restoreElements([merged], null) with overlapping carried and native records", "expect": "textRanges toEqual merged's" },
+      { "name": "a merge spends its budget on the highest records first", "given": "the diff budget scenario. const spy = vi.mocked(diffText); spy.mockClear(); mergeTextRanges(winner, l1); results = spy.mock.results.map((result) => result.value as unknown[])", "expect": "spy called exactly 1024 times, once per distinct origin text of the 1,024 survivors; spy.mock.calls[0][0] toBe LONG.slice(5000, 5100), so the highest (z, id) was served first; no call's first argument is an l2 origin text, so a doomed record spent nothing; the count of results with length > 1 is above 0 and below 1024; results[results.length - 1] has length 1, so the budget ran out" },
+      { "name": "both arrival orders converge when the budget runs out", "given": "the diff budget scenario. a = mergeTextRanges(mergeTextRanges(winner, l1), l2), b = mergeTextRanges(mergeTextRanges(winner, l2), l1), top = the record of a with id \"zzzz\"", "expect": "a toEqual b; mergeTextRanges(a, l2) toBe a; top.start is 5010 and top.end is 5020; a.originalText.slice(top.start, top.end) toBe LONG.slice(5010, 5020); a.textRanges.ranges[0] has id \"r0001\", start equal to end, and an origin, because the budget ran out before it" },
+      { "name": "a range crosses a change at each end of long text", "given": "next = `QQ${LONG.slice(1, 9999)}ZZ`, A = element(T, 5, 2, [{ ...carried(\"rec\", 2, LONG), origin: { version: 1, versionNonce: 2, text: LONG, start: 5000, end: 5010 } }]), merged = mergeTextRanges(element(next, 9, 1, []), A), record = merged.textRanges.ranges[0]", "expect": "record.start is 5001 and record.end is 5011; next.slice(record.start, record.end) toBe LONG.slice(5000, 5010)" },
+      { "name": "two far-apart changes keep a carried range in both arrival orders", "given": "NOTE = Array.from({ length: 40 }, (_, i) => `${T} and item ${i}`).join(\" \"), which is 1,509 characters; at = NOTE.indexOf(\"item 20\"); next = `Ad${NOTE.slice(3, NOTE.length - 2)}xx`. A: NOTE, RED on [at, at + 7), v6 nonce 300, built as { ...version(baseElement, NOTE, 6, 300), textRanges: applyTextRangeStyle({ originalText: NOTE }, { start: at, end: at + 7 }, { color: RED }) }, where baseElement is a newTextElement with id \"elem1\", as in the first describe. B: version(baseElement, next, 7, 200). run(A, B) and run(B, A)", "expect": "equal; the record is [at - 1, at + 6); next.slice(at - 1, at + 6) is \"item 20\"" },
+      { "name": "\"abcdefgh\" to \"stuvwxyz\"", "given": "spent(a, b), a meter of 1,000,000 through diffText that returns what it spent and the hunks", "expect": "spent 62; hunks [{ oldStart: 0, oldEnd: 8, newStart: 0, newEnd: 8 }]" },
+      { "name": "\"abcdefghij klm\" to \"abcdefghij nop\"", "given": "spent(a, b)", "expect": "spent 96; hunks [{ oldStart: 11, oldEnd: 14, newStart: 11, newEnd: 14 }]" },
+      { "name": "\"qqq hello brave new world\" to \"rrr hello brave new world\"", "given": "spent(a, b)", "expect": "spent 153; hunks [{ oldStart: 0, oldEnd: 3, newStart: 0, newEnd: 3 }]" },
+      { "name": "\"abcabcabc xyz\" to \"defdefdef uvw\"", "given": "spent(a, b)", "expect": "spent 106; hunks [{ oldStart: 0, oldEnd: 13, newStart: 0, newEnd: 13 }]" },
+      { "name": "typed character, \"hello world\" to \"hello, world\"", "given": "spent(a, b)", "expect": "spent 0; hunks [{ oldStart: 5, oldEnd: 5, newStart: 5, newEnd: 6 }]" },
+      { "name": "a meter pays for the whole run it reads", "given": "a and b of rule 10, each with short and long in common, and three meters: the default, index + 1100, and index + 1000", "expect": "the default and index + 1100 give bothRuns, the three hunks around short and long; index + 1000 gives two hunks, { oldStart: 0, oldEnd: 1000, newStart: 0, newEnd: 1000 } and edge, because long used up the meter" },
+      { "name": "first-gap trim, \"x cdefg\" to \"xy cdefg\"", "given": "diffText(a, b)", "expect": "[{ oldStart: 1, oldEnd: 1, newStart: 1, newEnd: 2 }]" },
+      { "name": "surrogate trim end, \"a😀b\" to \"a🨀b\"", "given": "diffText(a, b)", "expect": "[{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }]" },
+      { "name": "block end on a shared high surrogate, \"Qabcde😀Z\" to \"Rabcde😁Y\"", "given": "diffText(a, b)", "expect": "[{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: 6, oldEnd: 9, newStart: 6, newEnd: 9 }]" },
+      { "name": "addition beside a word: %s -> %s for %s", "given": "it.each over seven pairs, among them \"foo Bid\" to \"foo Before Bid\", T to \"Bid request timeout 1 second or 120ms\", \"Bid request\" to \"Bid and kid request\", and the removal \"foo Before Bid\" to \"foo Bid\". keeps(a, b, word) maps the word and returns the mapped text", "expect": "the word, so the range neither widens nor lands inside the addition" },
+      { "name": "kept token with no 3-character anchor: %s -> %s for %s", "given": "it.each over \"OK\" to \"Not OK at all\", \"v2\" to \"release v2 now\", and \"1\\n2\\n3\\n4\\n5\" to its tabbed form, for \"3\"", "expect": "keeps(a, b, word) is the word" },
+      { "name": "1,000 identical lines keep their place on Tab", "given": "1,000 of \"the same line again\", 19,999 characters, under the budget cliff, for lines 0, 1, 499, 500, 998 and 999", "expect": "mapTextSpan of [at + 4, at + 8) moves by (i + 1) * 4" },
+      { "name": "a 200-line note keeps every one-character line", "given": "200 lines, \"x\" when i % 3 === 0, Tab on all of them", "expect": "every \"x\" moves by (i + 1) * 4" },
+      { "name": "records sharing one origin text are diffed once", "given": "five carried records with one origin text", "expect": "diffText is called once" }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "lines": [1, 100],
+      "reason": "Imports, cloneJSON and the call shape of reconcileElements."
+    },
+    "depends_on": ["U02", "U03", "U04", "U06", "U11", "U12"],
+    "covers": ["FR-19", "FR-20", "FR-21", "NFR-3", "AC-11"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U29",
+    "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import { applyDarkModeFilter } from \"@excalidraw/common\";",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "SVG export tests of tspans and highlight rects, and canvas draw-call tests of per-run rendering.",
+    "rules": [
+      "Use exportScene from ../../scene/export. Build with API.createElement({ type: \"text\", text: T }) spread with index: \"a0\", and newElementWith(element, { textRanges }). T = \"Bid request timeout 120ms\", RED = \"#e03131\", YELLOW = \"#ffec99\". data is { elements: [element], appState: { viewBackgroundColor: \"#ffffff\" }, files: null }, config { canvasBackgroundColor: false }.",
+      "SVG: exportScene({ type: \"svg\", data, config }). Canvas: exportScene({ type: \"canvas\", data, config }), then (canvas.getContext(\"2d\") as any).__getEvents(), keeping events of type fillStyle, fillText and fillRect in order. fillText props are text, x, y; fillRect props are x, y, width, height; fillStyle props.value is the colour. The colour of a draw is the last fillStyle event before it.",
+      "Alignment cases spread width: 400 onto the element so a line is narrower than the box; the line is 250 wide, so left is 75 for center and 150 for right."
+    ],
+    "tests": [
+      { "name": "a coloured range exports a tspan with its fill", "given": "RED on [20, 25)", "expect": "one <text>, whose textContent is T; one tspan with fill RED and text \"120ms\"" },
+      { "name": "dark mode filters the tspan fill", "given": "same, config.theme \"dark\"", "expect": "fill is applyDarkModeFilter(RED)" },
+      { "name": "tspans land on the right lines", "given": "text \"Bid request\\ntimeout 120ms\", originalText T", "expect": "two <text> nodes; the tspan is in the second" },
+      { "name": "a highlight is a rect before its text", "given": "{ highlight: YELLOW } on [20, 25)", "expect": "one rect with fill YELLOW, x 200, width 50, height the line height; compareDocumentPosition says it precedes the <text>" },
+      { "name": "highlight rects follow textAlign", "given": "width 400, textAlign center, then right", "expect": "rect x is 275, then 350; text-anchor is unchanged" },
+      { "name": "a highlight follows rtl right-aligned text", "given": "text \"אבג דה\" with textAlign right, width 400, highlight on [3, 6)", "expect": "rect x is 400, where text-anchor end puts the text's left edge, and width 30" },
+      { "name": "a rect inherits element opacity", "given": "opacity 50 with a highlight", "expect": "the rect's parent has fill-opacity 0.5" },
+      { "name": "a colour only passes through as an attribute", "given": "restored data with a colour that fails validation", "expect": "no tspan and no script node" },
+      { "name": "a text with no ranges exports as today", "given": "a text element with no textRanges", "expect": "no tspan and no rect; textContent is T" },
+      { "name": "fully cleared ranges export like no ranges", "given": "RED on [20, 25), then reset on [20, 25)", "expect": "the <text> outerHTML equals that of the element with no ranges" },
+      { "name": "canvas draws runs in their own colours", "given": "RED on [20, 25)", "expect": "fillText \"Bid request timeout \" at x 0, then \"120ms\" at x 200; the second is drawn in RED" },
+      { "name": "canvas draws highlights before text", "given": "{ highlight: YELLOW } on [20, 25)", "expect": "a fillRect at x 200 width 50 in YELLOW comes before every fillText" },
+      { "name": "canvas runs follow textAlign", "given": "width 400 with RED on [20, 25), textAlign center, then right", "expect": "\"120ms\" fillText x is 275, then 350" },
+      { "name": "canvas lines keep their baseline", "given": "two lines with RED on the second", "expect": "the second line's fillText y is one line height below the first" },
+      { "name": "canvas theme applies to range colours", "given": "RED with config.theme \"dark\"", "expect": "the fillStyle before \"120ms\" is applyDarkModeFilter(RED)" },
+      { "name": "canvas right-to-left runs", "given": "text \"אבג דה\", RED on [3, 6)", "expect": "fillText \" דה\" (the run [3, 6) includes the space) at x 0, and \"אבג\" at x 30" },
+      { "name": "a text with no ranges makes one fillText per line", "given": "a text element with no textRanges", "expect": "exactly one fillText, with text T" },
+      { "name": "an unstyled line after an rtl piece is drawn in the element direction", "given": "\"שלום world\\nPlain English line\\nעוד שורה\" with RED on [5, 10), canvas export, fillText spied to record this.direction", "expect": "the fillText of \"Plain English line\" has direction \"rtl\"" }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/scene/export.test.ts",
+      "lines": [362, 401],
+      "reason": "exportScene calls and reading canvas events."
+    },
+    "depends_on": ["U03", "U06", "U09", "U10"],
+    "covers": ["FR-6", "FR-17", "NFR-1", "AC-5", "AC-12", "AC-13", "AC-14"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U30",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import { fireEvent, queryByTestId } from \"@testing-library/react\";",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "jsdom tests that apply colour and highlight to an editor selection and assert the element data, the preview layer, and the controls.",
+    "rules": [
+      "Setup: beforeEach await render(<Excalidraw handleKeyboardGlobally={true} />), with `const { h } = window;` and unmountComponent() at the top of the file, as textWysiwyg.test.tsx does.",
+      "startEditing(text = T): element = API.createElement({ type: \"text\", text }); API.setElements([element]); API.setSelectedElements([element]); Keyboard.keyPress(KEYS.ENTER); return getTextEditor(). T = \"Bid request timeout 120ms\", RED = \"#e03131\", YELLOW = \"#ffec99\".",
+      "Apply with act(() => h.app.actionManager.executeAction(actionChangeStrokeColor, \"ui\", { color: RED })), using actionChangeTextHighlight or actionResetTextStyle in the same way; select with editor.setSelectionRange(start, end) first. Actions come from ../actions.",
+      "Find the preview with document.querySelector(`.${PREVIEW_CLASS_NAME}`). jsdom normalizes style colours to rgb, so compare with colorToHex(span.style.color) and colorToHex(span.style.backgroundColor).",
+      "Constants and helpers for the long-note tests, at the top of the file: const PROSE = \"Bid request timeout 120ms applies to every exchange in the primary region. When the auction server misses that window the request is dropped and the slot is sold through the fallback path. Review the latency dashboard before changing this value, and tell the on-call engineer about any change that touches the pricing service.\"; const ADDED = \"Before the next release the team agreed to review every setting that controls how long a request may wait, and to write down who owns each one. The list below is the current state of that work, and it will change as the review goes on through the rest of the quarter, so please read it again before you rely on any of these numbers. \"; (ends with a space; 333 characters; it must not start with T, so that the additions are really new). const DIGITS = Array.from({ length: 2500 }, (_, i) => String(i).padStart(4, \"0\")).join(\"\"); const repeatTo = (text: string, length: number) => { let out = \"\"; while (out.length < length) { out += `${text} `; } return out.slice(0, length); }; const proseNote = (lineCount: number) => { const lines: string[] = []; let at = 0; while (lines.length < lineCount) { lines.push(PROSE.slice(at, at + 58).trim()); at = (at + 58) % (PROSE.length - 60); } return lines.join(\"\\n\"); }; const digitNote = (lineCount: number) => Array.from({ length: lineCount }, (_, i) => DIGITS.slice(i * 60, i * 60 + 58)).join(\"\\n\"); const indentAll = (text: string) => text.split(\"\\n\").map((line) => `    ${line}`).join(\"\\n\"); const colour = (editor: HTMLTextAreaElement, start: number, end: number) => { editor.setSelectionRange(start, end); act(() => { h.app.actionManager.executeAction(actionChangeStrokeColor, \"ui\", { color: RED }); }); };",
+      "Multi-line Tab goes through the real editor, never through a direct shiftTextRanges call. Given text with a word at [at, at + length), and lineCount = text.slice(0, at).split(\"\\n\").length: editor = await startEditing(text); colour(editor, at, at + length); editor.setSelectionRange(0, editor.value.length); fireEvent.keyDown(editor, { key: KEYS.TAB }), with shiftKey: true added for Shift+Tab. Tab keeps the editor open and the ranges update on its input event, so assert straight after keyDown, on h.elements[0] as ExcalidrawTextElement. The true start after Tab is at + 4 * lineCount. A Shift+Tab test starts from indentAll(text) with its word at at + 4 * lineCount, and the true start after it is at.",
+      "Every long-note test asserts getTextStyleRuns(element) toEqual the one true run, element.originalText, and that element.originalText.slice(run.start, run.end) is the same word as before. Never widen an assertion to pass: if a true offset fails, the code is wrong."
+    ],
+    "tests": [
+      { "name": "a colour on a selection styles that range alone", "given": "selection [20, 25), colour RED", "expect": "getTextStyleRuns(h.elements[0]) toEqual [{ start: 20, end: 25, color: RED, highlight: null }]; strokeColor and h.state.currentItemStrokeColor unchanged" },
+      { "name": "the selection stays", "given": "same", "expect": "editor.selectionStart is 20, editor.selectionEnd is 25, and the editor is still open" },
+      { "name": "offsets map across lines", "given": "text \"line one\\nline two\", selection [9, 13)", "expect": "one run [9, 13)" },
+      { "name": "offsets map in bound text", "given": "API.createTextContainer({ label: { text: \"sample-text\" } }), container selected, Enter, selection [0, 6)", "expect": "the text element has one run [0, 6); the container is unchanged" },
+      { "name": "a highlight on a selection", "given": "selection [20, 25), highlight YELLOW", "expect": "one run with highlight YELLOW and color null" },
+      { "name": "the transparent swatch removes a highlight", "given": "then the same selection with color \"transparent\"", "expect": "getTextStyleRuns is []" },
+      { "name": "reset removes colour and highlight from a selection", "given": "RED and YELLOW on [20, 25), then actionResetTextStyle on [20, 25)", "expect": "getTextStyleRuns is [], and textRanges stays defined as the removal marker" },
+      { "name": "reset on part of a range splits it", "given": "RED on [20, 25), reset on [21, 23)", "expect": "runs [20, 21) and [23, 25), RED" },
+      { "name": "reset with no selection does nothing", "given": "RED on [20, 25), caret only, reset", "expect": "textRanges is the same object" },
+      { "name": "reset on plain text adds no key", "given": "plain text, selection, reset, exit the editor", "expect": "\"textRanges\" in h.elements[0] is false" },
+      { "name": "an empty selection sets strokeColor", "given": "RED on [20, 25), setSelectionRange(3, 3), colour \"#1971c2\"", "expect": "strokeColor is \"#1971c2\"; the run stays RED" },
+      { "name": "a selected element not being edited sets strokeColor", "given": "an element with a range, selected, editor closed, colour \"#1971c2\"", "expect": "strokeColor is \"#1971c2\"; the run stays RED" },
+      { "name": "ranges follow typing", "given": "RED on [20, 25), then updateTextEditor(editor, `Urgent: ${T}`)", "expect": "the run is [28, 33) and originalText.slice is \"120ms\"" },
+      { "name": "the preview shows colour and highlight", "given": "RED on [20, 25), YELLOW on [20, 25)", "expect": "one span with text \"120ms\", colour RED, background YELLOW; preview textContent equals editor.value; editor.style.color is \"transparent\"" },
+      { "name": "the preview stays aligned after typing", "given": "then updateTextEditor(editor, `Urgent: ${T}`)", "expect": "the span's text is still \"120ms\"; preview textContent equals editor.value" },
+      { "name": "the preview mirrors the editor's box", "given": "RED on [20, 25)", "expect": "preview style width, height, left, top and transform equal the editor's; aria-hidden is \"true\"; it comes before the textarea in the DOM" },
+      { "name": "there is no preview with no visible runs", "given": "plain text in the editor", "expect": "no preview node; editor.style.color is not \"transparent\"" },
+      { "name": "removing the last run removes the preview", "given": "RED on [20, 25), then reset on [20, 25)", "expect": "no preview node; editor.style.color is not \"transparent\"" },
+      { "name": "the preview goes when editing ends", "given": "RED on [20, 25), Keyboard.exitTextEditor(editor)", "expect": "no preview node; the element keeps its run" },
+      { "name": "the controls show only while editing", "given": "with and without an open editor", "expect": "[data-openpopup=\"textHighlight\"] and data-testid reset-text-style exist only while editing" },
+      { "name": "a style change makes a new element object", "given": "the element before and after a colour on a selection", "expect": "they are different objects, so the canvas cache misses" },
+      { "name": "Tab on all lines keeps a word on a long prose note", "given": "text = proseNote(18), 1,054 characters; at = text.indexOf(\"dropped\"), length 7; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at the true start; its slice is \"dropped\"" },
+      { "name": "Tab on all lines keeps a word on a longer prose note", "given": "text = proseNote(24), 1,407 characters; at = text.lastIndexOf(\"latency\"), length 7; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at the true start; its slice is \"latency\"" },
+      { "name": "Tab on all lines keeps a span of digits", "given": "text = digitNote(18), 1,061 characters; at = 500, length 10; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at the true start; its slice toBe text.slice(500, 510)" },
+      { "name": "Tab on all lines keeps a span of digits on a longer note", "given": "text = digitNote(24), 1,415 characters; at = 1003, length 10; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at the true start; its slice toBe text.slice(1003, 1013)" },
+      { "name": "Shift+Tab on all lines keeps a word on a long prose note", "given": "text = proseNote(18), so the note in the editor is indentAll(text), 1,126 characters; word \"dropped\"; Shift+Tab on all lines", "expect": "originalText toBe text; one run at text.indexOf(\"dropped\"); its slice is \"dropped\"" },
+      { "name": "Shift+Tab on all lines keeps a word on a longer prose note", "given": "text = proseNote(24), so the note in the editor is indentAll(text), 1,503 characters; word \"latency\", the last one; Shift+Tab on all lines", "expect": "originalText toBe text; one run at text.lastIndexOf(\"latency\"); its slice is \"latency\"" },
+      { "name": "Shift+Tab on all lines keeps a span of digits", "given": "text = digitNote(18), so the note in the editor is indentAll(text), 1,133 characters; the span text.slice(500, 510); Shift+Tab on all lines", "expect": "originalText toBe text; one run [500, 510)" },
+      { "name": "Shift+Tab on all lines keeps a span of digits on a longer note", "given": "text = digitNote(24), so the note in the editor is indentAll(text), 1,511 characters; the span text.slice(1003, 1013); Shift+Tab on all lines", "expect": "originalText toBe text; one run [1003, 1013)" },
+      { "name": "a change at two far-apart places of prose keeps a word", "given": "text = repeatTo(PROSE, 1100), at = text.indexOf(\"dropped\"), lastThe = text.lastIndexOf(\"the \"), next = `Ad${text.slice(3, lastThe)}our${text.slice(lastThe + 3)}`; colour on [at, at + 7), then updateTextEditor(editor, next)", "expect": "one run [at - 1, at + 6); next.slice(at - 1, at + 6) is \"dropped\"" },
+      { "name": "a change at two far-apart places of digits keeps a span", "given": "text = DIGITS.slice(0, 1100), next = `QQ${text.slice(1, 1099)}ZZ`; colour on [500, 510), then updateTextEditor(editor, next)", "expect": "one run [501, 511); next.slice(501, 511) toBe text.slice(500, 510)" },
+      { "name": "100 characters added on each side keep the label's words", "given": "T, colour on [20, 25), then colour on [0, 3), then updateTextEditor(editor, `${ADDED.slice(0, 100)}${T} ${ADDED.slice(100, 200)}`)", "expect": "runs [100, 103) and [120, 125), both RED, so \"Bid\" and \"120ms\" stay on themselves and neither widens" },
+      { "name": "333 characters added on each side keep the label's words", "given": "T, colour on [20, 25), then colour on [0, 3), then updateTextEditor(editor, `${ADDED}${T} ${ADDED}`)", "expect": "runs [ADDED.length, ADDED.length + 3) and [ADDED.length + 20, ADDED.length + 25), both RED" },
+      { "name": "digits added on each side keep a span", "given": "text = DIGITS.slice(5000, 5100), colour on [10, 20), then updateTextEditor(editor, DIGITS)", "expect": "one run [5010, 5020); DIGITS.slice(5010, 5020) toBe text.slice(10, 20)" },
+      { "name": "a whole-text selection on plain text sets strokeColor", "given": "T in the editor, selection [0, T.length), a colour", "expect": "strokeColor is RED and the element has no textRanges key" },
+      { "name": "a whole-text selection over a coloured run takes the range path", "given": "RED on [20, 25), then selection [0, T.length) and \"#1971c2\"", "expect": "strokeColor is unchanged; one run [0, 25) in \"#1971c2\"" },
+      { "name": "Tab on all lines of a 500-line note of single letters keeps styled character", "given": "500 lines of one letter each, a to z repeating, 999 characters; colour the letter of line 250; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at its offset plus (250 + 1) * 4, on the same letter" },
+      { "name": "Shift+Tab on all lines of a 500-line note of single letters keeps styled character", "given": "that note indented by 4 spaces per line, colour line 250's letter, Shift+Tab on all lines", "expect": "originalText toBe the unindented text; one run at the letter's unindented offset" },
+      { "name": "Tab on all lines of a 200-line note keeps styled x", "given": "200 lines, \"x\" when i % 3 === 0, else `line number ${i} of the note`; colour the \"x\" of line 99; Tab on all lines", "expect": "originalText toBe indentAll(text); one run at its offset plus (99 + 1) * 4, on the \"x\"" },
+      { "name": "Tab on a note of five lines 1 to 5 keeps styled 3", "given": "\"1\\n2\\n3\\n4\\n5\", colour \"3\" at [4, 5), Tab on all lines", "expect": "one run at offset 4 + 3 * 4, on \"3\"" }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+      "lines": [1, 40],
+      "reason": "Rendering the editor and driving actions in a co-located test."
+    },
+    "uses": [
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "lines": [1, 62],
+        "reason": "Imports and helpers for driving the text editor."
+      }
+    ],
+    "depends_on": ["U02", "U03", "U06", "U18", "U19", "U20", "U21", "U22", "U23"],
+    "covers": ["FR-10", "FR-11", "FR-12", "FR-13", "FR-14", "FR-15", "FR-16", "NFR-4", "AC-4", "AC-15"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U31",
+    "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "action": "edit",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 1,
+        "to": 1,
+        "first_line": "import { act, fireEvent } from \"@testing-library/react\";",
+        "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+      }
+    ],
+    "phase": "tests",
+    "behaviour": "Tests that ranges survive bound-text containers, font changes, list markers, and undo and redo.",
+    "rules": [
+      "Setup: beforeEach await render(<Excalidraw handleKeyboardGlobally={true} />). Seed ranges with newElementWith(text, { textRanges: applyTextRangeStyle(text, span, style) }) before API.setElements, never with mutateElement. RED = \"#e03131\", T = \"Bid request timeout 120ms\", W = `Urgent: ${T}`.",
+      "History: put the starting element in with API.updateScene({ elements: [element], captureUpdate: CaptureUpdateAction.IMMEDIATELY }), edit through the text editor as in U30, leave with Keyboard.exitTextEditor(editor), then use Keyboard.undo() and Keyboard.redo(). A remote change is API.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER }).",
+      "After every history step assert the check noStale(element): for each run of getTextStyleRuns(element), element.originalText.slice(run.start, run.end) is the expected word, and sanitizeTextRanges(element.textRanges, element.originalText) is defined."
+    ],
+    "tests": [
+      { "name": "a container resize re-wraps and keeps the range", "given": "API.createTextContainer({ label: { text: \"hello brave new world\" } }), RED on [6, 11), container width 300 then 100, each followed by handleBindTextResize(container, h.app.scene, \"e\")", "expect": "textRanges is the same object; getTextLineRuns has a RED run \"brave\" both times" },
+      { "name": "a text rewrite keeps the range", "given": "same, then redrawTextBoundingBox(text, container, h.app.scene)", "expect": "the RED run is still \"brave\"" },
+      { "name": "binding keeps the range", "given": "a free text with a range, bound with actionBindText to a rectangle", "expect": "the RED run's text is unchanged" },
+      { "name": "a font size change keeps the range", "given": "a selected text with a range, act(() => h.app.actionManager.executeAction(actionChangeFontSize, \"ui\", 36))", "expect": "fontSize is 36; ranges toEqual the seed; the RED run's text is unchanged" },
+      { "name": "a font family change keeps the range", "given": "a bound text, fontFamily set to FONT_FAMILY.Nunito through newElementWith, then redrawTextBoundingBox", "expect": "ranges toEqual the seed; the RED run's text is unchanged" },
+      { "name": "duplicating a list item shifts its range", "given": "\"9. foo bar\" with RED on [3, 6), advanceDuplicatedListMarkers([element], h.app.scene), then applyListMarkerAdvances(advances, \"prev\", h.app.scene)", "expect": "after the first, originalText is \"10. foo bar\" and the run is [4, 7), \"foo\"; after going back the run is [3, 6)" },
+      { "name": "undo and redo of a range edit", "given": "a colour on a selection, then exit, undo, redo", "expect": "after undo getTextStyleRuns is [] with the text unchanged; after redo one RED run on the same characters" },
+      { "name": "undo and redo of a text edit on an element with ranges", "given": "T with RED on [20, 25), type `Urgent: ${T}`, exit, undo, redo", "expect": "after undo the run is [20, 25); after redo [28, 33); noStale each time" },
+      { "name": "undo brings back a range whose text was deleted", "given": "T with RED on [20, 25), delete \"120ms\", exit, undo", "expect": "the run is [20, 25) again" },
+      { "name": "undoing a range edit after a remote text edit keeps offsets on the current text", "given": "a colour captured, then a remote version with text W and shifted ranges, then undo, then redo", "expect": "after undo originalText is W and runs are []; after redo the run's slice is \"120ms\"" },
+      { "name": "undo brings back a deleted word's range after a remote text edit", "given": "T with RED on [20, 25), delete \"120ms\", exit, then a remote version that appends \"!\" through shiftTextRanges, then undo", "expect": "originalText is T; the run is [20, 25)" },
+      { "name": "undoing a removal shows the range again", "given": "RED on [20, 25), reset as a later step, undo", "expect": "the RED run is back" },
+      { "name": "undoing a partial removal keeps the layer order", "given": "RED on [20, 25), then BLUE (\"#1971c2\") on [24, 25), then reset on [20, 22) as a later step, undo, then redo", "expect": "after reset the runs are [22, 24) RED and [24, 25) BLUE; after undo [20, 24) RED and [24, 25) BLUE; after redo as after reset" },
+      { "name": "an unchanged range makes no history noise", "given": "an element with a range, moved with API.updateScene and captured", "expect": "the recorded delta for that element has no textRanges key" }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+      "lines": [1, 40],
+      "reason": "Rendering the editor in a jsdom test."
+    },
+    "depends_on": ["U03", "U05", "U06", "U07", "U08", "U18", "U19", "U22", "U23"],
+    "covers": ["FR-7", "FR-8", "FR-9", "AC-6", "AC-7", "AC-8", "AC-9", "AC-10", "AC-16"],
+    "checks": ["lint", "test"]
+  }
+]

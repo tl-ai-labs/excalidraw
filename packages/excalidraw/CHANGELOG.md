@@ -13,6 +13,10 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Coloured and highlighted text ranges
+
+While editing a text element, a selection can take its own text color and highlight, shown live in the editor and painted on the canvas and in SVG and PNG exports. New: the "Text highlight" picker and the "Reset text color and highlight" button in the styles panel, and an optional `textRanges` field on text elements that an element which never had ranges does not carry. Ranges follow text edits, re-wrapping, bound-text containers and font changes, and `reconcileElements` keeps its signature while carrying a losing version's ranges onto the winning text.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

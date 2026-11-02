@@ -10,7 +10,7 @@
     "artifact_path": "packages/element/src/types.ts",
     "depends_on": [],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/element/src/types.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 253 (line 253 reads `export type ExcalidrawTextElement = _ExcalidrawElementBase &`) — Declare the three exported types, each with a short JSDoc block: ExcalidrawTextRangeOrigin (where a carried range's offsets came from: the version it was last placed in, and that version's text), ExcalidrawTextRange (one styled layer; id, z, color and highlight never change after creation; offsets are half-open code-unit offsets into originalText; null clears an attribute and absent leaves it alone; retired is a sticky tombstone), ExcalidrawTextRanges (textHash is hashString(originalText), and ranges are sorted by z then id).\n- S2: insert after line 290 (line 290 reads `labelPosition?: number | null;`) — Add `textRanges?: ExcalidrawTextRanges;` with a JSDoc block saying it is absent on an element that has never had ranges, and that a text change must remap it (getTextRangesUpdate).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/element/src/types.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 263 (line 263 reads `}>;`) — This line closes ExcalidrawTextRangeOrigin. After it add a blank line, then a JSDoc block of exactly these three lines of text: An origin whose text is the same as another record's. textFrom is the id of / the record in the same container that holds it, so a merge stores each / distinct text once however many records carry it. Then export type ExcalidrawTextRangeSharedOrigin = Readonly<{ version: number; versionNonce: number; textFrom: string; start: number; end: number; }>; with one field per line. Leave the blank line and the JSDoc block of ExcalidrawTextRange that follow as they are.\n- S2: replace line 278 (line 278 reads `origin?: ExcalidrawTextRangeOrigin;`) — Replace with origin?: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin; on one line with the same two-space indent.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/types.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -44,15 +44,15 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 253,
-          "to": 253
+          "at": "insert_after",
+          "from": 263,
+          "to": 263
         },
         {
           "id": "S2",
-          "at": "insert_after",
-          "from": 290,
-          "to": 290
+          "at": "replace",
+          "from": 278,
+          "to": 278
         }
       ],
       "verify_timeout_sec": 180,
@@ -69,8 +69,8 @@
     "pass_id": "20261102-103113-feature-new-text-range-styling",
     "artifact_path": "packages/element/src/textDiff.ts",
     "depends_on": [],
-    "subtype": "new_file_add",
-    "instruction": "Write `packages/element/src/textDiff.ts` (unit U02) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/textDiff.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 408 (line 408 reads `aligned.push(...lines);`) — Replace this one line with a three-line loop at the same indent: for (const line of lines) { aligned.push(line); }. Leave aligned.push(...token) at line 413 as it is.\n- S2: replace line 487 (line 487 reads `return [trimmed];`) — This is the return of the first if, the change under MIN_MATCH_LENGTH characters. Replace it with return refineHunks(oldText, newText, [trimmed], meter);. Leave the return [trimmed]; at line 493 as it is.\n- S3: replace lines 599-625 (line 599 reads `const mapStart = (hunks: readonly TextHunk[], p: number): number => {`, line 625 reads `};`) — Replace mapStart and mapEnd with the four consts of rules mapping 1 to mapping 3, in this order: findHunkEndingAtOrAfter, getDeltaBefore, mapStart, mapEnd, separated by one blank line. mapSpanThroughHunks after them stays as it is.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textDiff.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textDiff.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -87,6 +87,10 @@
           32
         ],
         "reason": "style file: Shape of a small pure text module in this package."
+      },
+      {
+        "path": "packages/element/src/textDiff.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [],
@@ -97,7 +101,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -105,7 +109,26 @@
           "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
         }
       ],
-      "baseline_from": "packages/element/src/textMeasurements.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 408,
+          "to": 408
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 487,
+          "to": 487
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 599,
+          "to": 625
+        }
+      ],
       "verify_timeout_sec": 180,
       "max_retries": 2
     }
@@ -123,8 +146,8 @@
       "tp_codegen_U01",
       "tp_codegen_U02"
     ],
-    "subtype": "new_file_add",
-    "instruction": "Write `packages/element/src/textRanges.ts` (unit U03) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/textRanges.ts` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 9 (line 9 reads `ExcalidrawTextRange,`) — Add two lines to the type import, in this order: ExcalidrawTextRangeOrigin, and ExcalidrawTextRangeSharedOrigin, each indented two spaces with its trailing comma.\n- S2: insert before line 94 (line 94 reads `export const areTextRangesEqual = (`) — Add isSameOriginText of the rule that names it, then one blank line.\n- S3: replace line 133 (line 133 reads `ra.origin.text !== rb.origin.text ||`) — Replace with !isSameOriginText(ra.origin, rb.origin) ||. The four lines around it stay.\n- S4: insert before line 145 (line 145 reads `export const sanitizeTextRanges = (`) — Add getOriginTexts and dropUnresolvedOrigins of the rules that name them, in that order, each followed by one blank line.\n- S5: replace lines 221-241 (line 221 reads `let keepOrigin = undefined;`, line 241 reads `}`) — Replace the whole block with the code of sanitizeTextRanges step 4's origin rule. keepRetired above it and the blank line and sanitizedRanges.push below it stay.\n- S6: replace line 257 (line 257 reads `const canonical = canonicalizeTextRanges(sanitizedRanges);`) — Replace with const canonical = dropUnresolvedOrigins(canonicalizeTextRanges(sanitizedRanges)); wrapped as Prettier wraps it, the inner call on its own line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRanges.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -141,6 +164,10 @@
           32
         ],
         "reason": "style file: Shape of a text module in this package."
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [],
@@ -151,7 +178,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -159,7 +186,44 @@
           "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
         }
       ],
-      "baseline_from": "packages/element/src/textMeasurements.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 94,
+          "to": 94
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 133,
+          "to": 133
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 145,
+          "to": 145
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 221,
+          "to": 241
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 257,
+          "to": 257
+        }
+      ],
       "verify_timeout_sec": 180,
       "max_retries": 2
     }
@@ -178,8 +242,8 @@
       "tp_codegen_U02",
       "tp_codegen_U03"
     ],
-    "subtype": "new_file_add",
-    "instruction": "Write `packages/element/src/textRangeMerge.ts` (unit U04) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/textRangeMerge.ts` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 7 (line 7 reads `canonicalizeTextRanges,`) — Add getOriginTexts, as one line of the import from ./textRanges, indented two spaces.\n- S2: replace lines 25-38 (line 25 reads `const getRegister = (`, line 38 reads `};`) — Replace with getRegister of the rule that names it.\n- S3: insert before line 62 (line 62 reads `export function mergeTextRanges<T extends ExcalidrawElement>(`) — Add shareOriginTexts of the rule that names it, then one blank line.\n- S4: insert after line 68 (line 68 reads `!isTextElement(other) ||`) — Add two lines at the same indent: typeof base.originalText !== \"string\" || and typeof other.originalText !== \"string\" ||.\n- S5: insert before line 83 (line 83 reads `const baseMap = new Map<string, ExcalidrawTextRange>();`) — Add const baseTexts = getOriginTexts(baseRanges); and const otherTexts = getOriginTexts(otherRanges);, then one blank line.\n- S6: replace lines 120-121 (line 120 reads `getRegister(bRec, base),`, line 121 reads `getRegister(oRec, other),`) — Replace with getRegister(bRec, base, baseTexts), and getRegister(oRec, other, otherTexts), one per line at the same indent.\n- S7: replace line 124 (line 124 reads `reg = getRegister(bRec, base);`) — Replace with reg = getRegister(bRec, base, baseTexts);.\n- S8: replace line 126 (line 126 reads `reg = getRegister(oRec!, other);`) — Replace with reg = getRegister(oRec!, other, otherTexts);.\n- S9: replace line 181 (line 181 reads `const ranges = canonicalizeTextRanges(mergedRecords);`) — Replace with const ranges = shareOriginTexts(canonicalizeTextRanges(mergedRecords));. The canonicalizeTextRanges(Array.from(recordsMap.values())) of applyTextRangesDelta stays as it is.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRangeMerge.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRangeMerge.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -192,6 +256,10 @@
       {
         "path": "packages/element/src/textRanges.ts",
         "reason": "style file: Same package, same data model."
+      },
+      {
+        "path": "packages/element/src/textRangeMerge.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [],
@@ -202,7 +270,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -210,7 +278,62 @@
           "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
         }
       ],
-      "baseline_from": "packages/element/src/textRanges.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 7,
+          "to": 7
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 25,
+          "to": 38
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 62,
+          "to": 62
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 68,
+          "to": 68
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 83,
+          "to": 83
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 120,
+          "to": 121
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 124,
+          "to": 124
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 126,
+          "to": 126
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 181,
+          "to": 181
+        }
+      ],
       "verify_timeout_sec": 180,
       "max_retries": 2
     }
@@ -228,8 +351,8 @@
       "tp_codegen_U01",
       "tp_codegen_U03"
     ],
-    "subtype": "new_file_add",
-    "instruction": "Write `packages/element/src/textRangeLayout.ts` (unit U05) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/textRangeLayout.ts` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { hasRTLChars } from \"@excalidraw/common\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRangeLayout.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRangeLayout.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -246,6 +369,10 @@
           481
         ],
         "reason": "style file: Offsets into originalText and line records follow this module's vocabulary."
+      },
+      {
+        "path": "packages/element/src/textRangeLayout.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [],
@@ -256,7 +383,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -264,7 +391,14 @@
           "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
         }
       ],
-      "baseline_from": "packages/element/src/textWrapping.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 180,
       "max_retries": 2
     }
@@ -285,7 +419,7 @@
       "tp_codegen_U05"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/element/src/index.ts` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 100 (line 100 reads `export * from \"./textElement\";`) — Add `export * from \"./textDiff\";`.\n- S2: insert after line 101 (line 101 reads `export * from \"./textMeasurements\";`) — Add, in this order, `export * from \"./textRangeLayout\";`, `export * from \"./textRangeMerge\";`, `export * from \"./textRanges\";`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/element/src/index.ts` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { toIterable } from \"@excalidraw/common\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/index.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -319,15 +453,9 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 100,
-          "to": 100
-        },
-        {
-          "id": "S2",
           "at": "insert_after",
-          "from": 101,
-          "to": 101
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -347,7 +475,7 @@
       "tp_codegen_U03"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/element/src/listMarker.ts` (unit U07) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 8 (line 8 reads `} from \"./textElement\";`) — Add `import { getTextRangesUpdate } from \"./textRanges\";`.\n- S2: replace line 215 (line 215 reads `scene.mutateElement(element, { originalText });`) — Pass `{ originalText, ...getTextRangesUpdate(element, originalText) }`. Compute the update from `element` before it is mutated, which an argument expression does.\n- S3: insert after line 220 (line 220 reads `originalText,`) — Add `...getTextRangesUpdate(element, originalText),` as the next property, keeping the following spread of refreshTextDimensions after it.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/listMarker.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/listMarker.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/element/src/listMarker.ts` (unit U07) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { arrayToMap } from \"@excalidraw/common\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/listMarker.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/listMarker.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -382,20 +510,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 8,
-          "to": 8
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 215,
-          "to": 215
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 220,
-          "to": 220
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -416,7 +532,7 @@
       "tp_codegen_U04"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/element/src/delta.ts` (unit U08) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 47 (line 47 reads `import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";`) — Add `import { applyTextRangesDelta } from \"./textRangeMerge\";` and `import { areTextRangesEqual } from \"./textRanges\";`.\n- S2: replace line 1756 (line 1756 reads `if (key === \"boundElements\") {`) — Also skip textRanges in this loop: `if (key === \"boundElements\" || (key as string) === \"textRanges\") {`, wrapped as Prettier requires.\n- S3: insert after line 1782 (line 1782 reads `}`) — Add a block for text elements: if isTextElement(element), let deleted and inserted be delta.deleted and delta.inserted cast `as unknown as Partial<ExcalidrawTextElement>`. When `\"textRanges\" in inserted`, or `\"textRanges\" in deleted`, or inserted.originalText is a string and element.textRanges exists, call applyTextRangesDelta(element, deleted, inserted), and if the result is defined do Reflect.set(directlyApplicablePartial, \"textRanges\", result). Undoing the first style edit of an element has textRanges undefined on the inserted side, which is why the check is `in` on both sides. This also runs when the delta holds only originalText, so an undone text change never leaves offsets for the wrong text.\n- S4: insert after line 2215 (line 2215 reads `}`) — Inside the try, after the points handling: read textRanges from deleted and inserted with casts to ElementPartial<ExcalidrawTextElement>, the way the points casts above do. If both are defined and areTextRangesEqual, Reflect.deleteProperty the key from both. The snapshot is a deep copy, so without this every change to an element with ranges would record a textRanges delta.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/element/src/delta.ts` (unit U08) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -451,26 +567,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 47,
-          "to": 47
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 1756,
-          "to": 1756
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 1782,
-          "to": 1782
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 2215,
-          "to": 2215
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -490,7 +588,7 @@
       "tp_codegen_U05"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/element/src/renderElement.ts` (unit U09) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 61 (line 61 reads `import { getLineHeightInPx } from \"./textMeasurements\";`) — Import getLineWidth too, and add on the next lines an import of getTextLineLeft, getTextLineRuns and layoutTextLine from \"./textRangeLayout\".\n- S2: insert after line 83 (line 83 reads `import type { RenderEnvironment } from \"./renderEnvironment\";`) — Add `import type { TextLineRun } from \"./textRangeLayout\";`.\n- S3: insert before line 448 (line 448 reads `export const withSavedContext = (`) — Add the non-exported helper drawStyledTextLines described in this unit's rules, with lineRuns typed readonly (readonly TextLineRun[] | null)[].\n- S4: insert before line 706 (line 706 reads `for (let index = 0; index < lines.length; index++) {`) — Add: `const lineRuns = getTextLineRuns(element);` then, if it is not null, call drawStyledTextLines(context, element, lines, lineRuns, { horizontalOffset, lineHeightPx, verticalOffset, direction: rtl ? \"rtl\" : \"ltr\", renderConfig }) and `return;` out of the withSavedContext callback.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/element/src/renderElement.ts` (unit U09) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import rough from \"roughjs/bin/rough\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -524,27 +622,9 @@
       "sites": [
         {
           "id": "S1",
-          "at": "replace",
-          "from": 61,
-          "to": 61
-        },
-        {
-          "id": "S2",
           "at": "insert_after",
-          "from": 83,
-          "to": 83
-        },
-        {
-          "id": "S3",
-          "at": "insert_before",
-          "from": 448,
-          "to": 448
-        },
-        {
-          "id": "S4",
-          "at": "insert_before",
-          "from": 706,
-          "to": 706
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -565,7 +645,7 @@
       "tp_codegen_U06"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/renderer/staticSvgScene.ts` (unit U10) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 8 (line 8 reads `getFontFamilyString,`) — Add `getFontString,`.\n- S2: replace line 28 (line 28 reads `import { getLineHeightInPx } from \"@excalidraw/element\";`) — Import getLineHeightInPx, getLineWidth, getTextLineLeft, getTextLineRuns and layoutTextLine from \"@excalidraw/element\".\n- S3: insert before line 815 (line 815 reads `for (let i = 0; i < lines.length; i++) {`) — Add: const lineRuns = getTextLineRuns(element); const isDark = renderConfig.theme === THEME.DARK. If lineRuns is not null: font = getFontString(element), measure = (text: string) => getLineWidth(text, font, renderConfig.renderEnvironment). For each line index with a non-null entry, layout = layoutTextLine(lines[index], runs, direction, measure); left = direction === \"rtl\" && element.textAlign === \"right\" ? element.width : getTextLineLeft(element.textAlign, element.width, layout.width), because text-anchor end in rtl puts the text's left edge at x. For each piece with a highlight create a `rect` with svgRoot.ownerDocument.createElementNS(SVG_NS, \"rect\"), set x = left + piece.x, y = index * lineHeightPx, width = piece.width, height = lineHeightPx, fill = applyDarkModeFilter(piece.highlight, isDark), and node.appendChild it. So every rect comes before every <text> in document order.\n- S4: replace line 817 (line 817 reads `text.textContent = lines[i];`) — If lineRuns?.[i] is non-null, then for each run in order: with a color, create a `tspan` with createElementNS(SVG_NS, \"tspan\"), set its fill to applyDarkModeFilter(run.color, isDark), set its textContent to run.text and append it to text; with no color append svgRoot.ownerDocument.createTextNode(run.text). Otherwise keep `text.textContent = lines[i];`. The attributes set below on <text> stay as they are, and colours only ever pass through setAttribute.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/renderer/staticSvgScene.ts` (unit U10) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -600,26 +680,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 8,
-          "to": 8
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 28,
-          "to": 28
-        },
-        {
-          "id": "S3",
-          "at": "insert_before",
-          "from": 815,
-          "to": 815
-        },
-        {
-          "id": "S4",
-          "at": "replace",
-          "from": 817,
-          "to": 817
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -640,7 +702,7 @@
       "tp_codegen_U06"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/data/restore.ts` (unit U11) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 81 (line 81 reads `import { refreshTextDimensions } from \"@excalidraw/element\";`) — Add `import { sanitizeTextRanges } from \"@excalidraw/element\";`.\n- S2: insert after line 595 (line 595 reads `});`) — After restoreElementWithProperties, add: const textRanges = sanitizeTextRanges(element.textRanges, element.originalText). If it is defined and differs from element.textRanges by identity, set element = { ...element, textRanges }. If it is undefined and \"textRanges\" in element, `delete (element as any).textRanges;`, the idiom this case already uses for rawText, so a dropped container leaves no key behind (FR-2).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/data/restore.ts` (unit U11) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 585 (line 585 reads `originalText: element.originalText || text,`) — Replace with originalText: (typeof element.originalText === \"string\" && element.originalText) || text, wrapped as Prettier wraps it, in the same idiom as const text a few lines above. A truthy string stays, an empty string still falls back to text, and any other value now falls back to text too.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -674,15 +736,9 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_after",
-          "from": 81,
-          "to": 81
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 595,
-          "to": 595
+          "at": "replace",
+          "from": 585,
+          "to": 585
         }
       ],
       "verify_timeout_sec": 180,
@@ -703,7 +759,7 @@
       "tp_codegen_U06"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/data/reconcile.ts` (unit U12) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 6 (line 6 reads `orderByFractionalIndex,`) — Add `mergeTextRanges,` to this import.\n- S2: replace lines 92-98 (line 92 reads `if (localElement && discardRemoteElement) {`, line 98 reads `}`) — In the discard branch push mergeTextRanges(localElement, remoteElement) instead of localElement, and add localElement.id to added. In the other branch push localElement ? mergeTextRanges(remoteElement, localElement) : remoteElement, and add remoteElement.id to added. Elements with no ranges come back as the same objects, so nothing else changes (FR-20). The discard branch runs for a remote update dropped while the local user edits the element, which is how FR-21's ranges reach the editor.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/data/reconcile.ts` (unit U12) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import throttle from \"lodash.throttle\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/reconcile.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -737,15 +793,9 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 6,
-          "to": 6
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 92,
-          "to": 98
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -763,7 +813,7 @@
     "artifact_path": "packages/excalidraw/hooks/useTextEditorFocus.ts",
     "depends_on": [],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/hooks/useTextEditorFocus.ts` (unit U13) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 30 (line 30 reads `export const restoreCaretPosition = (`) — Add getTextEditorSelection: position = saveCaretPosition(ownerDocument); return it when non-null and position.start !== position.end, else null. A short comment says a textarea keeps selectionStart and selectionEnd while it is blurred, which is why a colour control can read them after taking focus.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/hooks/useTextEditorFocus.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/hooks/useTextEditorFocus.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/hooks/useTextEditorFocus.ts` (unit U13) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { useState, useCallback } from \"react\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/hooks/useTextEditorFocus.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/hooks/useTextEditorFocus.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -797,9 +847,9 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 30,
-          "to": 30
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -817,7 +867,7 @@
     "artifact_path": "packages/excalidraw/types.ts",
     "depends_on": [],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/types.ts` (unit U14) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 483 (line 483 reads `| \"elementStroke\"`) — Add `| \"textHighlight\"`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/types.ts` (unit U14) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import type {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/types.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -852,8 +902,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 483,
-          "to": 483
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -871,7 +921,7 @@
     "artifact_path": "packages/excalidraw/locales/en.json",
     "depends_on": [],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/locales/en.json` (unit U15) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 33 (line 33 reads `\"textColor\": \"Text color\",`) — Add exactly: \"textHighlight\": \"Text highlight\", \"showTextHighlight\": \"Show text highlight color picker\", \"resetTextStyle\": \"Reset text color and highlight\", each on its own line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/locales/en.json\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/locales/en.json\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/locales/en.json` (unit U15) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `{`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/locales/en.json\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/locales/en.json\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -906,8 +956,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 33,
-          "to": 33
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 60,
@@ -928,7 +978,7 @@
       "tp_codegen_U15"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/components/ColorPicker/ColorPicker.tsx` (unit U16) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 48 (line 48 reads `import type { AppState, UIAppState } from \"../../types\";`) — Add `type ColorPickerPopup = ColorPickerType | \"textHighlight\";` after a blank line, with a one-line comment saying a picker's popup is its type unless two pickers of one type can show at once.\n- S2: insert after line 69 (line 69 reads `customizableTopPicks?: keyof AppState[\"colorTopPicks\"];`) — Add `popup?: ColorPickerPopup;` with a short JSDoc block.\n- S3: insert after line 80 (line 80 reads `getOpenPopup,`) — Add `popup,` to the destructured props.\n- S4: insert before line 96 (line 96 reads `getOpenPopup: () => AppState[\"openPopup\"];`) — Add `popup: ColorPickerPopup;`.\n- S5: replace line 177 (line 177 reads `if (getOpenPopup() === type) {`) — Compare with popup.\n- S6: replace lines 260-265 (line 260 reads `const isColorPickerPopup = (`, line 265 reads `popup === \"canvasBackground\";`) — Make the guard `popup is ColorPickerPopup` and add `popup === \"textHighlight\"`.\n- S7: insert after line 270 (line 270 reads `type,`) — Add `popup,`.\n- S8: insert after line 278 (line 278 reads `type: ColorPickerType;`) — Add `popup: ColorPickerPopup;`.\n- S9: replace lines 317-322 (line 317 reads `title={`, line 322 reads `data-openpopup={type}`) — title is t(\"labels.showTextHighlight\") when popup === \"textHighlight\", otherwise today's expression. data-openpopup={popup}.\n- S10: insert after line 361 (line 361 reads `customizableTopPicks,`) — Add `popup: popupProp,`.\n- S11: insert before line 363 (line 363 reads `const openRef = useRef(appState.openPopup);`) — Add `const popup = popupProp ?? type;`.\n- S12: replace lines 435-441 (line 435 reads `isColorPickerPopup(appState.openPopup) &&`, line 441 reads `setTimeout(() => updateData({ openPopup: type }), 0);`) — Use popup in the `!==` comparison and in the deferred updateData. Keep the comment.\n- S13: replace lines 452-455 (line 452 reads `open={appState.openPopup === type}`, line 455 reads `updateData({ openPopup: type });`) — Use popup in both places.\n- S14: insert after line 463 (line 463 reads `type={type}`) — Add `popup={popup}` to ColorPickerTrigger.\n- S15: replace lines 469-477 (line 469 reads `if (appState.openPopup === type) {`, line 477 reads `}`) — Use popup in the comparison and in all three updateData calls where today's code uses type. Keep the comments.\n- S16: replace lines 481-483 (line 481 reads `{appState.openPopup === type && (`, line 483 reads `type={type}`) — Compare with popup, and pass `popup={popup}` to ColorPickerPopupContent after type.\n- S17: replace lines 524-525 (line 524 reads `prev.appState.openPopup === prev.type ||`, line 525 reads `next.appState.openPopup === next.type`) — Compare with (prev.popup ?? prev.type) and (next.popup ?? next.type).\n- S18: insert after line 530 (line 530 reads `prev.type === next.type &&`) — Add `prev.popup === next.popup &&`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/components/ColorPicker/ColorPicker.tsx` (unit U16) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { Popover } from \"radix-ui\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -963,110 +1013,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 48,
-          "to": 48
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 69,
-          "to": 69
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 80,
-          "to": 80
-        },
-        {
-          "id": "S4",
-          "at": "insert_before",
-          "from": 96,
-          "to": 96
-        },
-        {
-          "id": "S5",
-          "at": "replace",
-          "from": 177,
-          "to": 177
-        },
-        {
-          "id": "S6",
-          "at": "replace",
-          "from": 260,
-          "to": 265
-        },
-        {
-          "id": "S7",
-          "at": "insert_after",
-          "from": 270,
-          "to": 270
-        },
-        {
-          "id": "S8",
-          "at": "insert_after",
-          "from": 278,
-          "to": 278
-        },
-        {
-          "id": "S9",
-          "at": "replace",
-          "from": 317,
-          "to": 322
-        },
-        {
-          "id": "S10",
-          "at": "insert_after",
-          "from": 361,
-          "to": 361
-        },
-        {
-          "id": "S11",
-          "at": "insert_before",
-          "from": 363,
-          "to": 363
-        },
-        {
-          "id": "S12",
-          "at": "replace",
-          "from": 435,
-          "to": 441
-        },
-        {
-          "id": "S13",
-          "at": "replace",
-          "from": 452,
-          "to": 455
-        },
-        {
-          "id": "S14",
-          "at": "insert_after",
-          "from": 463,
-          "to": 463
-        },
-        {
-          "id": "S15",
-          "at": "replace",
-          "from": 469,
-          "to": 477
-        },
-        {
-          "id": "S16",
-          "at": "replace",
-          "from": 481,
-          "to": 483
-        },
-        {
-          "id": "S17",
-          "at": "replace",
-          "from": 524,
-          "to": 525
-        },
-        {
-          "id": "S18",
-          "at": "insert_after",
-          "from": 530,
-          "to": 530
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1084,7 +1032,7 @@
     "artifact_path": "packages/excalidraw/actions/types.ts",
     "depends_on": [],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/actions/types.ts` (unit U17) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 66 (line 66 reads `| \"changeStrokeColor\"`) — Add `| \"changeTextHighlight\"` and `| \"resetTextStyle\"`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/actions/types.ts` (unit U17) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import type {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/types.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1119,8 +1067,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 66,
-          "to": 66
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1145,7 +1093,7 @@
       "tp_codegen_U17"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/actions/actionProperties.tsx` (unit U18) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 34 (line 34 reads `syncStickyNoteInk,`) — Add `applyTextRangeStyle,`.\n- S2: replace line 100 (line 100 reads `import type { ElementUpdate, Scene } from \"@excalidraw/element\";`) — Also import type TextRangeStyle, wrapping the line as Prettier requires.\n- S3: insert after line 156 (line 156 reads `strokeVariabilityVariableIcon,`) — Add `eraser,`.\n- S4: insert after line 170 (line 170 reads `restoreCaretPosition,`) — Add `getTextEditorSelection,`.\n- S5: insert before line 366 (line 366 reads `export const actionChangeStrokeColor = register<`) — Add the non-exported helper applyStyleToEditorSelection from this unit's rules, typed (elements: readonly ExcalidrawElement[], appState: Readonly<AppState>, app: AppClassProperties, style: TextRangeStyle): readonly ExcalidrawElement[] | null.\n- S6: replace line 372 (line 372 reads `perform: (elements, appState, value) => {`) — Add the fourth parameter: `perform: (elements, appState, value, app) => {`.\n- S7: insert after line 379 (line 379 reads `}`) — Add the range path before the resolveColorTarget comment: nextElements = applyStyleToEditorSelection(elements, appState, app, { color }). If it is not null return { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }. With no selection, or when not editing, the code below runs as today (FR-13).\n- S8: insert after line 443 (line 443 reads `});`) — Add actionChangeTextHighlight and actionResetTextStyle from this unit's rules.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/actions/actionProperties.tsx` (unit U18) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { pointFrom } from \"@excalidraw/math\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1180,50 +1128,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 34,
-          "to": 34
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 100,
-          "to": 100
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 156,
-          "to": 156
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 170,
-          "to": 170
-        },
-        {
-          "id": "S5",
-          "at": "insert_before",
-          "from": 366,
-          "to": 366
-        },
-        {
-          "id": "S6",
-          "at": "replace",
-          "from": 372,
-          "to": 372
-        },
-        {
-          "id": "S7",
-          "at": "insert_after",
-          "from": 379,
-          "to": 379
-        },
-        {
-          "id": "S8",
-          "at": "insert_after",
-          "from": 443,
-          "to": 443
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1243,7 +1149,7 @@
       "tp_codegen_U18"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/actions/index.ts` (unit U19) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 11 (line 11 reads `actionChangeStrokeColor,`) — Add `actionChangeTextHighlight,` and `actionResetTextStyle,`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/actions/index.ts` (unit U19) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `export { actionDeleteSelected } from \"./actionDeleteSelected\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/index.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1278,8 +1184,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 11,
-          "to": 11
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1300,7 +1206,7 @@
       "tp_codegen_U18"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/components/Actions.tsx` (unit U20) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 162 (line 162 reads `<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>`) — Add: when appState.editingTextElement is set, a fragment of <div>{renderAction(\"changeTextHighlight\")}</div> followed by {renderAction(\"resetTextStyle\")}.\n- S2: insert after line 634 (line 634 reads `)}`) — Add: when appState.editingTextElement is set, a fragment of two <div className=\"compact-action-item\"> wrappers holding renderAction(\"changeTextHighlight\") and renderAction(\"resetTextStyle\").\n- S3: insert after line 793 (line 793 reads `)}`) — Add the same fragment as site S2.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/components/Actions.tsx` (unit U20) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import clsx from \"clsx\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1335,20 +1241,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 162,
-          "to": 162
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 634,
-          "to": 634
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 793,
-          "to": 793
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1368,8 +1262,8 @@
       "tp_codegen_U03",
       "tp_codegen_U06"
     ],
-    "subtype": "new_file_add",
-    "instruction": "Write `packages/excalidraw/wysiwyg/textPreview.ts` (unit U21) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textPreview.ts` (unit U21) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { applyDarkModeFilter } from \"@excalidraw/common\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textPreview.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textPreview.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1386,6 +1280,10 @@
           45
         ],
         "reason": "style file: A small DOM helper module beside the editor."
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textPreview.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [],
@@ -1396,7 +1294,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -1404,7 +1302,14 @@
           "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/hooks/useTextEditorFocus.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 180,
       "max_retries": 2
     }
@@ -1423,7 +1328,7 @@
       "tp_codegen_U21"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.tsx` (unit U22) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 26 (line 26 reads `import { bumpVersion } from \"@excalidraw/element\";`) — Add `import { getTextStyleRuns } from \"@excalidraw/element\";`.\n- S2: insert after line 74 (line 74 reads `} from \"../actions/actionCanvas\";`) — Add a blank line and `import { createTextPreview } from \"./textPreview\";`.\n- S3: insert after line 527 (line 527 reads `}`) — Add a preview.update call before the mutateElement below: runs is getTextStyleRuns(updatedTextElement) when editable.value === updatedTextElement.originalText, else [] so the preview never shows offsets for another text; baseColor is applyDarkModeFilter(updatedTextElement.strokeColor, appState.theme === THEME.DARK); isDark is appState.theme === THEME.DARK. This function runs on every scene update, so a range merged in by reconcile while editing reaches the preview here.\n- S4: insert after line 540 (line 540 reads `editable.classList.add(\"excalidraw-wysiwyg\");`) — Add `const preview = createTextPreview({ editable, parent: editorBox });` and `editable.onscroll = preview.syncScroll;`.\n- S5: insert after line 1095 (line 1095 reads `editable.onkeydown = null;`) — Add `editable.onscroll = null;`.\n- S6: insert before line 1116 (line 1116 reads `editable.remove();`) — Add `preview.destroy();`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.tsx` (unit U22) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1458,38 +1363,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 26,
-          "to": 26
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 74,
-          "to": 74
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 527,
-          "to": 527
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 540,
-          "to": 540
-        },
-        {
-          "id": "S5",
-          "at": "insert_after",
-          "from": 1095,
-          "to": 1095
-        },
-        {
-          "id": "S6",
-          "at": "insert_before",
-          "from": 1116,
-          "to": 1116
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1510,7 +1385,7 @@
       "tp_codegen_U06"
     ],
     "subtype": "existing_file_edit",
-    "instruction": "Edit `packages/excalidraw/components/App.text.ts` (unit U23) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 29 (line 29 reads `getStickyNoteLayout,`) — Add `getTextRangesUpdate,`.\n- S2: insert after line 224 (line 224 reads `originalText: nextOriginalText,`) — Add `...getTextRangesUpdate(_element, nextOriginalText),`. _element is the latest scene element, so ranges merged in by reconcile while editing are the ones shifted.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.text.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.text.ts\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/components/App.text.ts` (unit U23) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { flushSync } from \"react-dom\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.text.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.text.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1545,14 +1420,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 29,
-          "to": 29
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 224,
-          "to": 224
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 180,
@@ -1570,7 +1439,7 @@
     "artifact_path": "packages/excalidraw/CHANGELOG.md",
     "depends_on": [],
     "subtype": "doc_update",
-    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U24) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 14 (line 14 reads `## Unreleased`) — Add a blank line, then the heading `### Coloured and highlighted text ranges`, a blank line, and this paragraph: `While editing a text element, a selection can take its own text color and highlight, shown live in the editor and painted on the canvas and in SVG and PNG exports. New: the \"Text highlight\" picker and the \"Reset text color and highlight\" button in the styles panel, and an optional \\`textRanges\\` field on text elements that an element which never had ranges does not carry. Ranges follow text edits, re-wrapping, bound-text containers and font changes, and \\`reconcileElements\\` keeps its signature while carrying a losing version's ranges onto the winning text.` Add no PR link and no PR number.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U24) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `# Changelog`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1605,8 +1474,8 @@
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 14,
-          "to": 14
+          "from": 1,
+          "to": 1
         }
       ],
       "verify_timeout_sec": 60,
@@ -1627,8 +1496,8 @@
       "tp_codegen_U03",
       "tp_codegen_U06"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/element/tests/textRanges.test.ts` (unit U25) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/tests/textRanges.test.ts` (unit U25) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1641,14 +1510,37 @@
       {
         "path": "packages/element/tests/textWrapping.test.ts",
         "reason": "style file: Plain describe/it over pure functions in this folder."
+      },
+      {
+        "path": "packages/element/tests/textRanges.test.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [
-      "diffText returns no hunks for equal texts: given diffText(T, T), expect []",
-      "diffText finds both ends of a text changed: given diffText(T, `Urgent: ${T}!`), expect [{ oldStart: 0, oldEnd: 0, newStart: 0, newEnd: 8 }, { oldStart: 25, oldEnd: 25, newStart: 33, newEnd: 34 }]",
-      "diffText never splits a surrogate pair: given diffText(\"a😀b\", \"a😁b\"), expect [{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }]",
-      "diffText drops matches shorter than three: given diffText(\"abcdef\", \"axcyef\"), expect [{ oldStart: 1, oldEnd: 4, newStart: 1, newEnd: 4 }]",
-      "diffText stops at the cell cap: given a = `a${\"bc\".repeat(1000)}d`, b = `e${\"bc\".repeat(1000)}f`, expect one hunk covering all of both",
+      "returns no hunks for equal texts: given diffText(T, T), expect []",
+      "finds both ends of a text changed: given diffText(T, `Urgent: ${T}!`), expect [{ oldStart: 0, oldEnd: 0, newStart: 0, newEnd: 8 }, { oldStart: 25, oldEnd: 25, newStart: 33, newEnd: 34 }]",
+      "never splits a surrogate pair: given diffText(\"a😀b\", \"a😁b\"), expect [{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }]",
+      "drops matches shorter than three: given diffText(\"abcdef\", \"axcyef\"), expect [{ oldStart: 1, oldEnd: 4, newStart: 1, newEnd: 4 }]",
+      "a repeating middle keeps both ends: given a = `a${\"bc\".repeat(1000)}d`, b = `e${\"bc\".repeat(1000)}f`, diffText(a, b), expect [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: a.length - 1, oldEnd: a.length, newStart: b.length - 1, newEnd: b.length }]",
+      "an empty meter returns the trimmed hunk: given the same a and b, meter = { left: 0 }, diffText(a, b, meter), expect [{ oldStart: 0, oldEnd: a.length, newStart: 0, newEnd: b.length }], and meter.left is still 0",
+      "a word changed at each end of 1,100 characters of prose keeps every word: given oldText = repeatTo(PROSE, 1100), lastThe = oldText.lastIndexOf(\"the \"), newText = `Ad${oldText.slice(3, lastThe)}our${oldText.slice(lastThe + 3)}`, hunks = diffText(oldText, newText), expect hunks toEqual [{ oldStart: 0, oldEnd: 2, newStart: 0, newEnd: 1 }, { oldStart: lastThe, oldEnd: lastThe + 3, newStart: lastThe - 1, newEnd: lastThe + 2 }]; for every [start, end] of spansOf(oldText.slice(0, lastThe)).slice(1), mapSpanThroughHunks(hunks, start, end) toEqual { start: start - 1, end: end - 1 } and newText.slice(start - 1, end - 1) toBe oldText.slice(start, end)",
+      "a change at each end of 1,100 generated characters keeps the middle: given oldText = seeded(1100, 77), newText = `QQ${oldText.slice(1, 1099)}ZZ`, expect diffText toEqual [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 2 }, { oldStart: 1099, oldEnd: 1100, newStart: 1100, newEnd: 1102 }]; mapTextSpan(oldText, newText, 500, 510) toEqual { start: 501, end: 511 }",
+      "an exact substring lands at its true position: given mapTextSpan(DIGITS.slice(5000, 5100), DIGITS, 10, 20) and mapTextSpan(W.slice(5000, 5100), W, 10, 20), expect both toEqual { start: 5010, end: 5020 }",
+      "text added at both ends of 10,000 characters keeps the middle: given mapTextSpan(W, `NEW${W}END`, 5010, 5020), expect { start: 5013, end: 5023 }",
+      "long generated additions keep a short text: given mapTextSpan(W.slice(0, 100), `${W.slice(200, 3200)}${W.slice(0, 100)}${W.slice(3200, 6200)}`, 10, 20), expect { start: 3010, end: 3020 }",
+      "long prose additions on both sides keep the label's words: given for size 100 and 333: added = ADDED.slice(0, size), newText = `${added}${T} ${added}`, hunks = diffText(T, newText), for every [start, end] of spansOf(T), expect mapSpanThroughHunks(hunks, start, end) toEqual { start: start + size, end: end + size }, and newText.slice(start + size, end + size) toBe T.slice(start, end)",
+      "long prose additions on both sides keep a paragraph's words: given newText = `${ADDED}${PROSE} ${ADDED}`, hunks = diffText(PROSE, newText), for every [start, end] of spansOf(PROSE), expect mapSpanThroughHunks(hunks, start, end) toEqual { start: start + ADDED.length, end: end + ADDED.length }",
+      "a word added in front that starts with the same letter: given mapTextSpan(\"Bid\", \"Before Bid\", 0, 3), mapTextSpan(\"Bid\", \"Bold Bid\", 0, 3), mapTextSpan(\"Bid\", \"Before Bid after\", 0, 3), expect { start: 7, end: 10 }, { start: 5, end: 8 }, { start: 7, end: 10 }",
+      "text removed around a word keeps the word: given mapTextSpan(\"Before Bid\", \"Bid\", 7, 10), expect { start: 0, end: 3 }",
+      "a repeat of the whole text stays behind the original: given diffText(\"abc\", \"abcabc\"), expect [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 6 }]",
+      "a typed character is the trimmed hunk: given diffText(\"ab\", \"abb\") and diffText(\"Bid request\", \"Bid requests\"), expect [{ oldStart: 2, oldEnd: 2, newStart: 2, newEnd: 3 }] and [{ oldStart: 11, oldEnd: 11, newStart: 11, newEnd: 12 }]",
+      "indenting every line keeps a range on prose and on digits: given for oldText of proseNote(24) and digitNote(24): at = 1003, lineIndex = oldText.slice(0, at).split(\"\\n\").length, newText = indentAll(oldText), ranges = applyTextRangeStyle({ originalText: oldText }, { start: at, end: at + 5 }, { color: RED }), shifted = shiftTextRanges(oldText, newText, ranges), trueStart = at + 4 * lineIndex, expect getTextStyleRuns({ originalText: newText, textRanges: shifted }) toEqual [{ start: trueStart, end: trueStart + 5, color: RED, highlight: null }]; newText.slice(trueStart, trueStart + 5) toBe oldText.slice(at, at + 5)",
+      "outdenting every line keeps a range on prose and on digits: given the same, then back = shiftTextRanges(newText, oldText, shifted), expect back.ranges[0].start is at and back.ranges[0].end is at + 5",
+      "indenting 100 identical lines keeps a range on its own line: given line = \"the same line of text here\", oldText = Array(100).fill(line).join(\"\\n\"), newText = indentAll(oldText), start = 50 * (line.length + 1) + 4, mapTextSpan(oldText, newText, start, start + 4), expect { start: start + 204, end: start + 208 }, and newText.slice(start + 204, start + 208) is \"same\"",
+      "a block never starts inside a surrogate pair: given diffText(\"q😀defghq\", \"zz\\u{1FA00}defghzz\"), where the two emoji share their low surrogate, expect [{ oldStart: 0, oldEnd: 3, newStart: 0, newEnd: 4 }, { oldStart: 8, oldEnd: 9, newStart: 9, newEnd: 11 }]",
+      "a meter that runs out keeps what it found: given a = `Q${W}Z`, b = `R${W}Y`, diffText(a, b, { left: 60_000 }), expect [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: 10001, oldEnd: 10002, newStart: 10001, newEnd: 10002 }]",
+      "hostile text stops at the budget: given hostileOld = seeded(100_000, 21).replace(/[n-z]/g, \"a\").replace(/[b-m]/g, \"b\"), hostileNew = the same from seed 22, meter = { left: MAX_DIFF_WORK }, hunks = diffText(hostileOld, hostileNew, meter). Count work, never time, expect meter.left <= 0 and meter.left >= -200_002, a looser bound than the limit a + b + 1, which is 200,001 here; applyHunks(hostileOld, hostileNew, hunks) toBe hostileNew",
+      "a text the meter cannot index is one hunk and costs nothing: given meter = { left: 1000 }, diffText(`Q${W}Z`, `R${W}Y`, meter), expect [{ oldStart: 0, oldEnd: 10002, newStart: 0, newEnd: 10002 }], and meter.left is still 1000",
       "insertion before a range shifts it: given T to \"Bid very request timeout 120ms\", expect range is [25, 30)",
       "insertion inside a range extends it: given T to \"Bid request timeout 12x0ms\", expect range is [20, 26)",
       "deletion before a range shifts it: given T to \"request timeout 120ms\", expect range is [16, 21)",
@@ -1687,7 +1579,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -1699,7 +1591,14 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/element/tests/textWrapping.test.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -1718,8 +1617,8 @@
       "tp_codegen_U05",
       "tp_codegen_U06"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/element/tests/textRangeLayout.test.ts` (unit U26) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/tests/textRangeLayout.test.ts` (unit U26) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import {`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textRangeLayout.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textRangeLayout.test.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1732,6 +1631,10 @@
       {
         "path": "packages/element/tests/textWrapping.test.ts",
         "reason": "style file: Plain describe/it over pure functions in this folder."
+      },
+      {
+        "path": "packages/element/tests/textRangeLayout.test.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -1749,7 +1652,8 @@
       "left-to-right pieces: given layoutTextLine(T, runs for RED on [20, 25), \"ltr\", measure), expect width 250; pieces at x 0 width 200 and x 200 width 50 RED",
       "right-to-left pieces run from the right: given line \"אבג דה\", runs unstyled [0, 3) and RED [3, 6), direction \"rtl\", expect width 60; first piece x 30 width 30, RED piece x 0 width 30, both direction rtl",
       "an ltr word inside rtl text keeps its order: given line \"אב abc גד\", runs [0, 3), RED [3, 5), [5, 9), direction \"rtl\", expect the RED piece \"ab\" is at x 30 width 20 with direction ltr",
-      "getTextLineLeft: given elementWidth 400, lineWidth 250, expect left 0, center 75, right 150"
+      "getTextLineLeft: given elementWidth 400, lineWidth 250, expect left 0, center 75, right 150",
+      "an emoji on an rtl line: given line \"😀אב\", one RED run over it, direction \"rtl\", expect the pieces' text joins back to the line, and no piece holds a lone surrogate"
     ],
     "budget": {
       "maxInputTokens": 400000,
@@ -1758,7 +1662,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -1770,7 +1674,14 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/element/tests/textWrapping.test.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -1789,8 +1700,8 @@
       "tp_codegen_U06",
       "tp_codegen_U11"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/excalidraw/tests/data/restore.textRanges.test.ts` (unit U27) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/data/restore.textRanges.test.ts` (unit U27) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 1 (line 1 reads `import { hashString, getTextStyleRuns } from \"@excalidraw/element\";`) — Replace with a multi-line import of areTextRangesEqual, getTextStyleRuns and hashString from \"@excalidraw/element\", one name per line, in that order.\n- S2: insert after line 403 (line 403 reads `});`) — This line closes the test 'restore is idempotent'. After it, still inside describe(\"restoreElements textRanges\"), add a blank line, the tests of rule 2, a blank line, and the describe of rule 3. Change no other line of the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/restore.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/restore.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1807,6 +1718,10 @@
           60
         ],
         "reason": "style file: Imports and restore calls of the sibling test."
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.textRanges.test.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -1823,7 +1738,15 @@
       "too many ranges are capped: given 5000 valid records, expect no throw and length 1024",
       "retired and collapsed records stay: given a retired record, a record with start === end and a valid origin, and a record with start === end and no origin, expect all three remain",
       "an invalid origin is removed: given a record with origin: { version: \"x\" }, expect the record stays with no origin key",
-      "restore is idempotent: given restoring a restored element, expect textRanges toBe the first result's"
+      "restore is idempotent: given restoring a restored element, expect textRanges toBe the first result's",
+      "an originalText of %j falls back to the text: given it.each over 123, true and { a: 1 }, on an element of text T, expect restored.originalText toBe T",
+      "a string originalText is kept, and an empty one falls back: given originalText \"Bid\\nrequest\" on one element, and \"\" on a second with id \"second\", expect the first keeps \"Bid\\nrequest\"; the second is T",
+      "a shared origin survives restore as the same object: given ranges [shared(\"holder\"), holder] in one container, expect restored.textRanges toBe that container",
+      "a shared origin with no holder is removed: given withRanges([shared(\"nobody\"), holder]), expect originOf(restored, \"shared\") is undefined; originOf(restored, \"holder\") is defined",
+      "a shared origin past the end of the text is removed: given withRanges([shared(\"holder\", 9), holder]), where the holder's text has 8 characters, expect originOf(restored, \"shared\") is undefined",
+      "a shared origin cannot point at another shared origin: given second = { ...shared(\"holder\"), id: \"second\", z: 3 }; withRanges([shared(\"second\"), second, holder]), expect originOf(restored, \"shared\") is undefined; originOf(restored, \"second\") is defined",
+      "a holder the cap drops takes its shared origins with it: given many = Array.from({ length: 1024 }, (_, i) => ({ ...shared(\"holder\"), id: `r${i}`, z: i + 10 })); withRanges([{ ...holder, z: 1 }, ...many]), expect 1024 records, and no record has an origin",
+      "equality tells a shared origin from a held one: given areTextRangesEqual on { textHash, ranges: [shared(\"a\")] } against [shared(\"b\")], against [held], and against [shared(\"a\")], expect false, false, true"
     ],
     "budget": {
       "maxInputTokens": 400000,
@@ -1832,7 +1755,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -1844,7 +1767,20 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/tests/data/restore.test.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 403,
+          "to": 403
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -1859,14 +1795,15 @@
     "pass_id": "20261102-103113-feature-new-text-range-styling",
     "artifact_path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
     "depends_on": [
+      "tp_codegen_U02",
       "tp_codegen_U03",
       "tp_codegen_U04",
       "tp_codegen_U06",
       "tp_codegen_U11",
       "tp_codegen_U12"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` (unit U28) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` (unit U28) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 1-10 (line 1 reads `import {`, line 10 reads `} from \"@excalidraw/element\";`) — The same import with three more names, one per line, in this order: applyTextRangeStyle, applyTextRangesDelta, diffText, getTextStyleRuns, hashString, mapSpanThroughHunks, mapTextSpan, mergeTextRanges, newTextElement, sanitizeTextRanges, shiftTextRanges.\n- S2: replace line 1135 (line 1135 reads `spent: 0,`) — Replace with spent: 1, and nothing else. A keystroke now runs the final pass, which charges its one character. This is the one expected value in this file that changes.\n- S3: insert after line 1138 (line 1138 reads `});`) — This line closes the test 'typed character, \"hello world\" to \"hello, world\"'. After it, add a blank line and the one test of rule 10, inside describe(\"diffText alignment and meter\").\n- S4: insert after line 1170 (line 1170 reads `[\"foo Before Bid\", \"foo Bid\", \"Bid\"],`) — Add two rows to this it.each, in this order: [\"foo Bid\", \"foo BBid\", \"Bid\"], and [\"foo Bid\", \"foo B Bid\", \"Bid\"],. Both are short changes, one character and two.\n- S5: insert after line 1282 (line 1282 reads `});`) — This line closes the test 'records sharing one origin text are diffed once'. After it, add a blank line and the five tests of rule 11, in that order with a blank line between them, still inside describe(\"diffText alignment and meter\").\n- S6: insert after line 1283 (line 1283 reads `});`) — This is the last line of the file. After it, add a blank line and the describe of rule 12. Change no line of this file outside these six sites.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1883,6 +1820,10 @@
           100
         ],
         "reason": "style file: Imports, cloneJSON and the call shape of reconcileElements."
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -1914,7 +1855,36 @@
       "clients converge once editing ends: given the absorbed local element, then run(local, remote) with no editing state, and run(remote, local) on the other client, expect toEqual; originalText W; version 9",
       "elements with no ranges reconcile as today: given reconcileElements with two text elements with no ranges, no cloning, expect the kept element toBe the same object, and it has no textRanges key",
       "merging is pure: given deep-frozen inputs, with Math.random and Date.now spied, expect no throw, equal results on two calls, spies not called",
-      "a merged element passes restore unchanged: given restoreElements([merged], null) with overlapping carried and native records, expect textRanges toEqual merged's"
+      "a merged element passes restore unchanged: given restoreElements([merged], null) with overlapping carried and native records, expect textRanges toEqual merged's",
+      "a merge spends its budget on the highest records first: given the diff budget scenario. const spy = vi.mocked(diffText); spy.mockClear(); mergeTextRanges(winner, l1); results = spy.mock.results.map((result) => result.value as unknown[]), expect spy called exactly 1024 times, once per distinct origin text of the 1,024 survivors; spy.mock.calls[0][0] toBe LONG.slice(5000, 5100), so the highest (z, id) was served first; no call's first argument is an l2 origin text, so a doomed record spent nothing; the count of results with length > 1 is above 0 and below 1024; results[results.length - 1] has length 1, so the budget ran out",
+      "both arrival orders converge when the budget runs out: given the diff budget scenario. a = mergeTextRanges(mergeTextRanges(winner, l1), l2), b = mergeTextRanges(mergeTextRanges(winner, l2), l1), top = the record of a with id \"zzzz\", expect a toEqual b; mergeTextRanges(a, l2) toBe a; top.start is 5010 and top.end is 5020; a.originalText.slice(top.start, top.end) toBe LONG.slice(5010, 5020); a.textRanges.ranges[0] has id \"r0001\", start equal to end, and an origin, because the budget ran out before it",
+      "a range crosses a change at each end of long text: given next = `QQ${LONG.slice(1, 9999)}ZZ`, A = element(T, 5, 2, [{ ...carried(\"rec\", 2, LONG), origin: { version: 1, versionNonce: 2, text: LONG, start: 5000, end: 5010 } }]), merged = mergeTextRanges(element(next, 9, 1, []), A), record = merged.textRanges.ranges[0], expect record.start is 5001 and record.end is 5011; next.slice(record.start, record.end) toBe LONG.slice(5000, 5010)",
+      "two far-apart changes keep a carried range in both arrival orders: given NOTE = Array.from({ length: 40 }, (_, i) => `${T} and item ${i}`).join(\" \"), which is 1,509 characters; at = NOTE.indexOf(\"item 20\"); next = `Ad${NOTE.slice(3, NOTE.length - 2)}xx`. A: NOTE, RED on [at, at + 7), v6 nonce 300, built as { ...version(baseElement, NOTE, 6, 300), textRanges: applyTextRangeStyle({ originalText: NOTE }, { start: at, end: at + 7 }, { color: RED }) }, where baseElement is a newTextElement with id \"elem1\", as in the first describe. B: version(baseElement, next, 7, 200). run(A, B) and run(B, A), expect equal; the record is [at - 1, at + 6); next.slice(at - 1, at + 6) is \"item 20\"",
+      "\"abcdefgh\" to \"stuvwxyz\": given spent(a, b), a meter of 1,000,000 through diffText that returns what it spent and the hunks, expect spent 62; hunks [{ oldStart: 0, oldEnd: 8, newStart: 0, newEnd: 8 }]",
+      "\"abcdefghij klm\" to \"abcdefghij nop\": given spent(a, b), expect spent 96; hunks [{ oldStart: 11, oldEnd: 14, newStart: 11, newEnd: 14 }]",
+      "\"qqq hello brave new world\" to \"rrr hello brave new world\": given spent(a, b), expect spent 153; hunks [{ oldStart: 0, oldEnd: 3, newStart: 0, newEnd: 3 }]",
+      "\"abcabcabc xyz\" to \"defdefdef uvw\": given spent(a, b), expect spent 106; hunks [{ oldStart: 0, oldEnd: 13, newStart: 0, newEnd: 13 }]",
+      "typed character, \"hello world\" to \"hello, world\": given spent(a, b), expect spent 1, the final pass's charge for one character; hunks [{ oldStart: 5, oldEnd: 5, newStart: 5, newEnd: 6 }]",
+      "a meter pays for the whole run it reads: given a and b of rule 10, each with short and long in common, and three meters: the default, index + 1100, and index + 1000, expect the default and index + 1100 give bothRuns, the three hunks around short and long; index + 1000 gives two hunks, { oldStart: 0, oldEnd: 1000, newStart: 0, newEnd: 1000 } and edge, because long used up the meter",
+      "first-gap trim, \"x cdefg\" to \"xy cdefg\": given diffText(a, b), expect [{ oldStart: 1, oldEnd: 1, newStart: 1, newEnd: 2 }]",
+      "surrogate trim end, \"a😀b\" to \"a🨀b\": given diffText(a, b), expect [{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }]",
+      "block end on a shared high surrogate, \"Qabcde😀Z\" to \"Rabcde😁Y\": given diffText(a, b), expect [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: 6, oldEnd: 9, newStart: 6, newEnd: 9 }]",
+      "addition beside a word: %s -> %s for %s: given it.each over nine pairs, among them \"foo Bid\" to \"foo Before Bid\", T to \"Bid request timeout 1 second or 120ms\", \"Bid request\" to \"Bid and kid request\", the removal \"foo Before Bid\" to \"foo Bid\", and the short changes \"foo Bid\" to \"foo BBid\" and to \"foo B Bid\". keeps(a, b, word) maps the word and returns the mapped text, expect the word, so the range neither widens nor lands inside the addition",
+      "kept token with no 3-character anchor: %s -> %s for %s: given it.each over \"OK\" to \"Not OK at all\", \"v2\" to \"release v2 now\", and \"1\\n2\\n3\\n4\\n5\" to its tabbed form, for \"3\", expect keeps(a, b, word) is the word",
+      "1,000 identical lines keep their place on Tab: given 1,000 of \"the same line again\", 19,999 characters, under the budget cliff, for lines 0, 1, 499, 500, 998 and 999, expect mapTextSpan of [at + 4, at + 8) moves by (i + 1) * 4",
+      "a 200-line note keeps every one-character line: given 200 lines, \"x\" when i % 3 === 0, Tab on all of them, expect every \"x\" moves by (i + 1) * 4",
+      "records sharing one origin text are diffed once: given five carried records with one origin text, expect diffText is called once",
+      "a typed character slides out of a word, past the budget it does not: given \"foo Bid\" to \"foo BBid\", with the default meter and with { left: 0 }, expect the insertion sits at 4, the word edge, then at 5 where the trim put it",
+      "a character typed strictly inside a word still extends it: given mapTextSpan(\"foo Bid\", \"foo Bxid\", 4, 7), expect { start: 4, end: 8 }",
+      "a diff of 150,000 changed lines returns: given 150,000 lines of \"a\" against 150,000 lines of \"b\", expect 150,000 hunks, the last at [299,998, 299,999) on both sides",
+      "mapping a span reads few hunks of a long list: given 100,000 hunks behind a Proxy that counts index reads, a span near the end, expect { start: 399,995, end: 399,999 } and at most 64 reads",
+      "mapping keeps its answer at hunks that touch: given a deletion touching an insertion, then a replacement, and p from 0 to 9, expect the ten spans the walk gave",
+      "a merge stores a shared register text once: given 1,024 native records on NOTE, losing to NEXT, expect one holder, r1023; r0000 holds textFrom \"r1023\"; JSON of textRanges under NOTE.length + 1024 * 150",
+      "each distinct text is stored once and stays with the highest record: given three carried records, two with T and one with W, expect r0000 shares from r0001, r0001 holds T, r0002 holds W",
+      "the shared form changes no offset, and the merge stays idempotent: given the merged element of the describe, expect every record slices the same word; a repeat merge returns the base; both orders through reconcile are equal; sanitize returns the same object",
+      "a later merge reads a shared text, in either arrival order: given a third version merged with merged and with local, expect equal elements, and every record slices the same word",
+      "an undo keeps a shared origin that reads its text: given applyTextRangesDelta retiring the holder r1023, expect the holder is retired, and r0000 keeps its textFrom through sanitize",
+      "a non-string originalText returns the base: given 123, true and { a: 1 } as originalText on a base with no ranges, and on an other that holds a range with a matching hash, expect the base comes back as the same object, with no throw"
     ],
     "budget": {
       "maxInputTokens": 400000,
@@ -1923,7 +1893,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -1935,7 +1905,44 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 10
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1135,
+          "to": 1135
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 1138,
+          "to": 1138
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1170,
+          "to": 1170
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 1282,
+          "to": 1282
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1283,
+          "to": 1283
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -1955,8 +1962,8 @@
       "tp_codegen_U09",
       "tp_codegen_U10"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/excalidraw/tests/scene/textRanges.export.test.ts` (unit U29) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/scene/textRanges.export.test.ts` (unit U29) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { applyDarkModeFilter } from \"@excalidraw/common\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -1973,6 +1980,10 @@
           401
         ],
         "reason": "style file: exportScene calls and reading canvas events."
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -1992,7 +2003,8 @@
       "canvas lines keep their baseline: given two lines with RED on the second, expect the second line's fillText y is one line height below the first",
       "canvas theme applies to range colours: given RED with config.theme \"dark\", expect the fillStyle before \"120ms\" is applyDarkModeFilter(RED)",
       "canvas right-to-left runs: given text \"אבג דה\", RED on [3, 6), expect fillText \" דה\" (the run [3, 6) includes the space) at x 0, and \"אבג\" at x 30",
-      "a text with no ranges makes one fillText per line: given a text element with no textRanges, expect exactly one fillText, with text T"
+      "a text with no ranges makes one fillText per line: given a text element with no textRanges, expect exactly one fillText, with text T",
+      "an unstyled line after an rtl piece is drawn in the element direction: given \"שלום world\\nPlain English line\\nעוד שורה\" with RED on [5, 10), canvas export, fillText spied to record this.direction, expect the fillText of \"Plain English line\" has direction \"rtl\""
     ],
     "budget": {
       "maxInputTokens": 400000,
@@ -2001,7 +2013,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -2013,7 +2025,14 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/tests/scene/export.test.ts",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -2028,6 +2047,7 @@
     "pass_id": "20261102-103113-feature-new-text-range-styling",
     "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
     "depends_on": [
+      "tp_codegen_U02",
       "tp_codegen_U03",
       "tp_codegen_U06",
       "tp_codegen_U18",
@@ -2037,8 +2057,8 @@
       "tp_codegen_U22",
       "tp_codegen_U23"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx` (unit U30) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx` (unit U30) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 859 (line 859 reads `});`) — This line closes the test 'Tab on a note of five lines 1 to 5 keeps styled 3'. After it, add a blank line and the code of rule 8. Change no other line of the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -2063,6 +2083,10 @@
           62
         ],
         "reason": "uses: Imports and helpers for driving the text editor."
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -2086,7 +2110,29 @@
       "removing the last run removes the preview: given RED on [20, 25), then reset on [20, 25), expect no preview node; editor.style.color is not \"transparent\"",
       "the preview goes when editing ends: given RED on [20, 25), Keyboard.exitTextEditor(editor), expect no preview node; the element keeps its run",
       "the controls show only while editing: given with and without an open editor, expect [data-openpopup=\"textHighlight\"] and data-testid reset-text-style exist only while editing",
-      "a style change makes a new element object: given the element before and after a colour on a selection, expect they are different objects, so the canvas cache misses"
+      "a style change makes a new element object: given the element before and after a colour on a selection, expect they are different objects, so the canvas cache misses",
+      "Tab on all lines keeps a word on a long prose note: given text = proseNote(18), 1,054 characters; at = text.indexOf(\"dropped\"), length 7; Tab on all lines, expect originalText toBe indentAll(text); one run at the true start; its slice is \"dropped\"",
+      "Tab on all lines keeps a word on a longer prose note: given text = proseNote(24), 1,407 characters; at = text.lastIndexOf(\"latency\"), length 7; Tab on all lines, expect originalText toBe indentAll(text); one run at the true start; its slice is \"latency\"",
+      "Tab on all lines keeps a span of digits: given text = digitNote(18), 1,061 characters; at = 500, length 10; Tab on all lines, expect originalText toBe indentAll(text); one run at the true start; its slice toBe text.slice(500, 510)",
+      "Tab on all lines keeps a span of digits on a longer note: given text = digitNote(24), 1,415 characters; at = 1003, length 10; Tab on all lines, expect originalText toBe indentAll(text); one run at the true start; its slice toBe text.slice(1003, 1013)",
+      "Shift+Tab on all lines keeps a word on a long prose note: given text = proseNote(18), so the note in the editor is indentAll(text), 1,126 characters; word \"dropped\"; Shift+Tab on all lines, expect originalText toBe text; one run at text.indexOf(\"dropped\"); its slice is \"dropped\"",
+      "Shift+Tab on all lines keeps a word on a longer prose note: given text = proseNote(24), so the note in the editor is indentAll(text), 1,503 characters; word \"latency\", the last one; Shift+Tab on all lines, expect originalText toBe text; one run at text.lastIndexOf(\"latency\"); its slice is \"latency\"",
+      "Shift+Tab on all lines keeps a span of digits: given text = digitNote(18), so the note in the editor is indentAll(text), 1,133 characters; the span text.slice(500, 510); Shift+Tab on all lines, expect originalText toBe text; one run [500, 510)",
+      "Shift+Tab on all lines keeps a span of digits on a longer note: given text = digitNote(24), so the note in the editor is indentAll(text), 1,511 characters; the span text.slice(1003, 1013); Shift+Tab on all lines, expect originalText toBe text; one run [1003, 1013)",
+      "a change at two far-apart places of prose keeps a word: given text = repeatTo(PROSE, 1100), at = text.indexOf(\"dropped\"), lastThe = text.lastIndexOf(\"the \"), next = `Ad${text.slice(3, lastThe)}our${text.slice(lastThe + 3)}`; colour on [at, at + 7), then updateTextEditor(editor, next), expect one run [at - 1, at + 6); next.slice(at - 1, at + 6) is \"dropped\"",
+      "a change at two far-apart places of digits keeps a span: given text = DIGITS.slice(0, 1100), next = `QQ${text.slice(1, 1099)}ZZ`; colour on [500, 510), then updateTextEditor(editor, next), expect one run [501, 511); next.slice(501, 511) toBe text.slice(500, 510)",
+      "100 characters added on each side keep the label's words: given T, colour on [20, 25), then colour on [0, 3), then updateTextEditor(editor, `${ADDED.slice(0, 100)}${T} ${ADDED.slice(100, 200)}`), expect runs [100, 103) and [120, 125), both RED, so \"Bid\" and \"120ms\" stay on themselves and neither widens",
+      "333 characters added on each side keep the label's words: given T, colour on [20, 25), then colour on [0, 3), then updateTextEditor(editor, `${ADDED}${T} ${ADDED}`), expect runs [ADDED.length, ADDED.length + 3) and [ADDED.length + 20, ADDED.length + 25), both RED",
+      "digits added on each side keep a span: given text = DIGITS.slice(5000, 5100), colour on [10, 20), then updateTextEditor(editor, DIGITS), expect one run [5010, 5020); DIGITS.slice(5010, 5020) toBe text.slice(10, 20)",
+      "a whole-text selection on plain text sets strokeColor: given T in the editor, selection [0, T.length), a colour, expect strokeColor is RED and the element has no textRanges key",
+      "a whole-text selection over a coloured run takes the range path: given RED on [20, 25), then selection [0, T.length) and \"#1971c2\", expect strokeColor is unchanged; one run [0, 25) in \"#1971c2\"",
+      "Tab on all lines of a 500-line note of single letters keeps styled character: given 500 lines of one letter each, a to z repeating, 999 characters; colour the letter of line 250; Tab on all lines, expect originalText toBe indentAll(text); one run at its offset plus (250 + 1) * 4, on the same letter",
+      "Shift+Tab on all lines of a 500-line note of single letters keeps styled character: given that note indented by 4 spaces per line, colour line 250's letter, Shift+Tab on all lines, expect originalText toBe the unindented text; one run at the letter's unindented offset",
+      "Tab on all lines of a 200-line note keeps styled x: given 200 lines, \"x\" when i % 3 === 0, else `line number ${i} of the note`; colour the \"x\" of line 99; Tab on all lines, expect originalText toBe indentAll(text); one run at its offset plus (99 + 1) * 4, on the \"x\"",
+      "Tab on a note of five lines 1 to 5 keeps styled 3: given \"1\\n2\\n3\\n4\\n5\", colour \"3\" at [4, 5), Tab on all lines, expect one run at offset 4 + 3 * 4, on \"3\"",
+      "typing in front of a coloured word leaves it alone: %s, %s, %s: given it.each over \"Before \" and \"Xefore \" before Bid in \"foo Bid\", and \"escalation \" before engineer in \"the engineer said\", typed one input event per character, expect originalText is the typed text; one run on the word at its true new offset",
+      "typing inside a coloured word extends it: given RED on [4, 7) of \"foo Bid\", xyz typed at 6, expect originalText \"foo Bixyzd\"; one run [4, 10)",
+      "typing after a coloured word leaves it alone: given RED on [4, 7) of \"foo Bid\", \"s ok\" typed at 7, expect originalText \"foo Bids ok\"; one run [4, 7)"
     ],
     "budget": {
       "maxInputTokens": 400000,
@@ -2095,7 +2141,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -2107,7 +2153,14 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/actions/actionProperties.test.tsx",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 859,
+          "to": 859
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     }
@@ -2132,8 +2185,8 @@
       "tp_codegen_U22",
       "tp_codegen_U23"
     ],
-    "subtype": "test_add",
-    "instruction": "Write `packages/excalidraw/tests/textRanges.elements.test.tsx` (unit U31) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/textRanges.elements.test.tsx` (unit U31) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 1 (line 1 reads `import { act, fireEvent } from \"@testing-library/react\";`) — Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
     "inputs": [
       {
         "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
@@ -2150,6 +2203,10 @@
           40
         ],
         "reason": "style file: Rendering the editor in a jsdom test."
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
       }
     ],
     "acceptance": [
@@ -2158,8 +2215,7 @@
       "binding keeps the range: given a free text with a range, bound with actionBindText to a rectangle, expect the RED run's text is unchanged",
       "a font size change keeps the range: given a selected text with a range, act(() => h.app.actionManager.executeAction(actionChangeFontSize, \"ui\", 36)), expect fontSize is 36; ranges toEqual the seed; the RED run's text is unchanged",
       "a font family change keeps the range: given a bound text, fontFamily set to FONT_FAMILY.Nunito through newElementWith, then redrawTextBoundingBox, expect ranges toEqual the seed; the RED run's text is unchanged",
-      "duplicating a list item shifts its range: given \"9. foo bar\" with RED on [3, 6), advanceDuplicatedListMarkers([element], h.app.scene), expect originalText is \"10. foo bar\"; the run is [4, 7), \"foo\"",
-      "going back on a list marker shifts it back: given then applyListMarkerAdvances(advances, \"prev\", h.app.scene), expect the run is [3, 6)",
+      "duplicating a list item shifts its range: given \"9. foo bar\" with RED on [3, 6), advanceDuplicatedListMarkers([element], h.app.scene), then applyListMarkerAdvances(advances, \"prev\", h.app.scene), expect after the first, originalText is \"10. foo bar\" and the run is [4, 7), \"foo\"; after going back the run is [3, 6)",
       "undo and redo of a range edit: given a colour on a selection, then exit, undo, redo, expect after undo getTextStyleRuns is [] with the text unchanged; after redo one RED run on the same characters",
       "undo and redo of a text edit on an element with ranges: given T with RED on [20, 25), type `Urgent: ${T}`, exit, undo, redo, expect after undo the run is [20, 25); after redo [28, 33); noStale each time",
       "undo brings back a range whose text was deleted: given T with RED on [20, 25), delete \"120ms\", exit, undo, expect the run is [20, 25) again",
@@ -2176,7 +2232,7 @@
     "retry_count": 0,
     "apply": {
       "write": true,
-      "mode": "content",
+      "mode": "edits",
       "checks": [
         {
           "id": "lint",
@@ -2188,7 +2244,14 @@
           "run": "yarn -s vitest run '{path}'"
         }
       ],
-      "baseline_from": "packages/excalidraw/actions/actionProperties.test.tsx",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1
+        }
+      ],
       "verify_timeout_sec": 300,
       "max_retries": 2
     },

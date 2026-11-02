@@ -1,0 +1,627 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U07",
+      "path": "packages/element/src/listMarker.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { arrayToMap } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Re-numbering a list marker remaps the element's ranges along with its text.",
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/element/src/delta.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "History applies textRanges through applyTextRangesDelta and leaves unchanged ranges out of a delta.",
+      "rules": [
+        "The file's key type does not include textRanges, because ElementPartial is an Omit over a union. Compare with `(key as string) === \"textRanges\"` and read text-only keys through casts to Partial<ExcalidrawTextElement>, which delta.ts already imports as a type."
+      ],
+      "uses": [
+        {
+          "path": "packages/element/src/delta.ts",
+          "lines": [
+            1742,
+            1792
+          ],
+          "reason": "applyDelta, the function this unit changed."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U04"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/element/src/renderElement.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import rough from \"roughjs/bin/rough\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Draws a text element with ranges as runs, highlights behind the text; every other path stays as it is.",
+      "rules": [
+        "The helper drawStyledTextLines(context, element, lines, lineRuns, options) takes options { horizontalOffset, lineHeightPx, verticalOffset, direction, renderConfig }, where renderConfig is StaticCanvasRenderConfig.",
+        "Helper step 1: isDark = renderConfig.theme === THEME.DARK; font = getFontString(element); measure = (text: string) => getLineWidth(text, font, renderConfig.renderEnvironment); baseColor = context.fillStyle. layouts = lines.map((line, index) => lineRuns[index] ? layoutTextLine(line, lineRuns[index], direction, measure) : null).",
+        "Helper step 2, highlights first, for every line, before any text: for each layout, left = getTextLineLeft(element.textAlign, element.width, layout.width). For each piece with a highlight set context.fillStyle = applyDarkModeFilter(piece.highlight, isDark) and call context.fillRect(left + piece.x, index * lineHeightPx, piece.width, lineHeightPx).",
+        "Helper step 3, text: y = index * lineHeightPx + verticalOffset. A null layout: context.textAlign = element.textAlign as CanvasTextAlign, context.fillStyle = baseColor, context.direction = direction, because the line before may have left a piece's direction, then context.fillText(lines[index], horizontalOffset, y). Otherwise context.textAlign = \"left\", and for each piece set context.fillStyle to applyDarkModeFilter(piece.color, isDark) or baseColor when color is null, set context.direction = piece.direction, and call context.fillText(piece.text, left + piece.x, y). The caller's withSavedContext restores all context state.",
+        "No code outside these sites changes. An element with no visible runs reaches today's loop, unchanged (AC-13). Do not change element measurement or canvas padding: colour and highlight are paint-only and a highlight stays inside the line box."
+      ],
+      "depends_on": [
+        "U05"
+      ],
+      "covers": [
+        "FR-6",
+        "NFR-1"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Exports a text element with ranges as tspans with fill and highlight rects before the text; an element with no ranges exports as today.",
+      "depends_on": [
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-17",
+        "NFR-1",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Validates textRanges on restore; a text element with no usable ranges restores without the key.",
+      "depends_on": [
+        "U03",
+        "U06"
+      ],
+      "covers": [
+        "FR-18",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/data/reconcile.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import throttle from \"lodash.throttle\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "reconcileElements merges range state into whichever element it keeps; its signature and shouldDiscardRemoteElement do not change.",
+      "depends_on": [
+        "U04",
+        "U06"
+      ],
+      "covers": [
+        "FR-19",
+        "FR-20",
+        "FR-21"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/hooks/useTextEditorFocus.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { useState, useCallback } from \"react\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Adds a reader for the editor's non-empty selection, which the textarea keeps while a control has focus.",
+      "exports": [
+        {
+          "name": "getTextEditorSelection",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ownerDocument",
+              "type": "Document = document"
+            }
+          ],
+          "returns": "CaretPosition | null"
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-10",
+        "FR-11"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import type {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Adds the text highlight picker's popup to AppState.openPopup.",
+      "depends_on": [],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "{",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Adds the UI strings for the highlight picker and the reset button.",
+      "depends_on": [],
+      "covers": [
+        "FR-23"
+      ],
+      "checks": [
+        "format"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { Popover } from \"radix-ui\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "ColorPicker takes an optional popup prop, so a picker of an existing type can own its own openPopup value.",
+      "rules": [
+        "A picker without the prop behaves exactly as today: popup falls back to type. Every comparison of appState.openPopup and every updateData({ openPopup }) in this file uses popup; `type` keeps deciding palette defaults, TopPicks, Picker and ColorInput."
+      ],
+      "depends_on": [
+        "U14",
+        "U15"
+      ],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import type {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Adds the two new action names.",
+      "depends_on": [],
+      "covers": [
+        "FR-12",
+        "FR-14"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { pointFrom } from \"@excalidraw/math\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "A colour with a non-empty editor selection styles that range; adds the highlight action and the reset action.",
+      "rules": [
+        "applyStyleToEditorSelection(elements, appState, app, style, resolvedSelection?): editing = appState.editingTextElement; selection = resolvedSelection when it is given, otherwise editing ? getTextEditorSelection(app.ownerDocument) : null. Return null if either is missing. Otherwise return elements.map: for the element with editing.id that isTextElement, textRanges = applyTextRangeStyle(element, selection, style), and return element itself when textRanges === element.textRanges, else newElementWith(element, { textRanges }). Every other element is returned as it is. strokeColor, currentItem* and syncStickyNoteInk are not touched.",
+        "actionChangeStrokeColor perform(elements, appState, value, app), after its existing color === undefined return: selection and the editing element are read as in rule 1. When the selection covers the element's whole originalText and every run of getTextStyleRuns(element) has color null, it skips the range path, so the existing strokeColor path runs (the FR-11 exception). Otherwise nextElements = applyStyleToEditorSelection(elements, appState, app, { color }, selection); if that is not null it returns { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }, and if null the existing path runs.",
+        "actionChangeTextHighlight is register<Partial<AppState> & { color?: string }> with name \"changeTextHighlight\", label \"labels.textHighlight\", trackEvent false. perform(elements, appState, value, app): const { color, ...appStateUpdates } = value ?? {}. If color is undefined return { appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.EVENTUALLY }, as actionChangeStrokeColor does. nextElements = applyStyleToEditorSelection(elements, appState, app, { highlight: color }). If null, return the same EVENTUALLY result. Otherwise return { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
+        "actionChangeTextHighlight PanelComponent({ elements, appState, updateData, app }): stylesPanelMode from getStylesPanelInfo(app); when \"full\" render <h3 aria-hidden=\"true\">{t(\"labels.textHighlight\")}</h3>; then ColorPicker with palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}, type=\"elementBackground\", popup=\"textHighlight\", label={t(\"labels.textHighlight\")}, color={null}, onChange={(color) => updateData({ color })}, elements, appState, updateData. No topPicks prop: elementBackground's default picks include transparent, which removes a highlight.",
+        "actionResetTextStyle is register<null> with name \"resetTextStyle\", label \"labels.resetTextStyle\", trackEvent false. perform(elements, appState, _, app): nextElements = applyStyleToEditorSelection(elements, appState, app, { color: null, highlight: null }); return false if null; otherwise { elements: nextElements, appState, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
+        "actionResetTextStyle PanelComponent({ appState, updateData, app }): IconButton with type=\"button\", icon={eraser}, title and aria-label t(\"labels.resetTextStyle\"), data-testid=\"reset-text-style\", onClick calling withCaretPositionPreservation(() => updateData(null), getStylesPanelInfo(app).isCompact, !!appState.editingTextElement, undefined, app.ownerDocument)."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeTextHighlight",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionResetTextStyle",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [
+          366,
+          443
+        ],
+        "reason": "actionChangeStrokeColor is the shape both new actions follow."
+      },
+      "depends_on": [
+        "U03",
+        "U06",
+        "U13",
+        "U15",
+        "U16",
+        "U17"
+      ],
+      "covers": [
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-13",
+        "FR-14"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "export { actionDeleteSelected } from \"./actionDeleteSelected\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Exports the two new actions.",
+      "depends_on": [
+        "U18"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-14"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/excalidraw/components/Actions.tsx",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import clsx from \"clsx\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Shows the highlight picker and the reset button while a text element is edited, in the full, compact and mobile panels.",
+      "depends_on": [
+        "U17",
+        "U18"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-14"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "packages/excalidraw/wysiwyg/textPreview.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { applyDarkModeFilter } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "The preview layer behind the textarea: shows each run's colour and highlight, aligned with the textarea, and exists only while the element has visible runs.",
+      "rules": [
+        "Imports: applyDarkModeFilter from @excalidraw/common; type TextStyleRun from @excalidraw/element. ownerDocument is editable.ownerDocument.",
+        "Exact constant: PREVIEW_CLASS_NAME = \"excalidraw-wysiwyg-preview\", exported.",
+        "Exact mirrored style keys, in this order, as a const array: position, display, minHeight, margin, padding, border, zIndex, wordBreak, whiteSpace, overflowWrap, boxSizing, backfaceVisibility, font, fontFamily, lineHeight, width, height, left, top, transformOrigin, transform, textAlign, verticalAlign, opacity. font comes before fontFamily and lineHeight, because setting font resets them.",
+        "update with an empty runs list: if the node is attached, remove it. Call editable.style.removeProperty(\"caret-color\"). Return. The caller has already set the textarea's normal colour.",
+        "update with runs, step 1: create the node once, as a div with className PREVIEW_CLASS_NAME, aria-hidden=\"true\", dir=\"auto\", and fixed styles pointerEvents none, userSelect none, overflow hidden, background transparent, unicodeBidi plaintext (the textarea's dir=\"auto\" makes each paragraph plaintext).",
+        "update with runs, step 2: copy each mirrored key from editable.style to the node's style. Set node.style.color = baseColor, editable.style.caretColor = baseColor, editable.style.color = \"transparent\".",
+        "update with runs, step 3: key = JSON.stringify([editable.value, runs, isDark]). When it differs from the last key, rebuild the children: walk runs over editable.value; text outside a run is a text node; a run is a <span> whose textContent is the slice, with style.color = applyDarkModeFilter(run.color, isDark) when color is set and style.backgroundColor = applyDarkModeFilter(run.highlight, isDark) when highlight is set. Use createElement, createTextNode and element.style only, never innerHTML.",
+        "update with runs, step 4: if the node has no parent, parent?.insertBefore(node, editable.parentNode === parent ? editable : null), so the textarea stays on top. Then syncScroll.",
+        "syncScroll: if the node exists, set node.scrollTop = editable.scrollTop and node.scrollLeft = editable.scrollLeft. It is an arrow function, so it can be assigned to editable.onscroll directly.",
+        "destroy: remove the node if attached and drop it."
+      ],
+      "exports": [
+        {
+          "name": "PREVIEW_CLASS_NAME",
+          "kind": "const",
+          "params": [],
+          "returns": "\"excalidraw-wysiwyg-preview\""
+        },
+        {
+          "name": "TextPreview",
+          "kind": "type",
+          "params": [],
+          "returns": "{ update: (args: { runs: readonly TextStyleRun[]; baseColor: string; isDark: boolean }) => void; syncScroll: () => void; destroy: () => void }"
+        },
+        {
+          "name": "createTextPreview",
+          "kind": "function",
+          "params": [
+            {
+              "name": "args",
+              "type": "{ editable: HTMLTextAreaElement; parent: HTMLElement | null }"
+            }
+          ],
+          "returns": "TextPreview"
+        }
+      ],
+      "import_line": "import { createTextPreview } from \"./textPreview\";",
+      "style_from": {
+        "path": "packages/excalidraw/hooks/useTextEditorFocus.ts",
+        "lines": [
+          1,
+          45
+        ],
+        "reason": "A small DOM helper module beside the editor."
+      },
+      "depends_on": [
+        "U03",
+        "U06"
+      ],
+      "covers": [
+        "FR-15",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Wires the preview layer into the editor's style updates and teardown; the textarea and its behaviour stay.",
+      "depends_on": [
+        "U06",
+        "U21"
+      ],
+      "covers": [
+        "FR-15",
+        "FR-21"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/components/App.text.ts",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { flushSync } from \"react-dom\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "codegen",
+      "behaviour": "Every edit in the textarea remaps the element's ranges together with its text.",
+      "depends_on": [
+        "U03",
+        "U06"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-16"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U24",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "# Changelog",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
+      "phase": "docs",
+      "behaviour": "Adds the Unreleased entry for text ranges, with no PR link.",
+      "depends_on": [],
+      "covers": [
+        "FR-23"
+      ],
+      "checks": [
+        "format"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/element/src/listMarker.ts": "4e2d4545978b93f3d8af57ae5de59c93512b6a091e0db6d9842d6ef257d71f90",
+    "packages/element/src/delta.ts": "bd5d463176e20d96a702a2150c54ee3c5a0fb7e1c644c73d81f4f9d3b867753f",
+    "packages/element/src/renderElement.ts": "5ac47d1f037cb5028f4112d66007bc28b101383ff9e3d2f9e78b89da676f2859",
+    "packages/excalidraw/renderer/staticSvgScene.ts": "2f9dec940d4925ed89d77678b2e94f0b0efdcda26d0eec6dbd68ff07e8c20974",
+    "packages/excalidraw/data/restore.ts": "4b4e810b7856defd6d71d279ecc5307a7af2363fef119cb7fb2d193d64d25859",
+    "packages/excalidraw/data/reconcile.ts": "4e4b65bb57857b637ac41badad2c791fbe68bdec8307c21e635ac2b7540eb27e",
+    "packages/excalidraw/hooks/useTextEditorFocus.ts": "2df4c5e316b042e27d925095769fda72e0fb1d4325e7eabb345e289d8088073e",
+    "packages/excalidraw/types.ts": "1326973679ca12d4a27c8b8f070732544dcef88ce58d312ec06285e593de304f",
+    "packages/excalidraw/locales/en.json": "97c46c2232ec6cd1d3e82d8df8d79b46fe167d2fbd847fd2f659a06a9d6a98cf",
+    "packages/excalidraw/components/ColorPicker/ColorPicker.tsx": "b1d1f6a0a78fe3ff0607be4348caf45fa0eb88bbc3b0d6858814079bc5b27fbc",
+    "packages/excalidraw/actions/types.ts": "955eb4fe0823679ceef913a7e7d5fa913b15a81a652f8262d1d1d82d43613a9c",
+    "packages/excalidraw/actions/actionProperties.tsx": "cb55d0ac3a4a235af5fefde055bccf2002cd131d61b10bc4c4ad5e71b390cc8d",
+    "packages/excalidraw/actions/index.ts": "ecee39d2c0d8c0a1dcb84236064f20e86f4b7903f93088d84564ab39a5bbd6fe",
+    "packages/excalidraw/components/Actions.tsx": "57394518a52f99b1ed4e8d97a4779e84141fc4fb6dd976737b69d63a3ac5aeb5",
+    "packages/excalidraw/wysiwyg/textPreview.ts": "9d5c2ca26a89a5a481f311d13b7ee60b723b1f109697308b2bf8d5a3da1e47c9",
+    "packages/excalidraw/wysiwyg/textWysiwyg.tsx": "998512cacd39558020d9df8c1d75bae86f93357d09440e794af1b09036d34a25",
+    "packages/excalidraw/components/App.text.ts": "21b1cc65f670e1520e0200a9c4203ae76e688a7de651d08c1da9cffd73101f64",
+    "packages/excalidraw/CHANGELOG.md": "2aaa64e6cc0a683094c39c12956a94c7ea16779d86e6fbc2916b4ad46c70ebb1"
+  }
+}

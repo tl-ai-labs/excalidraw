@@ -8,9 +8,9 @@ Written by code from this run's records (manifest.json and the files below); eve
 
 | | Cost |
 |---|---:|
-| Dispatched work (the calls the dispatch server made or logged) | $2.1071 |
-| Orchestrator overhead (this session's own loop, priced from its transcripts) | $39.5827 |
-| **True total** | **$41.6898** |
+| Dispatched work (the calls the dispatch server made or logged) | $2.9613 |
+| Orchestrator overhead (this session's own loop, priced from its transcripts) | $83.2312 |
+| **True total** | **$86.1925** |
 
 How the overhead was measured: transcript (no receipt; unverified).
 
@@ -21,14 +21,14 @@ The calls dispatched (or logged) in each phase. The rest of the orchestrator's o
 | Phase | Calls | Models | Cost |
 |---|---:|---|---:|
 | preflight | 1 | gemini-3.8-flash | $0.0005 |
-| codegen | 30 | gemini-3.8-flash | $0.5774 |
+| codegen | 39 | gemini-3.8-flash | $0.7987 |
 | docs | 1 | gemini-3.8-flash | $0.0484 |
-| tests | 15 | gemini-3.8-flash | $0.5569 |
-| debug | 36 | gemini-3.8-flash | $0.9238 |
+| tests | 26 | gemini-3.8-flash | $1.0458 |
+| debug | 41 | gemini-3.8-flash | $1.0678 |
 | plan_task_packets | 1 | gemini-3.8-flash | $0.0000 |
-| senior_code_review (measured: the helper's own transcript) | 23 | claude-opus-5-5 | $4.7847 |
-| architecture_design (measured: the helper's own transcript) | 50 | claude-opus-5-5 | $14.5935 |
-| security_review (measured: the helper's own transcript) | 9 | claude-opus-5-5 | $1.3544 |
+| architecture_design (measured: the helper's own transcript) | 175 | claude-opus-5-5 | $37.3068 |
+| senior_code_review (measured: the helper's own transcript) | 68 | claude-opus-5-5 | $10.7972 |
+| security_review (measured: the helper's own transcript) | 22 | claude-opus-5-5 | $3.7193 |
 
 A phase marked measured ran in a helper of this session (the architect or a reviewer): its cost is that helper's transcript priced at the list (part of the overhead above), in place of any estimate the orchestrator logged.
 
@@ -36,14 +36,14 @@ A phase marked measured ran in a helper of this session (the architect or a revi
 
 | Model | Calls | Cost |
 |---|---:|---:|
-| gemini-3.8-flash | 84 | $2.1071 |
+| gemini-3.8-flash | 109 | $2.9613 |
 
 ### Orchestrator overhead by model
 
 | Model | Role | Messages | Cost |
 |---|---|---:|---:|
-| claude-opus-5-5 | session | 61 | $8.5421 |
-| claude-opus-5-5 | helper | 177 | $31.0406 |
+| claude-opus-5-5 | session | 89 | $12.8541 |
+| claude-opus-5-5 | helper | 415 | $70.3772 |
 
 ## Provisional — re-run after closing this session
 
@@ -61,3 +61,10 @@ node "/Users/macbook/.claude/plugins/cache/tilicho-ai-labs/mmo/0.9.3/scripts/col
 - [security_review.md](security_review.md)
 - [manifest.json](manifest.json)
 - [provenance.json](provenance.json)
+
+## Checks set aside
+
+A check that already failed before the run changed a file could not judge the change, so it was set aside for that file (the latest batch receipt of each packet):
+
+- `packages/element/tests/textRanges.test.ts`: `test` (`yarn -s vitest run '{path}'`)
+- `packages/excalidraw/tests/data/reconcile.textRanges.test.ts`: `test` (`yarn -s vitest run '{path}'`)

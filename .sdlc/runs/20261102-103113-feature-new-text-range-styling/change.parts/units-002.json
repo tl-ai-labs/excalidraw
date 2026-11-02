@@ -6,34 +6,18 @@
       "id": "U07",
       "path": "packages/element/src/listMarker.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Re-numbering a list marker remaps the element's ranges along with its text.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 8,
-          "to": 8,
-          "first_line": "} from \"./textElement\";",
-          "rule": "Add `import { getTextRangesUpdate } from \"./textRanges\";`."
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 215,
-          "to": 215,
-          "first_line": "scene.mutateElement(element, { originalText });",
-          "rule": "Pass `{ originalText, ...getTextRangesUpdate(element, originalText) }`. Compute the update from `element` before it is mutated, which an argument expression does."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 220,
-          "to": 220,
-          "first_line": "originalText,",
-          "rule": "Add `...getTextRangesUpdate(element, originalText),` as the next property, keeping the following spread of refreshTextDimensions after it."
+          "from": 1,
+          "to": 1,
+          "first_line": "import { arrayToMap } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Re-numbering a list marker remaps the element's ranges along with its text.",
       "depends_on": [
         "U03"
       ],
@@ -48,44 +32,20 @@
       "id": "U08",
       "path": "packages/element/src/delta.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "History applies textRanges through applyTextRangesDelta and leaves unchanged ranges out of a delta.",
-      "rules": [
-        "The file's key type does not include textRanges, because ElementPartial is an Omit over a union. Compare with `(key as string) === \"textRanges\"` and read text-only keys through casts to Partial<ExcalidrawTextElement>, which delta.ts already imports as a type."
-      ],
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 47,
-          "to": 47,
-          "first_line": "import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";",
-          "rule": "Add `import { applyTextRangesDelta } from \"./textRangeMerge\";` and `import { areTextRangesEqual } from \"./textRanges\";`."
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 1756,
-          "to": 1756,
-          "first_line": "if (key === \"boundElements\") {",
-          "rule": "Also skip textRanges in this loop: `if (key === \"boundElements\" || (key as string) === \"textRanges\") {`, wrapped as Prettier requires."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 1782,
-          "to": 1782,
-          "first_line": "}",
-          "rule": "Add a block for text elements: if isTextElement(element), let deleted and inserted be delta.deleted and delta.inserted cast `as unknown as Partial<ExcalidrawTextElement>`. When `\"textRanges\" in inserted`, or `\"textRanges\" in deleted`, or inserted.originalText is a string and element.textRanges exists, call applyTextRangesDelta(element, deleted, inserted), and if the result is defined do Reflect.set(directlyApplicablePartial, \"textRanges\", result). Undoing the first style edit of an element has textRanges undefined on the inserted side, which is why the check is `in` on both sides. This also runs when the delta holds only originalText, so an undone text change never leaves offsets for the wrong text."
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 2215,
-          "to": 2215,
-          "first_line": "}",
-          "rule": "Inside the try, after the points handling: read textRanges from deleted and inserted with casts to ElementPartial<ExcalidrawTextElement>, the way the points casts above do. If both are defined and areTextRangesEqual, Reflect.deleteProperty the key from both. The snapshot is a deep copy, so without this every change to an element with ranges would record a textRanges delta."
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
+      ],
+      "phase": "codegen",
+      "behaviour": "History applies textRanges through applyTextRangesDelta and leaves unchanged ranges out of a delta.",
+      "rules": [
+        "The file's key type does not include textRanges, because ElementPartial is an Omit over a union. Compare with `(key as string) === \"textRanges\"` and read text-only keys through casts to Partial<ExcalidrawTextElement>, which delta.ts already imports as a type."
       ],
       "uses": [
         {
@@ -94,7 +54,7 @@
             1742,
             1792
           ],
-          "reason": "applyDelta, the function sites S2 and S3 change."
+          "reason": "applyDelta, the function this unit changed."
         }
       ],
       "depends_on": [
@@ -112,48 +72,24 @@
       "id": "U09",
       "path": "packages/element/src/renderElement.ts",
       "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import rough from \"roughjs/bin/rough\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "Draws a text element with ranges as runs, highlights behind the text; every other path stays as it is.",
       "rules": [
         "The helper drawStyledTextLines(context, element, lines, lineRuns, options) takes options { horizontalOffset, lineHeightPx, verticalOffset, direction, renderConfig }, where renderConfig is StaticCanvasRenderConfig.",
         "Helper step 1: isDark = renderConfig.theme === THEME.DARK; font = getFontString(element); measure = (text: string) => getLineWidth(text, font, renderConfig.renderEnvironment); baseColor = context.fillStyle. layouts = lines.map((line, index) => lineRuns[index] ? layoutTextLine(line, lineRuns[index], direction, measure) : null).",
         "Helper step 2, highlights first, for every line, before any text: for each layout, left = getTextLineLeft(element.textAlign, element.width, layout.width). For each piece with a highlight set context.fillStyle = applyDarkModeFilter(piece.highlight, isDark) and call context.fillRect(left + piece.x, index * lineHeightPx, piece.width, lineHeightPx).",
-        "Helper step 3, text: y = index * lineHeightPx + verticalOffset. A null layout: context.textAlign = element.textAlign as CanvasTextAlign, context.fillStyle = baseColor, context.fillText(lines[index], horizontalOffset, y), as today. Otherwise context.textAlign = \"left\", and for each piece set context.fillStyle to applyDarkModeFilter(piece.color, isDark) or baseColor when color is null, set context.direction = piece.direction, and call context.fillText(piece.text, left + piece.x, y). The caller's withSavedContext restores all context state.",
+        "Helper step 3, text: y = index * lineHeightPx + verticalOffset. A null layout: context.textAlign = element.textAlign as CanvasTextAlign, context.fillStyle = baseColor, context.direction = direction, because the line before may have left a piece's direction, then context.fillText(lines[index], horizontalOffset, y). Otherwise context.textAlign = \"left\", and for each piece set context.fillStyle to applyDarkModeFilter(piece.color, isDark) or baseColor when color is null, set context.direction = piece.direction, and call context.fillText(piece.text, left + piece.x, y). The caller's withSavedContext restores all context state.",
         "No code outside these sites changes. An element with no visible runs reaches today's loop, unchanged (AC-13). Do not change element measurement or canvas padding: colour and highlight are paint-only and a highlight stays inside the line box."
-      ],
-      "sites": [
-        {
-          "id": "S1",
-          "at": "replace",
-          "from": 61,
-          "to": 61,
-          "first_line": "import { getLineHeightInPx } from \"./textMeasurements\";",
-          "rule": "Import getLineWidth too, and add on the next lines an import of getTextLineLeft, getTextLineRuns and layoutTextLine from \"./textRangeLayout\"."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 83,
-          "to": 83,
-          "first_line": "import type { RenderEnvironment } from \"./renderEnvironment\";",
-          "rule": "Add `import type { TextLineRun } from \"./textRangeLayout\";`."
-        },
-        {
-          "id": "S3",
-          "at": "insert_before",
-          "from": 448,
-          "to": 448,
-          "first_line": "export const withSavedContext = (",
-          "rule": "Add the non-exported helper drawStyledTextLines described in this unit's rules, with lineRuns typed readonly (readonly TextLineRun[] | null)[]."
-        },
-        {
-          "id": "S4",
-          "at": "insert_before",
-          "from": 706,
-          "to": 706,
-          "first_line": "for (let index = 0; index < lines.length; index++) {",
-          "rule": "Add: `const lineRuns = getTextLineRuns(element);` then, if it is not null, call drawStyledTextLines(context, element, lines, lineRuns, { horizontalOffset, lineHeightPx, verticalOffset, direction: rtl ? \"rtl\" : \"ltr\", renderConfig }) and `return;` out of the withSavedContext callback."
-        }
       ],
       "depends_on": [
         "U05"
@@ -170,42 +106,18 @@
       "id": "U10",
       "path": "packages/excalidraw/renderer/staticSvgScene.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Exports a text element with ranges as tspans with fill and highlight rects before the text; an element with no ranges exports as today.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 8,
-          "to": 8,
-          "first_line": "getFontFamilyString,",
-          "rule": "Add `getFontString,`."
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 28,
-          "to": 28,
-          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
-          "rule": "Import getLineHeightInPx, getLineWidth, getTextLineLeft, getTextLineRuns and layoutTextLine from \"@excalidraw/element\"."
-        },
-        {
-          "id": "S3",
-          "at": "insert_before",
-          "from": 815,
-          "to": 815,
-          "first_line": "for (let i = 0; i < lines.length; i++) {",
-          "rule": "Add: const lineRuns = getTextLineRuns(element); const isDark = renderConfig.theme === THEME.DARK. If lineRuns is not null: font = getFontString(element), measure = (text: string) => getLineWidth(text, font, renderConfig.renderEnvironment). For each line index with a non-null entry, layout = layoutTextLine(lines[index], runs, direction, measure); left = direction === \"rtl\" && element.textAlign === \"right\" ? element.width : getTextLineLeft(element.textAlign, element.width, layout.width), because text-anchor end in rtl puts the text's left edge at x. For each piece with a highlight create a `rect` with svgRoot.ownerDocument.createElementNS(SVG_NS, \"rect\"), set x = left + piece.x, y = index * lineHeightPx, width = piece.width, height = lineHeightPx, fill = applyDarkModeFilter(piece.highlight, isDark), and node.appendChild it. So every rect comes before every <text> in document order."
-        },
-        {
-          "id": "S4",
-          "at": "replace",
-          "from": 817,
-          "to": 817,
-          "first_line": "text.textContent = lines[i];",
-          "rule": "If lineRuns?.[i] is non-null, then for each run in order: with a color, create a `tspan` with createElementNS(SVG_NS, \"tspan\"), set its fill to applyDarkModeFilter(run.color, isDark), set its textContent to run.text and append it to text; with no color append svgRoot.ownerDocument.createTextNode(run.text). Otherwise keep `text.textContent = lines[i];`. The attributes set below on <text> stay as they are, and colours only ever pass through setAttribute."
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Exports a text element with ranges as tspans with fill and highlight rects before the text; an element with no ranges exports as today.",
       "depends_on": [
         "U05",
         "U06"
@@ -223,26 +135,18 @@
       "id": "U11",
       "path": "packages/excalidraw/data/restore.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Validates textRanges on restore; a text element with no usable ranges restores without the key.",
       "sites": [
         {
           "id": "S1",
-          "at": "insert_after",
-          "from": 81,
-          "to": 81,
-          "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";",
-          "rule": "Add `import { sanitizeTextRanges } from \"@excalidraw/element\";`."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 595,
-          "to": 595,
-          "first_line": "});",
-          "rule": "After restoreElementWithProperties, add: const textRanges = sanitizeTextRanges(element.textRanges, element.originalText). If it is defined and differs from element.textRanges by identity, set element = { ...element, textRanges }. If it is undefined and \"textRanges\" in element, `delete (element as any).textRanges;`, the idiom this case already uses for rawText, so a dropped container leaves no key behind (FR-2)."
+          "at": "replace",
+          "from": 585,
+          "to": 585,
+          "first_line": "originalText: element.originalText || text,",
+          "rule": "Replace with originalText: (typeof element.originalText === \"string\" && element.originalText) || text, wrapped as Prettier wraps it, in the same idiom as const text a few lines above. A truthy string stays, an empty string still falls back to text, and any other value now falls back to text too."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Validates textRanges on restore; a text element with no usable ranges restores without the key; a non-string originalText becomes the element's text.",
       "depends_on": [
         "U03",
         "U06"
@@ -259,27 +163,18 @@
       "id": "U12",
       "path": "packages/excalidraw/data/reconcile.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "reconcileElements merges range state into whichever element it keeps; its signature and shouldDiscardRemoteElement do not change.",
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 6,
-          "to": 6,
-          "first_line": "orderByFractionalIndex,",
-          "rule": "Add `mergeTextRanges,` to this import."
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 92,
-          "to": 98,
-          "first_line": "if (localElement && discardRemoteElement) {",
-          "last_line": "}",
-          "rule": "In the discard branch push mergeTextRanges(localElement, remoteElement) instead of localElement, and add localElement.id to added. In the other branch push localElement ? mergeTextRanges(remoteElement, localElement) : remoteElement, and add remoteElement.id to added. Elements with no ranges come back as the same objects, so nothing else changes (FR-20). The discard branch runs for a remote update dropped while the local user edits the element, which is how FR-21's ranges reach the editor."
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import throttle from \"lodash.throttle\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "reconcileElements merges range state into whichever element it keeps; its signature and shouldDiscardRemoteElement do not change.",
       "depends_on": [
         "U04",
         "U06"
@@ -297,6 +192,16 @@
       "id": "U13",
       "path": "packages/excalidraw/hooks/useTextEditorFocus.ts",
       "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { useState, useCallback } from \"react\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "Adds a reader for the editor's non-empty selection, which the textarea keeps while a control has focus.",
       "exports": [
@@ -312,16 +217,6 @@
           "returns": "CaretPosition | null"
         }
       ],
-      "sites": [
-        {
-          "id": "S1",
-          "at": "insert_before",
-          "from": 30,
-          "to": 30,
-          "first_line": "export const restoreCaretPosition = (",
-          "rule": "Add getTextEditorSelection: position = saveCaretPosition(ownerDocument); return it when non-null and position.start !== position.end, else null. A short comment says a textarea keeps selectionStart and selectionEnd while it is blurred, which is why a colour control can read them after taking focus."
-        }
-      ],
       "depends_on": [],
       "covers": [
         "FR-10",
@@ -335,18 +230,18 @@
       "id": "U14",
       "path": "packages/excalidraw/types.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Adds the text highlight picker's popup to AppState.openPopup.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 483,
-          "to": 483,
-          "first_line": "| \"elementStroke\"",
-          "rule": "Add `| \"textHighlight\"`."
+          "from": 1,
+          "to": 1,
+          "first_line": "import type {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Adds the text highlight picker's popup to AppState.openPopup.",
       "depends_on": [],
       "covers": [
         "FR-12"
@@ -359,18 +254,18 @@
       "id": "U15",
       "path": "packages/excalidraw/locales/en.json",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Adds the UI strings for the highlight picker and the reset button.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 33,
-          "to": 33,
-          "first_line": "\"textColor\": \"Text color\",",
-          "rule": "Add exactly: \"textHighlight\": \"Text highlight\", \"showTextHighlight\": \"Show text highlight color picker\", \"resetTextStyle\": \"Reset text color and highlight\", each on its own line."
+          "from": 1,
+          "to": 1,
+          "first_line": "{",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Adds the UI strings for the highlight picker and the reset button.",
       "depends_on": [],
       "covers": [
         "FR-23"
@@ -383,163 +278,20 @@
       "id": "U16",
       "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "ColorPicker takes an optional popup prop, so a picker of an existing type can own its own openPopup value.",
-      "rules": [
-        "A picker without the prop behaves exactly as today: popup falls back to type. Every comparison of appState.openPopup and every updateData({ openPopup }) in this file uses popup; `type` keeps deciding palette defaults, TopPicks, Picker and ColorInput."
-      ],
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 48,
-          "to": 48,
-          "first_line": "import type { AppState, UIAppState } from \"../../types\";",
-          "rule": "Add `type ColorPickerPopup = ColorPickerType | \"textHighlight\";` after a blank line, with a one-line comment saying a picker's popup is its type unless two pickers of one type can show at once."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 69,
-          "to": 69,
-          "first_line": "customizableTopPicks?: keyof AppState[\"colorTopPicks\"];",
-          "rule": "Add `popup?: ColorPickerPopup;` with a short JSDoc block."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 80,
-          "to": 80,
-          "first_line": "getOpenPopup,",
-          "rule": "Add `popup,` to the destructured props."
-        },
-        {
-          "id": "S4",
-          "at": "insert_before",
-          "from": 96,
-          "to": 96,
-          "first_line": "getOpenPopup: () => AppState[\"openPopup\"];",
-          "rule": "Add `popup: ColorPickerPopup;`."
-        },
-        {
-          "id": "S5",
-          "at": "replace",
-          "from": 177,
-          "to": 177,
-          "first_line": "if (getOpenPopup() === type) {",
-          "rule": "Compare with popup."
-        },
-        {
-          "id": "S6",
-          "at": "replace",
-          "from": 260,
-          "to": 265,
-          "first_line": "const isColorPickerPopup = (",
-          "last_line": "popup === \"canvasBackground\";",
-          "rule": "Make the guard `popup is ColorPickerPopup` and add `popup === \"textHighlight\"`."
-        },
-        {
-          "id": "S7",
-          "at": "insert_after",
-          "from": 270,
-          "to": 270,
-          "first_line": "type,",
-          "rule": "Add `popup,`."
-        },
-        {
-          "id": "S8",
-          "at": "insert_after",
-          "from": 278,
-          "to": 278,
-          "first_line": "type: ColorPickerType;",
-          "rule": "Add `popup: ColorPickerPopup;`."
-        },
-        {
-          "id": "S9",
-          "at": "replace",
-          "from": 317,
-          "to": 322,
-          "first_line": "title={",
-          "last_line": "data-openpopup={type}",
-          "rule": "title is t(\"labels.showTextHighlight\") when popup === \"textHighlight\", otherwise today's expression. data-openpopup={popup}."
-        },
-        {
-          "id": "S10",
-          "at": "insert_after",
-          "from": 361,
-          "to": 361,
-          "first_line": "customizableTopPicks,",
-          "rule": "Add `popup: popupProp,`."
-        },
-        {
-          "id": "S11",
-          "at": "insert_before",
-          "from": 363,
-          "to": 363,
-          "first_line": "const openRef = useRef(appState.openPopup);",
-          "rule": "Add `const popup = popupProp ?? type;`."
-        },
-        {
-          "id": "S12",
-          "at": "replace",
-          "from": 435,
-          "to": 441,
-          "first_line": "isColorPickerPopup(appState.openPopup) &&",
-          "last_line": "setTimeout(() => updateData({ openPopup: type }), 0);",
-          "rule": "Use popup in the `!==` comparison and in the deferred updateData. Keep the comment."
-        },
-        {
-          "id": "S13",
-          "at": "replace",
-          "from": 452,
-          "to": 455,
-          "first_line": "open={appState.openPopup === type}",
-          "last_line": "updateData({ openPopup: type });",
-          "rule": "Use popup in both places."
-        },
-        {
-          "id": "S14",
-          "at": "insert_after",
-          "from": 463,
-          "to": 463,
-          "first_line": "type={type}",
-          "rule": "Add `popup={popup}` to ColorPickerTrigger."
-        },
-        {
-          "id": "S15",
-          "at": "replace",
-          "from": 469,
-          "to": 477,
-          "first_line": "if (appState.openPopup === type) {",
-          "last_line": "}",
-          "rule": "Use popup in the comparison and in all three updateData calls where today's code uses type. Keep the comments."
-        },
-        {
-          "id": "S16",
-          "at": "replace",
-          "from": 481,
-          "to": 483,
-          "first_line": "{appState.openPopup === type && (",
-          "last_line": "type={type}",
-          "rule": "Compare with popup, and pass `popup={popup}` to ColorPickerPopupContent after type."
-        },
-        {
-          "id": "S17",
-          "at": "replace",
-          "from": 524,
-          "to": 525,
-          "first_line": "prev.appState.openPopup === prev.type ||",
-          "last_line": "next.appState.openPopup === next.type",
-          "rule": "Compare with (prev.popup ?? prev.type) and (next.popup ?? next.type)."
-        },
-        {
-          "id": "S18",
-          "at": "insert_after",
-          "from": 530,
-          "to": 530,
-          "first_line": "prev.type === next.type &&",
-          "rule": "Add `prev.popup === next.popup &&`."
+          "from": 1,
+          "to": 1,
+          "first_line": "import { Popover } from \"radix-ui\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
+      ],
+      "phase": "codegen",
+      "behaviour": "ColorPicker takes an optional popup prop, so a picker of an existing type can own its own openPopup value.",
+      "rules": [
+        "A picker without the prop behaves exactly as today: popup falls back to type. Every comparison of appState.openPopup and every updateData({ openPopup }) in this file uses popup; `type` keeps deciding palette defaults, TopPicks, Picker and ColorInput."
       ],
       "depends_on": [
         "U14",
@@ -556,18 +308,18 @@
       "id": "U17",
       "path": "packages/excalidraw/actions/types.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Adds the two new action names.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 66,
-          "to": 66,
-          "first_line": "| \"changeStrokeColor\"",
-          "rule": "Add `| \"changeTextHighlight\"` and `| \"resetTextStyle\"`."
+          "from": 1,
+          "to": 1,
+          "first_line": "import type {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Adds the two new action names.",
       "depends_on": [],
       "covers": [
         "FR-12",
@@ -581,10 +333,21 @@
       "id": "U18",
       "path": "packages/excalidraw/actions/actionProperties.tsx",
       "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { pointFrom } from \"@excalidraw/math\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "A colour with a non-empty editor selection styles that range; adds the highlight action and the reset action.",
       "rules": [
-        "applyStyleToEditorSelection(elements, appState, app, style): editing = appState.editingTextElement; selection = editing ? getTextEditorSelection(app.ownerDocument) : null. Return null if either is missing. Otherwise return elements.map: for the element with editing.id that isTextElement, textRanges = applyTextRangeStyle(element, selection, style), and return element itself when textRanges === element.textRanges, else newElementWith(element, { textRanges }). Every other element is returned as it is. strokeColor, currentItem* and syncStickyNoteInk are not touched.",
+        "applyStyleToEditorSelection(elements, appState, app, style, resolvedSelection?): editing = appState.editingTextElement; selection = resolvedSelection when it is given, otherwise editing ? getTextEditorSelection(app.ownerDocument) : null. Return null if either is missing. Otherwise return elements.map: for the element with editing.id that isTextElement, textRanges = applyTextRangeStyle(element, selection, style), and return element itself when textRanges === element.textRanges, else newElementWith(element, { textRanges }). Every other element is returned as it is. strokeColor, currentItem* and syncStickyNoteInk are not touched.",
+        "actionChangeStrokeColor perform(elements, appState, value, app), after its existing color === undefined return: selection and the editing element are read as in rule 1. When the selection covers the element's whole originalText and every run of getTextStyleRuns(element) has color null, it skips the range path, so the existing strokeColor path runs (the FR-11 exception). Otherwise nextElements = applyStyleToEditorSelection(elements, appState, app, { color }, selection); if that is not null it returns { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }, and if null the existing path runs.",
         "actionChangeTextHighlight is register<Partial<AppState> & { color?: string }> with name \"changeTextHighlight\", label \"labels.textHighlight\", trackEvent false. perform(elements, appState, value, app): const { color, ...appStateUpdates } = value ?? {}. If color is undefined return { appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.EVENTUALLY }, as actionChangeStrokeColor does. nextElements = applyStyleToEditorSelection(elements, appState, app, { highlight: color }). If null, return the same EVENTUALLY result. Otherwise return { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
         "actionChangeTextHighlight PanelComponent({ elements, appState, updateData, app }): stylesPanelMode from getStylesPanelInfo(app); when \"full\" render <h3 aria-hidden=\"true\">{t(\"labels.textHighlight\")}</h3>; then ColorPicker with palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}, type=\"elementBackground\", popup=\"textHighlight\", label={t(\"labels.textHighlight\")}, color={null}, onChange={(color) => updateData({ color })}, elements, appState, updateData. No topPicks prop: elementBackground's default picks include transparent, which removes a highlight.",
         "actionResetTextStyle is register<null> with name \"resetTextStyle\", label \"labels.resetTextStyle\", trackEvent false. perform(elements, appState, _, app): nextElements = applyStyleToEditorSelection(elements, appState, app, { color: null, highlight: null }); return false if null; otherwise { elements: nextElements, appState, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
@@ -602,72 +365,6 @@
           "kind": "const",
           "params": [],
           "returns": "Action"
-        }
-      ],
-      "sites": [
-        {
-          "id": "S1",
-          "at": "insert_after",
-          "from": 34,
-          "to": 34,
-          "first_line": "syncStickyNoteInk,",
-          "rule": "Add `applyTextRangeStyle,`."
-        },
-        {
-          "id": "S2",
-          "at": "replace",
-          "from": 100,
-          "to": 100,
-          "first_line": "import type { ElementUpdate, Scene } from \"@excalidraw/element\";",
-          "rule": "Also import type TextRangeStyle, wrapping the line as Prettier requires."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 156,
-          "to": 156,
-          "first_line": "strokeVariabilityVariableIcon,",
-          "rule": "Add `eraser,`."
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 170,
-          "to": 170,
-          "first_line": "restoreCaretPosition,",
-          "rule": "Add `getTextEditorSelection,`."
-        },
-        {
-          "id": "S5",
-          "at": "insert_before",
-          "from": 366,
-          "to": 366,
-          "first_line": "export const actionChangeStrokeColor = register<",
-          "rule": "Add the non-exported helper applyStyleToEditorSelection from this unit's rules, typed (elements: readonly ExcalidrawElement[], appState: Readonly<AppState>, app: AppClassProperties, style: TextRangeStyle): readonly ExcalidrawElement[] | null."
-        },
-        {
-          "id": "S6",
-          "at": "replace",
-          "from": 372,
-          "to": 372,
-          "first_line": "perform: (elements, appState, value) => {",
-          "rule": "Add the fourth parameter: `perform: (elements, appState, value, app) => {`."
-        },
-        {
-          "id": "S7",
-          "at": "insert_after",
-          "from": 379,
-          "to": 379,
-          "first_line": "}",
-          "rule": "Add the range path before the resolveColorTarget comment: nextElements = applyStyleToEditorSelection(elements, appState, app, { color }). If it is not null return { elements: nextElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }. With no selection, or when not editing, the code below runs as today (FR-13)."
-        },
-        {
-          "id": "S8",
-          "at": "insert_after",
-          "from": 443,
-          "to": 443,
-          "first_line": "});",
-          "rule": "Add actionChangeTextHighlight and actionResetTextStyle from this unit's rules."
         }
       ],
       "style_from": {
@@ -701,18 +398,18 @@
       "id": "U19",
       "path": "packages/excalidraw/actions/index.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Exports the two new actions.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 11,
-          "to": 11,
-          "first_line": "actionChangeStrokeColor,",
-          "rule": "Add `actionChangeTextHighlight,` and `actionResetTextStyle,`."
+          "from": 1,
+          "to": 1,
+          "first_line": "export { actionDeleteSelected } from \"./actionDeleteSelected\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Exports the two new actions.",
       "depends_on": [
         "U18"
       ],
@@ -728,34 +425,18 @@
       "id": "U20",
       "path": "packages/excalidraw/components/Actions.tsx",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Shows the highlight picker and the reset button while a text element is edited, in the full, compact and mobile panels.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 162,
-          "to": 162,
-          "first_line": "<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>",
-          "rule": "Add: when appState.editingTextElement is set, a fragment of <div>{renderAction(\"changeTextHighlight\")}</div> followed by {renderAction(\"resetTextStyle\")}."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 634,
-          "to": 634,
-          "first_line": ")}",
-          "rule": "Add: when appState.editingTextElement is set, a fragment of two <div className=\"compact-action-item\"> wrappers holding renderAction(\"changeTextHighlight\") and renderAction(\"resetTextStyle\")."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 793,
-          "to": 793,
-          "first_line": ")}",
-          "rule": "Add the same fragment as site S2."
+          "from": 1,
+          "to": 1,
+          "first_line": "import clsx from \"clsx\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Shows the highlight picker and the reset button while a text element is edited, in the full, compact and mobile panels.",
       "depends_on": [
         "U17",
         "U18"
@@ -771,7 +452,17 @@
     {
       "id": "U21",
       "path": "packages/excalidraw/wysiwyg/textPreview.ts",
-      "action": "create",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { applyDarkModeFilter } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "The preview layer behind the textarea: shows each run's colour and highlight, aligned with the textarea, and exists only while the element has visible runs.",
       "rules": [
@@ -836,58 +527,18 @@
       "id": "U22",
       "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Wires the preview layer into the editor's style updates and teardown; the textarea and its behaviour stay.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 26,
-          "to": 26,
-          "first_line": "import { bumpVersion } from \"@excalidraw/element\";",
-          "rule": "Add `import { getTextStyleRuns } from \"@excalidraw/element\";`."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 74,
-          "to": 74,
-          "first_line": "} from \"../actions/actionCanvas\";",
-          "rule": "Add a blank line and `import { createTextPreview } from \"./textPreview\";`."
-        },
-        {
-          "id": "S3",
-          "at": "insert_after",
-          "from": 527,
-          "to": 527,
-          "first_line": "}",
-          "rule": "Add a preview.update call before the mutateElement below: runs is getTextStyleRuns(updatedTextElement) when editable.value === updatedTextElement.originalText, else [] so the preview never shows offsets for another text; baseColor is applyDarkModeFilter(updatedTextElement.strokeColor, appState.theme === THEME.DARK); isDark is appState.theme === THEME.DARK. This function runs on every scene update, so a range merged in by reconcile while editing reaches the preview here."
-        },
-        {
-          "id": "S4",
-          "at": "insert_after",
-          "from": 540,
-          "to": 540,
-          "first_line": "editable.classList.add(\"excalidraw-wysiwyg\");",
-          "rule": "Add `const preview = createTextPreview({ editable, parent: editorBox });` and `editable.onscroll = preview.syncScroll;`."
-        },
-        {
-          "id": "S5",
-          "at": "insert_after",
-          "from": 1095,
-          "to": 1095,
-          "first_line": "editable.onkeydown = null;",
-          "rule": "Add `editable.onscroll = null;`."
-        },
-        {
-          "id": "S6",
-          "at": "insert_before",
-          "from": 1116,
-          "to": 1116,
-          "first_line": "editable.remove();",
-          "rule": "Add `preview.destroy();`."
+          "from": 1,
+          "to": 1,
+          "first_line": "import {",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Wires the preview layer into the editor's style updates and teardown; the textarea and its behaviour stay.",
       "depends_on": [
         "U06",
         "U21"
@@ -904,26 +555,18 @@
       "id": "U23",
       "path": "packages/excalidraw/components/App.text.ts",
       "action": "edit",
-      "phase": "codegen",
-      "behaviour": "Every edit in the textarea remaps the element's ranges together with its text.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 29,
-          "to": 29,
-          "first_line": "getStickyNoteLayout,",
-          "rule": "Add `getTextRangesUpdate,`."
-        },
-        {
-          "id": "S2",
-          "at": "insert_after",
-          "from": 224,
-          "to": 224,
-          "first_line": "originalText: nextOriginalText,",
-          "rule": "Add `...getTextRangesUpdate(_element, nextOriginalText),`. _element is the latest scene element, so ranges merged in by reconcile while editing are the ones shifted."
+          "from": 1,
+          "to": 1,
+          "first_line": "import { flushSync } from \"react-dom\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "codegen",
+      "behaviour": "Every edit in the textarea remaps the element's ranges together with its text.",
       "depends_on": [
         "U03",
         "U06"
@@ -940,18 +583,18 @@
       "id": "U24",
       "path": "packages/excalidraw/CHANGELOG.md",
       "action": "edit",
-      "phase": "docs",
-      "behaviour": "Adds the Unreleased entry for text ranges, with no PR link.",
       "sites": [
         {
           "id": "S1",
           "at": "insert_after",
-          "from": 14,
-          "to": 14,
-          "first_line": "## Unreleased",
-          "rule": "Add a blank line, then the heading `### Coloured and highlighted text ranges`, a blank line, and this paragraph: `While editing a text element, a selection can take its own text color and highlight, shown live in the editor and painted on the canvas and in SVG and PNG exports. New: the \"Text highlight\" picker and the \"Reset text color and highlight\" button in the styles panel, and an optional \\`textRanges\\` field on text elements that an element which never had ranges does not carry. Ranges follow text edits, re-wrapping, bound-text containers and font changes, and \\`reconcileElements\\` keeps its signature while carrying a losing version's ranges onto the winning text.` Add no PR link and no PR number."
+          "from": 1,
+          "to": 1,
+          "first_line": "# Changelog",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
+      "phase": "docs",
+      "behaviour": "Adds the Unreleased entry for text ranges, with no PR link.",
       "depends_on": [],
       "covers": [
         "FR-23"
@@ -962,22 +605,23 @@
     }
   ],
   "hashes": {
-    "packages/element/src/listMarker.ts": "a799d411f48c7f2a12a0196e2ec650859f23cc6fbb4cbc588f88c4ad4f8df823",
-    "packages/element/src/delta.ts": "32b3b19a6360a021cf95eb18315d0c0f43a03a029c338ce004b9b9f96426dee6",
-    "packages/element/src/renderElement.ts": "e36c3418798b7dec6d374b02710180df560bb6283ec0ffe195670b0171298995",
-    "packages/excalidraw/renderer/staticSvgScene.ts": "4b2a086d26cd48b70468d0272b397eda9167420011753ec760c052cae6fffafa",
-    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f",
-    "packages/excalidraw/data/reconcile.ts": "07ee09fe90a94db2cf44e5a4c0c838a7c7005ffc3a03c9c8e227de4bdcbf4db0",
-    "packages/excalidraw/hooks/useTextEditorFocus.ts": "e0b818f7a47115c10cc2ba43636166e73517694d89ac7dfc279af0715464712d",
-    "packages/excalidraw/types.ts": "da1df501290dab5f4a8c0d1b4729090f71dd6f7492b5742e8cc28c18e60f366d",
-    "packages/excalidraw/locales/en.json": "07a8de221b3bcc8fa3c7f2241ecc7acec0a95fec27f2599c776a2b83c6c06296",
-    "packages/excalidraw/components/ColorPicker/ColorPicker.tsx": "86ec65fa9771a9551e87c220aad6698591eaa96945f0064601a4722c74919be8",
-    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339",
-    "packages/excalidraw/actions/actionProperties.tsx": "0fe8177b5fd59019728d562ade54dacf6573b118699a95d57fcb69be4deb6230",
-    "packages/excalidraw/actions/index.ts": "460b9cd44005a87c92d73ae1cfb77302bcf08f83b5ca677c55a7dbfbea16b724",
-    "packages/excalidraw/components/Actions.tsx": "7a174738df8cde4700f5729d7a6deca49ea17c9990913859d6de541372556f2c",
-    "packages/excalidraw/wysiwyg/textWysiwyg.tsx": "2103a65baf937d5b3ceb71e16791e16ede789d1377e804d706e8873b9b3e46c6",
-    "packages/excalidraw/components/App.text.ts": "5966da8ebbb773047222b5824f9e50389bdb9ba27172752b1061b29eb030dee8",
-    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811"
+    "packages/element/src/listMarker.ts": "4e2d4545978b93f3d8af57ae5de59c93512b6a091e0db6d9842d6ef257d71f90",
+    "packages/element/src/delta.ts": "bd5d463176e20d96a702a2150c54ee3c5a0fb7e1c644c73d81f4f9d3b867753f",
+    "packages/element/src/renderElement.ts": "5ac47d1f037cb5028f4112d66007bc28b101383ff9e3d2f9e78b89da676f2859",
+    "packages/excalidraw/renderer/staticSvgScene.ts": "2f9dec940d4925ed89d77678b2e94f0b0efdcda26d0eec6dbd68ff07e8c20974",
+    "packages/excalidraw/data/restore.ts": "4b4e810b7856defd6d71d279ecc5307a7af2363fef119cb7fb2d193d64d25859",
+    "packages/excalidraw/data/reconcile.ts": "4e4b65bb57857b637ac41badad2c791fbe68bdec8307c21e635ac2b7540eb27e",
+    "packages/excalidraw/hooks/useTextEditorFocus.ts": "2df4c5e316b042e27d925095769fda72e0fb1d4325e7eabb345e289d8088073e",
+    "packages/excalidraw/types.ts": "1326973679ca12d4a27c8b8f070732544dcef88ce58d312ec06285e593de304f",
+    "packages/excalidraw/locales/en.json": "97c46c2232ec6cd1d3e82d8df8d79b46fe167d2fbd847fd2f659a06a9d6a98cf",
+    "packages/excalidraw/components/ColorPicker/ColorPicker.tsx": "b1d1f6a0a78fe3ff0607be4348caf45fa0eb88bbc3b0d6858814079bc5b27fbc",
+    "packages/excalidraw/actions/types.ts": "955eb4fe0823679ceef913a7e7d5fa913b15a81a652f8262d1d1d82d43613a9c",
+    "packages/excalidraw/actions/actionProperties.tsx": "cb55d0ac3a4a235af5fefde055bccf2002cd131d61b10bc4c4ad5e71b390cc8d",
+    "packages/excalidraw/actions/index.ts": "ecee39d2c0d8c0a1dcb84236064f20e86f4b7903f93088d84564ab39a5bbd6fe",
+    "packages/excalidraw/components/Actions.tsx": "57394518a52f99b1ed4e8d97a4779e84141fc4fb6dd976737b69d63a3ac5aeb5",
+    "packages/excalidraw/wysiwyg/textPreview.ts": "9d5c2ca26a89a5a481f311d13b7ee60b723b1f109697308b2bf8d5a3da1e47c9",
+    "packages/excalidraw/wysiwyg/textWysiwyg.tsx": "998512cacd39558020d9df8c1d75bae86f93357d09440e794af1b09036d34a25",
+    "packages/excalidraw/components/App.text.ts": "21b1cc65f670e1520e0200a9c4203ae76e688a7de651d08c1da9cffd73101f64",
+    "packages/excalidraw/CHANGELOG.md": "2aaa64e6cc0a683094c39c12956a94c7ea16779d86e6fbc2916b4ad46c70ebb1"
   }
 }

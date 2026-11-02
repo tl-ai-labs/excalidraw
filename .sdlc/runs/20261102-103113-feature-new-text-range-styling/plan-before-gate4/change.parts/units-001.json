@@ -1,0 +1,610 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the range types and the optional textRanges key on ExcalidrawTextElement.",
+      "exports": [
+        {
+          "name": "ExcalidrawTextRangeOrigin",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ version: number; versionNonce: number; text: string; start: number; end: number }>"
+        },
+        {
+          "name": "ExcalidrawTextRange",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ id: string; start: number; end: number; z: number; color?: string | null; highlight?: string | null; retired?: true; origin?: ExcalidrawTextRangeOrigin }>"
+        },
+        {
+          "name": "ExcalidrawTextRanges",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ textHash: number; ranges: readonly ExcalidrawTextRange[] }>"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253,
+          "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
+          "rule": "Declare the three exported types, each with a short JSDoc block: ExcalidrawTextRangeOrigin (where a carried range's offsets came from: the version it was last placed in, and that version's text), ExcalidrawTextRange (one styled layer; id, z, color and highlight never change after creation; offsets are half-open code-unit offsets into originalText; null clears an attribute and absent leaves it alone; retired is a sticky tombstone), ExcalidrawTextRanges (textHash is hashString(originalText), and ranges are sorted by z then id)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 290,
+          "to": 290,
+          "first_line": "labelPosition?: number | null;",
+          "rule": "Add `textRanges?: ExcalidrawTextRanges;` with a JSDoc block saying it is absent on an element that has never had ranges, and that a text change must remap it (getTextRangesUpdate)."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/textDiff.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Pure diff between two strings as hunks, and mapping of a range's start and end through those hunks.",
+      "rules": [
+        "Exact constants: MIN_MATCH_LENGTH = 3, MAX_DIFF_CELLS = 1_000_000. No clock, no randomness, no module state.",
+        "diffText step 1: if oldText === newText return [].",
+        "diffText step 2: prefix = length of the common leading code units. If prefix > 0 and oldText.charCodeAt(prefix - 1) is a high surrogate (0xD800 to 0xDBFF), subtract 1.",
+        "diffText step 3: suffix = length of the common trailing code units, never more than Math.min(oldText.length, newText.length) - prefix. If suffix > 0 and oldText.charCodeAt(oldText.length - suffix) is a low surrogate (0xDC00 to 0xDFFF), subtract 1.",
+        "diffText step 4: a = oldText.slice(prefix, oldText.length - suffix), b = newText.slice(prefix, newText.length - suffix), n = a.length, m = b.length. If n === 0, or m === 0, or n * m > MAX_DIFF_CELLS, return one hunk { oldStart: prefix, oldEnd: prefix + n, newStart: prefix, newEnd: prefix + m }.",
+        "diffText step 5: fill a Uint16Array of (n + 1) * (m + 1) cells where cell (i, j) is the longest common subsequence length of a.slice(i) and b.slice(j), computed from i = n - 1 and j = m - 1 downwards: if a[i] === b[j] then cell(i, j) = 1 + cell(i + 1, j + 1), else Math.max(cell(i + 1, j), cell(i, j + 1)).",
+        "diffText step 6: walk i = 0, j = 0 while i < n and j < m. If a[i] === b[j], record the pair (i, j) and advance both. Otherwise, if cell(i + 1, j) >= cell(i, j + 1) advance i, else advance j.",
+        "diffText step 7: group pairs into blocks: a block is a maximal run where i and j both rise by 1. Drop every block shorter than MIN_MATCH_LENGTH.",
+        "diffText step 8: walk kept blocks with cursors ai = 0, bi = 0. Before each block, if ai < block's i start or bi < block's j start, push a hunk spanning the gap with prefix added to all four numbers, then move ai and bi past the block. After the last block, if ai < n or bi < m push the final hunk. With no kept blocks this is one hunk for the whole middle. Hunks are ascending and never touch.",
+        "mapSpanThroughHunks: nextStart = mapStart(start), nextEnd = mapEnd(end), and return { start: nextStart, end: Math.max(nextStart, nextEnd) }.",
+        "mapStart(p): delta = 0; for each hunk in order: if p < hunk.oldStart stop; if p <= hunk.oldEnd return hunk.newEnd; delta = hunk.newEnd - hunk.oldEnd. Return p + delta. So an insertion exactly at a range's start moves the start past the inserted text.",
+        "mapEnd(p): delta = 0; for each hunk in order: if p <= hunk.oldStart stop; if p <= hunk.oldEnd return hunk.newStart; delta = hunk.newEnd - hunk.oldEnd. Return p + delta. So an insertion exactly at a range's end leaves the end where it is.",
+        "mapTextSpan: mapSpanThroughHunks(diffText(oldText, newText), start, end)."
+      ],
+      "exports": [
+        {
+          "name": "TextHunk",
+          "kind": "type",
+          "params": [],
+          "returns": "{ oldStart: number; oldEnd: number; newStart: number; newEnd: number }"
+        },
+        {
+          "name": "diffText",
+          "kind": "function",
+          "params": [
+            {
+              "name": "oldText",
+              "type": "string"
+            },
+            {
+              "name": "newText",
+              "type": "string"
+            }
+          ],
+          "returns": "TextHunk[]"
+        },
+        {
+          "name": "mapSpanThroughHunks",
+          "kind": "function",
+          "params": [
+            {
+              "name": "hunks",
+              "type": "readonly TextHunk[]"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            }
+          ],
+          "returns": "{ start: number; end: number }"
+        },
+        {
+          "name": "mapTextSpan",
+          "kind": "function",
+          "params": [
+            {
+              "name": "oldText",
+              "type": "string"
+            },
+            {
+              "name": "newText",
+              "type": "string"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            }
+          ],
+          "returns": "{ start: number; end: number }"
+        }
+      ],
+      "import_line": "import { diffText, mapSpanThroughHunks, mapTextSpan } from \"./textDiff\";",
+      "style_from": {
+        "path": "packages/element/src/textMeasurements.ts",
+        "lines": [
+          1,
+          32
+        ],
+        "reason": "Shape of a small pure text module in this package."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-3",
+        "FR-19"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/textRanges.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "The range model: validation, resolving layers to disjoint style runs, local style and text operations.",
+      "rules": [
+        "Imports: colorToHex, isTransparent, randomId from @excalidraw/common; hashString from \".\" (as textElement.ts imports from \".\"); diffText, mapSpanThroughHunks from ./textDiff; types from ./types. Exact constants: MAX_TEXT_RANGES = 1024 (exported), MAX_TEXT_RANGE_ID_LENGTH = 64, MAX_TEXT_RANGE_COLOR_LENGTH = 64.",
+        "isValidTextRangeColor: typeof value === \"string\", value.length <= 64, and colorToHex(value) !== null.",
+        "canonicalizeTextRanges: return a new array sorted by z ascending, then id ascending, comparing ids with < and > (never localeCompare). If longer than MAX_TEXT_RANGES keep only the last MAX_TEXT_RANGES entries.",
+        "Every record is written with keys in the order id, start, end, z, color, highlight, retired, origin, and with absent keys left out, not set to undefined.",
+        "areTextRangesEqual: both undefined is true, exactly one undefined is false, otherwise textHash equal, ranges lengths equal, and each index equal on id, start, end, z, color, highlight, retired and on every field of origin.",
+        "sanitizeTextRanges step 1: return undefined unless raw is an object with an array `ranges`. Return undefined if raw.textHash !== hashString(originalText). Read only the first MAX_TEXT_RANGES * 16 entries of ranges. Never throw.",
+        "sanitizeTextRanges step 2, per entry, dropping it if any check fails: it is a non-null object; id is a string of length 1 to 64 not already seen; start, end and z are integers (Number.isInteger); z >= 0; end >= start.",
+        "sanitizeTextRanges step 3: keep color only if it is null or isValidTextRangeColor, the same for highlight. Drop the entry if neither key remains.",
+        "sanitizeTextRanges step 4: clamp start and end to 0..originalText.length. Keep retired only when it is exactly true. Keep origin only when it is an object whose version and versionNonce are integers, whose text is a string, and whose start and end are integers with 0 <= start <= end <= text.length; otherwise leave it out.",
+        "sanitizeTextRanges step 5: keep a collapsed entry (start === end), with or without retired and origin: it is the tombstone of deleted characters, and restoreElements runs on every remote element before reconcile, so dropping it here would let a merge re-add it. Then canonicalizeTextRanges. Return undefined if nothing remains. If the result equals raw (areTextRangesEqual) return raw itself, else return { textHash: raw.textHash, ranges }.",
+        "getTextStyleRuns step 1: textRanges = sanitizeTextRanges(element.textRanges, element.originalText); return [] if undefined. Use only records that are not retired and have start < end.",
+        "getTextStyleRuns step 2: for each of the attributes color and highlight build a list of records with that key present, sorted by z descending, then null values before strings, then id descending.",
+        "getTextStyleRuns step 3: bounds = sorted unique start and end values of the used records. For each consecutive pair [a, b) take, for each attribute, the first record in its list with start <= a and end >= b. Its value is the style, and no record or a null value means null.",
+        "getTextStyleRuns step 4: skip segments where both attributes are null, join adjacent segments with equal color and highlight, and return runs ascending. Runs are disjoint.",
+        "applyTextRangeStyle step 1: clamp span to 0..originalText.length, returning element.textRanges if start >= end. Normalize style: an attribute with a transparent string (isTransparent) becomes null; an attribute that is undefined or an invalid string is left out. Return element.textRanges if neither attribute remains.",
+        "applyTextRangeStyle step 2: current = sanitizeTextRanges(element.textRanges, element.originalText)?.ranges ?? []; z = 1 + the highest z in current, or 1 if empty. Every existing record loses its origin.",
+        "applyTextRangeStyle step 3, a removal: a record r is removed by this style when it is not retired, r.start < end and r.end > start (so a collapsed record never qualifies), it has at least one string attribute, and each of its string attributes is one whose value in style is null. A colour or highlight pick has no null, so it removes nothing, and a clear record has no string attribute, so it is never removed. Set retired: true on every removed r, keeping its offsets. If r.start < start, add a kept part { id: randomId(), start: r.start, end: start, z: r.z } with r's color and highlight keys as they are. If r.end > end, add a kept part { id: randomId(), start: end, end: r.end, z: r.z } the same way. A kept part never has retired or origin.",
+        "applyTextRangeStyle step 4: add { id: randomId(), start, end, z, ...style }. next = { textHash: hashString(element.originalText), ranges: canonicalizeTextRanges(all) }.",
+        "applyTextRangeStyle step 5: if getTextStyleRuns of the element and of { originalText, textRanges: next } are field-for-field equal, return element.textRanges, so a no-op adds nothing and an element that never had ranges stays without the key (FR-2). Otherwise return next.",
+        "shiftTextRanges step 1: return textRanges if it is undefined or oldText === newText. current = sanitizeTextRanges(textRanges, oldText); if undefined return textRanges unchanged, which stays stale and ignored.",
+        "shiftTextRanges step 2: hunks = diffText(oldText, newText), computed once. Map each record through mapSpanThroughHunks. Drop origin from every record. Keep every record whatever its span: a record whose span collapses stays collapsed and native, which is what stops a merge re-adding it from a peer's copy, and stops old text reaching origin (FR-3). Return { textHash: hashString(newText), ranges: canonicalizeTextRanges(mapped) }.",
+        "getTextRangesUpdate: return {} if element.textRanges is undefined or nextOriginalText === element.originalText; otherwise { textRanges: shiftTextRanges(element.originalText, nextOriginalText, element.textRanges) }."
+      ],
+      "exports": [
+        {
+          "name": "MAX_TEXT_RANGES",
+          "kind": "const",
+          "params": [],
+          "returns": "1024"
+        },
+        {
+          "name": "TextRangeStyle",
+          "kind": "type",
+          "params": [],
+          "returns": "{ color?: string | null; highlight?: string | null }"
+        },
+        {
+          "name": "TextStyleRun",
+          "kind": "type",
+          "params": [],
+          "returns": "{ start: number; end: number; color: string | null; highlight: string | null }"
+        },
+        {
+          "name": "isValidTextRangeColor",
+          "kind": "function",
+          "params": [
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "value is string"
+        },
+        {
+          "name": "canonicalizeTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly ExcalidrawTextRange[]"
+            }
+          ],
+          "returns": "ExcalidrawTextRange[]"
+        },
+        {
+          "name": "areTextRangesEqual",
+          "kind": "function",
+          "params": [
+            {
+              "name": "a",
+              "type": "ExcalidrawTextRanges | undefined"
+            },
+            {
+              "name": "b",
+              "type": "ExcalidrawTextRanges | undefined"
+            }
+          ],
+          "returns": "boolean"
+        },
+        {
+          "name": "sanitizeTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "raw",
+              "type": "unknown"
+            },
+            {
+              "name": "originalText",
+              "type": "string"
+            }
+          ],
+          "returns": "ExcalidrawTextRanges | undefined"
+        },
+        {
+          "name": "getTextStyleRuns",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Pick<ExcalidrawTextElement, \"originalText\" | \"textRanges\">"
+            }
+          ],
+          "returns": "TextStyleRun[]"
+        },
+        {
+          "name": "applyTextRangeStyle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Pick<ExcalidrawTextElement, \"originalText\" | \"textRanges\">"
+            },
+            {
+              "name": "span",
+              "type": "{ start: number; end: number }"
+            },
+            {
+              "name": "style",
+              "type": "TextRangeStyle"
+            }
+          ],
+          "returns": "ExcalidrawTextRanges | undefined"
+        },
+        {
+          "name": "shiftTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "oldText",
+              "type": "string"
+            },
+            {
+              "name": "newText",
+              "type": "string"
+            },
+            {
+              "name": "textRanges",
+              "type": "ExcalidrawTextRanges | undefined"
+            }
+          ],
+          "returns": "ExcalidrawTextRanges | undefined"
+        },
+        {
+          "name": "getTextRangesUpdate",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Pick<ExcalidrawTextElement, \"originalText\" | \"textRanges\">"
+            },
+            {
+              "name": "nextOriginalText",
+              "type": "string"
+            }
+          ],
+          "returns": "{ textRanges?: ExcalidrawTextRanges }"
+        }
+      ],
+      "import_line": "import { applyTextRangeStyle, areTextRangesEqual, canonicalizeTextRanges, getTextRangesUpdate, getTextStyleRuns, sanitizeTextRanges, shiftTextRanges, MAX_TEXT_RANGES } from \"./textRanges\";",
+      "style_from": {
+        "path": "packages/element/src/textMeasurements.ts",
+        "lines": [
+          1,
+          32
+        ],
+        "reason": "Shape of a text module in this package."
+      },
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/textRangeMerge.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "The pure, symmetric merge of two versions' ranges, and how a history delta is applied to ranges.",
+      "rules": [
+        "Imports: randomId from @excalidraw/common; hashString from \".\"; isTextElement from ./typeChecks; mapTextSpan from ./textDiff; areTextRangesEqual, canonicalizeTextRanges, sanitizeTextRanges, shiftTextRanges from ./textRanges.",
+        "mergeTextRanges must read no clock, random source or module state and must never mutate its inputs. randomId is used only by applyTextRangesDelta.",
+        "mergeTextRanges step 1: return base if either element is not a text element, or if neither has textRanges. Elements with no ranges therefore reconcile as today, and the same object comes back (FR-20).",
+        "mergeTextRanges step 2: baseRanges = sanitizeTextRanges(base.textRanges, base.originalText)?.ranges ?? [], otherRanges = the same for other. Return base if otherRanges is empty.",
+        "getRegister(record, element) = record.origin ?? { version: element.version, versionNonce: element.versionNonce, text: element.originalText, start: record.start, end: record.end }.",
+        "pickNewerRegister(a, b): higher version wins; at equal version lower versionNonce wins; at equal nonce the smaller of (text, start, end) compared in that order wins, so a result is defined even for crafted input.",
+        "mergeTextRanges step 3, for every id in the union with bRec and oRec being its records: id, z, color and highlight come from bRec ?? oRec. retired is true if either side is retired, otherwise the key stays absent.",
+        "mergeTextRanges step 4, the position: if bRec exists and has no origin, use bRec.start and bRec.end with no origin. Otherwise register = pickNewerRegister over the registers of the records present, using base for bRec and other for oRec.",
+        "mergeTextRanges step 5: if register.version === base.version and register.versionNonce === base.versionNonce and register.text === base.originalText, use register.start and register.end with no origin. Otherwise use mapTextSpan(register.text, base.originalText, register.start, register.end) and set origin to register, whose fields are never changed.",
+        "mergeTextRanges step 6: keep collapsed records, never drop one here. ranges = canonicalizeTextRanges(records), next = { textHash: hashString(base.originalText), ranges }. If areTextRangesEqual(next, base.textRanges) return base. Otherwise return { ...base, textRanges: next }, built with a spread and not newElementWith, which would bump the version.",
+        "applyTextRangesDelta step 1: holdsText = typeof inserted.originalText === \"string\"; nextText = holdsText ? inserted.originalText : element.originalText; prior = sanitizeTextRanges(element.textRanges, element.originalText)?.ranges ?? [].",
+        "applyTextRangesDelta step 2: if nextText !== element.originalText, shifted = shiftTextRanges(element.originalText, nextText, element.textRanges)?.ranges ?? []; otherwise shifted = prior. Put shifted into a Map by id.",
+        "applyTextRangesDelta step 3: priorAlive = ids of deleted.textRanges?.ranges that are not retired, targetAlive = the same for inserted.textRanges?.ranges. Read these two arrays directly with Array.isArray, since a delta is local history data.",
+        "applyTextRangesDelta step 4: for each id in priorAlive and not in targetAlive, if the Map has it, set a copy with retired: true.",
+        "applyTextRangesDelta step 5: for each record t of inserted.textRanges?.ranges that is not retired and whose id is not in priorAlive, in array order: let c = Map.get(t.id). If c exists and is not retired, skip it. The span is t's when holdsText, else c's if c exists, else t's, clamped to 0..nextText.length. If c is retired, add a new record with id: randomId(), the span, t's z, and t's color and highlight, so undoing a removal restores the layer order. If c is absent, add t without origin, with the span.",
+        "applyTextRangesDelta step 6: exact = holdsText and deleted.originalText === element.originalText. addressed = inserted.textRanges?.textHash === hashString(nextText). For each non-retired t in inserted.textRanges?.ranges whose Map entry exists and is not retired, set that entry's start and end to t's, clamped, when exact is true, or when addressed is true and both the entry and the record of the same id in deleted.textRanges?.ranges are collapsed (start === end). The first restores exact offsets when no other text change came in between. The second gives a word its range back when the step being undone is the one that lost the word, because t's offsets address that text. Any other collapsed record stays collapsed (FR-3).",
+        "applyTextRangesDelta step 7: next = { textHash: hashString(nextText), ranges: canonicalizeTextRanges(Map values) }. If element.textRanges is undefined and ranges is empty return undefined. If areTextRangesEqual(next, element.textRanges) return element.textRanges. Otherwise return next."
+      ],
+      "exports": [
+        {
+          "name": "mergeTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "base",
+              "type": "T extends ExcalidrawElement"
+            },
+            {
+              "name": "other",
+              "type": "ExcalidrawElement"
+            }
+          ],
+          "returns": "T"
+        },
+        {
+          "name": "applyTextRangesDelta",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "deleted",
+              "type": "Partial<ExcalidrawTextElement>"
+            },
+            {
+              "name": "inserted",
+              "type": "Partial<ExcalidrawTextElement>"
+            }
+          ],
+          "returns": "ExcalidrawTextRanges | undefined"
+        }
+      ],
+      "import_line": "import { applyTextRangesDelta, mergeTextRanges } from \"./textRangeMerge\";",
+      "style_from": {
+        "unit": "U03",
+        "reason": "Same package, same data model."
+      },
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-9",
+        "FR-19",
+        "FR-20",
+        "FR-21",
+        "NFR-3"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/element/src/textRangeLayout.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Maps style runs onto rendered lines without measuring, and lays one line's runs out as positioned pieces for canvas and SVG.",
+      "rules": [
+        "Imports: hasRTLChars from @excalidraw/common; getTextStyleRuns from ./textRanges; types from ./types. No canvas or DOM use in this file: widths come only from the measure argument, so it stays testable and usable with a non-DOM canvas.",
+        "getRenderedLineOffsets, purpose: element.text is originalText with soft line breaks added, trailing whitespace dropped at soft breaks, and tokens of wrapped lines normalized to NFC. It returns, for each line of text, one source offset per code unit plus one final entry for the line's end.",
+        "getRenderedLineOffsets step 1: lines = text.replace(/\\r\\n?/g, \"\\n\").split(\"\\n\"); p = 0. For each line, walk j from 0 while j < line.length.",
+        "getRenderedLineOffsets step 2: while p < originalText.length and originalText[p] !== line[j]: match /^[\\s\\S]\\p{M}+/u against originalText.slice(p, p + 32). If it matches and line.startsWith(cluster.normalize(\"NFC\"), j), push p once per code unit of the normalized cluster, add its length to j, add the cluster's length to p, and go back to step 1's loop. Otherwise, if originalText[p] matches /\\s/, p += 1. Otherwise return null.",
+        "getRenderedLineOffsets step 3: if p >= originalText.length with j still < line.length return null. Otherwise push p, then p += 1 and j += 1. After the line, push p as its final entry.",
+        "getTextLineRuns step 1: runs = getTextStyleRuns(element); return null if empty. lineOffsets = getRenderedLineOffsets(element.text, element.originalText); return null if null, so a text out of step with its source renders unstyled, never wrongly styled.",
+        "getTextLineRuns step 2: for each rendered line, walk its code units with a pointer into runs (offsets never decrease). Group contiguous code units with the same color and highlight into { start, end, text, color, highlight }, where start and end are offsets into the rendered line and a unit in no run has color and highlight null. Never start a new group on a low surrogate (0xDC00 to 0xDFFF): it stays with the unit before it.",
+        "getTextLineRuns step 3: an empty line, or a line whose groups all have null color and null highlight, is null in the result, which means draw it as today. Return null if every line is null. The result has one entry per rendered line.",
+        "layoutTextLine step 1, directional segments: if direction is \"ltr\" and !hasRTLChars(line) there is one ltr segment. Otherwise classify each code point: rtl if hasRTLChars(char), ltr if /[\\p{L}\\p{N}]/u matches, else neutral. A maximal run of neutrals takes the class of the strong characters on both sides when they agree, else direction; a missing side counts as direction. Group consecutive equal classes into segments { start, end, direction }.",
+        "layoutTextLine step 2, visual order: walk segments in logical order for ltr and reversed for rtl, with x = 0. Each segment gets x and width = measure(line.slice(start, end)); x += width. The layout's width is the final x.",
+        "layoutTextLine step 3, pieces: for each run in logical order and each segment it overlaps, in logical order, take [a, b) as the overlap. In an ltr segment piece.x = segment.x + measure(line.slice(segment.start, a)). In an rtl segment piece.x = segment.x + segment.width - measure(line.slice(segment.start, b)). piece.width = measure(line.slice(a, b)), piece.text = line.slice(a, b), piece.direction = segment.direction, color and highlight from the run.",
+        "getTextLineLeft: \"center\" gives (elementWidth - lineWidth) / 2, \"right\" gives elementWidth - lineWidth, anything else 0."
+      ],
+      "exports": [
+        {
+          "name": "TextLineRun",
+          "kind": "type",
+          "params": [],
+          "returns": "{ start: number; end: number; text: string; color: string | null; highlight: string | null }"
+        },
+        {
+          "name": "TextLinePiece",
+          "kind": "type",
+          "params": [],
+          "returns": "{ text: string; x: number; width: number; color: string | null; highlight: string | null; direction: \"ltr\" | \"rtl\" }"
+        },
+        {
+          "name": "TextLineLayout",
+          "kind": "type",
+          "params": [],
+          "returns": "{ width: number; pieces: TextLinePiece[] }"
+        },
+        {
+          "name": "getRenderedLineOffsets",
+          "kind": "function",
+          "params": [
+            {
+              "name": "text",
+              "type": "string"
+            },
+            {
+              "name": "originalText",
+              "type": "string"
+            }
+          ],
+          "returns": "number[][] | null"
+        },
+        {
+          "name": "getTextLineRuns",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Pick<ExcalidrawTextElement, \"text\" | \"originalText\" | \"textRanges\">"
+            }
+          ],
+          "returns": "(TextLineRun[] | null)[] | null"
+        },
+        {
+          "name": "layoutTextLine",
+          "kind": "function",
+          "params": [
+            {
+              "name": "line",
+              "type": "string"
+            },
+            {
+              "name": "runs",
+              "type": "readonly TextLineRun[]"
+            },
+            {
+              "name": "direction",
+              "type": "\"ltr\" | \"rtl\""
+            },
+            {
+              "name": "measure",
+              "type": "(text: string) => number"
+            }
+          ],
+          "returns": "TextLineLayout"
+        },
+        {
+          "name": "getTextLineLeft",
+          "kind": "function",
+          "params": [
+            {
+              "name": "textAlign",
+              "type": "TextAlign"
+            },
+            {
+              "name": "elementWidth",
+              "type": "number"
+            },
+            {
+              "name": "lineWidth",
+              "type": "number"
+            }
+          ],
+          "returns": "number"
+        }
+      ],
+      "import_line": "import { getRenderedLineOffsets, getTextLineLeft, getTextLineRuns, layoutTextLine } from \"./textRangeLayout\";",
+      "style_from": {
+        "path": "packages/element/src/textWrapping.ts",
+        "lines": [
+          409,
+          481
+        ],
+        "reason": "Offsets into originalText and line records follow this module's vocabulary."
+      },
+      "depends_on": [
+        "U01",
+        "U03"
+      ],
+      "covers": [
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/element/src/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Exports the new types and helpers from the element package.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 100,
+          "to": 100,
+          "first_line": "export * from \"./textElement\";",
+          "rule": "Add `export * from \"./textDiff\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101,
+          "first_line": "export * from \"./textMeasurements\";",
+          "rule": "Add, in this order, `export * from \"./textRangeLayout\";`, `export * from \"./textRangeMerge\";`, `export * from \"./textRanges\";`."
+        }
+      ],
+      "depends_on": [
+        "U02",
+        "U03",
+        "U04",
+        "U05"
+      ],
+      "covers": [
+        "FR-22",
+        "NFR-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/element/src/types.ts": "ae55b7f4e5e62aa33c36ae54c26b34e7c5853c0a4bb9accbf384a635b4070ef4",
+    "packages/element/src/textMeasurements.ts": "3c92e8570c05c77e0609a191552c3ea112e6fade38ea0a2e38c620b2acf5d774",
+    "packages/element/src/textWrapping.ts": "29b9203ed4547238e76cf8ff725dcc0a8724d3bffac8e2d8e0682bb4ce9c54c3",
+    "packages/element/src/index.ts": "c6b46d0a5bfb81315e64577e6d07f78540950dfae9a328de047a2369fb399939"
+  }
+}

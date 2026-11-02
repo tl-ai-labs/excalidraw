@@ -24,6 +24,7 @@ import {
 
 import { LinearElementEditor } from "@excalidraw/element";
 import { bumpVersion } from "@excalidraw/element";
+import { getTextStyleRuns } from "@excalidraw/element";
 import {
   getBoundTextElementId,
   getContainerElement,
@@ -72,6 +73,8 @@ import {
   actionZoomIn,
   actionZoomOut,
 } from "../actions/actionCanvas";
+
+import { createTextPreview } from "./textPreview";
 
 import type { ParsedDataTranferList } from "../clipboard";
 
@@ -526,6 +529,18 @@ export const textWysiwyg = ({
         editable.style.fontFamily = getFontFamilyString(updatedTextElement);
       }
 
+      preview.update({
+        runs:
+          editable.value === updatedTextElement.originalText
+            ? getTextStyleRuns(updatedTextElement)
+            : [],
+        baseColor: applyDarkModeFilter(
+          updatedTextElement.strokeColor,
+          appState.theme === THEME.DARK,
+        ),
+        isDark: appState.theme === THEME.DARK,
+      });
+
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
     }
   };
@@ -538,6 +553,9 @@ export const textWysiwyg = ({
   // prevent line wrapping on Safari
   editable.wrap = "off";
   editable.classList.add("excalidraw-wysiwyg");
+
+  const preview = createTextPreview({ editable, parent: editorBox });
+  editable.onscroll = preview.syncScroll;
 
   let whiteSpace = "pre";
   let wordBreak = "normal";
@@ -1093,6 +1111,7 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.onscroll = null;
 
     if (observer) {
       observer.disconnect();
@@ -1113,6 +1132,7 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
 
+    preview.destroy();
     editable.remove();
   };
 

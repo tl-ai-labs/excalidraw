@@ -1,0 +1,43 @@
+{
+  "module": "packages/element/src/textDiff.ts final pass (refineHunks) and its tests",
+  "verdict": "needs_changes",
+  "tool_calls": 31,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 408,
+      "issue": "NFR-2. aligned.push(...lines) passes every line hunk as one call's arguments, so a hunk of about 120,000 lines throws RangeError: Maximum call stack size exceeded, and nothing catches it on the way out of reconcileElements. Reproduced through real restoreElements and reconcileElements under vitest with one forged record whose origin.text is n lines of 'a' against a base of n lines of 'b': n = 100,000 returned, n = 120,000, 130,000 and 150,000 threw (1.08 to 1.35 MB of JSON), n = 170,000 returned. One forged element from a peer is enough. The plan records this as 'Open defect', not a Known limit, and says the person has not accepted it. The work-limit derivation in 'Diff budget per merge' holds only for a diff that returns.",
+      "fix": "Push in a loop: for (const line of lines) { aligned.push(line); }. Tried on a scratch copy: every n above returned and the in-scope suites still passed apart from the test named in the next finding, which that change does not touch. Add a test that diffs n lines of 'a' against n lines of 'b' at n = 130,000 and expects no throw."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 483,
+      "issue": "FR-3, FR-16. The early return for a change under 3 characters skips refineHunks, and that is what a keystroke is, so the second defect the pass was added for is still there when the text is typed and not pasted. Through the real editor, one input event per character, colour 'Bid' in 'foo Bid', put the caret before it and type 'Before ': the run is 'Before Bid'. Typing 'Xefore ' gives 'Bid'. 'the engineer said' with 'escalation ' typed before 'engineer' gives 'escalation engineer', although the same pair is pinned as passing as a single edit in the test list at reconcile.textRanges.test.ts:1167. The first character lands inside the word, because the trim puts it after the shared letter, the range widens by one, and every later keystroke is then strictly inside the range and extends it. Two-character pastes hit the same return: 'foo Bid' to 'foo B Bid' styles 'B Bid'. The code matches the plan's line 'It does not run ... for a change of under MIN_MATCH_LENGTH characters in total', but the plan also says in the FR-3 decision that the final pass puts such an insertion at the word edge 'so these rules read it there', and in the final-pass decision that this defect is fixed. Those two statements and the typed path differ, and no Known limit covers it.",
+      "fix": "Return refineHunks(oldText, newText, [trimmed], meter) at line 487 so a short change gets the slide. Tried on a scratch copy: the typed cases above give 'Bid' and 'engineer', and 147 of 148 in-scope tests pass. The one failure is the plan-pinned spent: 0 at reconcile.textRanges.test.ts:1135, which becomes spent: 1, so the person must agree to that change or the slide must go uncharged for this path. Add an editor test that types the word one character at a time."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 7,
+      "issue": "FR-3. WORD_CHARACTER leaves out \\p{M}, so a position between a letter and its combining mark counts as a word edge and getSlide returns 0 at its first check. In scripts where a mark usually follows the first letter, the word-edge fix does nothing: 'foo मैं' to 'foo मेरा मैं' styles 'मेरा मैं', and 'foo กิน' to 'foo ก่อน กิน' styles 'ก่อน กิน', the same widening as 'foo Bid' on a multi-character insertion. alignToken has the same gap: 'क' to '- काम क -' keeps the range on the 'क' inside 'काम', because the mark reads as a word edge. Rated minor because it needs a shared first letter next to a styled word in those scripts, and today only pastes reach it. Once the previous finding is fixed it reaches typing too. The plan states the astral-letter gap ('foo 𝐁id' also widens) but does not mention marks.",
+      "fix": "Use /[\\p{L}\\p{N}\\p{M}]/u. Tried on a scratch copy together with the two fixes above: no in-scope test changes because of it. Add one Devanagari case to the 'addition beside a word' list."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textDiff.ts",
+      "line": 306,
+      "issue": "FR-3. alignToken covers one shape only, while the plan's reason for it, 'characters that are all still there', covers more. The gate at lines 306 to 308 needs an old side of 1 or 2 characters against a longer new side, and line 407 skips it for any hunk alignLines has split. So 'OK' to 'Not OK at all' keeps the range, but the mirror 'Not OK at all' to 'OK' collapses it, as does 'release v2 now' to 'v2'. In a multi-line hunk, 'OK\\nv2' to 'Not OK now\\nrelease v2 here' collapses both words, because the line pairs are not offered to alignToken. A single textarea edit rarely removes text from both sides of a token, so the mirror mostly comes from a race, a paste over the whole text, or native undo. The code matches the plan's rule; this is a gap between that rule and FR-3.",
+      "fix": "Either state it as a Known limit, or try the token step on each hunk alignLines returns and add the mirror case (a 1 or 2 character new side inside a longer old side, giving two deletions)."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+      "line": 1175,
+      "issue": "Coverage. Of 24 mutants of the final pass, 15 survive all 148 in-scope tests. Five of those survivors change output on fuzzed input and no test sees it: the word-edge guards in alignToken (new side and old side, lines 309 to 310 and 321 to 322), the whitespace guard (line 315), the filter that drops empty hunks (line 419), and the start trim of a line pair (line 289). The two meter guards at lines 401 and 427 also survive, so 'past the budget neither loop does anything' is unpinned, and the bound in 'Diff budget per merge' rests on those two reads. Plan line 54 discloses only the slide charge at line 432, which I confirmed survives. The other seven survivors (the getSlide lower and upper bounds, the two getSlide surrogate guards, the alignToken surrogate guard, and the alignToken length-cap and longer-new-side checks) made no difference in 287,307 fuzzed cases, so they look unreachable on these inputs and are not gaps I can show. The 'keeps' helper at line 1091 compares text and not offsets, so it would not notice a range landing on another copy of the same word.",
+      "fix": "Add exact cases, each confirmed to separate its mutant: mapTextSpan('OK', 'BOOK OK then', 0, 2) is { start: 5, end: 7 }; diffText('abcdXYefgh', 'abcdpp XY qqefgh') is one hunk { 4, 6, 4, 12 }; diffText('foo bar', 'foo- -bar') is one hunk { 3, 4, 3, 6 }. Add a meter case that runs out before the pass and asserts the hunk is not split."
+    }
+  ],
+  "refinement_packets": []
+}

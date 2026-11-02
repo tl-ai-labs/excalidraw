@@ -27,6 +27,7 @@ import {
   getElementBounds,
   getLineHeightInPx,
   getStickyNoteLayout,
+  getTextRangesUpdate,
   hitElementItself,
   isArrowElement,
   isFrameLikeElement,
@@ -222,6 +223,7 @@ export class AppText {
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              ...getTextRangesUpdate(_element, nextOriginalText),
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions

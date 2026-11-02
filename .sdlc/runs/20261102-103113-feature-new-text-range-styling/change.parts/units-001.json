@@ -16,10 +16,16 @@
           "returns": "Readonly<{ version: number; versionNonce: number; text: string; start: number; end: number }>"
         },
         {
+          "name": "ExcalidrawTextRangeSharedOrigin",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ version: number; versionNonce: number; textFrom: string; start: number; end: number }>"
+        },
+        {
           "name": "ExcalidrawTextRange",
           "kind": "type",
           "params": [],
-          "returns": "Readonly<{ id: string; start: number; end: number; z: number; color?: string | null; highlight?: string | null; retired?: true; origin?: ExcalidrawTextRangeOrigin }>"
+          "returns": "Readonly<{ id: string; start: number; end: number; z: number; color?: string | null; highlight?: string | null; retired?: true; origin?: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin }>"
         },
         {
           "name": "ExcalidrawTextRanges",
@@ -31,25 +37,26 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 253,
-          "to": 253,
-          "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
-          "rule": "Declare the three exported types, each with a short JSDoc block: ExcalidrawTextRangeOrigin (where a carried range's offsets came from: the version it was last placed in, and that version's text), ExcalidrawTextRange (one styled layer; id, z, color and highlight never change after creation; offsets are half-open code-unit offsets into originalText; null clears an attribute and absent leaves it alone; retired is a sticky tombstone), ExcalidrawTextRanges (textHash is hashString(originalText), and ranges are sorted by z then id)."
+          "at": "insert_after",
+          "from": 263,
+          "to": 263,
+          "first_line": "}>;",
+          "rule": "This line closes ExcalidrawTextRangeOrigin. After it add a blank line, then a JSDoc block of exactly these three lines of text: An origin whose text is the same as another record's. textFrom is the id of / the record in the same container that holds it, so a merge stores each / distinct text once however many records carry it. Then export type ExcalidrawTextRangeSharedOrigin = Readonly<{ version: number; versionNonce: number; textFrom: string; start: number; end: number; }>; with one field per line. Leave the blank line and the JSDoc block of ExcalidrawTextRange that follow as they are."
         },
         {
           "id": "S2",
-          "at": "insert_after",
-          "from": 290,
-          "to": 290,
-          "first_line": "labelPosition?: number | null;",
-          "rule": "Add `textRanges?: ExcalidrawTextRanges;` with a JSDoc block saying it is absent on an element that has never had ranges, and that a text change must remap it (getTextRangesUpdate)."
+          "at": "replace",
+          "from": 278,
+          "to": 278,
+          "first_line": "origin?: ExcalidrawTextRangeOrigin;",
+          "rule": "Replace with origin?: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin; on one line with the same two-space indent."
         }
       ],
       "depends_on": [],
       "covers": [
         "FR-1",
-        "FR-2"
+        "FR-2",
+        "NFR-2"
       ],
       "checks": [
         "lint"
@@ -58,22 +65,74 @@
     {
       "id": "U02",
       "path": "packages/element/src/textDiff.ts",
-      "action": "create",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 408,
+          "to": 408,
+          "first_line": "aligned.push(...lines);",
+          "rule": "Replace this one line with a three-line loop at the same indent: for (const line of lines) { aligned.push(line); }. Leave aligned.push(...token) at line 413 as it is."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 487,
+          "to": 487,
+          "first_line": "return [trimmed];",
+          "rule": "This is the return of the first if, the change under MIN_MATCH_LENGTH characters. Replace it with return refineHunks(oldText, newText, [trimmed], meter);. Leave the return [trimmed]; at line 493 as it is."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 599,
+          "to": 625,
+          "first_line": "const mapStart = (hunks: readonly TextHunk[], p: number): number => {",
+          "last_line": "};",
+          "rule": "Replace mapStart and mapEnd with the four consts of rules mapping 1 to mapping 3, in this order: findHunkEndingAtOrAfter, getDeltaBefore, mapStart, mapEnd, separated by one blank line. mapSpanThroughHunks after them stays as it is."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "Pure diff between two strings as hunks, and mapping of a range's start and end through those hunks.",
       "rules": [
-        "Exact constants: MIN_MATCH_LENGTH = 3, MAX_DIFF_CELLS = 1_000_000. No clock, no randomness, no module state.",
-        "diffText step 1: if oldText === newText return [].",
-        "diffText step 2: prefix = length of the common leading code units. If prefix > 0 and oldText.charCodeAt(prefix - 1) is a high surrogate (0xD800 to 0xDBFF), subtract 1.",
-        "diffText step 3: suffix = length of the common trailing code units, never more than Math.min(oldText.length, newText.length) - prefix. If suffix > 0 and oldText.charCodeAt(oldText.length - suffix) is a low surrogate (0xDC00 to 0xDFFF), subtract 1.",
-        "diffText step 4: a = oldText.slice(prefix, oldText.length - suffix), b = newText.slice(prefix, newText.length - suffix), n = a.length, m = b.length. If n === 0, or m === 0, or n * m > MAX_DIFF_CELLS, return one hunk { oldStart: prefix, oldEnd: prefix + n, newStart: prefix, newEnd: prefix + m }.",
-        "diffText step 5: fill a Uint16Array of (n + 1) * (m + 1) cells where cell (i, j) is the longest common subsequence length of a.slice(i) and b.slice(j), computed from i = n - 1 and j = m - 1 downwards: if a[i] === b[j] then cell(i, j) = 1 + cell(i + 1, j + 1), else Math.max(cell(i + 1, j), cell(i, j + 1)).",
-        "diffText step 6: walk i = 0, j = 0 while i < n and j < m. If a[i] === b[j], record the pair (i, j) and advance both. Otherwise, if cell(i + 1, j) >= cell(i, j + 1) advance i, else advance j.",
-        "diffText step 7: group pairs into blocks: a block is a maximal run where i and j both rise by 1. Drop every block shorter than MIN_MATCH_LENGTH.",
-        "diffText step 8: walk kept blocks with cursors ai = 0, bi = 0. Before each block, if ai < block's i start or bi < block's j start, push a hunk spanning the gap with prefix added to all four numbers, then move ai and bi past the block. After the last block, if ai < n or bi < m push the final hunk. With no kept blocks this is one hunk for the whole middle. Hunks are ascending and never touch.",
+        "Exact constants at the top: const MIN_MATCH_LENGTH = 3; const MAX_MATCH_CANDIDATES = 16; const GRAM_INDEX_WORK = 4; const MIN_GRAM_TABLE_SIZE = 256; export const MAX_DIFF_WORK = 2_000_000; const WORD_CHARACTER = /[\\p{L}\\p{N}]/u;. MAX_DIFF_CELLS is gone. No clock, no randomness, no module state: a result depends only on the arguments, and meter is the only argument a function changes.",
+        "Types after TextHunk, which stays as it is and also describes a gap: export type DiffMeter = { left: number }; type TextBlock = { oldStart: number; newStart: number; length: number }; type GramIndex = { mask: number; starts: Int32Array; positions: Int32Array };",
+        "isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff. isLowSurrogate = (code: number) => code >= 0xdc00 && code <= 0xdfff. Neither is exported.",
+        "getGramHash = (text: string, at: number, mask: number) => exactly (Math.imul((text.charCodeAt(at) << 11) ^ (text.charCodeAt(at + 1) << 5) ^ text.charCodeAt(at + 2), 0x9e3779b1) >>> 12) & mask.",
+        "buildGramIndex(text: string): GramIndex step 1: const count = text.length - MIN_MATCH_LENGTH + 1; let size = MIN_GRAM_TABLE_SIZE; while (size < count * 2) size *= 2; const mask = size - 1.",
+        "buildGramIndex step 2: const starts = new Int32Array(size + 1). For at from 0 to count - 1: starts[getGramHash(text, at, mask) + 1]++. Then for slot from 0 to size - 1: starts[slot + 1] += starts[slot].",
+        "buildGramIndex step 3: const positions = new Int32Array(count); const filled = starts.slice(0, size). For at from 0 to count - 1 in ascending order: positions[filled[getGramHash(text, at, mask)]++] = at. Return { mask, starts, positions }. One slot's positions are the entries from index starts[slot] up to but not including index starts[slot + 1], ascending. A slot can hold different grams; getLongerBlock compares real characters, so a collision only wastes one try.",
+        "getFirstAtOrAfter(positions: Int32Array, from: number, to: number, value: number): let low = from; let high = to; while (low < high) { const middle = (low + high) >>> 1; if positions[middle] < value then low = middle + 1, else high = middle }. Return low.",
+        "getLongerBlock(oldText: string, newText: string, gap: TextHunk, oldAt: number, newAt: number, best: TextBlock | null, meter: DiffMeter): TextBlock | null, step 1, backward: let back = 0; while oldAt - back > gap.oldStart and newAt - back > gap.newStart and oldText.charCodeAt(oldAt - back - 1) === newText.charCodeAt(newAt - back - 1), back++. Then meter.left -= back + 1.",
+        "getLongerBlock step 2: let oldStart = oldAt - back; let newStart = newAt - back; const bestLength = best ? best.length : MIN_MATCH_LENGTH - 1. Return best at once if oldStart + bestLength >= gap.oldEnd, or newStart + bestLength >= gap.newEnd, or oldText.charCodeAt(oldStart + bestLength) !== newText.charCodeAt(newStart + bestLength): a longer run must match at that offset, so this needs no scan.",
+        "getLongerBlock step 3, forward: let length = back; while oldStart + length < gap.oldEnd and newStart + length < gap.newEnd and oldText.charCodeAt(oldStart + length) === newText.charCodeAt(newStart + length), length++. Then meter.left -= length. Start from back and not from back + MIN_MATCH_LENGTH, because a slot can hold another gram.",
+        "getLongerBlock step 4, surrogates: if isLowSurrogate(oldText.charCodeAt(oldStart)) then oldStart++, newStart++ and length--. Then if length > 0 and isHighSurrogate(oldText.charCodeAt(oldStart + length - 1)) then length--. Return length > bestLength ? { oldStart, newStart, length } : best.",
+        "searchAt(oldText: string, newText: string, gap: TextHunk, index: GramIndex, newAt: number, found: TextBlock | null, meter: DiffMeter): TextBlock | null, step 1: meter.left -= 1; const { mask, starts, positions } = index; const slot = getGramHash(newText, newAt, mask); const first = starts[slot]; const end = starts[slot + 1]. If first === end return found.",
+        "searchAt step 2: const target = gap.oldStart + Math.floor(((newAt - gap.newStart) * (gap.oldEnd - gap.oldStart)) / (gap.newEnd - gap.newStart)), the old position on the gap's own diagonal. let right = getFirstAtOrAfter(positions, first, end, target); let left = right - 1; let best = found.",
+        "searchAt step 3: for (let tries = 0; tries < MAX_MATCH_CANDIDATES && meter.left > 0; tries++): const hasRight = right < end && positions[right] + MIN_MATCH_LENGTH <= gap.oldEnd; const hasLeft = left >= first && positions[left] >= gap.oldStart. If neither, break. const takeRight = hasRight && (!hasLeft || positions[right] - target <= target - positions[left]); const oldAt = takeRight ? positions[right++] : positions[left--]; best = getLongerBlock(oldText, newText, gap, oldAt, newAt, best, meter). After the loop return best.",
+        "getStride = (best: TextBlock | null) => (best ? best.length - 1 : 1). A run longer than best has a whole gram at each of best.length - 1 consecutive positions, so this step cannot skip it.",
+        "findLongestBlock(oldText: string, newText: string, gap: TextHunk, index: GramIndex, seed: TextBlock | null, meter: DiffMeter): TextBlock | null: let best = seed; const lastAt = gap.newEnd - MIN_MATCH_LENGTH; let right = Math.min(lastAt, (gap.newStart + gap.newEnd) >>> 1); let left = right - 1. while ((right <= lastAt || left >= gap.newStart) && meter.left > 0): if right <= lastAt then best = searchAt(oldText, newText, gap, index, right, best, meter) and right += getStride(best); if left >= gap.newStart then best = searchAt(oldText, newText, gap, index, left, best, meter) and left -= getStride(best). Return best. Moving outward from the middle is what makes a tie nearest the middle win, so a repetitive note splits in half each time.",
+        "trimHunk(oldText: string, newText: string, hunk: TextHunk, atStart: boolean, atEnd: boolean): TextHunk: let { oldStart, oldEnd, newStart, newEnd } = hunk. If atStart: while oldStart < oldEnd and newStart < newEnd and oldText[oldStart] === newText[newStart], oldStart++ and newStart++; then if oldStart > hunk.oldStart and isHighSurrogate(oldText.charCodeAt(oldStart - 1)), oldStart-- and newStart--. If atEnd: while oldStart < oldEnd and newStart < newEnd and oldText[oldEnd - 1] === newText[newEnd - 1], oldEnd-- and newEnd--; then if oldEnd < hunk.oldEnd and isLowSurrogate(oldText.charCodeAt(oldEnd)), oldEnd++ and newEnd++. Return { oldStart, oldEnd, newStart, newEnd }.",
+        "isInsideWord = (text: string, at: number): boolean => at > 0 && at < text.length && WORD_CHARACTER.test(text[at - 1]) && WORD_CHARACTER.test(text[at]). splitsSurrogatePair = (text: string, at: number): boolean => at > 0 && at < text.length && isHighSurrogate(text.charCodeAt(at - 1)) && isLowSurrogate(text.charCodeAt(at)). Neither is exported.",
+        "alignLines(oldText: string, newText: string, hunk: TextHunk): TextHunk[] | null: oldLines = oldText.slice(hunk.oldStart, hunk.oldEnd).split(\"\\n\"), newLines the same for the new side. Return null if oldLines.length < 2 or oldLines.length !== newLines.length. Otherwise walk the line pairs from hunk.oldStart and hunk.newStart. Each pair gives trimHunk(oldText, newText, { oldStart: oldAt, oldEnd, newStart: newAt, newEnd }, true, true), where oldEnd = oldAt + oldLines[i].length and newEnd = newAt + newLines[i].length, and then oldAt = oldEnd + 1 and newAt = newEnd + 1.",
+        "alignToken(oldText: string, newText: string, hunk: TextHunk): TextHunk[] | null: length = hunk.oldEnd - hunk.oldStart. Return null if length < 1, or length >= MIN_MATCH_LENGTH, or hunk.newEnd - hunk.newStart <= length, or isInsideWord(oldText, hunk.oldStart), or isInsideWord(oldText, hunk.oldEnd), or token = oldText.slice(hunk.oldStart, hunk.oldEnd) has token.trim() === \"\". For at from hunk.newStart while at + length <= hunk.newEnd: at the first at where newText.startsWith(token, at), neither at nor at + length is inside a word of newText, and neither splits a surrogate pair of newText, return the two insertions { oldStart: hunk.oldStart, oldEnd: hunk.oldStart, newStart: hunk.newStart, newEnd: at } and { oldStart: hunk.oldEnd, oldEnd: hunk.oldEnd, newStart: at + length, newEnd: hunk.newEnd }. Return null if there is none.",
+        "getSlide(changed: string, other: string, start: number, end: number, at: number, lower: number, upper: number): number: return 0 if !isInsideWord(other, at). let canLeft = true; let canRight = true. For step from 1 to end - start: canLeft = canLeft && start - step >= lower && changed[start - step] === changed[end - step]; if canLeft, at - step is not inside a word of other, and neither start - step nor end - step splits a surrogate pair of changed, return -step. canRight = canRight && end + step <= upper && changed[start + step - 1] === changed[end + step - 1]; if canRight, at + step is not inside a word of other, and neither start + step nor end + step splits a surrogate pair of changed, return step. Break when neither can move. Return 0. Left comes before right at each step, so a tie has one answer.",
+        "refineHunks(oldText: string, newText: string, hunks: readonly TextHunk[], meter: DiffMeter): TextHunk[], first loop: const aligned: TextHunk[] = []. For each hunk, with oldLength and newLength its two sides: if meter.left <= 0 or oldLength === 0 or newLength === 0, push the hunk and continue. meter.left -= oldLength + newLength. lines = alignLines(oldText, newText, hunk); if not null, push its hunks one at a time with for (const line of lines) { aligned.push(line); } and continue. Never spread them into one call: a hunk can hold 150,000 lines. token = alignToken(oldText, newText, hunk); if not null, aligned.push(...token) and continue. Push the hunk.",
+        "refineHunks second loop: parts = aligned with hunks empty on both sides filtered out. For each index i, with hunk = parts[i], isInsertion = hunk.oldStart === hunk.oldEnd and isDeletion = hunk.newStart === hunk.newEnd: skip it if meter.left <= 0 or it is neither. previous = parts[i - 1], next = parts[i + 1]. meter.left -= hunk.oldEnd - hunk.oldStart + (hunk.newEnd - hunk.newStart). slide = for an insertion getSlide(newText, oldText, hunk.newStart, hunk.newEnd, hunk.oldStart, previous ? previous.newEnd : 0, next ? next.newStart : newText.length), and for a deletion getSlide(oldText, newText, hunk.oldStart, hunk.oldEnd, hunk.newStart, previous ? previous.oldEnd : 0, next ? next.oldStart : oldText.length). If slide !== 0, parts[i] is the hunk with all four offsets moved by slide. Return parts.",
+        "diffText is export const diffText = (oldText: string, newText: string, meter: DiffMeter = { left: MAX_DIFF_WORK }): TextHunk[]. Step 1: if oldText === newText return [].",
+        "diffText step 2: const whole: TextHunk = { oldStart: 0, oldEnd: oldText.length, newStart: 0, newEnd: newText.length }; const trimmed = trimHunk(oldText, newText, whole, true, true); const indexWork = oldText.length * GRAM_INDEX_WORK + newText.length.",
+        "diffText step 3, in this order: return refineHunks(oldText, newText, [trimmed], meter) if trimmed.oldEnd - trimmed.oldStart + (trimmed.newEnd - trimmed.newStart) < MIN_MATCH_LENGTH (typing a character), so a keystroke gets the final pass and its slide. If oldText.length < MIN_MATCH_LENGTH or newText.length < MIN_MATCH_LENGTH, return refineHunks(oldText, newText, [trimmed], meter). Return [trimmed], charging nothing, if indexWork > meter.left (an empty meter included).",
+        "diffText step 4: meter.left -= indexWork; const index = buildGramIndex(oldText); const prefix = trimmed.oldStart; const suffix = oldText.length - trimmed.oldEnd; let seed: TextBlock | null = null. If prefix >= MIN_MATCH_LENGTH && prefix >= suffix then seed = { oldStart: 0, newStart: 0, length: prefix }; else if suffix >= MIN_MATCH_LENGTH then seed = { oldStart: trimmed.oldEnd, newStart: trimmed.newEnd, length: suffix }.",
+        "diffText step 5: const blocks: TextBlock[] = []; const queue: TextHunk[] = [whole]. for (let head = 0; head < queue.length && meter.left > 0; head++): const gap = queue[head]; const block = findLongestBlock(oldText, newText, gap, index, head === 0 ? seed : null, meter); if (!block) continue; blocks.push(block). The queue is read by index and never shifted, so gaps run breadth-first and there is no recursion.",
+        "diffText step 6, still in that loop, left gap before right gap: if block.oldStart - gap.oldStart >= MIN_MATCH_LENGTH && block.newStart - gap.newStart >= MIN_MATCH_LENGTH, queue.push({ oldStart: gap.oldStart, oldEnd: block.oldStart, newStart: gap.newStart, newEnd: block.newStart }). const oldAfter = block.oldStart + block.length; const newAfter = block.newStart + block.length. If gap.oldEnd - oldAfter >= MIN_MATCH_LENGTH && gap.newEnd - newAfter >= MIN_MATCH_LENGTH, queue.push({ oldStart: oldAfter, oldEnd: gap.oldEnd, newStart: newAfter, newEnd: gap.newEnd }).",
+        "diffText step 7: if blocks.length === 0 return refineHunks(oldText, newText, [trimmed], meter). blocks.sort((a, b) => a.oldStart - b.oldStart).",
+        "diffText step 8: const gaps: TextHunk[] = []; let oldAt = 0; let newAt = 0. For each block: gaps.push({ oldStart: oldAt, oldEnd: block.oldStart, newStart: newAt, newEnd: block.newStart }); oldAt = block.oldStart + block.length; newAt = block.newStart + block.length. After the last block: gaps.push({ oldStart: oldAt, oldEnd: oldText.length, newStart: newAt, newEnd: newText.length }).",
+        "diffText step 9: gaps[0] = trimHunk(oldText, newText, gaps[0], true, false); gaps[gaps.length - 1] = trimHunk(oldText, newText, gaps[gaps.length - 1], false, true). Return refineHunks(oldText, newText, gaps.filter((gap) => gap.oldStart < gap.oldEnd || gap.newStart < gap.newEnd), meter). Only those two gaps are trimmed, because a gap between two blocks has no common prefix or suffix left to give.",
         "mapSpanThroughHunks: nextStart = mapStart(start), nextEnd = mapEnd(end), and return { start: nextStart, end: Math.max(nextStart, nextEnd) }.",
-        "mapStart(p): delta = 0; for each hunk in order: if p < hunk.oldStart stop; if p <= hunk.oldEnd return hunk.newEnd; delta = hunk.newEnd - hunk.oldEnd. Return p + delta. So an insertion exactly at a range's start moves the start past the inserted text.",
-        "mapEnd(p): delta = 0; for each hunk in order: if p <= hunk.oldStart stop; if p <= hunk.oldEnd return hunk.newStart; delta = hunk.newEnd - hunk.oldEnd. Return p + delta. So an insertion exactly at a range's end leaves the end where it is.",
+        "Mapping 1. findHunkEndingAtOrAfter = (hunks: readonly TextHunk[], p: number): number, with the comment above it, on two lines: // Hunks are sorted, and a merge maps up to 1,024 records through one list, so finding the hunk a position falls in must not walk the list. Body, the same shape as getFirstAtOrAfter: let low = 0; let high = hunks.length; while (low < high) { const middle = (low + high) >>> 1; if hunks[middle].oldEnd < p then low = middle + 1, else high = middle }. Return low, which is hunks.length when every hunk ends before p. Hunks are sorted on oldEnd, and two hunks that touch share an oldEnd, so this takes the first of them, as a walk from the start does.",
+        "Mapping 2. getDeltaBefore = (hunks: readonly TextHunk[], at: number): number => at > 0 ? hunks[at - 1].newEnd - hunks[at - 1].oldEnd : 0.",
+        "Mapping 3. mapStart = (hunks: readonly TextHunk[], p: number): number: const at = findHunkEndingAtOrAfter(hunks, p); if (at < hunks.length && p >= hunks[at].oldStart) return hunks[at].newEnd; return p + getDeltaBefore(hunks, at). So an insertion exactly at a range's start moves the start past the inserted text. mapEnd = (hunks: readonly TextHunk[], p: number): number: const at = findHunkEndingAtOrAfter(hunks, p); if (at < hunks.length && p > hunks[at].oldStart) return hunks[at].newStart; return p + getDeltaBefore(hunks, at). So an insertion exactly at a range's end leaves the end where it is. The two differ only in >= against > and in newEnd against newStart. The output is the same as walking the hunks from the first: a walk passes every hunk that ends before p, and stops at the first hunk that does not.",
         "mapTextSpan: mapSpanThroughHunks(diffText(oldText, newText), start, end)."
       ],
       "exports": [
@@ -82,6 +141,18 @@
           "kind": "type",
           "params": [],
           "returns": "{ oldStart: number; oldEnd: number; newStart: number; newEnd: number }"
+        },
+        {
+          "name": "DiffMeter",
+          "kind": "type",
+          "params": [],
+          "returns": "{ left: number }"
+        },
+        {
+          "name": "MAX_DIFF_WORK",
+          "kind": "const",
+          "params": [],
+          "returns": "2_000_000"
         },
         {
           "name": "diffText",
@@ -94,6 +165,10 @@
             {
               "name": "newText",
               "type": "string"
+            },
+            {
+              "name": "meter",
+              "type": "DiffMeter = { left: MAX_DIFF_WORK }"
             }
           ],
           "returns": "TextHunk[]"
@@ -141,7 +216,7 @@
           "returns": "{ start: number; end: number }"
         }
       ],
-      "import_line": "import { diffText, mapSpanThroughHunks, mapTextSpan } from \"./textDiff\";",
+      "import_line": "import { MAX_DIFF_WORK, diffText, mapSpanThroughHunks, mapTextSpan } from \"./textDiff\";",
       "style_from": {
         "path": "packages/element/src/textMeasurements.ts",
         "lines": [
@@ -153,7 +228,8 @@
       "depends_on": [],
       "covers": [
         "FR-3",
-        "FR-19"
+        "FR-19",
+        "NFR-2"
       ],
       "checks": [
         "lint"
@@ -162,20 +238,75 @@
     {
       "id": "U03",
       "path": "packages/element/src/textRanges.ts",
-      "action": "create",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9,
+          "first_line": "ExcalidrawTextRange,",
+          "rule": "Add two lines to the type import, in this order: ExcalidrawTextRangeOrigin, and ExcalidrawTextRangeSharedOrigin, each indented two spaces with its trailing comma."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 94,
+          "to": 94,
+          "first_line": "export const areTextRangesEqual = (",
+          "rule": "Add isSameOriginText of the rule that names it, then one blank line."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 133,
+          "to": 133,
+          "first_line": "ra.origin.text !== rb.origin.text ||",
+          "rule": "Replace with !isSameOriginText(ra.origin, rb.origin) ||. The four lines around it stay."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 145,
+          "to": 145,
+          "first_line": "export const sanitizeTextRanges = (",
+          "rule": "Add getOriginTexts and dropUnresolvedOrigins of the rules that name them, in that order, each followed by one blank line."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 221,
+          "to": 241,
+          "first_line": "let keepOrigin = undefined;",
+          "last_line": "}",
+          "rule": "Replace the whole block with the code of sanitizeTextRanges step 4's origin rule. keepRetired above it and the blank line and sanitizedRanges.push below it stay."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 257,
+          "to": 257,
+          "first_line": "const canonical = canonicalizeTextRanges(sanitizedRanges);",
+          "rule": "Replace with const canonical = dropUnresolvedOrigins(canonicalizeTextRanges(sanitizedRanges)); wrapped as Prettier wraps it, the inner call on its own line."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "The range model: validation, resolving layers to disjoint style runs, local style and text operations.",
       "rules": [
-        "Imports: colorToHex, isTransparent, randomId from @excalidraw/common; hashString from \".\" (as textElement.ts imports from \".\"); diffText, mapSpanThroughHunks from ./textDiff; types from ./types. Exact constants: MAX_TEXT_RANGES = 1024 (exported), MAX_TEXT_RANGE_ID_LENGTH = 64, MAX_TEXT_RANGE_COLOR_LENGTH = 64.",
+        "Imports: colorToHex, isTransparent, randomId from @excalidraw/common; hashString from \".\" (as textElement.ts imports from \".\"); diffText, mapSpanThroughHunks from ./textDiff; types from ./types, which now include ExcalidrawTextRangeOrigin and ExcalidrawTextRangeSharedOrigin. Exact constants: MAX_TEXT_RANGES = 1024 (exported), MAX_TEXT_RANGE_ID_LENGTH = 64, MAX_TEXT_RANGE_COLOR_LENGTH = 64.",
         "isValidTextRangeColor: typeof value === \"string\", value.length <= 64, and colorToHex(value) !== null.",
         "canonicalizeTextRanges: return a new array sorted by z ascending, then id ascending, comparing ids with < and > (never localeCompare). If longer than MAX_TEXT_RANGES keep only the last MAX_TEXT_RANGES entries.",
         "Every record is written with keys in the order id, start, end, z, color, highlight, retired, origin, and with absent keys left out, not set to undefined.",
-        "areTextRangesEqual: both undefined is true, exactly one undefined is false, otherwise textHash equal, ranges lengths equal, and each index equal on id, start, end, z, color, highlight, retired and on every field of origin.",
+        "areTextRangesEqual: both undefined is true, exactly one undefined is false, otherwise textHash equal, ranges lengths equal, and each index equal on id, start, end, z, color, highlight, retired and on every field of origin, the text or textFrom through isSameOriginText.",
+        "isSameOriginText = (a: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin, b: ExcalidrawTextRangeOrigin | ExcalidrawTextRangeSharedOrigin): boolean => \"text\" in a ? \"text\" in b && a.text === b.text : \"textFrom\" in b && a.textFrom === b.textFrom. Not exported. So a held origin never equals a shared one.",
+        "getOriginTexts = (ranges: readonly ExcalidrawTextRange[]): Map<string, string>, exported: const texts = new Map<string, string>(); for each r of ranges, if (r.origin && \"text\" in r.origin) texts.set(r.id, r.origin.text). Return texts. A record with a textFrom is not in it, so a textFrom cannot point at another textFrom.",
+        "dropUnresolvedOrigins = (ranges: readonly ExcalidrawTextRange[]): ExcalidrawTextRange[], not exported, with this comment above it: // Runs after the cap, because the cap can drop a record another one refers to. Body: const texts = getOriginTexts(ranges); return ranges.map((r) => { if (!r.origin || \"text\" in r.origin) return r; const text = texts.get(r.origin.textFrom); return text !== undefined && r.origin.end <= text.length ? r : createTextRange({ ...r, origin: undefined }); }). A valid record comes back as the same object, so valid input stays the same container.",
         "sanitizeTextRanges step 1: return undefined unless raw is an object with an array `ranges`. Return undefined if raw.textHash !== hashString(originalText). Read only the first MAX_TEXT_RANGES * 16 entries of ranges. Never throw.",
         "sanitizeTextRanges step 2, per entry, dropping it if any check fails: it is a non-null object; id is a string of length 1 to 64 not already seen; start, end and z are integers (Number.isInteger); z >= 0; end >= start.",
         "sanitizeTextRanges step 3: keep color only if it is null or isValidTextRangeColor, the same for highlight. Drop the entry if neither key remains.",
-        "sanitizeTextRanges step 4: clamp start and end to 0..originalText.length. Keep retired only when it is exactly true. Keep origin only when it is an object whose version and versionNonce are integers, whose text is a string, and whose start and end are integers with 0 <= start <= end <= text.length; otherwise leave it out.",
-        "sanitizeTextRanges step 5: keep a collapsed entry (start === end), with or without retired and origin: it is the tombstone of deleted characters, and restoreElements runs on every remote element before reconcile, so dropping it here would let a merge re-add it. Then canonicalizeTextRanges. Return undefined if nothing remains. If the result equals raw (areTextRangesEqual) return raw itself, else return { textHash: raw.textHash, ranges }.",
+        "sanitizeTextRanges step 4: clamp start and end to 0..originalText.length. Keep retired only when it is exactly true.",
+        "sanitizeTextRanges step 4's origin rule, exact shape: const origin = item.origin as (ExcalidrawTextRangeOrigin & { textFrom?: unknown }) | undefined; let keepOrigin: ExcalidrawTextRange[\"origin\"] = undefined; then one if with these conditions joined by &&: origin, typeof origin === \"object\", Number.isInteger of origin.version, origin.versionNonce, origin.start and origin.end, 0 <= origin.start, origin.start <= origin.end. Inside it: const { version, versionNonce, text, textFrom, start, end } = origin; if (typeof text === \"string\") { if (end <= text.length) { keepOrigin = { version, versionNonce, text, start, end }; } } else if (typeof textFrom === \"string\") { keepOrigin = { version, versionNonce, textFrom, start, end }; }. Key order inside an origin is version, versionNonce, text or textFrom, start, end. Anything else leaves it out, and the record stays with no origin key.",
+        "sanitizeTextRanges step 5: keep a collapsed entry (start === end), with or without retired and origin: it is the tombstone of deleted characters, and restoreElements runs on every remote element before reconcile, so dropping it here would let a merge re-add it. Then const canonical = dropUnresolvedOrigins(canonicalizeTextRanges(sanitizedRanges)), in that order. Return undefined if nothing remains. If the result equals raw (areTextRangesEqual) return raw itself, else return { textHash: raw.textHash, ranges }.",
         "getTextStyleRuns step 1: textRanges = sanitizeTextRanges(element.textRanges, element.originalText); return [] if undefined. Use only records that are not retired and have start < end.",
         "getTextStyleRuns step 2: for each of the attributes color and highlight build a list of records with that key present, sorted by z descending, then null values before strings, then id descending.",
         "getTextStyleRuns step 3: bounds = sorted unique start and end values of the used records. For each consecutive pair [a, b) take, for each attribute, the first record in its list with start <= a and end >= b. Its value is the style, and no record or a null value means null.",
@@ -291,6 +422,17 @@
           "returns": "ExcalidrawTextRanges | undefined"
         },
         {
+          "name": "getOriginTexts",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly ExcalidrawTextRange[]"
+            }
+          ],
+          "returns": "Map<string, string>"
+        },
+        {
           "name": "shiftTextRanges",
           "kind": "function",
           "params": [
@@ -325,7 +467,7 @@
           "returns": "{ textRanges?: ExcalidrawTextRanges }"
         }
       ],
-      "import_line": "import { applyTextRangeStyle, areTextRangesEqual, canonicalizeTextRanges, getTextRangesUpdate, getTextStyleRuns, sanitizeTextRanges, shiftTextRanges, MAX_TEXT_RANGES } from \"./textRanges\";",
+      "import_line": "import { applyTextRangeStyle, areTextRangesEqual, canonicalizeTextRanges, getOriginTexts, getTextRangesUpdate, getTextStyleRuns, sanitizeTextRanges, shiftTextRanges, MAX_TEXT_RANGES } from \"./textRanges\";",
       "style_from": {
         "path": "packages/element/src/textMeasurements.ts",
         "lines": [
@@ -352,20 +494,98 @@
     {
       "id": "U04",
       "path": "packages/element/src/textRangeMerge.ts",
-      "action": "create",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 7,
+          "to": 7,
+          "first_line": "canonicalizeTextRanges,",
+          "rule": "Add getOriginTexts, as one line of the import from ./textRanges, indented two spaces."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 25,
+          "to": 38,
+          "first_line": "const getRegister = (",
+          "last_line": "};",
+          "rule": "Replace with getRegister of the rule that names it."
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 62,
+          "to": 62,
+          "first_line": "export function mergeTextRanges<T extends ExcalidrawElement>(",
+          "rule": "Add shareOriginTexts of the rule that names it, then one blank line."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 68,
+          "to": 68,
+          "first_line": "!isTextElement(other) ||",
+          "rule": "Add two lines at the same indent: typeof base.originalText !== \"string\" || and typeof other.originalText !== \"string\" ||."
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 83,
+          "to": 83,
+          "first_line": "const baseMap = new Map<string, ExcalidrawTextRange>();",
+          "rule": "Add const baseTexts = getOriginTexts(baseRanges); and const otherTexts = getOriginTexts(otherRanges);, then one blank line."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 120,
+          "to": 121,
+          "first_line": "getRegister(bRec, base),",
+          "last_line": "getRegister(oRec, other),",
+          "rule": "Replace with getRegister(bRec, base, baseTexts), and getRegister(oRec, other, otherTexts), one per line at the same indent."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 124,
+          "to": 124,
+          "first_line": "reg = getRegister(bRec, base);",
+          "rule": "Replace with reg = getRegister(bRec, base, baseTexts);."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 126,
+          "to": 126,
+          "first_line": "reg = getRegister(oRec!, other);",
+          "rule": "Replace with reg = getRegister(oRec!, other, otherTexts);."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 181,
+          "to": 181,
+          "first_line": "const ranges = canonicalizeTextRanges(mergedRecords);",
+          "rule": "Replace with const ranges = shareOriginTexts(canonicalizeTextRanges(mergedRecords));. The canonicalizeTextRanges(Array.from(recordsMap.values())) of applyTextRangesDelta stays as it is."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "The pure, symmetric merge of two versions' ranges, and how a history delta is applied to ranges.",
       "rules": [
-        "Imports: randomId from @excalidraw/common; hashString from \".\"; isTextElement from ./typeChecks; mapTextSpan from ./textDiff; areTextRangesEqual, canonicalizeTextRanges, sanitizeTextRanges, shiftTextRanges from ./textRanges.",
+        "Imports: randomId from @excalidraw/common; hashString from \".\"; isTextElement from ./typeChecks; MAX_DIFF_WORK, diffText, mapSpanThroughHunks from ./textDiff; types DiffMeter and TextHunk from ./textDiff; areTextRangesEqual, canonicalizeTextRanges, getOriginTexts, sanitizeTextRanges, shiftTextRanges from ./textRanges.",
+        "mergeTextRanges order and spend, unchanged in shape from Gate 3: after allIds, const survivors = canonicalizeTextRanges([...allIds].map((id) => (baseMap.get(id) ?? otherMap.get(id))!)).reverse(), and the loop is for (const { id } of survivors), so records the MAX_TEXT_RANGES cap drops are gone before any diff runs and the highest (z, id) is served first. One const meter: DiffMeter = { left: MAX_DIFF_WORK } and one hunksByText Map, both declared before the loop, serve every record of that call. This file holds no diff constant of its own.",
         "mergeTextRanges must read no clock, random source or module state and must never mutate its inputs. randomId is used only by applyTextRangesDelta.",
-        "mergeTextRanges step 1: return base if either element is not a text element, or if neither has textRanges. Elements with no ranges therefore reconcile as today, and the same object comes back (FR-20).",
+        "mergeTextRanges step 1: return base if either element is not a text element, if either's originalText is not a string, or if neither has textRanges, in that order. reconcileElements is public, so a host can reach this with no restore, and a non-string text must not reach diffText. Elements with no ranges therefore reconcile as today, and the same object comes back (FR-20).",
         "mergeTextRanges step 2: baseRanges = sanitizeTextRanges(base.textRanges, base.originalText)?.ranges ?? [], otherRanges = the same for other. Return base if otherRanges is empty.",
-        "getRegister(record, element) = record.origin ?? { version: element.version, versionNonce: element.versionNonce, text: element.originalText, start: record.start, end: record.end }.",
+        "getRegister = (record: ExcalidrawTextRange, element: ExcalidrawTextElement, originTexts: ReadonlyMap<string, string>): ExcalidrawTextRangeOrigin: const { origin } = record; if (!origin) return { version: element.version, versionNonce: element.versionNonce, text: element.originalText, start: record.start, end: record.end }; if (\"text\" in origin) return origin; const { version, versionNonce, textFrom, start, end } = origin; return { version, versionNonce, text: originTexts.get(textFrom)!, start, end }. The ! holds, because sanitizeTextRanges has already removed every textFrom with no holder. baseTexts = getOriginTexts(baseRanges) and otherTexts = getOriginTexts(otherRanges) are built after the early return of step 2; pass baseTexts with base and otherTexts with other.",
+        "shareOriginTexts = (ranges: readonly ExcalidrawTextRange[]): ExcalidrawTextRange[], not exported, with this comment above it, on two lines: // The highest record holding a text keeps it, so the 1,024 cap, which cuts from the lowest, never drops a text a kept record refers to. Body: const holders = new Map<string, string>(); const shared = [...ranges]; for (let i = shared.length - 1; i >= 0; i--) { const record = shared[i]; if (!record.origin || !(\"text\" in record.origin)) continue; const { version, versionNonce, text, start, end } = record.origin; const holder = holders.get(text); if (holder === undefined) { holders.set(text, record.id); } else { shared[i] = { ...record, origin: { version, versionNonce, textFrom: holder, start, end } }; } } return shared. ranges is sorted ascending, so the loop walks from the highest (z, id) down. It builds new objects and mutates no input record.",
         "pickNewerRegister(a, b): higher version wins; at equal version lower versionNonce wins; at equal nonce the smaller of (text, start, end) compared in that order wins, so a result is defined even for crafted input.",
         "mergeTextRanges step 3, for every id in the union with bRec and oRec being its records: id, z, color and highlight come from bRec ?? oRec. retired is true if either side is retired, otherwise the key stays absent.",
         "mergeTextRanges step 4, the position: if bRec exists and has no origin, use bRec.start and bRec.end with no origin. Otherwise register = pickNewerRegister over the registers of the records present, using base for bRec and other for oRec.",
-        "mergeTextRanges step 5: if register.version === base.version and register.versionNonce === base.versionNonce and register.text === base.originalText, use register.start and register.end with no origin. Otherwise use mapTextSpan(register.text, base.originalText, register.start, register.end) and set origin to register, whose fields are never changed.",
-        "mergeTextRanges step 6: keep collapsed records, never drop one here. ranges = canonicalizeTextRanges(records), next = { textHash: hashString(base.originalText), ranges }. If areTextRangesEqual(next, base.textRanges) return base. Otherwise return { ...base, textRanges: next }, built with a spread and not newElementWith, which would bump the version.",
+        "mergeTextRanges step 5: if register.version === base.version and register.versionNonce === base.versionNonce and register.text === base.originalText, use register.start and register.end with no origin. Otherwise read hunks = hunksByText.get(register.text); on a miss, hunks = diffText(register.text, base.originalText, meter) and hunksByText.set(register.text, hunks), so each distinct text is paid for once. Use mapSpanThroughHunks(hunks, register.start, register.end) and set origin to register, whose fields are never changed.",
+        "mergeTextRanges step 6: keep collapsed records, never drop one here. ranges = shareOriginTexts(canonicalizeTextRanges(records)), next = { textHash: hashString(base.originalText), ranges }. If areTextRangesEqual(next, base.textRanges) return base. Otherwise return { ...base, textRanges: next }, built with a spread and not newElementWith, which would bump the version.",
         "applyTextRangesDelta step 1: holdsText = typeof inserted.originalText === \"string\"; nextText = holdsText ? inserted.originalText : element.originalText; prior = sanitizeTextRanges(element.textRanges, element.originalText)?.ranges ?? [].",
         "applyTextRangesDelta step 2: if nextText !== element.originalText, shifted = shiftTextRanges(element.originalText, nextText, element.textRanges)?.ranges ?? []; otherwise shifted = prior. Put shifted into a Map by id.",
         "applyTextRangesDelta step 3: priorAlive = ids of deleted.textRanges?.ranges that are not retired, targetAlive = the same for inserted.textRanges?.ranges. Read these two arrays directly with Array.isArray, since a delta is local history data.",
@@ -425,6 +645,7 @@
         "FR-19",
         "FR-20",
         "FR-21",
+        "NFR-2",
         "NFR-3"
       ],
       "checks": [
@@ -434,7 +655,17 @@
     {
       "id": "U05",
       "path": "packages/element/src/textRangeLayout.ts",
-      "action": "create",
+      "action": "edit",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { hasRTLChars } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
+        }
+      ],
       "phase": "codegen",
       "behaviour": "Maps style runs onto rendered lines without measuring, and lays one line's runs out as positioned pieces for canvas and SVG.",
       "rules": [
@@ -571,19 +802,11 @@
       "sites": [
         {
           "id": "S1",
-          "at": "insert_before",
-          "from": 100,
-          "to": 100,
-          "first_line": "export * from \"./textElement\";",
-          "rule": "Add `export * from \"./textDiff\";`."
-        },
-        {
-          "id": "S2",
           "at": "insert_after",
-          "from": 101,
-          "to": 101,
-          "first_line": "export * from \"./textMeasurements\";",
-          "rule": "Add, in this order, `export * from \"./textRangeLayout\";`, `export * from \"./textRangeMerge\";`, `export * from \"./textRanges\";`."
+          "from": 1,
+          "to": 1,
+          "first_line": "import { toIterable } from \"@excalidraw/common\";",
+          "rule": "Complete: typed before Gate 4, and this file does not change this round. Its packet is not dispatched."
         }
       ],
       "depends_on": [
@@ -602,9 +825,13 @@
     }
   ],
   "hashes": {
-    "packages/element/src/types.ts": "ae55b7f4e5e62aa33c36ae54c26b34e7c5853c0a4bb9accbf384a635b4070ef4",
+    "packages/element/src/types.ts": "6224d6df49bf022250430cb4f7427c36986878a4e8229f2abf835721e3b351bc",
+    "packages/element/src/textDiff.ts": "ee90b0f74b9a1216e0723df4217f49435b7b7192b8e64cbaeabf8fd767223a80",
     "packages/element/src/textMeasurements.ts": "3c92e8570c05c77e0609a191552c3ea112e6fade38ea0a2e38c620b2acf5d774",
+    "packages/element/src/textRanges.ts": "53974f94c8d43ecdbf526e6b51e471ebd2c62efaea6a25a527b483a5481e088a",
+    "packages/element/src/textRangeMerge.ts": "c2f389dc4963eef38e3e3212051df8825135c55a8c65a5fcda3562a6a17dca2e",
+    "packages/element/src/textRangeLayout.ts": "2c2d8b2d1f1d1d06a481bb388deb5bb2737e9e34472c0601e996f8e5a343fe11",
     "packages/element/src/textWrapping.ts": "29b9203ed4547238e76cf8ff725dcc0a8724d3bffac8e2d8e0682bb4ce9c54c3",
-    "packages/element/src/index.ts": "c6b46d0a5bfb81315e64577e6d07f78540950dfae9a328de047a2369fb399939"
+    "packages/element/src/index.ts": "57664bad2fcf40016514970976f0b7e46d51196fb995a4b4e4335a113ac0e738"
   }
 }

@@ -1,0 +1,234 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/textDiff.ts",
+    "instruction": "Fix `packages/element/src/textDiff.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 272): A kept token with no 3-character anchor collapses, so ranges are still lost on Tab with no race. This is not in any Known limit. oldText under 3 characters returns the trimmed hunk (line 273), a gap whose old side is under 3 is never searched (lines 315-316, 329-330), and a text with no shared gram finds no block (line 341). Measured: Tab on all 500 one-character lines (999 characters): 499 of 500 collapse. Tab on a 200-line note where every third line is 'x': all 67 of those lines collapse, while the other 133 keep their place. mapTextSpan('1\\n2\\n3\\n4\\n5', indented text, 4, 5) gives {28, 28}. 'OK' to 'Not OK at all' and 'v2' to 'release v2 now' collapse too, which also hits a carried range in a merge. The edit is one keystroke, the characters are all still there, and a native range stays collapsed. Item 1 of the request names Tab and Shift+Tab on all lines, and FR-3 says ranges must survive. — fix: Add a second bounded pass for gaps with no block or an old side under MIN_MATCH_LENGTH: find the old token in the new gap nearest the diagonal, or align by whole lines first, charging the meter and staying deterministic. Add Tab and Shift+Tab tests on one-character lines and a test for 'OK' to 'Not OK at all'; the test 'drops matches shorter than three' pins the current floor and must be revisited with the plan.\n2. major (line 287): An addition beside a word can land inside it, and the range then widens over all the added text. The prefix or suffix seed keeps letters the addition shares with the word, and the last-gap trim (line 367) does the same, so the insertion sits strictly inside the range. Measured with mapTextSpan: 'foo Bid' to 'foo Before Bid' styles 'Before Bid'; T to 'Bid request timeout 1 second or 120ms' styles '1 second or 120ms' instead of '120ms'; in the 326-character prose, pasting 'daily ' before 'dashboard' styles 'daily dashboard' and 'escalation ' before 'engineer' styles 'escalation engineer'; 'Bid request' to 'Bid and kid request' styles 'Bid and kid'; 'the red car' with ' and bed' after 'red' styles 'red and bed'. change_plan.md line 40 names this as the third cause and treats it as fixed, but the code only fixes it when the suffix run beats the prefix run or the word is the whole text. The test 'a word added in front that starts with the same letter' (packages/element/tests/textRanges.test.ts:236) uses only the whole-text case, so it passes on this defect. This breaks the FR-3 boundary rule and the run's own bar that the styled text is the same word. — fix: After the gaps are built, slide each pure insertion or deletion within its repeat window and prefer a position on a whitespace or line boundary, deterministically, at a cost bounded by the hunk length and charged to the meter. Add tests with text before and after the word: the cases above on prose and on a long text. Keep 'abc' to 'abcabc' as it is.\n3. Implement exactly these rules; they were proven against the whole test suite. Add one new pass, refineHunks, to packages/element/src/textDiff.ts. Change nothing else in diffText except the three return points below. Keep the existing helpers, meter charges and exports as they are.\n\nNew module constant after the other constants: const WORD_CHARACTER = /[\\p{L}\\p{N}]/u;\n\nNew helpers placed just above `export const diffText`:\n\n1. isInsideWord(text: string, at: number): true when at > 0 and at < text.length and WORD_CHARACTER matches both text[at - 1] and text[at].\n\n2. splitsSurrogatePair(text: string, at: number): true when at > 0 and at < text.length and text.charCodeAt(at - 1) is a high surrogate and text.charCodeAt(at) is a low surrogate (use isHighSurrogate and isLowSurrogate).\n\n3. alignLines(oldText, newText, hunk): TextHunk[] | null. Split oldText.slice(hunk.oldStart, hunk.oldEnd) and newText.slice(hunk.newStart, hunk.newEnd) on \"\\n\". Return null if there are fewer than 2 old lines or the two line counts differ. Otherwise walk the lines with oldAt = hunk.oldStart and newAt = hunk.newStart. For line i, oldEnd = oldAt + old line length and newEnd = newAt + new line length; push trimHunk(oldText, newText, { oldStart: oldAt, oldEnd, newStart: newAt, newEnd }, true, true); then oldAt = oldEnd + 1 and newAt = newEnd + 1. Return the list. Each newline between lines is kept unchanged.\n\n4. alignToken(oldText, newText, hunk): TextHunk[] | null. length = hunk.oldEnd - hunk.oldStart. Return null if length < 1, or length >= MIN_MATCH_LENGTH, or hunk.newEnd - hunk.newStart <= length, or isInsideWord(oldText, hunk.oldStart), or isInsideWord(oldText, hunk.oldEnd). token = oldText.slice(hunk.oldStart, hunk.oldEnd). Return null if token.trim() === \"\". For at from hunk.newStart while at + length <= hunk.newEnd, ascending: if newText.startsWith(token, at) and not isInsideWord(newText, at) and not isInsideWord(newText, at + length) and not splitsSurrogatePair(newText, at) and not splitsSurrogatePair(newText, at + length), return the two hunks { oldStart: hunk.oldStart, oldEnd: hunk.oldStart, newStart: hunk.newStart, newEnd: at } and { oldStart: hunk.oldEnd, oldEnd: hunk.oldEnd, newStart: at + length, newEnd: hunk.newEnd }. Return null when the loop ends.\n\n5. getSlide(changed, other, start, end, at, lower, upper): number. changed is the text holding the hunk's span [start, end); other is the opposite text; at is the hunk's position in other; lower and upper bound the span. Return 0 if not isInsideWord(other, at). Let canLeft = true and canRight = true. For step from 1 to end - start inclusive:\n- canLeft = canLeft && start - step >= lower && changed[start - step] === changed[end - step]. If canLeft and not isInsideWord(other, at - step) and not splitsSurrogatePair(changed, start - step) and not splitsSurrogatePair(changed, end - step), return -step.\n- canRight = canRight && end + step <= upper && changed[start + step - 1] === changed[end + step - 1]. If canRight and not isInsideWord(other, at + step) and not splitsSurrogatePair(changed, start + step) and not splitsSurrogatePair(changed, end + step), return step.\n- If neither canLeft nor canRight, stop the loop.\nReturn 0 after the loop.\n\n6. refineHunks(oldText, newText, hunks: readonly TextHunk[], meter: DiffMeter): TextHunk[].\nFirst pass, aligned: TextHunk[] = []. For each hunk: oldLength and newLength are its side lengths. If meter.left <= 0 or oldLength === 0 or newLength === 0, push the hunk as it is and continue. Otherwise meter.left -= oldLength + newLength, then push alignLines(...) if it is not null, else alignToken(...) if it is not null, else the hunk.\nThen parts = aligned without hunks that are empty on both sides (keep a hunk when oldStart < oldEnd or newStart < newEnd).\nSecond pass, for i over parts: hunk = parts[i]; isInsertion = oldStart === oldEnd; isDeletion = newStart === newEnd. If meter.left <= 0 or neither is true, continue. previous = parts[i - 1], next = parts[i + 1]. meter.left -= (oldEnd - oldStart) + (newEnd - newStart). slide = for an insertion getSlide(newText, oldText, hunk.newStart, hunk.newEnd, hunk.oldStart, previous ? previous.newEnd : 0, next ? next.newStart : newText.length); for a deletion getSlide(oldText, newText, hunk.oldStart, hunk.oldEnd, hunk.newStart, previous ? previous.oldEnd : 0, next ? next.oldStart : oldText.length). parts[i] = the hunk with slide added to all four fields. Note parts[i - 1] is read after it may have slid. Return parts.\n\nThe three changes in diffText, and no others:\n(a) The early-return condition with four tests becomes three separate checks in this order. If trimmed.oldEnd - trimmed.oldStart + (trimmed.newEnd - trimmed.newStart) < MIN_MATCH_LENGTH, return [trimmed]. If oldText.length < MIN_MATCH_LENGTH or newText.length < MIN_MATCH_LENGTH, return refineHunks(oldText, newText, [trimmed], meter). If indexWork > meter.left, return [trimmed]. So a typed character keeps its fast path and spends nothing, and an empty meter still returns the trimmed hunk.\n(b) `if (blocks.length === 0) { return [trimmed]; }` now returns refineHunks(oldText, newText, [trimmed], meter).\n(c) The final return passes the existing filtered gaps through refineHunks(oldText, newText, <the filtered gaps>, meter).\n\nExpected on the finished code: mapTextSpan(\"foo Bid\", \"foo Before Bid\", 4, 7) is { start: 11, end: 14 }; mapTextSpan(\"OK\", \"Not OK at all\", 0, 2) is { start: 4, end: 6 }; \"1\\n2\\n3\\n4\\n5\" with every line indented by 4 spaces keeps \"3\" on its own character; diffText(\"abcdef\", \"axcyef\") stays [{ oldStart: 1, oldEnd: 4, newStart: 1, newEnd: 4 }]; diffText(\"abc\", \"abcabc\") stays one insertion at the end.\n\nRun constraint: work only from this branch's code and the brief. Do not look at the upstream excalidraw repo, its PRs or issues, upstream/master or master, and do not base anything on them. This binds every phase and every model, the Gemini worker included.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textDiff.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textDiff.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textDiff.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "instruction": "Fix `packages/element/src/renderElement.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 506): drawStyledTextLines sets context.direction per piece (line 521) but the branch for a line with no run does not reset it. On an element with mixed-direction text, an unstyled line after a styled line inherits the last piece's direction, so neutral characters at its edges can reorder. The plan's bidi Known limit says lines with no visible run take today's path. — fix: Pass the element's direction in and set context.direction to it in the no-layout branch. Add a draw-call test that records context.direction for an unstyled line after a line with an rtl piece.\n2. In drawStyledTextLines, in the `if (!layout)` branch of the second loop, add `context.direction = direction;` before `context.fillText(lines[index], horizontalOffset, y);`. The `direction` variable is already destructured from options. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 735): expect(diffText('ab', 'bb')).toBeDefined() cannot fail: diffText always returns an array, and nothing uses the result. — fix: Delete the line, or assert the exact hunk the test depends on.\n2. Add one new describe block, \"diffText alignment and meter\", to the end of this file. Change no existing test, except finding 8: delete the line `expect(diffText(\"ab\", \"bb\")).toBeDefined();` near line 735 (keep the rest of that test). This file's diffText import already goes through the mock wrapper and calls through to the real function. Import mapTextSpan from \"@excalidraw/element\" if it is not imported. Never loosen an expected value below: if one fails, the source is wrong, so report it by leaving the value as written.\n\nA helper spent(a, b): const meter = { left: 1000000 }; const hunks = diffText(a, b, meter); return { spent: 1000000 - meter.left, hunks }.\nA helper keeps(oldText, newText, word): s = oldText.indexOf(word); m = mapTextSpan(oldText, newText, s, s + word.length); return newText.slice(m.start, m.end).\nA helper tabbed(text): every line prefixed with 4 spaces, lines joined with \"\\n\".\n\nExact meter and hunk tests, one it each:\n- \"abcdefgh\" to \"stuvwxyz\": spent 62, hunks [{ oldStart: 0, oldEnd: 8, newStart: 0, newEnd: 8 }].\n- \"abcdefghij klm\" to \"abcdefghij nop\": spent 96, hunks [{ oldStart: 11, oldEnd: 14, newStart: 11, newEnd: 14 }].\n- \"qqq hello brave new world\" to \"rrr hello brave new world\": spent 153, hunks [{ oldStart: 0, oldEnd: 3, newStart: 0, newEnd: 3 }].\n- \"abcabcabc xyz\" to \"defdefdef uvw\": spent 106, hunks [{ oldStart: 0, oldEnd: 13, newStart: 0, newEnd: 13 }].\n- typed character, \"hello world\" to \"hello, world\": spent 0, hunks [{ oldStart: 5, oldEnd: 5, newStart: 5, newEnd: 6 }].\n- first-gap trim, \"x cdefg\" to \"xy cdefg\": hunks [{ oldStart: 1, oldEnd: 1, newStart: 1, newEnd: 2 }].\n- surrogate trim end, \"a😀b\" to \"a🨀b\": hunks [{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }].\n- block end on a shared high surrogate, \"Qabcde😀Z\" to \"Rabcde😁Y\": hunks [{ oldStart: 0, oldEnd: 1, newStart: 0, newEnd: 1 }, { oldStart: 6, oldEnd: 9, newStart: 6, newEnd: 9 }].\n\nAn addition beside a word, it.each, expect keeps(a, b, word) toBe(word):\n[\"foo Bid\", \"foo Before Bid\", \"Bid\"]; [\"Bid request timeout 120ms\", \"Bid request timeout 1 second or 120ms\", \"120ms\"]; [\"our dashboard shows\", \"our daily dashboard shows\", \"dashboard\"]; [\"the engineer said\", \"the escalation engineer said\", \"engineer\"]; [\"Bid request\", \"Bid and kid request\", \"Bid\"]; [\"the red car\", \"the red and bed car\", \"red\"]; [\"foo Before Bid\", \"foo Bid\", \"Bid\"].\n\nA kept token with no 3-character anchor, expect keeps(a, b, word) toBe(word): [\"OK\", \"Not OK at all\", \"OK\"]; [\"v2\", \"release v2 now\", \"v2\"]; [\"1\\n2\\n3\\n4\\n5\", tabbed of the same, \"3\"].\n\n\"1,000 identical lines keep their place on Tab\": a = 1,000 copies of \"the same line again\" joined by \"\\n\", b = tabbed(a). For i in [0, 1, 499, 500, 998, 999], with at = i * 20: mapTextSpan(a, b, at + 4, at + 8) is { start: at + 4 + (i + 1) * 4, end: at + 8 + (i + 1) * 4 }.\n\n\"a 200-line note keeps every one-character line\": lines i = 0 to 199 are \"x\" when i % 3 === 0, else `line number ${i} of the note`. a = joined, b = tabbed(a). For each \"x\" line at offset at: mapTextSpan(a, b, at, at + 1) is { start: at + (i + 1) * 4, end: at + 1 + (i + 1) * 4 }.\n\n\"records sharing one origin text are diffed once\": using the file's helpers for forged ranges, a base element with one native record, and another version with 5 carried records that all have the same 100-character origin text. Clear the mock, call mergeTextRanges(base, other) with base the winner, and expect diffText toHaveBeenCalledTimes(1).\n\nRun constraint: work only from this branch's code and the brief. Do not look at the upstream excalidraw repo, its PRs or issues, upstream/master or master, and do not base anything on them. This binds every phase and every model, the Gemini worker included.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add four tests through the real editor, following this file's existing Tab and Shift+Tab tests exactly, and change no existing test. Each sets a style on one character by setSelectionRange and the action, then selects all lines and presses Tab or Shift+Tab as those tests do, then asserts the true offset and that the styled text is the same character.\n1. Tab on all lines of a note of 500 one-character lines, letters from a to z repeating, joined by \"\\n\" (999 characters): colour the character of line 250. After Tab the run is on that line's character, at its offset plus (250 + 1) * 4.\n2. Shift+Tab on the same note with every line first indented by 4 spaces: colour line 250's letter. After Shift+Tab the run is on that letter, at its offset less (250 + 1) * 4.\n3. Tab on all lines of a 200-line note where line i is \"x\" when i % 3 === 0, else `line number ${i} of the note`: colour the \"x\" of line 99. After Tab the run is on that \"x\" at its offset plus (99 + 1) * 4.\n4. Tab on a note of the five lines 1, 2, 3, 4, 5: colour \"3\". After Tab the run is on \"3\" at offset 4 + 3 * 4.\nDo not loosen an assertion to pass.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/textRanges.export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add one test, change no existing test: 'an unstyled line after an rtl piece is drawn in the element direction'. Use a canvas export of an element with mixed text: first line Hebrew with a coloured range on it, second line plain English with no range, third line Hebrew plain, using the file's existing helpers and the same way its canvas tests export. Spy on fillText with `vi.spyOn(CanvasRenderingContext2D.prototype, \"fillText\")` and record `this.direction` per call through a mockImplementation that uses a `function` so `this` is the context. Assert that the fillText call whose text is the plain English line was made with the direction the element renders in (\"rtl\" when isRTL(element.text) is true for the text you chose), not a stale value from the previous line's piece: arrange the first line's last piece to be \"ltr\" by including a Latin word in it, so that a missing reset would show \"ltr\". Restore the spy at the end.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

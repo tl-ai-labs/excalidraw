@@ -3,6 +3,7 @@ import throttle from "lodash.throttle";
 import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
+  mergeTextRanges,
   orderByFractionalIndex,
   syncInvalidIndices,
   validateFractionalIndices,
@@ -90,10 +91,14 @@ export const reconcileElements = (
       );
 
       if (localElement && discardRemoteElement) {
-        reconciledElements.push(localElement);
+        reconciledElements.push(mergeTextRanges(localElement, remoteElement));
         added.add(localElement.id);
       } else {
-        reconciledElements.push(remoteElement);
+        reconciledElements.push(
+          localElement
+            ? mergeTextRanges(remoteElement, localElement)
+            : remoteElement,
+        );
         added.add(remoteElement.id);
       }
     }
