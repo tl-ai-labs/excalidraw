@@ -250,6 +250,20 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+/**
+ * Overrides text colour and/or adds a highlight behind a slice of
+ * `originalText`. `start` and `end` are UTF-16 code unit offsets, half-open
+ * [start, end). A range carries at least one colour. Ranges in an element are
+ * sorted, do not overlap and are merged when adjacent ranges share a style
+ * (see normalizeStyleRanges).
+ */
+export type TextStyleRange = Readonly<{
+  start: number;
+  end: number;
+  strokeColor?: string;
+  backgroundColor?: string;
+}>;
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -288,6 +302,12 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * so it survives midpoint insertion and other geometry changes.
      * */
     labelPosition?: number | null;
+    /**
+     * Colour and highlight runs that override the element's `strokeColor`
+     * (text colour) and add a highlight behind the text. Absent (never [])
+     * when the text has no runs. Replaced as a whole, never mutated in place.
+     */
+    styleRanges?: readonly TextStyleRange[];
   }>;
 
 export type ExcalidrawBindableElement =

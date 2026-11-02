@@ -8,6 +8,8 @@ import {
 
 import { pointFrom } from "@excalidraw/math";
 
+import { newElementWith } from "@excalidraw/element";
+
 import type {
   ExcalidrawTextElement,
   FractionalIndex,
@@ -329,6 +331,165 @@ describe("exportToSvg", () => {
     expect(Number(hole.getAttribute("height"))).toBe(
       label.height + BOUND_TEXT_PADDING * 2,
     );
+  });
+
+  describe("text style ranges export", () => {
+    const createFixture = () => {
+      const text = API.createElement({
+        type: "text",
+        text: "foo bar baz",
+        strokeColor: "#1e1e1e",
+        fontSize: 20,
+        textAlign: "left",
+      });
+      return newElementWith(text, {
+        styleRanges: [
+          { start: 0, end: 3, strokeColor: "#e03131" },
+          { start: 4, end: 7, backgroundColor: "#ffec99" },
+        ],
+      });
+    };
+
+    it("exports one tspan per run with its own fill", async () => {
+      const text = createFixture();
+      const svg = await exportScene({
+        type: "svg",
+        data: { elements: [text] },
+        config: { canvasBackgroundColor: false },
+      });
+
+      const textEls = svg.querySelectorAll("text");
+      expect(textEls).toHaveLength(1);
+      const textEl = textEls[0];
+      expect(textEl).toHaveAttribute("x");
+      expect(textEl).toHaveAttribute("y");
+      expect(textEl).toHaveAttribute("font-family");
+      expect(textEl).toHaveAttribute("font-size");
+      expect(textEl).toHaveAttribute("text-anchor");
+      expect(textEl).toHaveAttribute("direction");
+      expect(textEl).toHaveAttribute("dominant-baseline");
+
+      const tspans = Array.from(textEl.querySelectorAll("tspan"));
+      expect(tspans.map((t) => t.textContent)).toEqual([
+        "foo",
+        " ",
+        "bar",
+        " baz",
+      ]);
+      expect(tspans.map((t) => t.getAttribute("fill"))).toEqual([
+        "#e03131",
+        "#1e1e1e",
+        "#1e1e1e",
+        "#1e1e1e",
+      ]);
+    });
+
+    it("exports a highlight rect behind the background run", async () => {
+      const text = createFixture();
+      const svg = await exportScene({
+        type: "svg",
+        data: { elements: [text] },
+        config: { canvasBackgroundColor: false },
+      });
+
+      const rects = svg.querySelectorAll(`[data-id="${text.id}"] rect`);
+      expect(rects).toHaveLength(1);
+      const rect = rects[0];
+      expect(rect.getAttribute("fill")).toBe("#ffec99");
+      expect(Number(rect.getAttribute("x"))).toBe(40);
+      expect(Number(rect.getAttribute("y"))).toBe(0);
+      expect(Number(rect.getAttribute("width"))).toBe(30);
+      expect(Number(rect.getAttribute("height"))).toBe(
+        text.fontSize * text.lineHeight,
+      );
+    });
+
+    it("filters run colours in dark mode", async () => {
+      const text = createFixture();
+      const svg = await exportScene({
+        type: "svg",
+        data: { elements: [text] },
+        config: { canvasBackgroundColor: false, theme: THEME.DARK },
+      });
+
+      const tspans = Array.from(svg.querySelectorAll("tspan"));
+      expect(tspans[0].getAttribute("fill")).toBe(
+        applyDarkModeFilter("#e03131", true),
+      );
+      for (const tspan of tspans.slice(1)) {
+        expect(tspan.getAttribute("fill")).toBe(
+          applyDarkModeFilter("#1e1e1e", true),
+        );
+      }
+
+      const rect = svg.querySelector(`[data-id="${text.id}"] rect`);
+      expect(rect?.getAttribute("fill")).toBe(
+        applyDarkModeFilter("#ffec99", true),
+      );
+    });
+
+    it("exports a text without ranges with no tspan", async () => {
+      const text = API.createElement({
+        type: "text",
+        text: "foo bar baz",
+        strokeColor: "#1e1e1e",
+        fontSize: 20,
+        textAlign: "left",
+      });
+      const svg = await exportScene({
+        type: "svg",
+        data: { elements: [text] },
+        config: { canvasBackgroundColor: false },
+      });
+
+      expect(svg.querySelectorAll("tspan")).toHaveLength(0);
+      const textEl = svg.querySelector("text");
+      expect(textEl?.textContent).toBe("foo bar baz");
+    });
+
+    it("draws runs on canvas with their own fillStyle and a highlight", async () => {
+      const text = createFixture();
+      const canvas = await exportScene({
+        type: "canvas",
+        data: { elements: [text], files: null },
+      });
+
+      const events = (canvas.getContext("2d") as any).__getEvents();
+      const fillRectIdx = events.findIndex(
+        (e: any) => e.type === "fillRect" && e.props.width === 30,
+      );
+      expect(fillRectIdx).toBeGreaterThan(-1);
+      const lastFillStyleBeforeRect = events
+        .slice(0, fillRectIdx)
+        .filter((e: any) => e.type === "fillStyle")
+        .pop();
+      expect(lastFillStyleBeforeRect?.props.value).toBe("#ffec99");
+
+      const fillTextEvents = events.filter((e: any) => e.type === "fillText");
+      expect(fillTextEvents.map((e: any) => e.props.text)).toEqual([
+        "foo",
+        " ",
+        "bar",
+        " baz",
+      ]);
+
+      const fooIdx = events.findIndex(
+        (e: any) => e.type === "fillText" && e.props.text === "foo",
+      );
+      const barIdx = events.findIndex(
+        (e: any) => e.type === "fillText" && e.props.text === "bar",
+      );
+      const fillStyleBeforeFoo = events
+        .slice(0, fooIdx)
+        .filter((e: any) => e.type === "fillStyle")
+        .pop();
+      const fillStyleBeforeBar = events
+        .slice(0, barIdx)
+        .filter((e: any) => e.type === "fillStyle")
+        .pop();
+      expect(fillStyleBeforeFoo?.props.value).toBe("#e03131");
+      expect(fillStyleBeforeBar?.props.value).toBe("#1e1e1e");
+    });
   });
 });
 

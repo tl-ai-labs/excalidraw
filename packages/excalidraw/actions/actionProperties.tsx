@@ -173,6 +173,7 @@ import {
 import { getShortcutKey } from "../shortcut";
 
 import {
+  applyTextRangeColor,
   getColorTargetAppStateUpdates,
   resolveColorTarget,
 } from "./colorTargets";
@@ -369,12 +370,26 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    const rangeElements = applyTextRangeColor(
+      elements,
+      appState,
+      app,
+      "strokeColor",
+      color,
+    );
+    if (rangeElements) {
+      return {
+        elements: rangeElements,
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       };
     }
     // resolved from the state the action runs against — never from the
@@ -454,6 +469,20 @@ export const actionChangeBackgroundColor = register<
       return {
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    const rangeElements = applyTextRangeColor(
+      elements,
+      appState,
+      app,
+      "backgroundColor",
+      color,
+    );
+    if (rangeElements) {
+      return {
+        elements: rangeElements,
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       };
     }
     const target = resolveColorTarget(appState, elements, "backgroundColor");

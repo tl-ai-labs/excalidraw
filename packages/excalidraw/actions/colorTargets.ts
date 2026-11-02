@@ -10,18 +10,25 @@ import {
 } from "@excalidraw/common";
 
 import {
+  applyStyleToRange,
+  areStyleRangesEqual,
   getColorTargetElement,
   hasBackground,
   hasStrokeColor,
   isStickyNoteBoundText,
   isStickyNoteElement,
   isTextElement,
+  newElementWith,
   normalizeStickyNoteBackgroundColor,
   normalizeStickyNoteStrokeColor,
 } from "@excalidraw/element";
 
 import type { ColorPaletteCustom, ColorTuple } from "@excalidraw/common";
-import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ElementsMap,
+  ExcalidrawElement,
+  ExcalidrawTextElement,
+} from "@excalidraw/element/types";
 
 import { getSelectedElements } from "../scene";
 
@@ -189,4 +196,109 @@ export const getColorTargetAppStateUpdates = (
         : color;
   }
   return updates;
+};
+
+export type TextEditorSelection = {
+  start: number;
+  end: number;
+};
+
+const textEditorSelectionGetters = new WeakMap<
+  object,
+  () => TextEditorSelection | null
+>();
+
+/**
+ * Registers a getter for the current WYSIWYG text editor's selection range,
+ * returning a cleanup function to unregister it when the editor unmounts.
+ */
+export const registerTextEditorSelectionGetter = (
+  app: object,
+  getter: () => TextEditorSelection | null,
+): (() => void) => {
+  textEditorSelectionGetters.set(app, getter);
+  return () => {
+    if (textEditorSelectionGetters.get(app) === getter) {
+      textEditorSelectionGetters.delete(app);
+    }
+  };
+};
+
+/**
+ * Returns the normalized selection range ([start, end] with start <= end) from
+ * the active WYSIWYG text editor, or null if no editor is active on the app.
+ */
+export const getTextEditorSelection = (
+  app: object | null | undefined,
+): TextEditorSelection | null => {
+  if (!app) {
+    return null;
+  }
+  const getter = textEditorSelectionGetters.get(app);
+  const selection = getter ? getter() : null;
+  if (!selection) {
+    return null;
+  }
+  return {
+    start: Math.min(selection.start, selection.end),
+    end: Math.max(selection.start, selection.end),
+  };
+};
+
+/**
+ * Applies a stroke or background color pick to the active text selection run,
+ * returning the updated elements array, or null if the action should fall back
+ * to whole-element coloring.
+ */
+export const applyTextRangeColor = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+  appState: Pick<AppState, "editingTextElement">,
+  app: object | null | undefined,
+  property: ColorProperty,
+  color: string,
+): readonly T[] | null => {
+  if (!appState.editingTextElement) {
+    return null;
+  }
+  const selection = getTextEditorSelection(app);
+  if (!selection || selection.start >= selection.end) {
+    return null;
+  }
+
+  const target = elements.find(
+    (element): element is T & ExcalidrawTextElement =>
+      element.id === appState.editingTextElement?.id &&
+      !element.isDeleted &&
+      isTextElement(element),
+  );
+  if (!target) {
+    return null;
+  }
+
+  if (selection.start <= 0 && selection.end >= target.originalText.length) {
+    return null;
+  }
+
+  const nextRanges = applyStyleToRange(
+    target.styleRanges,
+    selection.start,
+    selection.end,
+    { [property]: color },
+    target.originalText.length,
+    target.strokeColor,
+  );
+
+  if (areStyleRangesEqual(target.styleRanges, nextRanges)) {
+    return elements;
+  }
+
+  return elements.map((element) =>
+    element.id === target.id
+      ? (newElementWith(
+          target as ExcalidrawTextElement,
+          { styleRanges: nextRanges },
+          true,
+        ) as unknown as T)
+      : element,
+  );
 };

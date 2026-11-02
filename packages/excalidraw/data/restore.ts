@@ -79,6 +79,7 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import { sanitizeStyleRanges } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -592,7 +593,15 @@ export const restoreElement = (
         baseFontSize: isFiniteNumber(element.baseFontSize)
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
+        // Rich-text style spans sanitised to fit within the text bounds.
+        styleRanges: sanitizeStyleRanges(
+          element.styleRanges,
+          (element.originalText || text).length,
+        ),
       });
+      if (element.styleRanges === undefined) {
+        delete (element as Mutable<ExcalidrawTextElement>).styleRanges;
+      }
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)
