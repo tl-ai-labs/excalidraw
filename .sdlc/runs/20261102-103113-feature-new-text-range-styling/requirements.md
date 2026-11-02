@@ -42,8 +42,9 @@ the mechanism is the change spec's to choose unless the brief or a Gate 0 answer
 - **FR-1 Range model.** A text element may hold styled ranges. Each range has a stable identity, a half-open character
   span, and a text colour and/or a highlight colour. Offsets address the element's source text, so that a re-wrap
   alone never changes them.
-- **FR-2 Absent by default.** An element with no ranges carries no new key, in memory or on save. A new text element,
-  and every legacy element, is byte-for-byte what it is today.
+- **FR-2 Absent by default.** An element that has never had ranges carries no new key, in memory or on save. A new text
+  element, and every legacy element, is byte-for-byte what it is today. An element whose ranges were all removed may
+  carry a marker, which is what FR-19 needs.
 - **FR-3 Text edits shift ranges.** Given the old text, the new text and the ranges, a pure function returns the ranges
   for the new text: insertion before a range shifts it, insertion inside extends it, deletion before shifts it,
   deletion inside shrinks it, and a range whose characters are all deleted is removed. Behaviour at a range's two
@@ -173,10 +174,9 @@ uses `yarn test:update`, which rewrites snapshots and would hide a regression.
 
 ## Open questions for HITL
 
-None that block the run. Two readings to confirm at this gate; the run proceeds on them unless you say otherwise:
+None. Both readings below were accepted by the person at Gate 1:
 
-1. **Recolouring with no selection (FR-13).** Picking a colour with the element selected, or in the editor with no
-   selection, changes the element's base colour and leaves ranges in their own colour. The other reading, that it also
-   clears ranges, would make an unstyled recolour destroy styling, which reads as not surviving.
-2. **Removing a colour (FR-14).** A user needs a way back to the element's own colour on a selection. The brief does not
-   name one. The change spec will choose the control, and it will be shown at Gate 2.
+1. **Recolouring with no selection (FR-13), accepted.** Picking a colour with the element selected, or in the editor with
+   no selection, changes the element's base colour and leaves ranges in their own colour.
+2. **Removing a colour (FR-14), accepted.** A user needs a way back to the element's own colour on a selection. The brief
+   does not name one. The change spec will choose the control, and it will be shown at Gate 2.

@@ -1,0 +1,199 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "TypeScript strict, ESM, Prettier via ESLint: 2 spaces, double quotes, trailing commas, 80 columns. `yarn test:code` runs with --max-warnings=0.",
+      "Type imports are separate `import type` statements (consistent-type-imports). Keep import/order: external and @excalidraw/* first, then parent, then sibling, then type imports.",
+      "Inside packages/element import siblings relatively (./textRanges). Inside packages/excalidraw import element code from \"@excalidraw/element\", types from \"@excalidraw/element/types\", and never through a packages/excalidraw barrel.",
+      "New DOM use goes through app.ownerDocument / app.ownerWindow, or the ownerDocument of a mounted node. Never use the global document in new code.",
+      "Prefer immutable data. Range arrays and range objects are never mutated in place: every change builds new objects (delta.ts compares entries by identity).",
+      "A style-only change goes through newElementWith or a spread, never through mutateElement: mutateElement keeps the same object, so elementWithCanvasCache would paint stale text.",
+      "New element fields get a JSDoc block in types.ts. Comments state why, not what, and stay short.",
+      "Tests run on Vitest with globals, jsdom and vitest-canvas-mock. Use API, UI, Keyboard, getTextEditor, updateTextEditor and act from the existing helpers. Assert with expect; no toMatchSnapshot and no new snapshot files anywhere.",
+      "In the test env getLineWidth returns text.length * 10, so x and width values in tests are exact multiples of 10.",
+      "UI strings go through t(\"labels.x\") and live in packages/excalidraw/locales/en.json only. Every other locale file is Crowdin's."
+    ],
+    "decisions": [
+      {
+        "topic": "Run constraint (Gate 0, answer 5)",
+        "choice": "Run constraint: work only from this branch's code and the brief. Do not look at the upstream excalidraw repo, its PRs or issues, upstream/master or master, and do not base anything on them. This binds every phase and every model, the Gemini worker included.",
+        "reason": "The person's Gate 0 answer, word for word."
+      },
+      {
+        "topic": "Concurrent edits scope (Gate 0, answer 3)",
+        "choice": "Concurrent edits: keep your reading of \"survive\" and do not narrow the brief to last-write-wins. The losing version's ranges are carried onto the winning text, no client shows stale offsets, all clients converge whichever order they receive versions in, and a removed range does not come back.",
+        "rejected": [
+          "Last-write-wins on the whole element or on the textRanges key"
+        ],
+        "reason": "The person's Gate 0 answer."
+      },
+      {
+        "topic": "Range data shape",
+        "choice": "ExcalidrawTextElement gets one optional key `textRanges?: ExcalidrawTextRanges` = { textHash: number; ranges: ExcalidrawTextRange[] }. textHash is hashString(originalText). A range is { id, start, end, z, color?, highlight?, retired?, origin? }: start and end are half-open UTF-16 offsets into originalText; id is randomId() and encodes no user, client or device; z is the layer; color and highlight are a colour string (sets it), null (clears it) or absent (leaves it alone). id, z, color and highlight never change after a range is created.",
+        "rejected": [
+          "Two top-level keys (ranges plus a tombstone list), which history would apply separately",
+          "One range per attribute with a kind field: FR-1 says colour and/or highlight on one range"
+        ],
+        "reason": "One replaced value keeps text offsets and their hash together. Anchoring to originalText means a re-wrap alone never changes offsets (FR-1)."
+      },
+      {
+        "topic": "Key absent by default (FR-2 as revised at Gate 1)",
+        "choice": "An element that has NEVER had ranges carries no textRanges key, in memory or on save: newTextElement does not set it, restore never adds it, and a colour or reset that changes no visible style leaves it absent. An element whose ranges were all removed keeps its textRanges container as the marker FR-19 needs: clear records and retired records stay in it, and the ranges array may be empty.",
+        "reason": "Keeps every existing snapshot and legacy file byte-identical, and gives a removal something to travel in."
+      },
+      {
+        "topic": "Layers: how one style is decided per character (FR-4)",
+        "choice": "Ranges are layers, not disjoint segments. A style operation never rewrites an existing range: it adds one record on top with z = 1 + the highest z in the element. A colour pick adds { color }, a highlight pick adds { highlight }, Reset adds { color: null, highlight: null }. For each attribute separately, the style of a character comes from the covering, non-retired record with that attribute present, ordered by highest z, then null before a string at equal z, then highest id. getTextStyleRuns is the only reader of this order and returns disjoint runs; splitting a range is what those runs show, not what is stored. Stored records of one attribute may overlap, because a record never shrinks.",
+        "rejected": [
+          "Disjoint records that are split on every edit: two clients each removing half of a range would keep each other's remainder, so the whole range would come back",
+          "Per-range revision counters: they cannot express a partial removal"
+        ],
+        "reason": "A grow-only set of immutable records is a join under union, which is what makes merging order-independent, and a partial removal survives because a clear is a record like any other."
+      },
+      {
+        "topic": "Text edit boundaries (FR-3)",
+        "choice": "Text edits map offsets through diffText hunks. Insertion strictly inside a range extends it. Insertion exactly at a range's start shifts it and is not included. Insertion exactly at a range's end leaves it alone and is not included. A replacement overlapping a boundary leaves the inserted text outside the range. Deletion shrinks a range. A non-retired range whose characters are all deleted is removed from the list.",
+        "rejected": [
+          "Extending a range when typing at its end: it would also extend every clear, so typing after a removed word would change what was removed"
+        ],
+        "reason": "One rule for start and one for end, used by the editor, list markers, history and carrying, so a range and a clear over it always move together."
+      },
+      {
+        "topic": "Merged element's version and nonce (FR-19, FR-20, NFR-3)",
+        "choice": "reconcileElements picks the base exactly as today (shouldDiscardRemoteElement is unchanged and still exported). The merged element is { ...base, textRanges: merged }: it keeps the base's version, versionNonce, updated and every other field, and no version is bumped. Both clients call mergeTextRanges(base = the same winner, other = the same loser) and compute the same bytes. If the merged ranges equal the base's, the base object itself is returned, so nothing churns. Since no version rises, Collab's scene-version check sees nothing to send and Portal does not rebroadcast. A later delivery of either version, including Collab's periodic full sync, merges to the same result because the merge is idempotent. mergeTextRanges also runs when version and nonce are equal, so a client still holding the un-merged winner picks up the merged ranges from a full sync.",
+        "rejected": [
+          "Bumping the version on merge: not associative, three clients would disagree and each bump rebroadcasts",
+          "Deriving a new nonce from a hash of the merged state: the nonce is the tie-break, so it would change the winner"
+        ],
+        "reason": "Base fields are a last-write-wins register and the range table is a union, and the product of two joins is a join: commutative, associative and idempotent, so arrival order cannot matter."
+      },
+      {
+        "topic": "Carrying ranges onto the winning text (FR-19)",
+        "choice": "Each record has a position register, a value compared as (higher version, then lower versionNonce). A record's register is its `origin` field if present, else { version, versionNonce, text: originalText, start, end } of the element holding it. If the base holds the id with no origin, the base's offsets win. Otherwise the newest register among the two sides is mapped onto the base's text with mapTextSpan(register.text, base.originalText, register.start, register.end) and stored as the record's origin, unchanged. The mapping always starts from the register's own text, never from an intermediate merged text, so carrying through any number of merges gives the same offsets as carrying directly. A carried record whose characters are gone in the base stays in the list collapsed (start === end) with its origin, because a later winning text may still hold them. Any local edit (a style op or a text edit) makes every record native again by dropping origin.",
+        "rejected": [
+          "Common prefix and suffix only: when both ends of a text changed, everything in the middle would be lost",
+          "Mapping from the previous merged text: path-dependent once three versions race",
+          "Finding the styled substring by search: a word edited on the winning side would lose its range"
+        ],
+        "reason": "offsets = f(register, winning text) is a pure function of two joined values, which is the only way three-way races stay order-independent with no common ancestor."
+      },
+      {
+        "topic": "Removal and tombstones (FR-14, FR-19)",
+        "choice": "A removal of a selection is a clear record on top. It hides every lower layer over that span, stays in the list, and is carried like any other record, so the removed characters stay unstyled on every client in every arrival order, and two clients each clearing part of a range hide all of it. A colour edit racing a removal at the same z loses to the removal. A range created at a higher z by a client that had not seen the removal is a different range and stays. `retired: true` is the id tombstone: it is written only by undoing a style step, it is sticky under merge (logical OR), and a retired id is never revived; redo re-adds the style under a fresh id. retired records keep shifting with the text, because redo reads their offsets.",
+        "reason": "With no common ancestor, reconcile can only tell removal from not-yet-seen by a record that is present. A clear or a retired record is that record."
+      },
+      {
+        "topic": "Remote update dropped while editing (FR-21)",
+        "choice": "While shouldDiscardRemoteElement drops a remote update because the local user edits that element (also while resizing or creating it), the update's text and every non-range field are discarded as today. Its ranges are NOT discarded: reconcileElements calls mergeTextRanges(local, remote), so each of its records, including clears and retired flags, joins the local element at once, mapped onto the local text, keeping the local version and nonce. The preview redraws from the scene update, and offsets address the text in the editor, so nothing is stale. Local records win position over remote for any id they hold natively. When editing ends nothing special runs: the local version is broadcast as usual if typing bumped it, and the next delivery of either version merges through the ordinary path to the same element on both clients, whichever wins on version.",
+        "rejected": [
+          "Holding the dropped update aside and replaying it at submit: it needs local state outside the element, which NFR-3 rules out of the merge",
+          "Bumping the version at submit past the dropped update: it changes reconcile for no range reason and elements with no ranges must reconcile as today"
+        ],
+        "reason": "reconcileElements keeps its signature and stays pure, and FR-21's three demands are met by the same merge as FR-19."
+      },
+      {
+        "topic": "History (FR-9)",
+        "choice": "textRanges is never written straight from a delta. ElementsDelta.applyDelta calls applyTextRangesDelta, which starts from the element's current records, shifts them to the delta's text if the delta holds originalText, then applies the difference between the delta's two sides by id: an id alive in the delta's deleted side and not in its inserted side is retired; an id alive in the inserted side and not in the deleted side is re-added, under a fresh id if its current record is retired. Offsets from a delta are used only when that delta also restores originalText and the element's current text equals the delta's deleted text. Undoing a range step after a remote text edit therefore keeps offsets on the current text. Undo and redo are forward operations: they merge with peers like any edit.",
+        "rejected": [
+          "Replacing textRanges from the delta: a peer's union would bring an undone record back, and offsets would go stale after an interleaved remote text edit"
+        ],
+        "reason": "Delta applies only the keys it holds, so a separate range key must be reconciled with the current text at apply time."
+      },
+      {
+        "topic": "Known limit: undo after a same-version merge",
+        "choice": "StoreSnapshot detects change by a rising version, so a merge that keeps the version does not refresh the store snapshot. The next local edit's history step therefore also spans records carried in by that merge, and undoing that one step retires them. Offsets stay valid and clients still converge. No workaround is written; packages/element/src/store.ts is outside the allowlist.",
+        "reason": "Keeping version and nonce stable is what stops the rebroadcast loop. The limit needs a race, then a local edit, then an undo of that exact step."
+      },
+      {
+        "topic": "Restore and malformed input (FR-18, NFR-2)",
+        "choice": "sanitizeTextRanges(raw, originalText) is the single validator. restore.ts calls it, and every reader (getTextStyleRuns, the merge, the delta) calls it too, so bad data from any path is repaired or dropped and never thrown on. It drops the whole container when textHash does not match originalText (stale against the text, for example an older client edited the text). It drops any record with wrong types, an inverted span, or no usable attribute; removes an unusable colour attribute; clamps out-of-bounds offsets; and caps the list at MAX_TEXT_RANGES by keeping the highest (z, id). Valid input comes back as the same object. Overlap is not dropped at restore, because stored overlap is the normal output of FR-4 and of a merge and repairing it there would break merging: an overlap is resolved by the fixed layer order, so the renderer only ever receives disjoint runs.",
+        "rejected": [
+          "Flattening overlap in restore: restoreElements runs on every remote element before reconcile, so it would rewrite join state and make merging path-dependent"
+        ],
+        "reason": "Validate at restore and render defensively, with one function for both."
+      },
+      {
+        "topic": "Colours are untrusted (NFR-2)",
+        "choice": "A range colour is valid when it is a string of at most 64 characters and colorToHex(value) is not null. Colours reach SVG through setAttribute and the preview through element.style only, never through markup strings. Applying a transparent colour is stored as null, so a user cannot make text invisible through a range. Colours get applyDarkModeFilter(value, isDark) on canvas, in SVG and in the preview, as strokeColor does.",
+        "reason": "One rule shared by restore, renderers and the actions."
+      },
+      {
+        "topic": "No selection and not editing (FR-13)",
+        "choice": "With an empty selection, or with the element selected and not being edited, actionChangeStrokeColor behaves exactly as today: it sets strokeColor and ranges keep their own colour. The range path runs only when appState.editingTextElement is set and the textarea has a non-empty selection.",
+        "reason": "The reading the person accepted at Gate 1."
+      },
+      {
+        "topic": "Removing a style: the control (FR-14)",
+        "choice": "A new button labelled \"Reset text color and highlight\" (action resetTextStyle, eraser icon) shows in the styles panel beside the text highlight picker while a text element is edited. Clicking it returns the selected characters to the element's own colour and to no highlight. With an empty selection it does nothing. Choosing the transparent swatch in the highlight picker also removes only the highlight. Both count as removal for FR-19.",
+        "rejected": [
+          "A No color swatch in the stroke picker: the stroke palette has no such entry and picking transparent is a colour for every other element",
+          "Picking the element's strokeColor by hand: the range would keep that colour after a later strokeColor change"
+        ],
+        "reason": "One visible control does both jobs of FR-14, and the stroke picker keeps its meaning."
+      },
+      {
+        "topic": "Highlight control (FR-12)",
+        "choice": "A new action changeTextHighlight renders a ColorPicker while a text element is edited, with type \"elementBackground\" for the background palette and a new optional prop popup=\"textHighlight\" naming its popup. It needs no new ColorPickerType, because colorPickerUtils.ts is outside the allowlist, and `popup` lets it sit beside the background picker while a sticky note label is edited. With an empty selection it changes nothing.",
+        "reason": "Two pickers sharing one openPopup value would open together."
+      },
+      {
+        "topic": "Editor and preview (FR-10, FR-15, FR-16)",
+        "choice": "The <textarea> stays. Its selectionStart and selectionEnd are originalText offsets as they are, because editable.value is originalText. While the element has visible runs, a preview layer (class excalidraw-wysiwyg-preview) sits directly behind the textarea with the same box, font and wrapping, shows the full text with coloured and highlighted spans, and the textarea's own text is transparent with its caret in the element's colour. With no visible runs there is no preview node and the textarea styles are as today. The canvas paints the styling when editing ends, because the canvas skips the element being edited.",
+        "rejected": [
+          "A contenteditable editor: out of scope for this run"
+        ],
+        "reason": "The After line needs the word to show in red while editing, and jsdom can drive a textarea."
+      },
+      {
+        "topic": "Rendering (FR-5, FR-6, FR-17, NFR-1)",
+        "choice": "Renderers call getTextLineRuns(element), which aligns element.text with originalText without measuring. When it returns null the renderer's existing code runs untouched, so elements with no ranges paint and export byte-identically. Canvas: all highlights first as fillRect, then text as one fillText per piece with textAlign left at an explicit x. SVG: a highlight is a <rect> appended to the element's <g> before every <text>; a coloured run is a <tspan> with fill; a run with no colour is a plain text node; each line stays one <text> with today's attributes, so text-anchor and the browser's bidi still apply. A highlight rect spans the full line height. Range colour and highlight are paint-only and never reach measureText.",
+        "reason": "A <tspan> carries a fill but no background, which Gate 0 accepted as a rect behind the text."
+      },
+      {
+        "topic": "Testing",
+        "choice": "Vitest unit and jsdom tests only, no browser check. Canvas is asserted by draw calls, because vitest-canvas-mock paints no pixels. Verification uses yarn test:typecheck, yarn test:code and yarn test:app --watch=false as three separate commands. Never yarn test:update, which rewrites snapshots and would hide a regression. No existing snapshot file changes (AC-13).",
+        "reason": "Run decisions from the brief and Gate 0, answer 2."
+      },
+      {
+        "topic": "Changelog (FR-23)",
+        "choice": "The entry goes under Unreleased in packages/excalidraw/CHANGELOG.md with no PR link and no PR number. Never invent one.",
+        "reason": "No PR exists yet, and the brief forbids an invented number."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx {path}",
+        "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx {path}",
+        "timeout_s": 180
+      },
+      {
+        "id": "format",
+        "run": "node_modules/.bin/prettier --check {path}",
+        "fix": "node_modules/.bin/prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "test",
+        "run": "yarn -s vitest run {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "code",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "app",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}
