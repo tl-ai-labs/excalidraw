@@ -1,0 +1,6 @@
+[
+  {
+    "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "problem": "All 14 runtime tests pass, so change no expectation and no test's steps. yarn test:typecheck reports 20 errors in this file, of two kinds only:\n(144,7): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in type ... (lines 574)\n(159,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'. (lines 159,184,267,312,357,386,447,499,540)\nFix the first by deleting the whole `originalText: ...` line, whatever its value, from each of those API.createElement calls, all 11 of them: API.createElement already sets originalText from text. Fix the second by casting where the element is created: replace `as ExcalidrawTextElement` on those API.createElement results with `as NonDeleted<ExcalidrawTextElement>`, and import `NonDeleted` as a type from \"@excalidraw/element/types\" in the existing type import. Types only."
+  }
+]

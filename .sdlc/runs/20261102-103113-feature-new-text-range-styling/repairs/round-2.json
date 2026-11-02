@@ -1,0 +1,290 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. REGRESSION in an existing test that passed before this run. Do not change that test.\nFAIL packages/excalidraw/tests/stickyNotes.test.tsx > sticky notes > editing > routes a top pick to the label and the sticky default while editing a note\nAssertionError: expected '#1e1e1e' to be '#e03131' // Object.is equality\n ❯ packages/excalidraw/tests/stickyNotes.test.tsx:604:48\n\nCause: opening an existing element for editing auto-selects all its text (textWysiwyg.tsx:1321, `editable.select()`), so getTextEditorSelection returns a non-empty selection before the user selects anything, and actionChangeStrokeColor takes the range path instead of setting strokeColor. Fix in actionChangeStrokeColor only: a selection covering the whole text counts as no selection there, and falls through to today's element path. Concretely, in perform, before calling applyStyleToEditorSelection, read `const editing = appState.editingTextElement; const selection = editing ? getTextEditorSelection(app.ownerDocument) : null;` and find the current scene element for editing.id in `elements`; when it is a text element and `selection.start === 0 && selection.end === element.originalText.length`, skip applyStyleToEditorSelection so the existing code below runs. Add a short comment saying the editor selects all text when it opens, so a whole-text selection means the element, not a range. Do not change applyStyleToEditorSelection, actionChangeTextHighlight or actionResetTextStyle: highlight and reset still apply to a whole-text selection.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/stickyNotes.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/restore.textRanges.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/restore.textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Runtime tests pass, but the file fails typecheck. restoreElements returns OrderedExcalidrawElement[], which has no textRanges. Cast each restored element where textRanges is read, for example `const [restored] = restore.restoreElements([element], null) as ExcalidrawTextElement[];` or a small local helper. Change types only, no expectation.\n\nyarn test:typecheck reports these for this file (one line per kind; 13 errors in all):\n(60,21): error TS2339: Property 'textRanges' does not exist on type 'OrderedExcalidrawElement'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/restore.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/restore.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. All 29 runtime tests pass, but the file fails typecheck. Fix the types only and change no expectation: cast the arguments to reconcileElements with `as unknown as OrderedExcalidrawElement[]`, and API.createElement does not take `id` for a text element in this form, so set id through a spread or cast instead.\n\nyarn test:typecheck reports these for this file (one line per kind; 7 errors in all):\n(49,5): error TS2345: Argument of type 'ExcalidrawTextElement[]' is not assignable to parameter of type 'readonly OrderedExcalidrawElement[]'.\n(75,7): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type '{ text: string; originalText?: string | undefined; fontSize?: number | undefined; fontFamily?: number | undefined; textAlign?: string |\n(425,31): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'OrderedExcalidrawElement'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/textRanges.export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL packages/excalidraw/tests/scene/textRanges.export.test.ts\nError: Failed to resolve import \"../../renderer/renderElement\". There is no such file. Replace line 9 with `import { applyDarkModeFilter } from \"@excalidraw/common\";` in the import order lint wants. applyDarkModeFilter has the signature `(color: string, enable = true): string`, so lines 114 and 575 become `applyDarkModeFilter(RED, true)`.\n\nThe last fix round got 15 of 17 passing, then was undone because of these two, which are defects in the test, not the renderer:\nFAIL a highlight is a rect before its text: AssertionError: expected 25 to be 1.25\nFAIL canvas lines keep their baseline: expected 25 to be 1.25\nelement.lineHeight is a unitless multiplier (1.25). The renderers correctly use pixels: 25 = fontSize 20 x 1.25. Both assertions must use `element.fontSize * element.lineHeight`, not element.lineHeight, and no hard-coded number. Keep x 200 and width 50 from the brief.\n\nFor the types: give createTextElement the return type ExcalidrawTextElement with a cast (`as unknown as ExcalidrawTextElement`), which clears most errors below.\n\nyarn test:typecheck reports these for this file (one line per kind; 41 errors in all):\n(9,37): error TS2307: Cannot find module '../../renderer/renderElement' or its corresponding type declarations.\n(28,40): error TS2345: Argument of type '{ index: \"a0\"; id: string; x: number; y: number; strokeColor: string; backgroundColor: string; fillStyle: FillStyle; strokeWidth: number; strokeStyle: StrokeStyle; ... 30 more ...; textRanges?: Excal\n(66,7): error TS2345: Argument of type 'ExcalidrawLinearElement | ExcalidrawSelectionElement | ExcalidrawRectangleElement | ... 10 more ... | { ...; }' is not assignable to parameter of type 'Pick<ExcalidrawTextElement, \"originalText\" | \"te\n(75,20): error TS2769: No overload matches this call.\n(178,62): error TS2339: Property 'lineHeight' does not exist on type 'ExcalidrawLinearElement | ExcalidrawSelectionElement | ExcalidrawRectangleElement | ... 10 more ... | { ...; }'.\n(360,7): error TS2345: Argument of type '{ textRanges: Readonly<{ textHash: number; ranges: readonly Readonly<{ id: string; start: number; end: number; z: number; color?: string | null | undefined; highlight?: string | null | undefined; ret\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 19 tests fail with: TypeError: editor.setSelectionRange is not a function, at packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx:47:12. getTextEditor in tests/queries/dom.ts is async, so `editor` is a Promise. Make the helper near line 34 async, `await getTextEditor()` there and at every call site, and make every test callback that uses it async with the helper awaited. Another failure: Error: It looks like you passed a Promise object instead of a DOM node, same cause. Once the editor is a real element, fix any other failure against the spec in the brief; do not weaken an expectation.\n\nyarn test:typecheck reports these for this file (one line per kind; 2 errors in all):\n(34,3): error TS2740: Type 'Promise<HTMLTextAreaElement>' is missing the following properties from type 'HTMLTextAreaElement': autocomplete, cols, defaultValue, dirName, and 344 more.\n(102,12): error TS2339: Property 'setSelectionRange' does not exist on type 'Promise<HTMLTextAreaElement>'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRanges.elements.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL packages/excalidraw/tests/textRanges.elements.test.tsx\nError: Failed to resolve import \"./helpers/keyboard\". No tests ran. Fix these imports and declarations: `Keyboard` comes from \"./helpers/ui\", not ./helpers/keyboard. `CaptureUpdateAction` comes from \"@excalidraw/element\", not ../types. `h` is undefined: add `const { h } = window;` after the imports, as stickyNotes.test.tsx does. getTextEditor is async, so await it, and make those test callbacks async. API.createElement has no originalText option: set it with newElementWith or a spread and a cast, and cast API.createElement results to ExcalidrawTextElement where its text fields are read. Once the file loads, fix any other failure against the spec in the brief; do not weaken an expectation.\n\nyarn test:typecheck reports these for this file (one line per kind; 83 errors in all):\n(25,10): error TS2305: Module '\"../types\"' has no exported member 'CaptureUpdateAction'.\n(30,26): error TS2307: Cannot find module './helpers/keyboard' or its corresponding type declarations.\n(70,30): error TS2339: Property 'boundElements' does not exist on type '(NonDeleted<ExcalidrawTextElement> | NonDeleted<ExcalidrawGenericElement>)[]'.\n(71,16): error TS2304: Cannot find name 'h'.\n(84,37): error TS2345: Argument of type '(NonDeleted<ExcalidrawTextElement> | NonDeleted<ExcalidrawGenericElement>)[]' is not assignable to parameter of type 'ExcalidrawElement'.\n(86,40): error TS2339: Property 'id' does not exist on type '(NonDeleted<ExcalidrawTextElement> | NonDeleted<ExcalidrawGenericElement>)[]'.\n(142,7): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in type '{ type?: \"text\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | u\n(157,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'.\n(266,12): error TS2339: Property 'setSelectionRange' does not exist on type 'Promise<HTMLTextAreaElement>'.\n(308,22): error TS2345: Argument of type 'Promise<HTMLTextAreaElement>' is not assignable to parameter of type 'HTMLInputElement | HTMLTextAreaElement'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

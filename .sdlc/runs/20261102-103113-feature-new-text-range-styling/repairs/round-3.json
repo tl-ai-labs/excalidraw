@@ -1,0 +1,102 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/textRanges.export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. All 17 runtime tests pass; change no expectation. yarn test:typecheck still reports 21 errors, all one cause:\n(77,20): error TS2769: No overload matches this call.\n  Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'.\n    Types of property 'isDeleted' are incompatible.\n      Type 'boolean' is not assignable to type 'false'.\nplus one TS2345 where createTextElement passes withIndex to newElementWith.\nexportScene wants NonDeletedExcalidrawElement. Import `NonDeleted` as a type from \"@excalidraw/element/types\", and make createTextElement return `NonDeleted<ExcalidrawTextElement>`, casting each returned value with `as unknown as NonDeleted<ExcalidrawTextElement>`, including the value given to newElementWith. Types only.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRanges.elements.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL packages/excalidraw/tests/textRanges.elements.test.tsx: Failed to resolve import \"./helpers/keyboard\". The last round's answers each failed once on one of these, and every one must be fixed in the same answer, so send the whole corrected file as {path, content}:\n1. Imports: `Keyboard` comes from \"./helpers/ui\"; `CaptureUpdateAction` comes from \"@excalidraw/element\", not ../types; `KEYS` comes from \"@excalidraw/common\". Add `const { h } = window;` after the imports.\n2. Lint runs with --max-warnings=0, and these warnings failed the answer: `'ExcalidrawElement' is defined but never used` and `'ExcalidrawLinearElement' is defined but never used`. Import only the types the file uses, and check every other import the same way.\n3. Ten tests failed with `Error: Unable to fire a \"dblclick\" event - please provide a DOM element.` at `fireEvent.dblClick(h.canvas)`, lines 264, 306, 350, 378, 436, 487 and 527: h.canvas does not exist. Do not double-click. Open the editor as the passing file shown beside this one does in its startEditing: `API.setElements([element]); API.setSelectedElements([element]); Keyboard.keyPress(KEYS.ENTER); const editor = await getTextEditor();`. That needs `await render(<Excalidraw handleKeyboardGlobally={true} />)` in beforeEach, and every test callback that uses it must be async. Take a small helper like startEditing rather than repeating the lines. Leave the editor with `Keyboard.keyPress(KEYS.ESCAPE, editor)` where a test needs editing to end.\n4. API.createElement has no originalText option: set it with newElementWith or a spread with a cast. Cast API.createElement results with `as ExcalidrawTextElement` where text fields are read. `editor` is a real textarea only after `await`.\nKeep every test and every expectation from the brief; do not weaken one. 14 tests in all.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

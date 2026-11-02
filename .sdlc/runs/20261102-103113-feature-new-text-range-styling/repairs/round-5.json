@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRanges.elements.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. All 14 runtime tests pass, so change no expectation and no test's steps. yarn test:typecheck reports 20 errors in this file, of two kinds only:\n(144,7): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in type ... (lines 574)\n(159,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'. (lines 159,184,267,312,357,386,447,499,540)\nFix the first by deleting the whole `originalText: ...` line, whatever its value, from each of those API.createElement calls, all 11 of them: API.createElement already sets originalText from text. Fix the second by casting where the element is created: replace `as ExcalidrawTextElement` on those API.createElement results with `as NonDeleted<ExcalidrawTextElement>`, and import `NonDeleted` as a type from \"@excalidraw/element/types\" in the existing type import. Types only.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

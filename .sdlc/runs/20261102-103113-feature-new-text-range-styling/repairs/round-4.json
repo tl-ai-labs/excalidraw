@@ -1,0 +1,418 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRanges.elements.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 30): The file does not load, which is why yarn test:app exits 1 and yarn test:typecheck reports 83 errors. Line 30 imports ./helpers/keyboard, which does not exist; line 25 imports CaptureUpdateAction from ../types; `h` is never declared; seven tests call fireEvent.dblClick(h.canvas) (lines 264, 306, 350, 378, 436, 487, 527), and h.canvas does not exist; lines 269 and 382 pass RED where the action takes { color: RED }. AC-9, AC-10 and AC-16 have no running test, and no other test covers undo of a range edit through the app. — fix: Import Keyboard from ./helpers/ui, CaptureUpdateAction from @excalidraw/element and KEYS from @excalidraw/common, add `const { h } = window;`, and open the editor with API.setSelectedElements([text]), Keyboard.keyPress(KEYS.ENTER) and `await getTextEditor()` in async tests. Pass { color } to the action, and set originalText by newElementWith or a cast, since API.createElement has no such option.\n2. blocker (line 67): Three failures are test setup: \"a container resize re-wraps and keeps the range\", \"a text rewrite keeps the range\" and \"a font family change keeps the range\" (lines 67, 115, 197) fail with `Cannot read properties of null (reading 'originalText')`. API.createTextContainer returns [rectangle, text] and adds neither to the scene, but these tests treat the return value as the container and read the label back with h.app.scene.getElement, which is null. Measured: all three pass once the pair is in the scene, with no product change. — fix: Write `const [container, text] = API.createTextContainer({ label: { text: \"hello brave new world\" } }); API.setElements([container, text]);` in all three tests, then seed the range as the brief says.\n3. blocker (line 271): Four failures are the undo driver, not undo: \"undo and redo of a range edit\", \"undoing a range edit after a remote text edit keeps offsets on the current text\", \"undoing a removal shows the range again\" and \"undoing a partial removal keeps the layer order\". A style action commits its own IMMEDIATELY step at once. Keyboard.exitTextEditor then submits via keyboard, which re-selects the element (packages/excalidraw/components/App.text.ts:316-336) and captures it (App.text.ts:348), pushing an appState-only selectedElementIds entry on top of the undo stack. Keyboard.undo() pops only that entry, which counts as a visible change, so History.perform stops (packages/excalidraw/history.ts) and the ranges stay as they were after the step. Measured: the second undo restores [20, 25) RED after a full reset and [20, 24) RED plus [24, 25) BLUE after the partial reset, and redo and repeated undo/redo chains are correct. The same two-press behaviour happens with no ranges at all: strokeColor set in the editor with a caret, then Esc, also needs two undos, so it is existing behaviour and not a regression. Text-edit tests pass with one undo because text and selection land in one step at exit. The brief's U31 rule 2 caused this by pairing exitTextEditor with one undo. — fix: In these four tests leave the editor with fireEvent.blur(editor) instead of Keyboard.exitTextEditor(editor) (lines 271, 384, 493, 533): blur does not re-select, so one undo and one redo hit the style step and every expectation in the brief passes as written. Do not change delta.ts, store.ts or textRangeMerge.ts for these failures.\n4. major (line 581): \"an unchanged range makes no history noise\" asserts nothing. It reads lastEntry.elements?.get?.(id), but ElementsDelta has no get method, so deltaEntry is undefined and both expects sit behind `if (deltaEntry)`. It passes whatever the product does. — fix: Read h.history.undoStack.at(-1).elements.updated[text.id] and assert unconditionally that the entry exists and that neither its inserted nor its deleted side has a textRanges key.\n5. Send the whole corrected file as {path, content}. The reference file shown beside this one, textRanges.elements.reference.test.tsx, passes all 14 tests at runtime with no product change: start from it. It still needs three things. (1) Its imports are absolute paths into this repo: use the project's imports, namely `../index`, `../actions`, `./helpers/api`, `./helpers/ui`, `./queries/dom`, `./test-utils`, `@excalidraw/common`, `@excalidraw/element`, and types from `@excalidraw/element/types`. Import only what the file uses, since lint runs with --max-warnings=0. (2) yarn test:typecheck must pass: cast API.createElement results with `as ExcalidrawTextElement`, and read fields through a text-element type. (3) The review finding on line 581 about history noise: rewrite that test to read `h.history.undoStack.at(-1).elements.updated[text.id]` and assert unconditionally. Do not change any expectation from the brief, and do not use Keyboard.exitTextEditor in the four undo tests: they leave the editor with fireEvent.blur(editor).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/repro/textRanges.elements.reference.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 415): The unplanned whole-text rule goes wider than the auto-select it was added for and contradicts FR-11. Any selection covering the whole text counts as no selection, including one the user made deliberately, and that sets strokeColor where FR-11 says the selection takes the colour and strokeColor stays unchanged. Measured with RED on [20, 25), whole text selected, BLUE picked: strokeColor became BLUE and the run stayed RED, so the user's selection does not end up in the picked colour and nothing says why. Highlight and reset still treat the same selection as a range, so the three controls disagree, and no test covers a whole-text selection. It also reads the selection twice, once here and once in applyStyleToEditorSelection. — fix: Take the strokeColor shortcut only when no run of the element has a colour (getTextStyleRuns(editingElement).every((run) => run.color === null)), otherwise use the range path, and resolve the selection once. Add tests for both cases to textWysiwyg.textRanges.test.tsx; plain text with a whole-text selection still deviates from FR-11, which the person should confirm.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/textRangeLayout.ts",
+    "instruction": "Fix `packages/element/src/textRangeLayout.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 240): layoutTextLine splits surrogate pairs on a styled line that contains RTL text and an emoji. Line 240 pushes one class per code point, but every later loop (lines 251-291) indexes charClasses by code unit, so classes shift after an astral character and run out before the line ends. Measured on \"😀אב\" with a full-line run: pieces are a lone 0xD83D, then 0xDE00 plus א, then ב with direction undefined. Canvas paints replacement characters and sets no valid context.direction; SVG highlight rects use the same layout. This is worse than the accepted bidi limit, which covers run placement and not broken characters, and rule 9 says to classify by code point. — fix: Push the class once per code unit of each code point (`for (let k = 0; k < char.length; k++) charClasses.push(cls)`), so every index stays a code-unit offset. Add a layout test with an emoji on an RTL line to packages/element/tests/textRangeLayout.test.ts.\n2. minor (line 62): After a decomposed cluster matches, `break` leaves the inner while and falls through to the unconditional push at line 81 instead of going back to the top of the loop as rule 4 says, so the next character is never compared. Two adjacent decomposed clusters then misalign p. Measured: getRenderedLineOffsets(\"éé\\nab\", \"e\\u0301e\\u0301 ab\") returns null, so a range on \"ab\" is not painted on canvas or in export. — fix: Label the outer loop and `continue` it after advancing j and p, so the end-of-line and matching checks run again.\n3. minor (line 158): getTextLineRuns re-normalizes and re-splits the whole element.text once per rendered line, so the cost grows with lines times text length on each canvas regeneration. — fix: Compute the lines once before the loop and read lines[lineIndex].\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRangeLayout.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRangeLayout.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRangeLayout.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "instruction": "Fix `packages/element/src/renderElement.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 449): drawStyledTextLines was inserted between withSavedContext's JSDoc block and its declaration, so the comment about scene renderer context state now documents the wrong function. — fix: Move drawStyledTextLines above the JSDoc block at line 449, so the comment sits directly on withSavedContext again.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textPreview.ts",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textPreview.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 100): Lines 100 and 102 use `key as any` with no reason given, and line 104 calls removeProperty with a camelCase name such as minHeight, which is a no-op because removeProperty takes the kebab-case CSS name. A style removed from the textarea therefore stays on the preview. — fix: Drop the if/else and assign `node.style[key] = editable.style[key];`: the keys are a const tuple of string properties, so this needs no cast, and an empty string clears the property.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textPreview.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textPreview.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textPreview.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/textRangeMerge.ts",
+    "instruction": "Fix `packages/element/src/textRangeMerge.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 198): When the element's textRanges is stale against its text, shiftTextRanges returns the container unchanged. applyTextRangesDelta then takes those unsanitized records and stamps them with hashString(nextText) at line 354, so an undo that restores text turns dropped, stale offsets back into valid ones, against FR-9. restore drops stale containers, so this needs one that arrived without restore, such as a host's updateScene. — fix: Shift only sanitized data: use [] when prior is empty, otherwise pass shiftTextRanges a container holding prior.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRangeMerge.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRangeMerge.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRangeMerge.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/textRanges.ts",
+    "instruction": "Fix `packages/element/src/textRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 464): The same record construction with its mutable shape and `as ExcalidrawTextRange` cast is written out at lines 464, 487, 513 and 585, and again at textRangeMerge.ts lines 140, 271 and 292, which also carries the key-order rule in each copy. — fix: Extract one helper that builds a record in the canonical key order, leaving absent keys out, and use it at all seven sites.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_008",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add two tests to this file, change nothing else. They cover the rule in actionChangeStrokeColor for a selection covering the whole text. (a) 'a whole-text selection on plain text sets strokeColor': `const editor = await startEditing(); editor.setSelectionRange(0, T.length);` then run actionChangeStrokeColor with { color: RED } as the file's other tests do. Expect the element's strokeColor is RED and it has no textRanges key. (b) 'a whole-text selection over a coloured run takes the range path': startEditing, setSelectionRange(20, 25), action with { color: RED }, then setSelectionRange(0, T.length), action with { color: '#1971c2' }. Expect strokeColor is unchanged from before the first action, and getTextStyleRuns gives one run { start: 0, end: 25, color: '#1971c2', highlight: null }.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.textRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_009",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/tests/textRangeLayout.test.ts",
+    "instruction": "Fix `packages/element/tests/textRangeLayout.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add one test to this file, change nothing else. It covers the review finding on textRangeLayout.ts:240: an emoji on an RTL line. Use the line \"😀אב\" with one full-line coloured run through layoutTextLine, called as this file's other tests call it. Expect that the pieces' text joined in logical order holds every character of the line once, that no piece's text holds a lone surrogate (test each with /[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?<![\\uD800-\\uDBFF])[\\uDC00-\\uDFFF]/), and that every piece's direction is \"ltr\" or \"rtl\".\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textRangeLayout.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textRangeLayout.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/textRangeLayout.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

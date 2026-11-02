@@ -1,0 +1,142 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+    "instruction": "Fix `packages/excalidraw/components/ColorPicker/ColorPicker.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. the edits could not be applied: edit 8: its search text appears 2 times in the current text (it must appear exactly once); the file was left unchanged. The text `  type: ColorPickerType;` is on lines 51 and 278. Site S8 is the one on line 278, in ColorPickerTrigger's inline props type. Make that search unique by including the lines around it: `  label: string;\\n  type: ColorPickerType;\\n  theme: Theme;`. Check every other search the same way: each must be found exactly once. The whole U16 change is still to do, since nothing was written. Note that `type,`, `type={type}` and `appState.openPopup === type` also occur more than once, so include a neighbouring line in those searches too.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/ColorPicker/ColorPicker.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL reconcile text ranges > a bumped register places a record where the unbumped one does\nAssertionError: expected undefined to be 28 // Object.is equality\n ❯ packages/excalidraw/tests/data/reconcile.textRanges.test.ts:395:43\n\nThe merge code is correct; the fixture is wrong. Lines 378-385 build B's ranges from `baseElement`, whose originalText is T, and attach them to an element whose text is W, so textHash is stale against W and sanitizeTextRanges rightly drops the container. The brief says B is W with RED on [28, 33), which are offsets into W. Build the ranges on an element that holds W: `const withW = version(baseElement, W, 6, 200);` then `const B = { ...withW, textRanges: applyTextRangeStyle(withW, { start: 28, end: 33 }, { color: RED }) };`. Change only this test. The other 28 tests pass.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/textRanges.export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL packages/excalidraw/tests/scene/textRanges.export.test.ts\nError: Failed to resolve import \"../../renderer/renderElement\" from \"packages/excalidraw/tests/scene/textRanges.export.test.ts\". Does the file exist?\nNo tests ran.\n\nThere is no such file. applyDarkModeFilter is exported from `@excalidraw/common` (packages/common/src/colors.ts:86), with the signature `applyDarkModeFilter(color: string, enable = true): string`. Replace line 9 with `import { applyDarkModeFilter } from \"@excalidraw/common\";`, placed in the import order the lint check wants. Lines 114 and 575 call it with an object, `applyDarkModeFilter({ color: RED, isDark: true })`, which is the wrong form: use `applyDarkModeFilter(RED, true)`. Any other failure the file shows once it loads must be fixed against the spec in the brief, since none of its tests have run yet.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/textRanges.export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/textRanges.export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

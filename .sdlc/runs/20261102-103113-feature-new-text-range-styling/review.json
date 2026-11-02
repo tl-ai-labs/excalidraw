@@ -1,0 +1,102 @@
+{
+  "module": "text-range-styling",
+  "verdict": "needs_changes",
+  "tool_calls": 24,
+  "item_1_cause": "test",
+  "item_1_summary": "The cause is the test, not the product. The on-disk test with only its imports, h.canvas calls and action value patched reproduces 7 failed, 7 passed, ending in the same two assertions as the last worker output. Correcting only the test's driver then gives 14 passed, 0 failed, with no product file changed. packages/element/src/delta.ts, the store and history path, the actions' captureUpdate and applyTextRangesDelta need no change for any of the seven. The worker's last version was not kept, so the mapping of the five unseen failures rests on the rebuilt on-disk version, which matches on count and on the last two assertions.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+      "line": 30,
+      "issue": "The file does not load, which is why yarn test:app exits 1 and yarn test:typecheck reports 83 errors. Line 30 imports ./helpers/keyboard, which does not exist; line 25 imports CaptureUpdateAction from ../types; `h` is never declared; seven tests call fireEvent.dblClick(h.canvas) (lines 264, 306, 350, 378, 436, 487, 527), and h.canvas does not exist; lines 269 and 382 pass RED where the action takes { color: RED }. AC-9, AC-10 and AC-16 have no running test, and no other test covers undo of a range edit through the app.",
+      "fix": "Import Keyboard from ./helpers/ui, CaptureUpdateAction from @excalidraw/element and KEYS from @excalidraw/common, add `const { h } = window;`, and open the editor with API.setSelectedElements([text]), Keyboard.keyPress(KEYS.ENTER) and `await getTextEditor()` in async tests. Pass { color } to the action, and set originalText by newElementWith or a cast, since API.createElement has no such option."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+      "line": 67,
+      "issue": "Three failures are test setup: \"a container resize re-wraps and keeps the range\", \"a text rewrite keeps the range\" and \"a font family change keeps the range\" (lines 67, 115, 197) fail with `Cannot read properties of null (reading 'originalText')`. API.createTextContainer returns [rectangle, text] and adds neither to the scene, but these tests treat the return value as the container and read the label back with h.app.scene.getElement, which is null. Measured: all three pass once the pair is in the scene, with no product change.",
+      "fix": "Write `const [container, text] = API.createTextContainer({ label: { text: \"hello brave new world\" } }); API.setElements([container, text]);` in all three tests, then seed the range as the brief says."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+      "line": 271,
+      "issue": "Four failures are the undo driver, not undo: \"undo and redo of a range edit\", \"undoing a range edit after a remote text edit keeps offsets on the current text\", \"undoing a removal shows the range again\" and \"undoing a partial removal keeps the layer order\". A style action commits its own IMMEDIATELY step at once. Keyboard.exitTextEditor then submits via keyboard, which re-selects the element (packages/excalidraw/components/App.text.ts:316-336) and captures it (App.text.ts:348), pushing an appState-only selectedElementIds entry on top of the undo stack. Keyboard.undo() pops only that entry, which counts as a visible change, so History.perform stops (packages/excalidraw/history.ts) and the ranges stay as they were after the step. Measured: the second undo restores [20, 25) RED after a full reset and [20, 24) RED plus [24, 25) BLUE after the partial reset, and redo and repeated undo/redo chains are correct. The same two-press behaviour happens with no ranges at all: strokeColor set in the editor with a caret, then Esc, also needs two undos, so it is existing behaviour and not a regression. Text-edit tests pass with one undo because text and selection land in one step at exit. The brief's U31 rule 2 caused this by pairing exitTextEditor with one undo.",
+      "fix": "In these four tests leave the editor with fireEvent.blur(editor) instead of Keyboard.exitTextEditor(editor) (lines 271, 384, 493, 533): blur does not re-select, so one undo and one redo hit the style step and every expectation in the brief passes as written. Do not change delta.ts, store.ts or textRangeMerge.ts for these failures."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+      "line": 581,
+      "issue": "\"an unchanged range makes no history noise\" asserts nothing. It reads lastEntry.elements?.get?.(id), but ElementsDelta has no get method, so deltaEntry is undefined and both expects sit behind `if (deltaEntry)`. It passes whatever the product does.",
+      "fix": "Read h.history.undoStack.at(-1).elements.updated[text.id] and assert unconditionally that the entry exists and that neither its inserted nor its deleted side has a textRanges key."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 415,
+      "issue": "The unplanned whole-text rule goes wider than the auto-select it was added for and contradicts FR-11. Any selection covering the whole text counts as no selection, including one the user made deliberately, and that sets strokeColor where FR-11 says the selection takes the colour and strokeColor stays unchanged. Measured with RED on [20, 25), whole text selected, BLUE picked: strokeColor became BLUE and the run stayed RED, so the user's selection does not end up in the picked colour and nothing says why. Highlight and reset still treat the same selection as a range, so the three controls disagree, and no test covers a whole-text selection. It also reads the selection twice, once here and once in applyStyleToEditorSelection.",
+      "fix": "Take the strokeColor shortcut only when no run of the element has a colour (getTextStyleRuns(editingElement).every((run) => run.color === null)), otherwise use the range path, and resolve the selection once. Add tests for both cases to textWysiwyg.textRanges.test.tsx; plain text with a whole-text selection still deviates from FR-11, which the person should confirm."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/src/textRangeLayout.ts",
+      "line": 240,
+      "issue": "layoutTextLine splits surrogate pairs on a styled line that contains RTL text and an emoji. Line 240 pushes one class per code point, but every later loop (lines 251-291) indexes charClasses by code unit, so classes shift after an astral character and run out before the line ends. Measured on \"😀אב\" with a full-line run: pieces are a lone 0xD83D, then 0xDE00 plus א, then ב with direction undefined. Canvas paints replacement characters and sets no valid context.direction; SVG highlight rects use the same layout. This is worse than the accepted bidi limit, which covers run placement and not broken characters, and rule 9 says to classify by code point.",
+      "fix": "Push the class once per code unit of each code point (`for (let k = 0; k < char.length; k++) charClasses.push(cls)`), so every index stays a code-unit offset. Add a layout test with an emoji on an RTL line to packages/element/tests/textRangeLayout.test.ts."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textRangeLayout.ts",
+      "line": 62,
+      "issue": "After a decomposed cluster matches, `break` leaves the inner while and falls through to the unconditional push at line 81 instead of going back to the top of the loop as rule 4 says, so the next character is never compared. Two adjacent decomposed clusters then misalign p. Measured: getRenderedLineOffsets(\"éé\\nab\", \"e\\u0301e\\u0301 ab\") returns null, so a range on \"ab\" is not painted on canvas or in export.",
+      "fix": "Label the outer loop and `continue` it after advancing j and p, so the end-of-line and matching checks run again."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textRangeLayout.ts",
+      "line": 158,
+      "issue": "getTextLineRuns re-normalizes and re-splits the whole element.text once per rendered line, so the cost grows with lines times text length on each canvas regeneration.",
+      "fix": "Compute the lines once before the loop and read lines[lineIndex]."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/renderElement.ts",
+      "line": 449,
+      "issue": "drawStyledTextLines was inserted between withSavedContext's JSDoc block and its declaration, so the comment about scene renderer context state now documents the wrong function.",
+      "fix": "Move drawStyledTextLines above the JSDoc block at line 449, so the comment sits directly on withSavedContext again."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/wysiwyg/textPreview.ts",
+      "line": 100,
+      "issue": "Lines 100 and 102 use `key as any` with no reason given, and line 104 calls removeProperty with a camelCase name such as minHeight, which is a no-op because removeProperty takes the kebab-case CSS name. A style removed from the textarea therefore stays on the preview.",
+      "fix": "Drop the if/else and assign `node.style[key] = editable.style[key];`: the keys are a const tuple of string properties, so this needs no cast, and an empty string clears the property."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textRangeMerge.ts",
+      "line": 198,
+      "issue": "When the element's textRanges is stale against its text, shiftTextRanges returns the container unchanged. applyTextRangesDelta then takes those unsanitized records and stamps them with hashString(nextText) at line 354, so an undo that restores text turns dropped, stale offsets back into valid ones, against FR-9. restore drops stale containers, so this needs one that arrived without restore, such as a host's updateScene.",
+      "fix": "Shift only sanitized data: use [] when prior is empty, otherwise pass shiftTextRanges a container holding prior."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textRanges.ts",
+      "line": 464,
+      "issue": "The same record construction with its mutable shape and `as ExcalidrawTextRange` cast is written out at lines 464, 487, 513 and 585, and again at textRangeMerge.ts lines 140, 271 and 292, which also carries the key-order rule in each copy.",
+      "fix": "Extract one helper that builds a record in the canonical key order, leaving absent keys out, and use it at all seven sites."
+    }
+  ],
+  "refinement_packets": [],
+  "passing_checks": [
+    "Env fixtures: not applicable, the stack has no validating config module.",
+    "Sensitive files: no manifest, .env.example, CLAUDE.md, .claude/settings.json or .mcp.json was touched.",
+    "Authz: no routes in this change.",
+    "PII: origin.text matches the accepted limit, and ids encode no user.",
+    "History: undo and redo of text, removal, partial removal, remote edits, deleted words and repeated chains were all correct when driven properly (measured).",
+    "originalText writers: App.text.ts and listMarker.ts are the only ones that change it on a live element, and both remap."
+  ]
+}
