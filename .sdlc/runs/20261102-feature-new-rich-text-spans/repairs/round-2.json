@@ -1,0 +1,338 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "instruction": "Fix `packages/element/src/textStyleRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 757): applyTextStyleDelta treats every entry of `added` as a re-add, so undoing a plain text edit brings back a range a peer deliberately cleared. A text edit that shifts range X puts X in both `removed` and `added` (an offset change). If a peer then clears X, the local undo finds the tombstone, sets seq = tombstone.seq + 1 and deletes the tombstone. X is then live above its tombstone, and the version bump broadcasts it to every client. This breaks FR-9 'undo must revert only the local step' and FR-29. Same block: the tombstone is deleted before the `start < end` check, so a clamped-out entry loses both the range and its tombstone. Confidence: high, from reading the code path; no test covers it. The rule 18 text in change_plan.md does not separate the two cases, so this is a gap in the plan as well as the code. — fix: In the `added` loop, skip an entry when its id is also in `removed`, is not live in `rangesById` after the remap, and has a tombstone with seq >= entry.seq, and keep the tombstone. A real undo of a clear has the id in `added` only, so it still re-adds. Delete the tombstone only after the start < end check passes, and add a delta test for a peer clear followed by undo of a text edit.\n2. minor (line 659): In reconcile's remote-wins branch merged is never the local element, so noteMergedTextStyles runs for every remote text element. Unstyled text allocates two arrays and two Sets per reconcile, against the plan's 'unstyled text allocates nothing', and every plain remote range add or removal stays in mergedRangeVersions for the session. — fix: Return early when neither local nor merged has textStyleRanges. Consider also skipping the note in mergeStyleRanges when the merge returned the winner unchanged and the winner's version is above local.version, since the store snapshot moves with that update.\n3. minor (line 823): The run merge check in getTextStyleRuns is a nested test with a dead fall-through: the outer `previous?.` condition is true for an unstyled first segment, and the inner `if (previous)` then undoes it. — fix: Use one condition: `if (previous && previous.color === color && previous.highlight === highlight) { previous.end = end; continue; }`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textStyleRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textStyleRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "instruction": "Fix `packages/element/src/renderElement.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 483): drawStyledTextLine sets textAlign but not direction. getStyledTextLines tests RTL per line, but the caller sets the canvas dir from isRTL(element.text), which is true when the element's first strong character is RTL. So an LTR line under a Hebrew first line is styled and drawn run by run on an rtl canvas. Each fillText then resolves bidi with an RTL base, and neutrals at a run edge flip sides: the run 'hello ' draws its space on the left, and 'world!' draws as '!world'. layoutTextStyleRuns assumes logical LTR order, so glyphs and highlights no longer match (FR-10). The test 'leaves an RTL line plain' only checks the run data, and jsdom cannot show this. Confidence: medium, from canvas bidi rules; not checked in a browser. — fix: Next to context.textAlign = \"left\", set context.direction = \"ltr\" inside withSavedContext, since a styled line holds no RTL characters and save/restore covers the property. Add a test that asserts it for a two-line text whose first line is Hebrew.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "instruction": "Fix `packages/excalidraw/renderer/staticSvgScene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 836): Same cause as the canvas finding: a styled LTR line in an element where isRTL(element.text) is true keeps direction=\"rtl\" and the element-wide text-anchor, while highlight rects use the LTR layout from layoutTextStyleRuns. Trailing neutrals move, so a rect no longer sits under its run. For a right-aligned element the anchor is `end` at x = width, which in rtl is the left edge of the text, so the text starts at width while the rect stays at width - lineWidth (FR-22). Confidence: medium, from SVG text-anchor and bidi rules; not checked in a browser. — fix: When `runs` is truthy, write direction=\"ltr\" and a text-anchor taken from textAlign alone (start, middle or end). Lines with no runs keep today's attributes, so FR-23 still holds. Add a test beside the existing rect position case.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 464): The isAutoSelection branch is not in change_plan.md and overrides U18 S9. Offsets alone cannot tell the editor's auto-select from a user's select-all, so a deliberate select-all on unstyled text changes strokeColor and the current-item default instead of adding a range, which FR-15 says must stay alone. The highlight action has no such branch, so the same selection behaves differently between the two controls. The branch also repeats the lookup and the saveCaretPosition call from getTextEditSelection, and runs that DOM query on every stroke pick, editing or not. No test names this branch. — fix: Keep the behaviour only if it is wanted, and then record it in the plan. Either way, derive the check from getTextEditSelection's result so there is one lookup and one caret read, and pin both outcomes (auto-selected unstyled text, styled text) with a test.\n2. minor (line 414): changeTextStyleAttribute always writes a new element when a selection exists. Clear on a selection with no matching range returns an unchanged state, yet replaceTextStyles still bumps version and the action captures IMMEDIATELY, so a no-op click broadcasts and records an invisible history entry. — fix: Return null from changeTextStyleAttribute when the state's lists equal the element's current lists, so the clear action returns false, as it does for a collapsed selection.\n3. Orchestrator's ruling on the review finding about isAutoSelection: keep the behaviour. An unstyled element whose whole originalText is selected takes today's base-colour path in the colour action, because the editor auto-selects on open. A styled element, and a partial selection, still get a range. Do only the refactor the finding asks for: derive the check from getTextEditSelection's result, with one lookup and one caret read, and read the caret only while appState.editingTextElement is set, so a stroke pick outside text editing makes no DOM query.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/tests/delta.test.tsx",
+    "instruction": "Fix `packages/element/tests/delta.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add a test: a text edit shifts range X, a peer then clears X (a tombstone for X with a higher seq is on the element), and the local undo of the text edit is applied. X stays cleared and its tombstone stays. Add a second test: a real undo of a clear, with X in added only, still re-adds X. Add a third: an added entry that clamps to start >= end keeps its tombstone. These pin the fix to applyTextStyleDelta in packages/element/src/textStyleRanges.ts. Change no existing test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/delta.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/delta.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/delta.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/scene/export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add tests for a two-line text whose first line is Hebrew and whose second line is LTR with a styled range. SVG: the styled line's <text> has direction=\"ltr\" and a text-anchor taken from textAlign alone, for left, center and right textAlign, and its highlight rect's x matches the run; the Hebrew line keeps today's attributes. Canvas (exportToCanvas): spy on CanvasRenderingContext2D.prototype.fillText and assert this.direction is \"ltr\" for each run of the styled line. Change no existing test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add tests that pin the colour action's auto-select outcomes: (1) open the editor on existing unstyled text, which auto-selects all of it, and pick a stroke colour: strokeColor changes and textStyleRanges stays absent. (2) open the editor on text that already has a range, pick a stroke colour: strokeColor stays and a new range covers the whole text. (3) a clear with no matching range in the selection leaves the element's version unchanged. Change no existing test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

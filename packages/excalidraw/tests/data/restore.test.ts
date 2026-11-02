@@ -7,13 +7,20 @@ import {
   DEFAULT_SIDEBAR,
   FONT_FAMILY,
   getLineHeight,
+  MAX_CLEARED_TEXT_STYLE_RANGES,
+  MAX_TEXT_STYLE_RANGES,
+  MAX_TEXT_STYLE_SEQ,
   ROUNDNESS,
   STICKY_NOTE_MAX_FONT_SIZE,
   DEFAULT_STICKY_NOTE_BG,
   STICKY_NOTE_MIN_FONT_SIZE,
 } from "@excalidraw/common";
 
-import { newElementWith } from "@excalidraw/element";
+import {
+  applyTextStyle,
+  newElementWith,
+  withTextStyles,
+} from "@excalidraw/element";
 import * as sizeHelpers from "@excalidraw/element";
 
 import { getStickyNoteLayout } from "@excalidraw/element";
@@ -1656,4 +1663,212 @@ describe("restoreLibraryItems creation timestamps", () => {
       }
     },
   );
+});
+
+describe("restoreElements text style ranges", () => {
+  const restoreText = (extra: Record<string, unknown> = {}) =>
+    restore.restoreElements(
+      [
+        {
+          ...API.createElement({ type: "text", text: "hello world" }),
+          ...extra,
+        } as any,
+      ],
+      null,
+    )[0] as any;
+
+  const validRange = {
+    id: "a",
+    seq: 1,
+    start: 0,
+    end: 5,
+    color: "#ff0000",
+  };
+
+  it("adds no field to legacy text", () => {
+    const restored = restoreText();
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+    expect(restored).not.toHaveProperty("clearedTextStyleRanges");
+  });
+
+  it("clamps out-of-bounds offsets", () => {
+    const restored = restoreText({
+      textStyleRanges: [{ ...validRange, start: -3, end: 99 }],
+    });
+
+    expect(restored.textStyleRanges).toHaveLength(1);
+    expect(restored.textStyleRanges[0].start).toBe(0);
+    expect(restored.textStyleRanges[0].end).toBe("hello world".length);
+  });
+
+  it("drops ranges that collapse", () => {
+    const restored = restoreText({
+      textStyleRanges: [{ ...validRange, start: 20, end: 30 }],
+    });
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+  });
+
+  it("drops malformed ranges", () => {
+    const restored = restoreText({
+      textStyleRanges: [
+        "not an object",
+        null,
+        { ...validRange, id: undefined },
+        { ...validRange, id: "b", start: 0.5 },
+        { ...validRange, id: "c", seq: 0 },
+        { id: "d", seq: 1, start: 0, end: 5 },
+      ],
+    });
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+  });
+
+  it("drops a bad colour value", () => {
+    const restored = restoreText({
+      textStyleRanges: [
+        { ...validRange, id: "bad", color: 'red" onload="x' },
+        { ...validRange, id: "ok", seq: 2 },
+      ],
+    });
+
+    expect(restored.textStyleRanges.map((range: any) => range.id)).toEqual([
+      "ok",
+    ]);
+  });
+
+  it("accepts hex, named and functional colours", () => {
+    const colors = ["#f00", "#ff000080", "red", "rgb(1, 2, 3)"];
+    const restored = restoreText({
+      textStyleRanges: colors.map((color, index) => ({
+        ...validRange,
+        id: `r${index}`,
+        seq: index + 1,
+        color,
+      })),
+    });
+
+    expect(restored.textStyleRanges.map((range: any) => range.color)).toEqual(
+      colors,
+    );
+  });
+
+  it("strips unknown keys from a range", () => {
+    const restored = restoreText({
+      textStyleRanges: [{ ...validRange, extra: "x" }],
+    });
+
+    expect(restored.textStyleRanges).toHaveLength(1);
+    expect(restored.textStyleRanges[0]).not.toHaveProperty("extra");
+  });
+
+  it("keeps id, seq and tombstones", () => {
+    const cleared = [{ id: "b", seq: 3 }];
+    const restored = restoreText({
+      textStyleRanges: [validRange],
+      clearedTextStyleRanges: cleared,
+    });
+
+    expect(restored.textStyleRanges).toEqual([validRange]);
+    expect(restored.clearedTextStyleRanges).toEqual(cleared);
+  });
+
+  it("removes a range its tombstone covers", () => {
+    const cleared = [{ id: "x", seq: 2 }];
+    const restored = restoreText({
+      textStyleRanges: [{ ...validRange, id: "x", seq: 2 }],
+      clearedTextStyleRanges: cleared,
+    });
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+    expect(restored.clearedTextStyleRanges).toEqual(cleared);
+  });
+
+  it("drops malformed tombstones and caps the rest", () => {
+    const total = 70;
+    const entries = Array.from({ length: total }, (_, index) => ({
+      id: `c${index}`,
+      seq: index + 1,
+    }));
+    const restored = restoreText({
+      clearedTextStyleRanges: [...entries, { seq: 99 }],
+    });
+    const seqs = restored.clearedTextStyleRanges.map((entry: any) => entry.seq);
+
+    expect(seqs).toHaveLength(MAX_CLEARED_TEXT_STYLE_RANGES);
+    expect(Math.min(...seqs)).toBe(total - MAX_CLEARED_TEXT_STYLE_RANGES + 1);
+    expect(Math.max(...seqs)).toBe(total);
+  });
+
+  it("treats a non-array field as empty", () => {
+    const restored = restoreText({ textStyleRanges: 5 });
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+  });
+
+  const manyRanges = () =>
+    Array.from({ length: MAX_TEXT_STYLE_RANGES + 5 }, (_, index) => ({
+      ...validRange,
+      id: `m${index}`,
+      seq: index + 1,
+    }));
+
+  it("caps ranges at MAX_TEXT_STYLE_RANGES, keeping the highest seq", () => {
+    const total = MAX_TEXT_STYLE_RANGES + 5;
+    const restored = restoreText({ textStyleRanges: manyRanges() });
+    const seqs = restored.textStyleRanges.map((range: any) => range.seq);
+
+    expect(seqs).toHaveLength(MAX_TEXT_STYLE_RANGES);
+    expect(Math.min(...seqs)).toBe(total - MAX_TEXT_STYLE_RANGES + 1);
+    expect(Math.max(...seqs)).toBe(total);
+  });
+
+  it("caps ranges of elements in library items", () => {
+    const element = {
+      ...API.createElement({ type: "text", text: "hello world" }),
+      textStyleRanges: manyRanges(),
+    } as any;
+    const items = restore.restoreLibraryItems(
+      [
+        {
+          id: "library-item",
+          status: "unpublished",
+          created: 1,
+          elements: [element],
+        },
+      ] as LibraryItems,
+      "unpublished",
+    );
+
+    expect((items[0].elements[0] as any).textStyleRanges).toHaveLength(
+      MAX_TEXT_STYLE_RANGES,
+    );
+  });
+
+  it("drops a range with a crafted seq of Number.MAX_SAFE_INTEGER", () => {
+    const restored = restoreText({
+      textStyleRanges: [{ ...validRange, seq: Number.MAX_SAFE_INTEGER }],
+    });
+
+    expect(restored).not.toHaveProperty("textStyleRanges");
+  });
+
+  it("keeps a range at MAX_TEXT_STYLE_SEQ and a new one applied after it", () => {
+    const base = API.createElement({ type: "text", text: "hello world" });
+    const styled = withTextStyles(base, {
+      ranges: [{ ...validRange, seq: MAX_TEXT_STYLE_SEQ }],
+      cleared: [],
+    });
+    const next = withTextStyles(
+      styled,
+      applyTextStyle(styled, { start: 6, end: 11 }, { color: "#00ff00" }),
+    );
+    const restored = restore.restoreElements(
+      [next],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restored.textStyleRanges).toHaveLength(2);
+  });
 });

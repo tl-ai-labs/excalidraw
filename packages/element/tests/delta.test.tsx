@@ -1,5 +1,9 @@
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
-import { arrayToMap } from "@excalidraw/common";
+import {
+  MAX_MERGED_TEXT_STYLE_RECORDS,
+  MAX_TEXT_STYLE_SEQ,
+  arrayToMap,
+} from "@excalidraw/common";
 import { pointFrom } from "@excalidraw/math";
 
 import type { ObservedAppState } from "@excalidraw/excalidraw/types";
@@ -12,6 +16,10 @@ import type {
 
 import { AppStateDelta, Delta, ElementsDelta } from "../src/delta";
 import { mutateElement, newElementWith } from "../src/mutateElement";
+import {
+  applyTextStyleDelta,
+  noteMergedTextStyles,
+} from "../src/textStyleRanges";
 
 describe("ElementsDelta", () => {
   describe("visible changes", () => {
@@ -849,5 +857,328 @@ describe("AppStateDelta", () => {
         ),
       );
     });
+  });
+});
+
+describe("ElementsDelta text style ranges", () => {
+  const options = {
+    excludedProperties: new Set(["version", "versionNonce"] as const),
+  };
+
+  const range = (id: string, seq: number, start: number, end: number) => ({
+    id,
+    seq,
+    start,
+    end,
+    color: "#ff0000",
+  });
+
+  const textElement = (overrides: Partial<ExcalidrawTextElement> = {}) =>
+    ({
+      ...API.createElement({
+        type: "text",
+        id: "t",
+        index: "a0" as FractionalIndex,
+      }),
+      text: "hello world",
+      originalText: "hello world",
+      ...overrides,
+    } as ExcalidrawTextElement);
+
+  const toMap = (element: ExcalidrawTextElement) =>
+    arrayToMap([element]) as SceneElementsMap;
+
+  const apply = (before: SceneElementsMap, after: SceneElementsMap) =>
+    ElementsDelta.calculate(before, after).applyTo(before, before, options);
+
+  const undo = (before: SceneElementsMap, after: SceneElementsMap) =>
+    ElementsDelta.calculate(before, after)
+      .inverse()
+      .applyTo(after, after, options)[0]
+      .get("t") as ExcalidrawTextElement;
+
+  // ElementPartial's default keys exclude the text-only fields.
+  const textRanges = (delta: ElementsDelta) =>
+    delta.updated.t as unknown as Record<
+      "inserted" | "deleted",
+      Pick<ExcalidrawTextElement, "textStyleRanges">
+    >;
+
+  it("carries only the ranges that changed", () => {
+    const A = range("A", 1, 0, 2);
+    const B = range("B", 2, 3, 5);
+    const C = range("C", 3, 6, 8);
+    const before = textElement({ textStyleRanges: [A, B] });
+    const after = newElementWith(before, { textStyleRanges: [A, B, C] });
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+
+    expect(textRanges(delta).inserted.textStyleRanges).toEqual([C]);
+    expect(textRanges(delta).deleted.textStyleRanges ?? []).toEqual([]);
+  });
+
+  it("keeps tombstones out of the delta", () => {
+    const A = range("A", 1, 0, 2);
+    const before = textElement({ textStyleRanges: [A] });
+    const after = newElementWith(before, {
+      textStyleRanges: [A, range("C", 3, 6, 8)],
+      clearedTextStyleRanges: [{ id: "Z", seq: 2 }],
+    });
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+
+    expect(delta.updated.t.deleted).not.toHaveProperty(
+      "clearedTextStyleRanges",
+    );
+    expect(delta.updated.t.inserted).not.toHaveProperty(
+      "clearedTextStyleRanges",
+    );
+  });
+
+  it("undo restores offsets with the text", () => {
+    const before = textElement({ textStyleRanges: [range("A", 1, 6, 11)] });
+    const after = newElementWith(before, {
+      text: "abcdhello world",
+      originalText: "abcdhello world",
+      textStyleRanges: [range("A", 1, 10, 15)],
+    });
+    const undone = undo(toMap(before), toMap(after));
+
+    expect(undone.originalText).toBe("hello world");
+    expect(undone.textStyleRanges).toEqual([range("A", 1, 6, 11)]);
+  });
+
+  it("undo of an apply tombstones the range", () => {
+    const before = textElement();
+    const after = newElementWith(before, {
+      textStyleRanges: [range("X", 1, 0, 5)],
+    });
+    const undone = undo(toMap(before), toMap(after));
+
+    expect(undone.textStyleRanges).toBeUndefined();
+    expect(undone.clearedTextStyleRanges).toEqual([
+      expect.objectContaining({ id: "X" }),
+    ]);
+  });
+
+  it("undo of a clear re-adds the range above its tombstone", () => {
+    const X = range("X", 3, 0, 5);
+    const before = textElement({ textStyleRanges: [X] });
+    const after = newElementWith(before, {
+      textStyleRanges: undefined,
+      clearedTextStyleRanges: [{ id: "X", seq: 3 }],
+    });
+    delete (after as { textStyleRanges?: unknown }).textStyleRanges;
+    const undone = undo(toMap(before), toMap(after));
+
+    expect(undone.textStyleRanges).toEqual([range("X", 4, 0, 5)]);
+    expect(undone.clearedTextStyleRanges).toBeUndefined();
+  });
+
+  it("undo leaves a range it did not touch", () => {
+    const X = range("X", 1, 0, 5);
+    const Y = range("Y", 2, 6, 11);
+    const before = textElement();
+    const after = newElementWith(before, { textStyleRanges: [X] });
+    const current = newElementWith(after, { textStyleRanges: [X, Y] });
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+    const undone = delta
+      .inverse()
+      .applyTo(toMap(current), toMap(current), options)[0]
+      .get("t") as ExcalidrawTextElement;
+
+    expect(undone.textStyleRanges?.map((r) => r.id)).toEqual(["Y"]);
+  });
+
+  it("undo remaps a range the delta did not name onto the restored text", () => {
+    const before = textElement();
+    const after = newElementWith(before, {
+      text: "abcdhello world",
+      originalText: "abcdhello world",
+    });
+    const current = newElementWith(after, {
+      textStyleRanges: [range("Y", 1, 10, 15)],
+    });
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+    const undone = delta
+      .inverse()
+      .applyTo(toMap(current), toMap(current), options)[0]
+      .get("t") as ExcalidrawTextElement;
+    const y = undone.textStyleRanges?.find((r) => r.id === "Y");
+
+    expect(undone.originalText).toBe("hello world");
+    expect(undone.originalText.slice(y?.start, y?.end)).toBe("world");
+  });
+
+  it("omits a range a merge added", () => {
+    const A = range("A", 1, 0, 2);
+    const B = range("B", 2, 3, 5);
+    const local = textElement({ textStyleRanges: [A] });
+    const merged = { ...local, textStyleRanges: [A, B] };
+    noteMergedTextStyles(local, merged);
+    const later = newElementWith(merged, { x: local.x + 5 });
+    const delta = ElementsDelta.calculate(toMap(local), toMap(later));
+
+    expect(textRanges(delta).inserted.textStyleRanges ?? []).toEqual([]);
+    expect(textRanges(delta).deleted.textStyleRanges ?? []).toEqual([]);
+    expect(undo(toMap(local), toMap(later)).textStyleRanges).toContainEqual(B);
+  });
+
+  it("omits a range a merge cleared", () => {
+    const X = range("X", 1, 0, 2);
+    const local = textElement({ textStyleRanges: [X] });
+    const merged = {
+      ...local,
+      clearedTextStyleRanges: [{ id: "X", seq: 1 }],
+    } as ExcalidrawTextElement;
+    delete (merged as { textStyleRanges?: unknown }).textStyleRanges;
+    noteMergedTextStyles(local, merged);
+    const later = newElementWith(merged, { x: local.x + 5 });
+    const delta = ElementsDelta.calculate(toMap(local), toMap(later));
+
+    expect(textRanges(delta).deleted.textStyleRanges ?? []).toEqual([]);
+    expect(textRanges(delta).inserted.textStyleRanges ?? []).toEqual([]);
+  });
+
+  it("stops omitting after the snapshot moves on", () => {
+    const A = range("A", 1, 0, 2);
+    const B = range("B", 2, 3, 5);
+    const local = textElement({ textStyleRanges: [A] });
+    noteMergedTextStyles(local, { ...local, textStyleRanges: [A, B] });
+    const before = newElementWith(local, { x: local.x + 1 });
+    const after = newElementWith(before, { textStyleRanges: [A, B] });
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+
+    expect(textRanges(delta).inserted.textStyleRanges).toEqual([B]);
+  });
+
+  const undoOnto = (
+    before: ExcalidrawTextElement,
+    after: ExcalidrawTextElement,
+    current: ExcalidrawTextElement,
+  ) =>
+    ElementsDelta.calculate(toMap(before), toMap(after))
+      .inverse()
+      .applyTo(toMap(current), toMap(current), options)[0]
+      .get("t") as ExcalidrawTextElement;
+
+  const clearAllRanges = (
+    element: ExcalidrawTextElement,
+    clearedTextStyleRanges: ExcalidrawTextElement["clearedTextStyleRanges"],
+  ) => {
+    const next = newElementWith(element, { clearedTextStyleRanges });
+    delete (next as { textStyleRanges?: unknown }).textStyleRanges;
+    return next;
+  };
+
+  it("keeps a peer's tombstone when undoing a text edit that shifted the range", () => {
+    const before = textElement({ textStyleRanges: [range("X", 1, 6, 11)] });
+    const after = newElementWith(before, {
+      text: "abcdhello world",
+      originalText: "abcdhello world",
+      textStyleRanges: [range("X", 1, 10, 15)],
+    });
+    const current = clearAllRanges(after, [{ id: "X", seq: 5 }]);
+    const undone = undoOnto(before, after, current);
+
+    expect(undone.originalText).toBe("hello world");
+    expect(undone.textStyleRanges).toBeUndefined();
+    expect(undone.clearedTextStyleRanges).toEqual([{ id: "X", seq: 5 }]);
+  });
+
+  // The next two use ids no earlier test noted as merged: the record outlives
+  // a test, and it would omit an id found in only one side of the diff.
+  it("re-adds a range in added only above a higher tombstone", () => {
+    const before = textElement({ textStyleRanges: [range("W", 3, 0, 5)] });
+    const after = clearAllRanges(before, [{ id: "W", seq: 3 }]);
+    const current = newElementWith(after, {
+      clearedTextStyleRanges: [{ id: "W", seq: 5 }],
+    });
+    const undone = undoOnto(before, after, current);
+
+    expect(undone.textStyleRanges).toEqual([range("W", 6, 0, 5)]);
+    expect(undone.clearedTextStyleRanges).toBeUndefined();
+  });
+
+  it("keeps the tombstone when an added range clamps to empty", () => {
+    const before = textElement({ textStyleRanges: [range("Q", 3, 6, 11)] });
+    const after = clearAllRanges(before, [{ id: "Q", seq: 3 }]);
+    const current = newElementWith(after, {
+      text: "hello",
+      originalText: "hello",
+    });
+    const undone = undoOnto(before, after, current);
+
+    expect(undone.textStyleRanges).toBeUndefined();
+    expect(undone.clearedTextStyleRanges).toEqual([{ id: "Q", seq: 3 }]);
+  });
+
+  it("does not count a tombstone as a visible change", () => {
+    const before = textElement();
+    const after = newElementWith(before, {
+      clearedTextStyleRanges: [{ id: "Z", seq: 1 }],
+    });
+
+    expect(apply(toMap(before), toMap(after))[1]).toBe(false);
+  });
+
+  // Ids below are unique to each test, as the merge record outlives a test.
+  const insertedFor = (
+    elementId: string,
+    before: ExcalidrawTextElement,
+    after: ExcalidrawTextElement,
+  ) => {
+    const delta = ElementsDelta.calculate(toMap(before), toMap(after));
+    return (
+      delta.updated[elementId] as unknown as {
+        inserted: Pick<ExcalidrawTextElement, "textStyleRanges">;
+      }
+    ).inserted.textStyleRanges;
+  };
+
+  it("keys the merge record per element", () => {
+    const X = range("XK", 1, 0, 2);
+    const localA = textElement({ id: "keyA" });
+    noteMergedTextStyles(localA, { ...localA, textStyleRanges: [X] });
+
+    const beforeB = textElement({ id: "keyB" });
+    const afterB = newElementWith(beforeB, { textStyleRanges: [X] });
+
+    expect(insertedFor("keyB", beforeB, afterB)).toEqual([X]);
+  });
+
+  it("drops the oldest merge records past the bound", () => {
+    const first = textElement({ id: "bound0" });
+    const firstRange = range("BR0", 1, 0, 2);
+    noteMergedTextStyles(first, { ...first, textStyleRanges: [firstRange] });
+
+    let last = first;
+    let lastRange = firstRange;
+    for (let i = 1; i <= MAX_MERGED_TEXT_STYLE_RECORDS + 1; i++) {
+      last = textElement({ id: `bound${i}` });
+      lastRange = range(`BR${i}`, 1, 0, 2);
+      noteMergedTextStyles(last, { ...last, textStyleRanges: [lastRange] });
+    }
+
+    const afterFirst = newElementWith(first, {
+      textStyleRanges: [firstRange],
+    });
+    expect(insertedFor("bound0", first, afterFirst)).toEqual([firstRange]);
+
+    const afterLast = newElementWith(last, { textStyleRanges: [lastRange] });
+    expect(insertedFor(last.id, last, afterLast) ?? []).toEqual([]);
+  });
+
+  it("keeps a re-added range live at the seq ceiling", () => {
+    const element = textElement({
+      clearedTextStyleRanges: [{ id: "M", seq: MAX_TEXT_STYLE_SEQ }],
+    });
+    const state = applyTextStyleDelta(
+      element,
+      element.originalText,
+      undefined,
+      [range("M", 1, 0, 5)],
+    );
+
+    expect(state?.ranges).toEqual([range("M", MAX_TEXT_STYLE_SEQ, 0, 5)]);
+    expect(state?.cleared).toEqual([]);
   });
 });

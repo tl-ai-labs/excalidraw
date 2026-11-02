@@ -7,10 +7,14 @@ import {
   getOriginalContainerHeightFromCache,
   isTextElement,
   newElementWith,
+  getStyledTextLines,
 } from "@excalidraw/element";
 
 import {
   CODES,
+  COLOR_PALETTE,
+  DEFAULT_ELEMENT_STROKE_COLOR_INDEX,
+  MAX_TEXT_STYLE_RANGES,
   colorToHex,
   CURSOR_TYPE,
   KEYS,
@@ -46,8 +50,17 @@ import {
   mockBoundingClientRect,
   restoreOriginalGetBoundingClientRect,
 } from "../tests/test-utils";
+import { serializeAsClipboardJSON } from "../clipboard";
 import * as dataModule from "../data";
-import { actionBindText } from "../actions";
+import {
+  actionBindText,
+  actionChangeFontFamily,
+  actionChangeFontSize,
+  actionCopyStyles,
+  actionPasteStyles,
+  actionUnbindText,
+} from "../actions";
+import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { getTextAutoResizeHandle } from "../textAutoResizeHandle";
 
@@ -3592,6 +3605,391 @@ describe("textWysiwyg", () => {
       Keyboard.undo();
 
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+    });
+  });
+
+  describe("styled ranges", () => {
+    const red = COLOR_PALETTE.red[DEFAULT_ELEMENT_STROKE_COLOR_INDEX];
+    const yellow = "#ffec99";
+    const world = { id: "r1", seq: 1, start: 6, end: 11, color: red };
+
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    type LiveTextElement = ExcalidrawTextElement & NonDeletedExcalidrawElement;
+
+    const makeText = (
+      overrides: Record<string, unknown> = {},
+    ): LiveTextElement =>
+      ({
+        ...API.createElement({ type: "text", text: "hello world" }),
+        originalText: "hello world",
+        ...overrides,
+      } as LiveTextElement);
+
+    const first = () => h.elements[0] as LiveTextElement;
+
+    const open = async (
+      overrides: Record<string, unknown> = {},
+      selection?: [number, number],
+    ) => {
+      API.setElements([makeText(overrides)]);
+      API.setSelectedElements([first()]);
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor = await getTextEditor();
+      if (selection) {
+        editor.setSelectionRange(selection[0], selection[1]);
+      }
+      return editor;
+    };
+
+    const offsets = (element: ExcalidrawTextElement) =>
+      (element.textStyleRanges ?? []).map(({ start, end }) => [start, end]);
+
+    const layer = () =>
+      document.querySelector<HTMLElement>(".excalidraw-wysiwyg-styles");
+
+    it("colours a selection", async () => {
+      const base = makeText().strokeColor;
+      await open({}, [6, 11]);
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      const ranges = first().textStyleRanges!;
+      expect(ranges).toHaveLength(1);
+      expect([ranges[0].start, ranges[0].end]).toEqual([6, 11]);
+      expect(ranges[0].color).toBe(red);
+      expect(first().strokeColor).toBe(base);
+    });
+
+    it("stays open with the selection in place", async () => {
+      const editor = await open({}, [6, 11]);
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(document.body.contains(editor)).toBe(true);
+      expect(editor.selectionStart).toBe(6);
+      expect(editor.selectionEnd).toBe(11);
+      expect(h.state.editingTextElement).not.toBe(null);
+    });
+
+    it("keeps the selection through the popover", async () => {
+      class ResizeObserverStub {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+      try {
+        const editor = await open({}, [6, 11]);
+        fireEvent.click(
+          document.querySelector<HTMLElement>(
+            '[data-openpopup="elementStroke"]',
+          )!,
+        );
+        UI.clickOnTestId("color-red");
+        expect(first().textStyleRanges).toHaveLength(1);
+        expect(editor.selectionStart).toBe(6);
+        expect(editor.selectionEnd).toBe(11);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("highlights a selection", async () => {
+      await open({}, [6, 11]);
+      UI.clickOnTestId(`color-top-pick-${yellow}`);
+      const ranges = first().textStyleRanges!;
+      expect(ranges).toHaveLength(1);
+      expect(ranges[0].highlight).toBe(yellow);
+      expect(ranges[0].color).toBeUndefined();
+    });
+
+    it("colours the base with no selection and keeps ranges", async () => {
+      const before = [world];
+      const editor = await open({ textStyleRanges: before });
+      editor.setSelectionRange(3, 3);
+      const base = first().strokeColor;
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(first().strokeColor).not.toBe(base);
+      expect(first().textStyleRanges).toEqual(before);
+    });
+
+    it("keeps ranges on a canvas pick", async () => {
+      const before = [world];
+      API.setElements([makeText({ textStyleRanges: before })]);
+      API.setSelectedElements([first()]);
+      const base = first().strokeColor;
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(first().strokeColor).not.toBe(base);
+      expect(first().textStyleRanges).toEqual(before);
+    });
+
+    it("makes the highlight a no-op with no selection", async () => {
+      const editor = await open();
+      editor.setSelectionRange(3, 3);
+      UI.clickOnTestId(`color-top-pick-${yellow}`);
+      expect(first().textStyleRanges).toBeUndefined();
+    });
+
+    it("clears a colour and a highlight from a selection", async () => {
+      await open(
+        { textStyleRanges: [{ ...world, highlight: yellow }] },
+        [6, 11],
+      );
+      UI.clickOnTestId("clear-text-color");
+      expect(first().textStyleRanges).toHaveLength(1);
+      expect(first().textStyleRanges![0].color).toBeUndefined();
+      expect(first().textStyleRanges![0].highlight).toBe(yellow);
+      UI.clickOnTestId("clear-text-highlight");
+      expect(first().textStyleRanges).toBeUndefined();
+      expect(first().clearedTextStyleRanges?.map((c) => c.id)).toContain("r1");
+    });
+
+    it("shows a range behind the textarea", async () => {
+      const editor = await open({
+        textStyleRanges: [
+          world,
+          { id: "r2", seq: 2, start: 0, end: 5, highlight: yellow },
+        ],
+      });
+      const styles = layer()!;
+      expect(styles).not.toBe(null);
+      expect(styles.textContent).toBe(editor.value);
+      const spans = Array.from(styles.querySelectorAll<HTMLElement>("span"));
+      expect(spans.some((span) => span.style.color !== "")).toBe(true);
+      expect(spans.some((span) => span.style.backgroundColor !== "")).toBe(
+        true,
+      );
+      expect(editor.style.color).toBe("transparent");
+      expect(editor.classList.contains("excalidraw-wysiwyg--styled")).toBe(
+        true,
+      );
+    });
+
+    it("has no layer for an unstyled text", async () => {
+      const editor = await open();
+      expect(layer()).toBe(null);
+      expect(editor.style.color).not.toBe("transparent");
+    });
+
+    it("drops the layer with the last range and with the editor", async () => {
+      const editor = await open({ textStyleRanges: [world] }, [6, 11]);
+      expect(layer()).not.toBe(null);
+      UI.clickOnTestId("clear-text-color");
+      expect(layer()).toBe(null);
+      expect(editor.style.color).not.toBe("transparent");
+
+      Keyboard.exitTextEditor(editor);
+      API.setElements([makeText({ textStyleRanges: [world] })]);
+      API.setSelectedElements([first()]);
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor2 = await getTextEditor();
+      expect(layer()).not.toBe(null);
+      Keyboard.exitTextEditor(editor2);
+      expect(layer()).toBe(null);
+    });
+
+    it("shows a merge that keeps version in the layer", async () => {
+      await open();
+      expect(layer()).toBe(null);
+      act(() => {
+        API.updateScene({
+          elements: [{ ...first(), textStyleRanges: [world] }],
+        });
+      });
+      expect(layer()).not.toBe(null);
+    });
+
+    it("moves ranges with typing and commits them", async () => {
+      const editor = await open({ textStyleRanges: [world] });
+      updateTextEditor(editor, "big hello world");
+      Keyboard.exitTextEditor(editor);
+      const text = first();
+      const [{ start, end }] = text.textStyleRanges!;
+      expect(text.originalText.slice(start, end)).toBe("world");
+    });
+
+    it("commits empty text as today", async () => {
+      const editor = await open({ textStyleRanges: [world] });
+      updateTextEditor(editor, "");
+      Keyboard.exitTextEditor(editor);
+      expect(first().isDeleted).toBe(true);
+      expect(first().textStyleRanges).toBeUndefined();
+    });
+
+    it("keeps a range on its word when text is pasted before it", async () => {
+      const editor = await open({ textStyleRanges: [world] });
+      fireEvent.input(editor, { target: { value: "oh my hello world" } });
+      Keyboard.exitTextEditor(editor);
+      const text = first();
+      const [{ start, end }] = text.textStyleRanges!;
+      expect(text.originalText.slice(start, end)).toBe("world");
+    });
+
+    it("keeps ranges on an element copy", async () => {
+      const text = makeText({ textStyleRanges: [world] });
+      API.setElements([text]);
+      const { elements } = JSON.parse(
+        serializeAsClipboardJSON({ elements: [text], files: null }),
+      );
+      act(() => {
+        h.app.addElementsFromPasteOrLibrary({
+          elements,
+          files: null,
+          position: "center",
+        });
+      });
+      const copy = h.elements.find(
+        (el) => isTextElement(el) && el.id !== text.id,
+      ) as ExcalidrawTextElement;
+      expect(copy).toBeDefined();
+      expect(copy.textStyleRanges).toEqual([world]);
+    });
+
+    it("caps ranges on an element copy", async () => {
+      const count = MAX_TEXT_STYLE_RANGES + 5;
+      const text = makeText({
+        text: "a".repeat(count),
+        originalText: "a".repeat(count),
+        textStyleRanges: Array.from({ length: count }, (_, index) => ({
+          id: `cap${index}`,
+          seq: index + 1,
+          start: index,
+          end: index + 1,
+          color: red,
+        })),
+      });
+      API.setElements([text]);
+      const { elements } = JSON.parse(
+        serializeAsClipboardJSON({ elements: [text], files: null }),
+      );
+      act(() => {
+        h.app.addElementsFromPasteOrLibrary({
+          elements,
+          files: null,
+          position: "center",
+        });
+      });
+      const copy = h.elements.find(
+        (el) => isTextElement(el) && el.id !== text.id,
+      ) as ExcalidrawTextElement;
+      expect(copy).toBeDefined();
+      expect(copy.textStyleRanges).toHaveLength(MAX_TEXT_STYLE_RANGES);
+    });
+
+    it("leaves the target's ranges on paste styles", async () => {
+      const source = makeText({ strokeColor: "#e03131" });
+      const targetRanges = [{ ...world, id: "t1" }];
+      const target = makeText({ textStyleRanges: targetRanges });
+      API.setElements([source, target]);
+      API.setSelectedElements([source]);
+      act(() => {
+        h.app.actionManager.executeAction(actionCopyStyles);
+      });
+      API.setSelectedElements([target]);
+      act(() => {
+        h.app.actionManager.executeAction(actionPasteStyles);
+      });
+      const result = h.elements[1] as ExcalidrawTextElement;
+      expect(result.strokeColor).toBe("#e03131");
+      expect(result.textStyleRanges).toEqual(targetRanges);
+    });
+
+    it("keeps ranges through font, size and auto-resize changes", async () => {
+      API.setElements([
+        makeText({
+          text: "hello\nworld",
+          width: 60,
+          autoResize: false,
+          textStyleRanges: [world],
+        }),
+      ]);
+      API.setSelectedElements([first()]);
+      const expected = [[6, 11]];
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeFontFamily, "ui", {
+          currentItemFontFamily: FONT_FAMILY.Cascadia,
+          currentHoveredFontFamily: null,
+        });
+      });
+      expect(offsets(first())).toEqual(expected);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeFontSize, "ui", 28);
+      });
+      expect(offsets(first())).toEqual(expected);
+      act(() => {
+        h.app.actionManager.executeAction(actionTextAutoResize);
+      });
+      expect(offsets(first())).toEqual(expected);
+      const lines = getStyledTextLines(first());
+      expect(lines?.some((line) => line?.some((run) => run.color))).toBe(true);
+    });
+
+    it("keeps ranges bound, unbound and wrapped", async () => {
+      const rectangle = API.createElement({
+        type: "rectangle",
+        width: 200,
+        height: 100,
+      });
+      const text = makeText({ textStyleRanges: [world] });
+      API.setElements([rectangle, text]);
+      const textOf = () =>
+        h.elements.find(
+          (el) => isTextElement(el) && el.id === text.id,
+        ) as LiveTextElement;
+      API.setSelectedElements([rectangle, text]);
+      act(() => {
+        h.app.actionManager.executeAction(actionBindText);
+      });
+      expect(offsets(textOf())).toEqual([[6, 11]]);
+      API.setSelectedElements([rectangle]);
+      act(() => {
+        h.app.actionManager.executeAction(actionUnbindText);
+      });
+      expect(offsets(textOf())).toEqual([[6, 11]]);
+      API.setSelectedElements([textOf()]);
+      act(() => {
+        h.app.actionManager.executeAction(actionWrapTextInContainer);
+      });
+      expect(offsets(textOf())).toEqual([[6, 11]]);
+    });
+
+    it("colours the base when the editor auto-selects unstyled text", async () => {
+      const base = makeText().strokeColor;
+      await open({}, [0, 11]);
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(first().strokeColor).not.toBe(base);
+      expect(first().textStyleRanges).toBeUndefined();
+    });
+
+    it("adds a whole-text range when the text already has a range", async () => {
+      const base = makeText().strokeColor;
+      await open({ textStyleRanges: [world] }, [0, 11]);
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(first().strokeColor).toBe(base);
+      expect(
+        first().textStyleRanges!.some(
+          (range) =>
+            range.start === 0 && range.end === 11 && range.color === red,
+        ),
+      ).toBe(true);
+    });
+
+    it("keeps the version when a clear matches no range", async () => {
+      await open({ textStyleRanges: [world] }, [0, 5]);
+      const { version } = first();
+      UI.clickOnTestId("clear-text-color");
+      expect(first().version).toBe(version);
+      expect(first().textStyleRanges).toEqual([world]);
+    });
+
+    it("changes only the base colour on a note label ink sync", async () => {
+      const before = [world];
+      API.setElements([makeText({ textStyleRanges: before })]);
+      API.setSelectedElements([first()]);
+      const base = first().strokeColor;
+      UI.clickOnTestId(`color-top-pick-${red}`);
+      expect(first().strokeColor).not.toBe(base);
+      expect(first().textStyleRanges).toEqual(before);
     });
   });
 });

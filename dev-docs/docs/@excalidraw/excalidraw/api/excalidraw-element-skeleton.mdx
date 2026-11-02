@@ -143,6 +143,26 @@ convertToExcalidrawElements([
 
 ![image](https://github.com/excalidraw/excalidraw/assets/11256141/085c7ac3-7952-4f22-b9c3-6beb51438526)
 
+#### With styled ranges
+
+A text element can colour or highlight parts of its text with `textStyleRanges`. Each entry takes `start` and `end` offsets and at least one of `color` and `highlight`.
+
+```js
+convertToExcalidrawElements([
+  {
+    type: "text",
+    x: 100,
+    y: 200,
+    text: "HELLO WORLD!",
+    textStyleRanges: [
+      { start: 6, end: 11, color: "#e03131", highlight: "#ffec99" },
+    ],
+  },
+]);
+```
+
+The offsets index the `text` as you give it, in UTF-16 code units, and `end` is exclusive. The `id` and `seq` of a range are optional and are generated when missing. Invalid entries, such as an empty range or an unsafe colour, are dropped. The `label` of a container or an arrow accepts the same `textStyleRanges` field.
+
 ### Lines and Arrows
 
 The `type`, `x`, and `y` properties are required, rest of the attributes are optional

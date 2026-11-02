@@ -1,0 +1,431 @@
+[
+  {
+    "id": "U10",
+    "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Writes a line with styled runs as one <text> of <tspan>s with highlight rects behind it; every other line stays byte for byte.",
+    "rules": [
+      "On a line with no styled run, the existing textContent, attribute order and append order stay as they are.",
+      "Colours reach the SVG through setAttribute only."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 28,
+        "to": 28,
+        "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+        "rule": "Add `import { getStyledTextLines, layoutTextStyleRuns } from \"@excalidraw/element\";`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 815,
+        "to": 815,
+        "first_line": "for (let i = 0; i < lines.length; i++) {",
+        "rule": "Add `const styledLines = getStyledTextLines(element);`."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 817,
+        "to": 817,
+        "first_line": "text.textContent = lines[i];",
+        "rule": "Add `const runs = styledLines?.[i];` and set textContent only when runs is falsy."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 833,
+        "to": 833,
+        "first_line": "node.appendChild(text);",
+        "rule": "When runs is truthy, loop over layoutTextStyleRuns(element, lines[i], runs, renderConfig.renderEnvironment). For a run with highlight, create an SVG_NS rect with x, y = i * lineHeightPx, width, height = lineHeightPx, and fill = applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK), and append it to node. Then create an SVG_NS tspan with textContent = lines[i].slice(run.start, run.end), set its fill to applyDarkModeFilter(run.color, same theme test) only when run.color is set, and append it to text. Keep `node.appendChild(text);` last, so the rects sit behind the text."
+      }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-22", "FR-23", "NFR-1", "NFR-4"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/data/restore.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Validates ranges and tombstones on restore, leaving legacy text with no new field.",
+    "rules": [
+      "No key is added for legacy text: the sanitiser returns the element unchanged when both fields are absent, and the fields are not passed in restoreElementWithProperties' extra argument.",
+      "id, seq and tombstones survive, because Collab.tsx runs restore before reconcile."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 64,
+        "to": 64,
+        "first_line": "import { detectLineHeight } from \"@excalidraw/element\";",
+        "rule": "Add `import { sanitizeTextStyles } from \"@excalidraw/element\";`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 597,
+        "to": 597,
+        "first_line": "// if empty text, mark as deleted. We keep in array",
+        "rule": "Add `element = sanitizeTextStyles(element);` with a one-line comment that unknown fields survive restore unvalidated, so ranges from files and peers are checked here."
+      }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-24", "FR-25", "FR-26", "NFR-4"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/data/reconcile.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Merges ranges on both reconcile outcomes, with the winner picked exactly as today.",
+    "rules": [
+      "shouldDiscardRemoteElement and the signature of reconcileElements do not change.",
+      "No path in this file changes for elements that are not text, or when no local element exists."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 5,
+        "to": 9,
+        "first_line": "import {",
+        "last_line": "} from \"@excalidraw/element\";",
+        "rule": "Keep the three imports and add isTextElement, mergeTextStyles and noteMergedTextStyles."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 73,
+        "to": 73,
+        "first_line": "export const reconcileElements = (",
+        "rule": "Add `const mergeStyleRanges = <T extends OrderedExcalidrawElement>(winner: T, loser: OrderedExcalidrawElement, localElement: OrderedExcalidrawElement): T`, with a doc comment that the text still has one winner and only its ranges merge. Return winner unless winner and loser are both text elements. merged = mergeTextStyles(winner, loser). If merged !== localElement and localElement is text, call noteMergedTextStyles(localElement, merged). Return merged."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 92,
+        "to": 98,
+        "first_line": "if (localElement && discardRemoteElement) {",
+        "last_line": "}",
+        "rule": "The discard branch pushes mergeStyleRanges(localElement, remoteElement, localElement); this also covers the mid-edit discard. The other branch pushes localElement ? mergeStyleRanges(remoteElement, localElement, localElement) : remoteElement. The added.add calls stay as they are."
+      }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-13", "FR-27", "FR-28", "FR-30", "FR-31", "FR-32", "FR-33", "FR-34", "NFR-6"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Shows styled ranges behind the textarea while editing, and reports the caret with each text change.",
+    "rules": [
+      "The textarea stays the only input. Nothing here writes editable.value or the selection for styling.",
+      "Spans are built with createElement, textContent and element.style, never innerHTML."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 19,
+        "to": 19,
+        "first_line": "getTextFromElements,",
+        "rule": "Add `getTextStyleRuns,` to the import."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 268,
+        "to": 268,
+        "first_line": "onChange?: (nextOriginalText: string) => void;",
+        "rule": "Change to `onChange?: (data: { nextOriginalText: string; caret: number }) => void;`."
+      },
+      {
+        "id": "S3",
+        "at": "insert_after",
+        "from": 313,
+        "to": 313,
+        "first_line": "} | null = null;",
+        "rule": "Add `let styleOverlay: HTMLDivElement | null = null;` and `let overlayContent: { text: string; ranges: ExcalidrawTextElement[\"textStyleRanges\"]; isDark: boolean } | null = null;`, then `const syncStyleOverlay = (textElement: ExcalidrawTextElement) => {...}` with a doc comment that a textarea cannot draw coloured runs, so a layer behind it does. Steps: 1. ranges = textElement.textStyleRanges. If there are none: remove the overlay and reset it and overlayContent to null, remove class excalidraw-wysiwyg--styled, remove the caret-color property, and return. 2. Create the overlay when missing: an ownerDocument div with class excalidraw-wysiwyg-styles, aria-hidden true and dir auto, added with editorBox?.prepend(overlay). 3. Read baseColor = editable.style.color, set overlay.style.cssText = editable.style.cssText, then Object.assign pointerEvents none, userSelect none and unicodeBidi plaintext onto overlay.style. 4. Set editable.style.caretColor = baseColor, editable.style.color = transparent, and add class excalidraw-wysiwyg--styled. 5. isDark = app.state.theme === THEME.DARK. Return if overlayContent has the same text (editable.value), the same ranges reference and the same isDark. 6. Otherwise overlay.replaceChildren(), and for each run of getTextStyleRuns(editable.value, 0, ranges): text = value.slice(run.start, run.end); a run with no colour appends a text node; a styled run appends a span with textContent = text, style.color from applyDarkModeFilter(run.color, isDark) when set, style.backgroundColor from applyDarkModeFilter(run.highlight, isDark) when set. Then store overlayContent."
+      },
+      {
+        "id": "S4",
+        "at": "insert_before",
+        "from": 529,
+        "to": 529,
+        "first_line": "app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });",
+        "rule": "Add `syncStyleOverlay(updatedTextElement);`. The style assignment above has just reset editable.style.color to the base colour."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 863,
+        "to": 863,
+        "first_line": "onChange(editable.value);",
+        "rule": "Change to `onChange({ nextOriginalText: editable.value, caret: editable.selectionEnd });`, formatted by Prettier."
+      },
+      {
+        "id": "S6",
+        "at": "insert_after",
+        "from": 1116,
+        "to": 1116,
+        "first_line": "editable.remove();",
+        "rule": "Add `styleOverlay?.remove();`."
+      }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-13", "FR-18", "FR-19", "NFR-4"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U14",
+    "path": "packages/excalidraw/components/App.text.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Moves ranges along with each text change in the editor, so the committed element carries them.",
+    "rules": [
+      "updateElement reads the scene's element, so ranges merged in during the edit are the ones that get remapped and committed. Keep reading _element, never the closed-over element.",
+      "Committing empty text stays as today: remapping drops all ranges and the element is marked deleted by the existing isDeleted path."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 42,
+        "to": 42,
+        "first_line": "refreshTextDimensions,",
+        "rule": "Add `remapTextStyles,` to the import."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 43,
+        "to": 43,
+        "first_line": "updateBoundElements,",
+        "rule": "Add `withTextStyles,` to the import."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 187,
+        "to": 187,
+        "first_line": "const updateElement = (nextOriginalText: string, isDeleted: boolean) => {",
+        "rule": "Add a third optional parameter `caret?: number`, formatted by Prettier."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 223,
+        "to": 236,
+        "first_line": "return newElementWith(_element, {",
+        "last_line": "});",
+        "rule": "First `const textStyles = remapTextStyles(_element, nextOriginalText, { caret });` so it reads the previous originalText. Keep the newElementWith call and its arguments unchanged, store it as nextElement, and return `textStyles ? withTextStyles(nextElement, textStyles) : nextElement`. remapTextStyles returns null when the text is unchanged, so nextElement is a fresh copy whenever it is written to."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 296,
+        "to": 297,
+        "first_line": "onChange: withBatchedUpdates((nextOriginalText) => {",
+        "last_line": "updateElement(nextOriginalText, false);",
+        "rule": "Take `({ nextOriginalText, caret })` and call updateElement(nextOriginalText, false, caret)."
+      }
+    ],
+    "depends_on": ["U03", "U13"],
+    "covers": ["FR-14", "FR-19", "FR-32"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U15",
+    "path": "packages/excalidraw/css/styles.scss",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Keeps the coloured layer visible through a live selection in the textarea.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 148,
+        "to": 148,
+        "first_line": "}",
+        "rule": "Inside .excalidraw-textEditorContainer, after the `> textarea` block and a blank line, add a one-line comment that the coloured text is the layer behind, and `> textarea.excalidraw-wysiwyg--styled::selection { color: transparent; background: rgba(105, 101, 219, 0.3); }` on separate lines."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-18"],
+    "checks": ["format"]
+  },
+  {
+    "id": "U16",
+    "path": "packages/excalidraw/locales/en.json",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the strings for the highlight and clear controls.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 33,
+        "to": 33,
+        "first_line": "\"textColor\": \"Text color\",",
+        "rule": "Add `\"textHighlight\": \"Highlight\",`, `\"clearTextColor\": \"Clear text color\",` and `\"clearTextHighlight\": \"Clear highlight\",`."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21"],
+    "checks": ["format"]
+  },
+  {
+    "id": "U17",
+    "path": "packages/excalidraw/actions/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Registers the two new action names.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 66,
+        "to": 66,
+        "first_line": "| \"changeStrokeColor\"",
+        "rule": "Add `| \"changeTextHighlight\"` and `| \"clearTextStyle\"`."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-15", "FR-17"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U18",
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Applies colour to the textarea selection, and adds the highlight and clear actions.",
+    "rules": [
+      "With no selection, every existing path of actionChangeStrokeColor runs unchanged, and ranges stay in place (FR-16).",
+      "Neither action touches strokeColor, so the sticky note ink sync has nothing to do with ranges (FR-6).",
+      "Range changes return `appState: { ...appState, ...updates }`, so App re-points editingTextElement at the new object, and captureUpdate IMMEDIATELY, as a stroke colour pick does."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 25,
+        "to": 25,
+        "first_line": "FONT_SIZES,",
+        "rule": "Add `TEXT_HIGHLIGHT_PICKS,` to the @excalidraw/common import."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 34,
+        "to": 34,
+        "first_line": "syncStickyNoteInk,",
+        "rule": "Add `applyTextStyle,`, `clearTextStyle,` and `withTextStyles,` to the import."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 100,
+        "to": 100,
+        "first_line": "import type { ElementUpdate, Scene } from \"@excalidraw/element\";",
+        "rule": "Also import the types TextStyleAttribute and TextStyleState, formatted by Prettier."
+      },
+      {
+        "id": "S4",
+        "at": "insert_after",
+        "from": 107,
+        "to": 107,
+        "first_line": "import { ColorPicker } from \"../components/ColorPicker/ColorPicker\";",
+        "rule": "Add `import { TopPicks } from \"../components/ColorPicker/TopPicks\";`."
+      },
+      {
+        "id": "S5",
+        "at": "insert_after",
+        "from": 156,
+        "to": 156,
+        "first_line": "strokeVariabilityVariableIcon,",
+        "rule": "Add `EraserIcon,` to the icons import."
+      },
+      {
+        "id": "S6",
+        "at": "insert_after",
+        "from": 169,
+        "to": 169,
+        "first_line": "withCaretPositionPreservation,",
+        "rule": "Add `saveCaretPosition,` to the import."
+      },
+      {
+        "id": "S7",
+        "at": "insert_before",
+        "from": 364,
+        "to": 364,
+        "first_line": "// -----------------------------------------------------------------------------",
+        "rule": "Add `getTextEditSelection(elements, appState, app)`: find the element with appState.editingTextElement's id in elements; return null unless it is a text element; caret = saveCaretPosition(app.ownerDocument); return null when caret is null or caret.start === caret.end; else return { element, selection: { start: caret.start, end: caret.end } }. textarea offsets are originalText offsets, and FR-14 is this mapping. Add `replaceTextStyles(elements, element, state: TextStyleState)`: elements.map replacing the element with that id by withTextStyles(newElementWith(el as ExcalidrawTextElement, {}, true), state). Add `changeTextStyleAttribute(elements, appState, app, attribute: TextStyleAttribute, color: string | null)`: null when getTextEditSelection is null; otherwise replaceTextStyles with clearTextStyle(element, selection, attribute) when color is null or isTransparent(color), else applyTextStyle(element, selection, attribute === \"color\" ? { color } : { highlight: color })."
+      },
+      {
+        "id": "S8",
+        "at": "replace",
+        "from": 372,
+        "to": 372,
+        "first_line": "perform: (elements, appState, value) => {",
+        "rule": "Take the fourth parameter: `perform: (elements, appState, value, app) => {`."
+      },
+      {
+        "id": "S9",
+        "at": "insert_before",
+        "from": 380,
+        "to": 380,
+        "first_line": "// resolved from the state the action runs against — never from the",
+        "rule": "Add: `const styledElements = changeTextStyleAttribute(elements, appState, app, \"color\", color);` and, when non-null, return { elements: styledElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }, with a comment that a selection colours the range and leaves the base colour and the defaults alone."
+      },
+      {
+        "id": "S10",
+        "at": "insert_before",
+        "from": 445,
+        "to": 445,
+        "first_line": "export const actionChangeBackgroundColor = register<",
+        "rule": "Add `export const actionChangeTextHighlight = register<string>({ name: \"changeTextHighlight\", label: \"labels.textHighlight\", trackEvent: false, predicate: (_, appState) => !!appState.editingTextElement, perform, PanelComponent })`. perform: changeTextStyleAttribute(elements, appState, app, \"highlight\", value ?? null); return false when null; else { elements, appState, captureUpdate: IMMEDIATELY }. PanelComponent: an h3 aria-hidden with t(\"labels.textHighlight\") when stylesPanelMode is full, then <TopPicks theme={appState.theme} type=\"elementBackground\" activeColor={null} topPicks={TEXT_HIGHLIGHT_PICKS} onChange={(color) => updateData(color)} />. Then add `export const actionClearTextStyle = register<TextStyleAttribute>({ name: \"clearTextStyle\", label: \"labels.clearTextColor\", trackEvent: false, predicate same, perform, PanelComponent })`. perform: changeTextStyleAttribute with attribute = value and color null, same return shape. PanelComponent: a div.buttonList with two <IconButton type=\"button\" icon={EraserIcon}> with title and aria-label t(\"labels.clearTextColor\") and data-testid clear-text-color calling updateData(\"color\"), and t(\"labels.clearTextHighlight\") and data-testid clear-text-highlight calling updateData(\"highlight\")."
+      }
+    ],
+    "depends_on": ["U03", "U16", "U17"],
+    "covers": ["FR-14", "FR-15", "FR-16", "FR-17", "FR-21"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U19",
+    "path": "packages/excalidraw/components/Actions.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Shows the highlight and clear controls while text is being edited, in the full panel and in the compact text popover.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 162,
+        "to": 162,
+        "first_line": "<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>",
+        "rule": "Add `{appState.editingTextElement && (<div>{renderAction(\"changeTextHighlight\")}{renderAction(\"clearTextStyle\")}</div>)}`, formatted by Prettier."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 478,
+        "to": 478,
+        "first_line": "{predicates.text && renderAction(\"changeFontSize\")}",
+        "rule": "Add the same two renderAction calls guarded by appState.editingTextElement, inside a fragment."
+      }
+    ],
+    "depends_on": ["U17", "U18"],
+    "covers": ["FR-15", "FR-17"],
+    "checks": ["lint"]
+  }
+]

@@ -1,0 +1,107 @@
+{
+  "section": "units",
+  "source": "units-004.json",
+  "value": [
+    {
+      "id": "U28",
+      "path": "dev-docs/docs/codebase/json-schema.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents the two new text element fields in the file format.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 77,
+          "to": 77,
+          "first_line": "## Excalidraw clipboard format",
+          "rule": "Add a `### Styled text ranges` section, ending with a blank line. Say that a text element may carry textStyleRanges, a list of { id, seq, start, end, color?, highlight? }, with a small JSON example. Say that start and end are UTF-16 offsets into originalText, never text, with end exclusive; that at least one of color and highlight is set; that the field is absent when empty; that seq orders overlaps, so a higher seq paints over a lower one per attribute; and that id is random and holds no user data. Then say that clearedTextStyleRanges, a list of { id, seq }, records deliberately removed ranges so a stale collaborator cannot bring them back, is capped at 64 entries per element, and is also absent when empty."
+        }
+      ],
+      "depends_on": [
+        "U11"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents styled ranges on skeleton text elements and labels.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 146,
+          "to": 146,
+          "first_line": "### Lines and Arrows",
+          "rule": "Add a `#### With styled ranges` subsection, ending with a blank line. Show a text skeleton with textStyleRanges: [{ start: 6, end: 11, color: \"#e03131\", highlight: \"#ffec99\" }], matching the file's example style. Say that offsets index the text as given, that id and seq are optional and generated when missing, that invalid entries are dropped, and that a container's or arrow's label accepts the same field."
+        }
+      ],
+      "depends_on": [
+        "U06"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U30",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents how restore treats styled ranges.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 68,
+          "to": 68,
+          "first_line": "### restore",
+          "rule": "Add a paragraph, ending with a blank line, saying that restoreElements leaves text without textStyleRanges alone and adds no field. It clamps out-of-bounds offsets, drops malformed ranges (bad id, seq, offsets or colour value, and an id-less range), and removes the field when no range is left. It keeps id, seq and clearedTextStyleRanges, which collaboration relies on."
+        }
+      ],
+      "depends_on": [
+        "U11"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U31",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Adds the unreleased changelog entry.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "",
+          "rule": "Add `### Partial text color and highlight (2026-11-02)`, with no PR link since no PR exists yet, then bullets, then a blank line. Bullets: text elements gain optional textStyleRanges and clearedTextStyleRanges; select text while editing and pick a color or highlight, with new clear controls; canvas draws runs and SVG export writes tspans, and lines holding RTL characters draw in the base color; restoreElements validates the field and leaves legacy text alone; reconcileElements keeps its signature and merges ranges on both outcomes; ExcalidrawElementSkeleton accepts the field on text and labels."
+        }
+      ],
+      "depends_on": [
+        "U12"
+      ],
+      "covers": [
+        "FR-35"
+      ],
+      "checks": [
+        "format"
+      ]
+    }
+  ],
+  "hashes": {
+    "dev-docs/docs/codebase/json-schema.mdx": "fc63a982f811f0aa40946156c2436e6a1b40d692c4710af09df9ca0483a1eb82",
+    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx": "bdce842a1f27e1a2ba6777d62aba125d1b857143f3f05bb654287f3bc8a2795f",
+    "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx": "e8a139babff88a1b57897dbc46bbffa51e6b1f92eef51cfb42d6c684a6ed6a70",
+    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811"
+  }
+}

@@ -62,6 +62,7 @@ import {
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { isStickyNoteElement } from "@excalidraw/element";
 import { detectLineHeight } from "@excalidraw/element";
+import { sanitizeTextStyles } from "@excalidraw/element";
 import {
   isArrowBoundToElement,
   isArrowElement,
@@ -593,6 +594,9 @@ export const restoreElement = (
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
       });
+
+      // unknown fields survive restore unvalidated, so ranges from files and peers are checked here
+      element = sanitizeTextStyles(element);
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)

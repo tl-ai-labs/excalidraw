@@ -74,6 +74,31 @@ Every normalized element has a `created: number | null` field. A number is the c
 | Restore/open/import an existing scene | Preserve the carried value; missing values become `null` |
 | Edit, change type while retaining the ID, capture, undo, or redo | Preserve the value |
 
+### Styled text ranges
+
+A `text` element may carry `textStyleRanges`, a list of `{ id, seq, start, end, color?, highlight? }` that colours or highlights part of the text:
+
+```json
+{
+  "type": "text",
+  "text": "Hello world",
+  "originalText": "Hello world",
+  "textStyleRanges": [
+    { "id": "k3Jx9mQ2vTn8aLw0pZr4e", "seq": 1, "start": 0, "end": 5, "color": "#e03131" },
+    { "id": "b7Hc1sUy5dFo6gXj2NiQa", "seq": 2, "start": 6, "end": 11, "highlight": "#ffec99" }
+  ]
+}
+```
+
+- `start` and `end` are UTF-16 code unit offsets into `originalText`, never into `text` (which holds the wrapped lines). `end` is exclusive, and `start` is less than `end`.
+- At least one of `color` and `highlight` is set.
+- `seq` is a positive integer of at most 2147483647, and an element keeps at most 1000 live ranges.
+- The field is absent when the element has no ranges. It is never an empty array.
+- Ranges may overlap. `seq` orders them, so a higher `seq` paints over a lower one, separately for `color` and for `highlight`.
+- `id` is random and holds no user data.
+
+A text element may also carry `clearedTextStyleRanges`, a list of `{ id, seq }`. It records ranges that were deliberately removed, so that a stale collaborator cannot bring them back. It holds at most 64 entries per element, and it is also absent when empty.
+
 ## Excalidraw clipboard format
 
 When copying selected excalidraw elements to clipboard, the JSON schema is similar to `.excalidraw` format, except it differs in attributes.

@@ -1,0 +1,2498 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript strict. Prettier 2.6 through eslint-plugin-prettier: 80 columns, double quotes, trailing commas, always-parenthesised arrow parameters.",
+      "Named exports and arrow-function consts. Comments explain why, not what; a non-obvious type field gets a doc comment.",
+      "Prefer const, readonly, ?. and ??, and low-allocation code on rendering paths. Prefer Merge<Base, Overrides> from @excalidraw/common/utility-types over Omit<...> & Overrides.",
+      "import/order fails lint (test:code runs --max-warnings=0): external packages, then @excalidraw/* values and types, then parent, sibling, then relative type imports, with a blank line between groups.",
+      "packages/element imports @excalidraw/excalidraw for types only, never at runtime. packages/common imports nothing from element or excalidraw.",
+      "New DOM use goes through app.ownerDocument, app.ownerWindow or the file's existing ownerDocument and ownerWindow, never the globals.",
+      "An element change goes through newElementWith, mutateElement or bumpVersion. The only exception is mergeTextStyles, which must keep version and versionNonce.",
+      "UI strings go through t() and are added to packages/excalidraw/locales/en.json only.",
+      "Range colours are untrusted. They reach SVG through setAttribute and the DOM through element.style, never through built markup or innerHTML.",
+      "Tests: Vitest globals, jsdom and vitest-canvas-mock. Never call toMatchSnapshot or toMatchInlineSnapshot in new tests, and never run yarn test:update: **/__snapshots__/** is off-limits.",
+      "In tests text width is the mock's: getLineWidth returns the character count times 10.",
+      "No new dependency in any package.json. No file under excalidraw-app changes except excalidraw-app/tests/collab.test.tsx."
+    ],
+    "decisions": [
+      {
+        "topic": "FR-18: how a styled range shows while editing (for Gate 2)",
+        "choice": "The <textarea> stays and stays the only input. When the edited element has ranges, textWysiwyg puts one extra layer behind it: a div.excalidraw-wysiwyg-styles, aria-hidden, pointer-events none, user-select none, prepended to .excalidraw-textEditorContainer. The div copies the textarea's inline style through cssText on every updateWysiwygStyle, so font, line height, box, transform, opacity and wrapping match. It holds the same text as the textarea, built from getTextStyleRuns as text nodes and <span>s with textContent, style.color and style.backgroundColor, colours passed through applyDarkModeFilter as on the canvas. The textarea then gets color transparent, caret-color set to the base colour and class excalidraw-wysiwyg--styled, whose ::selection is a translucent tint with transparent text, so colours stay visible through a live selection. The user sees each run in its real colour and highlight, at its real position, and types and selects in the native textarea. With no ranges no layer exists and the textarea is exactly as today. The layer rebuilds when the text, the ranges or the theme change, which includes a merge that keeps version. While focus is in a colour popover the selection offsets stay on the textarea, and the browser may paint that inactive selection faintly or not at all.",
+        "rejected": [
+          "contenteditable editor (out of scope: the textarea stays)",
+          "drawing the runs on the canvas under the textarea (the canvas skips the element being edited, and its layer sits below the UI)",
+          "markers or underlines in place of real colours (the user could not check the result while editing)"
+        ],
+        "reason": "A mirror behind a transparent textarea shows real colour per character and keeps native typing, IME, selection and undo in the textarea; unstyled text pays nothing."
+      },
+      {
+        "topic": "FR-29: range identity and clear tracking (for Gate 2)",
+        "choice": "Each range carries id (randomId(), a nanoid; nothing derived from a user, socket or session) and seq (positive integer, an element-local Lamport clock: a new range takes 1 + the highest seq among the element's ranges and tombstones). A range's colours never change under its id: restyling makes a new id. A deliberate removal (a clear, a new range that fully replaces it, an undo of the apply that made it) writes a tombstone {id, seq} into the optional element field clearedTextStyleRanges. A range lost because a text edit deleted its characters writes no tombstone, so a winning text that kept those characters keeps it. Per id the state is a register ordered by seq, with a tombstone beating a live range at the same seq. Undo of a clear re-adds the range at tombstone seq + 1 and removes the tombstone, so one id never holds more than one entry. The merge takes the union of ids and the higher state per id. A peer merely behind holds id X with no tombstone, and the other side's tombstone for X kills it. An id live on one side and unknown to the other, with no tombstone anywhere, was made concurrently and survives. version plays no part in this. Clearing part of a range tombstones it and writes the remaining pieces as new ids at the same seq, so paint order holds. Two concurrent partial clears of one range keep both sides' pieces, so each side's cleared span can stay covered by the other's piece; both clients still reach the same result.",
+        "rejected": [
+          "plain union of ranges (a stale peer brings cleared ranges back)",
+          "per-peer version vectors or a client id on each range (grows with peers and stores collaborator identity, which the PII inventory forbids)",
+          "timestamps (clock skew breaks order independence)"
+        ],
+        "reason": "An observed-remove register per id needs no peer identity and no version comparison, and its join is commutative and idempotent."
+      },
+      {
+        "topic": "NFR-5: the bound on clear tracking (for Gate 2)",
+        "choice": "clearedTextStyleRanges holds at most MAX_CLEARED_TEXT_STYLE_RANGES = 64 entries per text element, about 3 KB of JSON at worst, and is absent when empty. Every write keeps the 64 highest by (seq, then id); keeping the top N of a union stays commutative, associative and idempotent. Text edits add no entry, and undo and redo of one range reuse its single entry. The accepted limit: a peer that stayed behind through more than 64 later clears on that one element can bring back a range whose tombstone was evicted.",
+        "rejected": [
+          "unbounded tombstones (never collectable without knowing every peer has seen them)",
+          "time-based expiry (not deterministic across clients)",
+          "a seq floor that drops old one-sided ranges (loses live ranges from peers that were not stale)"
+        ],
+        "reason": "64 clears on one text element is far past normal use, and the bound costs one sort on write."
+      },
+      {
+        "topic": "Range data model",
+        "choice": "Element field textStyleRanges?: readonly TextStyleRange[], each {id, seq, start, end, color?, highlight?} with at least one colour, and start < end as offsets into originalText in UTF-16 code units, end exclusive. The list is always in canonical order, ascending by (seq, then id with <). The field is absent when empty, as a deleted key, not undefined and not []. All field writes go through withTextStyles, which deletes an empty field. The renderer checks textStyleRanges only, so tombstones cost it nothing.",
+        "reason": "Offsets into originalText survive every re-wrap, and one canonical order makes equal sets compare equal."
+      },
+      {
+        "topic": "FR-3: text edits and the edge rule",
+        "choice": "Ranges follow text by character alignment, one function for typing, list renumbering, undo and merge. A range's new start is the mapped position of its first surviving character and its new end is one past the mapped position of its last surviving one. So characters inserted between two surviving characters join the range, an insert exactly at a range's start or end stays outside it, and a range with no surviving character is dropped. Alignment trims the common suffix then prefix, then takes an LCS of the middle when the middle's cell count is at most MAX_TEXT_ALIGN_CELLS = 1,000,000; past that the middle counts as replaced. Inside the middle a matched block under 2 code units counts as unmatched, so a stray shared letter does not carry a range onto unrelated text. While typing, the suffix is capped at the text after the caret, which places an insert correctly inside a run of repeated characters.",
+        "rejected": [
+          "a single prefix and suffix edit (indent on several lines and two concurrent edits would drop ranges that still have their characters)",
+          "edge inserts joining the range (typing after a coloured word would extend it, and the result would depend on merge order)"
+        ],
+        "reason": "One rule gives shift, grow, shrink and drop, and the same mapping places losing-side ranges on the winning text."
+      },
+      {
+        "topic": "FR-27 to FR-33 and FR-13: where the merge runs and how it shows",
+        "choice": "reconcileElements picks the winner exactly as today, then on both outcomes, with a local and a remote element present, replaces the winner with mergeTextStyles(winner, loser). On the mid-edit discard the local element counts as winner, so the remote ranges land on the text being edited, in the scene element that updateElement reads at commit. For an id on the winner the winner's offsets stand; a loser-only id is mapped from the loser's text to the winner's. mergeTextStyles returns the winner itself when nothing changes, and when both sides have no ranges and no tombstones, so unstyled text allocates nothing. Otherwise it returns a new object with the winner's version, versionNonce and updated. The new object is what FR-13 needs: elementWithCanvasCache is keyed by object identity, not version, and Scene.replaceAllElements moves sceneNonce, so the canvas repaints with no version change. The merge is idempotent, so the tie bump by bumpElementVersions and the following rebroadcast change nothing. A merged change stays unbroadcast until the next version bump or the periodic full-scene broadcast, which keeps FR-28.",
+        "rejected": [
+          "mutating the winner in place (the canvas cache would keep the old bitmap)",
+          "bumping version on merge (starts a broadcast, against FR-28)"
+        ],
+        "reason": "reconcileElements is the one path all collab routes share, so no excalidraw-app source changes."
+      },
+      {
+        "topic": "FR-31: overlapping styles",
+        "choice": "Colour and highlight resolve independently per character. Walking the canonical list, the last range that sets the attribute wins, so the higher seq wins and id breaks a tie. Ranges stay overlapping in the data and merge never flattens them.",
+        "reason": "A deterministic order over an identical list gives both clients one result with no conflict rule beyond the sort."
+      },
+      {
+        "topic": "FR-9: undo and redo",
+        "choice": "textStyleRanges goes into deltas as an id-keyed diff like boundElements, through Delta.diffArrays: only ranges added, removed or changed in offsets or seq, so undo leaves ranges it did not touch. clearedTextStyleRanges is never in a delta (tombstones only grow), and it does not count as a visible difference. applyDelta rebuilds the field with applyTextStyleDelta: it maps the element's current ranges onto the delta's text, removes the delta's removed ids with a tombstone, then upserts its added ids, re-adding a tombstoned id at tombstone seq + 1. A merge that keeps version is invisible to the store, whose snapshot compares versions, and store.ts is outside the write contract. So reconcile records each range id whose presence the merge changed on the local element, in a module-level map from id to that local element's version, and ElementsDelta.postProcess omits an id found in only one side of the diff while the recorded version is at or above the delta's base version. After the next capture the snapshot's version is higher and the record stops applying. ElementsDelta.squash stays last-write-wins for the field: it serves the host applyDeltas API, not undo.",
+        "rejected": [
+          "whole-list replacement on undo (wipes ranges that peers added after the step)",
+          "a change in store.ts or history.ts (outside the write contract)",
+          "an origin tag on each range (a collaborator identity by another name)"
+        ],
+        "reason": "Undo must revert only the local step, and the module map is the smallest in-scope way to tell the delta what the snapshot cannot see."
+      },
+      {
+        "topic": "Colour rendering and positions",
+        "choice": "Canvas and SVG share getStyledTextLines and layoutTextStyleRuns. Each line of element.text is located in originalText by walking forward and skipping only whitespace, which covers the whitespace wrapping removes. A line that cannot be located returns null for the whole element and draws plain, so a stale or tab-normalised text never misplaces colour. A run's x is the line's start for its alignment plus getLineWidth of the line text before the run, so kerning across a run edge stays. Highlights are lineHeightPx tall from the line's top and painted before that line's text. Boundaries inside a surrogate pair snap outward. Both colours pass through applyDarkModeFilter.",
+        "reason": "One layout function keeps canvas and SVG positions equal, and wrapping needs no range bookkeeping at all."
+      },
+      {
+        "topic": "RTL lines",
+        "choice": "A line holding any RTL character draws as today, as one fillText or one <text> in the base colour with no highlight, on both canvas and SVG. Its ranges stay in the data and still show in the editor layer, which the browser lays out natively. This is a known limit of this change and needs sign-off at Gate 2.",
+        "rejected": [
+          "right-to-left run placement (wrong on the common mixed line, e.g. Hebrew with a Latin word or a number)",
+          "DOM measurement per run (no DOM in a host's render environment)"
+        ],
+        "reason": "FR-10 ranks position above styling, and canvas cannot place a logical run in a bidi line without a layout engine."
+      },
+      {
+        "topic": "FR-15 to FR-17: controls",
+        "choice": "actionChangeStrokeColor gains a branch: with a non-collapsed textarea selection on the text being edited it applies a range, leaves the base colour and currentItem defaults alone, and stays open. A collapsed selection takes today's path. New action changeTextHighlight renders five swatches (TEXT_HIGHLIGHT_PICKS) through the existing TopPicks strip, and new action clearTextStyle renders two buttons, Clear text color and Clear highlight, shown only while editing text, in the full panel and in the compact text popover. Both do nothing with a collapsed selection, returning false. A transparent pick clears that attribute. The selection is read with saveCaretPosition from hooks/useTextEditorFocus.ts at action time; nothing writes the textarea's value, so selectionStart and selectionEnd survive the popover, and ColorPicker already restores focus.",
+        "rejected": [
+          "a highlight ColorPicker popover (ColorPicker.tsx and its popup type union are outside the write contract, and the elementBackground popup id collides with the note fill picker while editing a sticky note label)"
+        ],
+        "reason": "The swatch strip needs no popup id, and the panel already sits inside the areas the editor's pointerdown guard keeps open."
+      },
+      {
+        "topic": "Colour validation (FR-25, NFR-4)",
+        "choice": "A range colour is valid only if it is a string of at most 64 characters matching one of: #rgb, #rgba, #rrggbb, #rrggbbaa; a bare CSS name /^[a-z]{3,30}$/i; or rgb(), rgba(), hsl() or hsla() whose arguments hold only digits, whitespace and . , % / characters. Anything else drops the whole range.",
+        "reason": "An allowlist needs no DOM, so it works in packages/element and in a host's render environment."
+      },
+      {
+        "topic": "Skeleton input (FR-8)",
+        "choice": "The skeleton and newTextElement take TextStyleRangeInput: start, end, color?, highlight?, with id and seq optional. createTextStyleRanges fills missing ids from randomId() and missing seq by position, clamps offsets to originalText and drops invalid entries. restore never assigns ids: restore runs per client before reconcile, so it would give one range two ids, and an id-less range there is malformed.",
+        "reason": "Hosts should not need to invent ids, and restore must stay deterministic across clients."
+      },
+      {
+        "topic": "FR-20: clipboard and styles",
+        "choice": "No code change. Element copy and paste carry the field through JSON, deepCopyElement and restore. The textarea copies plain text. Paste into the editor goes through oninput, so FR-3 applies. actionPasteStyles copies named base fields only, so the target's ranges stay.",
+        "reason": "Existing code already does what FR-20 asks; tests pin it."
+      },
+      {
+        "topic": "Allowed files this change leaves unedited",
+        "choice": "These stay untouched because ranges index originalText and the code keeps unknown fields: textElement.ts, textMeasurements.ts, textWrapping.ts, stickyNote.ts, App.clipboard.ts, actionStyles.ts, actionBoundText.tsx, actionTextAutoResize.ts, staticScene.ts, scene/export.ts, tests/helpers/api.ts, tests/export.test.tsx, element tests textElement.test.ts and textWrapping.test.ts. FR-4 and FR-6 are pinned by tests, not by edits.",
+        "reason": "Keeps the file set to what the requirements need."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "./node_modules/.bin/eslint --max-warnings=0 --ext .js,.ts,.tsx {path}",
+        "fix": "./node_modules/.bin/eslint --fix --ext .js,.ts,.tsx {path}",
+        "timeout_s": 120
+      },
+      {
+        "id": "format",
+        "run": "./node_modules/.bin/prettier --check {path}",
+        "fix": "./node_modules/.bin/prettier --write {path}",
+        "timeout_s": 30
+      },
+      {
+        "id": "vitest",
+        "run": "./node_modules/.bin/vitest run {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "code",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "app",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/common/src/constants.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the tombstone bound and the highlight swatch colours.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 626,
+          "to": 626,
+          "first_line": "export const DEFAULT_STROKE_STREAMLINE_PRECISE = 0.2;",
+          "rule": "Append, after a blank line: a doc comment saying the tombstones a text element keeps so a stale peer cannot bring a cleared range back, oldest evicted first, then `export const MAX_CLEARED_TEXT_STYLE_RANGES = 64;`. Then a blank line and `export const TEXT_HIGHLIGHT_PICKS = [\"#ffec99\", \"#b2f2bb\", \"#a5d8ff\", \"#ffc9c9\", \"#eebefa\"] as const;` with a one-line comment that these are the highlight swatches."
+        }
+      ],
+      "exports": [
+        {
+          "name": "MAX_CLEARED_TEXT_STYLE_RANGES",
+          "kind": "const",
+          "params": [],
+          "returns": "64"
+        },
+        {
+          "name": "TEXT_HIGHLIGHT_PICKS",
+          "kind": "const",
+          "params": [],
+          "returns": "readonly string tuple of 5 hex colours"
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "NFR-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Declares the styled range and tombstone types and their two optional fields on text elements.",
+      "rules": [
+        "Both fields are optional and carry doc comments: what the field holds, that it is absent (never empty) when there is nothing, and for ranges that offsets index originalText, never text."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253,
+          "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
+          "rule": "Add `export type TextStyleRange = Readonly<{ id: string; seq: number; start: number; end: number; color?: string; highlight?: string }>;` with field comments: id is random and holds nothing about a user, seq is an element-local Lamport clock and paint order, start and end are UTF-16 offsets into originalText with end exclusive, and at least one colour is set. Then `export type ClearedTextStyleRange = Readonly<{ id: string; seq: number }>;` with a comment that it is the tombstone of a deliberately removed range, and a live range of that id with seq at or below this one stays dead."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 271,
+          "to": 271,
+          "first_line": "originalText: string;",
+          "rule": "Add `textStyleRanges?: readonly TextStyleRange[];` and `clearedTextStyleRanges?: readonly ClearedTextStyleRange[];` with their doc comments."
+        }
+      ],
+      "exports": [
+        {
+          "name": "TextStyleRange",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ id: string; seq: number; start: number; end: number; color?: string; highlight?: string }>"
+        },
+        {
+          "name": "ClearedTextStyleRange",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ id: string; seq: number }>"
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/textStyleRanges.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "The styled-range model: pure functions for applying, clearing, remapping, sanitising, merging and laying out ranges on a text element.",
+      "rules": [
+        "1. Runtime imports only from @excalidraw/common (randomId, hasRTLChars, getFontString, MAX_CLEARED_TEXT_STYLE_RANGES) and ./textMeasurements (getLineWidth). Types from ./types and ./renderEnvironment. Declare local `const MAX_TEXT_ALIGN_CELLS = 1_000_000;`.",
+        "2. Internal resolveState(ranges, cleared) -> TextStyleState is the one canonicaliser: keep one cleared entry per id (highest seq); keep one range per id (highest seq, first on a tie); remove a range whose id has a cleared entry with seq >= the range's; remove a cleared entry whose id has a live range with a higher seq; sort both lists ascending by seq then id using < on the id string; keep only the last MAX_CLEARED_TEXT_STYLE_RANGES cleared entries.",
+        "3. Internal colour check: a string of at most 64 characters matching /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, or /^[a-z]{3,30}$/i, or /^(?:rgb|hsl)a?\\([\\d\\s.,%/]+\\)$/i.",
+        "4. Internal sanitizeRange(value: unknown, textLength) -> TextStyleRange | null: value must be a non-null object; id a non-empty string of at most 64 characters; seq a positive safe integer; start and end integers (Number.isInteger). Clamp both into [0, textLength], return null unless start < end. color and highlight, when present (not undefined), must pass rule 3, else null. Require at least one. Return a new object holding only id, seq, start, end and the colours that are set, so unknown keys never pass through.",
+        "5. Internal alignText(prev, next, caret?) -> Int32Array of prev.length, each entry the index in next of that code unit, or -1. suffix = common suffix, capped at min(prev.length, next.length) and, when caret is given, at next.length - caret. prefix = common prefix, capped at min(prev.length, next.length) - suffix. Map prefix and suffix one to one. Let m, n be the middle lengths; when m > 0, n > 0 and m * n <= MAX_TEXT_ALIGN_CELLS, build an LCS table in a Uint16Array of (m + 1) * (n + 1), filled from the end. Walk from (0,0): when chars are equal and the cell equals the diagonal + 1 take a match, else advance i if table[i+1][j] >= table[i][j+1], else advance j. Consecutive matches form a block; discard blocks shorter than 2 code units.",
+        "6. Internal mapRange(range, map) -> TextStyleRange | null: find the first and last index in [start, end) with map[i] >= 0; none gives null; otherwise return the range with start = map[first] and end = map[last] + 1, keeping id, seq and colours. Inserted characters between survivors join the range and edge inserts stay outside it.",
+        "7. Internal snapping: a start between a high and low surrogate moves back by 1, an end there moves forward by 1. Use it in applyTextStyle, clearTextStyle and getTextStyleRuns.",
+        "8. Internal nextSeq(state) = 1 + highest seq across ranges and cleared, 1 when both are empty.",
+        "9. withTextStyles writes both fields onto the passed object in place and `delete`s a field whose list is empty, then returns it. It is only for fresh copies and elements being mutated; cast through Mutable internally.",
+        "10. createTextStyleRanges: return undefined for undefined or empty input. For each input at index i run sanitizeRange with id = input.id ?? randomId() and seq = input.seq ?? i + 1. Pass the survivors through resolveState with no cleared entries and return the list, or undefined when none survive.",
+        "11. applyTextStyle: clamp the selection to originalText and snap it; if start >= end return the current state. A current range fully inside the selection whose every set attribute is also set by `style` is removed with a cleared entry {id, seq}. Append a new range {id: randomId(), seq: nextSeq, start, end, ...style}, where seq is computed before anything is removed. Return resolveState.",
+        "12. clearTextStyle: clamp and snap as rule 11. For each range overlapping the selection that sets `attribute`: remove it with a cleared entry {id, seq} and add, each with a new randomId() and the original seq, the left piece [range.start, start) and the right piece [end, range.end) when non-empty with all its colours, and the middle piece with `attribute` removed when another attribute remains. Return resolveState.",
+        "13. remapTextStyles: return null when the element has no ranges or nextOriginalText === element.originalText. Default branch: map each range with alignText(originalText, next, opts?.caret) and mapRange, dropping nulls with no cleared entry. When opts?.replace is true use no LCS: take suffix then prefix as in rule 5 with no caret, prevEnd = prev.length - suffix, nextEnd = next.length - suffix, delta = next.length - prev.length; start stays if <= prefix, gains delta if >= prevEnd, else becomes prefix; end stays if <= prefix, gains delta if >= prevEnd, else becomes nextEnd. A range left with start >= end is dropped. Return resolveState(mapped, element.clearedTextStyleRanges ?? []).",
+        "14. sanitizeTextStyles: return the element itself when both fields are undefined. Treat a non-array field as empty. sanitizeRange each range against originalText.length, keep cleared entries that are objects with a non-empty string id of at most 64 characters and a positive safe integer seq, rebuilt with only those two keys. Return withTextStyles({ ...element }, resolveState(...)).",
+        "15. mergeTextStyles(winner, loser): return winner when winner === loser, or when neither has ranges or cleared entries. Build cleared as the concatenation of both. For each id across both range lists: take the winner's range if present, with seq = the higher of both sides' seq; otherwise take the loser's range mapped with alignText(loser.originalText, winner.originalText) and mapRange, built once and only if the texts differ, dropping a null with no cleared entry. Then resolveState. If the result equals the winner's own lists field by field return winner; otherwise return withTextStyles({ ...winner }, state). Never touch version, versionNonce or updated.",
+        "16. Module-level `const mergedRangeVersions = new Map<string, number>();` with a comment on why: the store's snapshot compares versions, so it cannot see a merge. noteMergedTextStyles(local, merged): for every id in exactly one of local's and merged's range lists, set mergedRangeVersions[id] = local.version.",
+        "17. omitMergedTextStyleChanges(deleted, inserted) mutates the two partials: return unless deleted.version is a number and a textStyleRanges list exists on either. Remove from each list every id that is not in the other list and has mergedRangeVersions.get(id) >= deleted.version. When both lists end up empty, delete the textStyleRanges key from both.",
+        "18. applyTextStyleDelta(element, nextOriginalText, removed, added): return null when both lists are empty or undefined and the text is unchanged. Start from remapTextStyles(element, nextOriginalText)?.ranges ?? element's ranges ?? []. For an id in removed and not in added: if present, take it out and add a cleared entry {id, seq}. For each entry of added: let t be the cleared entry of that id; if t.seq >= entry.seq use seq = t.seq + 1 and remove t; clamp offsets to nextOriginalText.length, skip it if start >= end, and replace any range of that id. Return resolveState.",
+        "19. getTextStyleRuns(text, textStart, ranges): a range's local span is its offsets minus textStart, clamped to [0, text.length] and snapped against text. Collect 0, text.length and every span's edges, sorted and unique. For each segment walk `ranges` in order; every range whose span covers the segment overrides color when it sets color and highlight when it sets highlight. Merge adjacent segments of equal style. Runs hold local offsets and cover the whole text. A run has a colour key only when that colour is set. Empty text returns [].",
+        "20. getStyledTextLines: return null when element.textStyleRanges is undefined; this is the only work unstyled text does. Split element.text.replace(/\\r\\n?/g, \"\\n\") on \\n. Keep a cursor into originalText, starting at 0. For a non-empty line find start = originalText.indexOf(line, cursor); return null for the whole element if start is -1 or any character in [cursor, start) is not whitespace; an empty line uses start = cursor. Set cursor = start + line.length. Entry for the line: null if it is empty, if hasRTLChars(line), or if no run from getTextStyleRuns(line, start, ranges) has a colour or highlight; otherwise the runs.",
+        "21. layoutTextStyleRuns: font = getFontString(element); lineWidth = getLineWidth(lineText, font, renderEnvironment); lineStart = (element.width - lineWidth) / 2 for center, element.width - lineWidth for right, else 0. For each run x = lineStart + getLineWidth(lineText.slice(0, run.start), font, renderEnvironment), and width is the same measure of lineText.slice(0, run.end) minus that of the prefix, skipping the measure for an empty prefix."
+      ],
+      "exports": [
+        {
+          "name": "TextStyleState",
+          "kind": "type",
+          "params": [],
+          "returns": "{ ranges: readonly TextStyleRange[]; cleared: readonly ClearedTextStyleRange[] }"
+        },
+        {
+          "name": "TextStyleAttribute",
+          "kind": "type",
+          "params": [],
+          "returns": "\"color\" | \"highlight\""
+        },
+        {
+          "name": "TextStyleRun",
+          "kind": "type",
+          "params": [],
+          "returns": "{ start: number; end: number; color?: string; highlight?: string }"
+        },
+        {
+          "name": "TextStyleRangeInput",
+          "kind": "type",
+          "params": [],
+          "returns": "Pick<TextStyleRange, \"start\" | \"end\" | \"color\" | \"highlight\"> & Partial<Pick<TextStyleRange, \"id\" | \"seq\">>"
+        },
+        {
+          "name": "withTextStyles",
+          "params": [
+            {
+              "name": "element",
+              "type": "T extends ExcalidrawTextElement"
+            },
+            {
+              "name": "state",
+              "type": "TextStyleState"
+            }
+          ],
+          "returns": "T"
+        },
+        {
+          "name": "createTextStyleRanges",
+          "params": [
+            {
+              "name": "inputs",
+              "type": "readonly TextStyleRangeInput[] | undefined"
+            },
+            {
+              "name": "originalText",
+              "type": "string"
+            }
+          ],
+          "returns": "readonly TextStyleRange[] | undefined"
+        },
+        {
+          "name": "applyTextStyle",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "selection",
+              "type": "{ start: number; end: number }"
+            },
+            {
+              "name": "style",
+              "type": "Pick<TextStyleRange, \"color\" | \"highlight\">"
+            }
+          ],
+          "returns": "TextStyleState"
+        },
+        {
+          "name": "clearTextStyle",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "selection",
+              "type": "{ start: number; end: number }"
+            },
+            {
+              "name": "attribute",
+              "type": "TextStyleAttribute"
+            }
+          ],
+          "returns": "TextStyleState"
+        },
+        {
+          "name": "remapTextStyles",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "nextOriginalText",
+              "type": "string"
+            },
+            {
+              "name": "opts",
+              "type": "{ caret?: number; replace?: boolean } | undefined"
+            }
+          ],
+          "returns": "TextStyleState | null"
+        },
+        {
+          "name": "sanitizeTextStyles",
+          "params": [
+            {
+              "name": "element",
+              "type": "T extends ExcalidrawTextElement"
+            }
+          ],
+          "returns": "T"
+        },
+        {
+          "name": "mergeTextStyles",
+          "params": [
+            {
+              "name": "winner",
+              "type": "T extends ExcalidrawTextElement"
+            },
+            {
+              "name": "loser",
+              "type": "ExcalidrawTextElement"
+            }
+          ],
+          "returns": "T"
+        },
+        {
+          "name": "noteMergedTextStyles",
+          "params": [
+            {
+              "name": "local",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "merged",
+              "type": "ExcalidrawTextElement"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "omitMergedTextStyleChanges",
+          "params": [
+            {
+              "name": "deleted",
+              "type": "Partial<ExcalidrawTextElement>"
+            },
+            {
+              "name": "inserted",
+              "type": "Partial<ExcalidrawTextElement>"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "applyTextStyleDelta",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "nextOriginalText",
+              "type": "string"
+            },
+            {
+              "name": "removed",
+              "type": "readonly TextStyleRange[] | undefined"
+            },
+            {
+              "name": "added",
+              "type": "readonly TextStyleRange[] | undefined"
+            }
+          ],
+          "returns": "TextStyleState | null"
+        },
+        {
+          "name": "getTextStyleRuns",
+          "params": [
+            {
+              "name": "text",
+              "type": "string"
+            },
+            {
+              "name": "textStart",
+              "type": "number"
+            },
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            }
+          ],
+          "returns": "TextStyleRun[]"
+        },
+        {
+          "name": "getStyledTextLines",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            }
+          ],
+          "returns": "(readonly TextStyleRun[] | null)[] | null"
+        },
+        {
+          "name": "layoutTextStyleRuns",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "lineText",
+              "type": "string"
+            },
+            {
+              "name": "runs",
+              "type": "readonly TextStyleRun[]"
+            },
+            {
+              "name": "renderEnvironment",
+              "type": "RenderEnvironment | undefined"
+            }
+          ],
+          "returns": "{ run: TextStyleRun; x: number; width: number }[]"
+        }
+      ],
+      "import_line": "import { mergeTextStyles, remapTextStyles, withTextStyles } from \"@excalidraw/element\"; (inside packages/element use \"./textStyleRanges\")",
+      "style_from": {
+        "path": "packages/element/src/listMarker.ts",
+        "lines": [
+          1,
+          60
+        ],
+        "reason": "A framework-free element module: imports, arrow-function consts, doc comments on the why."
+      },
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-7",
+        "FR-10",
+        "FR-29",
+        "FR-30",
+        "FR-31",
+        "NFR-2",
+        "NFR-4",
+        "NFR-5",
+        "NFR-7"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Exports the range model from the element package barrel.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101,
+          "first_line": "export * from \"./textMeasurements\";",
+          "rule": "Add `export * from \"./textStyleRanges\";`."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-1"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/element/src/newElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Lets newTextElement take styled ranges, adding the field only when any survive.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 32,
+          "to": 32,
+          "first_line": "import { normalizeText, measureText } from \"./textMeasurements\";",
+          "rule": "Add `import { createTextStyleRanges } from \"./textStyleRanges\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 37,
+          "to": 37,
+          "first_line": "import type { RenderEnvironment } from \"./renderEnvironment\";",
+          "rule": "Add `import type { TextStyleRangeInput } from \"./textStyleRanges\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 349,
+          "to": 349,
+          "first_line": "baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];",
+          "rule": "Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the opts type."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 357,
+          "to": 357,
+          "first_line": "const metrics = measureText(",
+          "rule": "Add `const textStyleRanges = createTextStyleRanges(opts.textStyleRanges, opts.originalText ?? text);`."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386,
+          "first_line": "labelPosition: opts.labelPosition ?? null,",
+          "rule": "Add `...(textStyleRanges ? { textStyleRanges } : null),` as the last property, so unstyled text has no key."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-8"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/element/src/transform.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Lets the skeleton's text elements and labels take styled ranges.",
+      "rules": [
+        "convertToExcalidrawElements needs no logic change: text and labels already spread their props into newTextElement."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 133,
+          "to": 133,
+          "first_line": "labelPosition?: ExcalidrawTextElement[\"labelPosition\"];",
+          "rule": "Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the linear element's label."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 230,
+          "to": 230,
+          "first_line": "verticalAlign?: VerticalAlign;",
+          "rule": "Add `textStyleRanges?: readonly TextStyleRangeInput[];` to the container's label."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 265,
+          "to": 265,
+          "first_line": "} & Partial<ExcalidrawTextElement>)",
+          "rule": "Change the text skeleton to `} & Merge<Partial<ExcalidrawTextElement>, { textStyleRanges?: readonly TextStyleRangeInput[] }>)`, formatted by Prettier."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 293,
+          "to": 293,
+          "first_line": "Pick<Partial<ExcalidrawTextElement>, \"labelPosition\">,",
+          "rule": "Extend to `Pick<Partial<ExcalidrawTextElement>, \"labelPosition\"> & { textStyleRanges?: readonly TextStyleRangeInput[] },`, formatted by Prettier."
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 85,
+          "to": 85,
+          "first_line": "import type {",
+          "rule": "Add `import type { TextStyleRangeInput } from \"./textStyleRanges\";` immediately before this type import."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 33,
+          "to": 33,
+          "first_line": "import type { MarkOptional } from \"@excalidraw/common/utility-types\";",
+          "rule": "Import Merge too: `import type { MarkOptional, Merge } from \"@excalidraw/common/utility-types\";`."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-8"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/element/src/listMarker.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Keeps ranges on their characters when a duplicated list marker is renumbered or set back.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "} from \"./textElement\";",
+          "rule": "Add `import { remapTextStyles, withTextStyles } from \"./textStyleRanges\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 214,
+          "to": 214,
+          "first_line": "if (container) {",
+          "rule": "Add `const textStyles = remapTextStyles(element, originalText, { replace: true });` and, when it is non-null, `withTextStyles(element, textStyles);`, with a comment that a renumbered marker replaces its characters in place, so a range on the marker stays on it. It must run before the mutateElement calls below, which change originalText."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/element/src/delta.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Carries ranges through undo and redo as an id-keyed diff, keeps tombstones out of deltas, and keeps merges out of local undo steps.",
+      "rules": [
+        "ElementPartial's default generic has only the keys common to all elements, so reach the two text fields through a cast to ElementPartial<ExcalidrawTextElement> (through unknown if TS requires it)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 47,
+          "to": 47,
+          "first_line": "import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";",
+          "rule": "Add `import { applyTextStyleDelta, omitMergedTextStyleChanges, withTextStyles } from \"./textStyleRanges\";`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1344,
+          "to": 1345,
+          "first_line": "switch (key) {",
+          "last_line": "case \"boundElements\":",
+          "rule": "Use `switch (key as string) {`, keep `case \"boundElements\":` and add `case \"textStyleRanges\":` to fall through to the same branch, which keeps the partial. Extend the comment above: both hold only their diff."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 1756,
+          "to": 1756,
+          "first_line": "if (key === \"boundElements\") {",
+          "rule": "Also skip the textStyleRanges key: `if (key === \"boundElements\" || (key as string) === \"textStyleRanges\") {`, formatted by Prettier."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 1784,
+          "to": 1784,
+          "first_line": "// visibility is not decided here: `applyTo` compares the applied result",
+          "rule": "Add: `const textStyles = isTextElement(element) && delta.inserted.isDeleted !== true ? applyTextStyleDelta(element, insertedText.originalText ?? element.originalText, deletedText.textStyleRanges, insertedText.textStyleRanges) : null;` where insertedText and deletedText are delta.inserted and delta.deleted cast as ElementPartial<ExcalidrawTextElement>. A delta that ends the element deleted leaves its ranges alone."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 1791,
+          "to": 1791,
+          "first_line": "return newElementWith(element, directlyApplicablePartial, true);",
+          "rule": "Keep the call, store its result as nextElement, and return `textStyles ? withTextStyles(nextElement as ExcalidrawTextElement, textStyles) : nextElement` typed as the original return. nextElement is a fresh copy because force is true."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1874,
+          "to": 1874,
+          "first_line": "case \"created\":",
+          "rule": "Add `case \"clearedTextStyleRanges\":` so tombstones count as metadata, not as a visible change."
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 2192,
+          "to": 2192,
+          "first_line": "Delta.diffArrays(deleted, inserted, \"boundElements\", (x) => x.id);",
+          "rule": "Add a `Delta.diffArrays` call on the two partials cast as ElementPartial<ExcalidrawTextElement> for \"textStyleRanges\" with (x) => x.id, then `omitMergedTextStyleChanges(...)` on the same casts, with a comment that a merge keeps version, so the store's snapshot never saw it and it must not land in a local undo step."
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 2231,
+          "to": 2231,
+          "first_line": "const { id, updated, ...strippedPartial } = partial;",
+          "rule": "Add `Reflect.deleteProperty(strippedPartial, \"clearedTextStyleRanges\");` with a comment that tombstones only grow, so undo never rewinds them."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/element/src/renderElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Draws a line with styled runs run by run, and leaves every other line as one fillText.",
+      "rules": [
+        "getStyledTextLines runs once per element, before the line loop, and is the only new work for unstyled text.",
+        "elementWithCanvasCache needs no change: it is keyed by object identity and a merge returns a new object."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 61,
+          "to": 61,
+          "first_line": "import { getLineHeightInPx } from \"./textMeasurements\";",
+          "rule": "Add `import { getStyledTextLines, layoutTextStyleRuns, type TextStyleRun } from \"./textStyleRanges\";`, formatted by Prettier."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 460,
+          "to": 460,
+          "first_line": "const drawElementOnCanvas = (",
+          "rule": "Add `const drawStyledTextLine = (context, element: NonDeleted<ExcalidrawTextElement>, lineText: string, runs: readonly TextStyleRun[], lineTop: number, baseline: number, lineHeightPx: number, renderConfig: StaticCanvasRenderConfig) => { ... }`. Inside withSavedContext: layout = layoutTextStyleRuns(element, lineText, runs, renderConfig.renderEnvironment); set context.textAlign to \"left\". First pass over the layout: for a run with highlight set fillStyle to applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK) and fillRect(x, lineTop, width, lineHeightPx). Second pass: fillStyle = applyDarkModeFilter(run.color ?? element.strokeColor, same theme test), fillText(lineText.slice(run.start, run.end), x, baseline). Skip a run with empty text."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 706,
+          "to": 712,
+          "first_line": "for (let index = 0; index < lines.length; index++) {",
+          "last_line": "}",
+          "rule": "Before the loop add `const styledLines = getStyledTextLines(element);`. In the loop, `const runs = styledLines?.[index];` and when runs is truthy call drawStyledTextLine(context, element, lines[index], runs, index * lineHeightPx, index * lineHeightPx + verticalOffset, lineHeightPx, renderConfig); otherwise keep the existing fillText call unchanged."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-13",
+        "NFR-1",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Writes a line with styled runs as one <text> of <tspan>s with highlight rects behind it; every other line stays byte for byte.",
+      "rules": [
+        "On a line with no styled run, the existing textContent, attribute order and append order stay as they are.",
+        "Colours reach the SVG through setAttribute only."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+          "rule": "Add `import { getStyledTextLines, layoutTextStyleRuns } from \"@excalidraw/element\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 815,
+          "to": 815,
+          "first_line": "for (let i = 0; i < lines.length; i++) {",
+          "rule": "Add `const styledLines = getStyledTextLines(element);`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 817,
+          "to": 817,
+          "first_line": "text.textContent = lines[i];",
+          "rule": "Add `const runs = styledLines?.[i];` and set textContent only when runs is falsy."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 833,
+          "to": 833,
+          "first_line": "node.appendChild(text);",
+          "rule": "When runs is truthy, loop over layoutTextStyleRuns(element, lines[i], runs, renderConfig.renderEnvironment). For a run with highlight, create an SVG_NS rect with x, y = i * lineHeightPx, width, height = lineHeightPx, and fill = applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK), and append it to node. Then create an SVG_NS tspan with textContent = lines[i].slice(run.start, run.end), set its fill to applyDarkModeFilter(run.color, same theme test) only when run.color is set, and append it to text. Keep `node.appendChild(text);` last, so the rects sit behind the text."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-22",
+        "FR-23",
+        "NFR-1",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Validates ranges and tombstones on restore, leaving legacy text with no new field.",
+      "rules": [
+        "No key is added for legacy text: the sanitiser returns the element unchanged when both fields are absent, and the fields are not passed in restoreElementWithProperties' extra argument.",
+        "id, seq and tombstones survive, because Collab.tsx runs restore before reconcile."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 64,
+          "to": 64,
+          "first_line": "import { detectLineHeight } from \"@excalidraw/element\";",
+          "rule": "Add `import { sanitizeTextStyles } from \"@excalidraw/element\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 597,
+          "to": 597,
+          "first_line": "// if empty text, mark as deleted. We keep in array",
+          "rule": "Add `element = sanitizeTextStyles(element);` with a one-line comment that unknown fields survive restore unvalidated, so ranges from files and peers are checked here."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-24",
+        "FR-25",
+        "FR-26",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/data/reconcile.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Merges ranges on both reconcile outcomes, with the winner picked exactly as today.",
+      "rules": [
+        "shouldDiscardRemoteElement and the signature of reconcileElements do not change.",
+        "No path in this file changes for elements that are not text, or when no local element exists."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 5,
+          "to": 9,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Keep the three imports and add isTextElement, mergeTextStyles and noteMergedTextStyles."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 73,
+          "to": 73,
+          "first_line": "export const reconcileElements = (",
+          "rule": "Add `const mergeStyleRanges = <T extends OrderedExcalidrawElement>(winner: T, loser: OrderedExcalidrawElement, localElement: OrderedExcalidrawElement): T`, with a doc comment that the text still has one winner and only its ranges merge. Return winner unless winner and loser are both text elements. merged = mergeTextStyles(winner, loser). If merged !== localElement and localElement is text, call noteMergedTextStyles(localElement, merged). Return merged."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 92,
+          "to": 98,
+          "first_line": "if (localElement && discardRemoteElement) {",
+          "last_line": "}",
+          "rule": "The discard branch pushes mergeStyleRanges(localElement, remoteElement, localElement); this also covers the mid-edit discard. The other branch pushes localElement ? mergeStyleRanges(remoteElement, localElement, localElement) : remoteElement. The added.add calls stay as they are."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-13",
+        "FR-27",
+        "FR-28",
+        "FR-30",
+        "FR-31",
+        "FR-32",
+        "FR-33",
+        "FR-34",
+        "NFR-6"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Shows styled ranges behind the textarea while editing, and reports the caret with each text change.",
+      "rules": [
+        "The textarea stays the only input. Nothing here writes editable.value or the selection for styling.",
+        "Spans are built with createElement, textContent and element.style, never innerHTML."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 19,
+          "to": 19,
+          "first_line": "getTextFromElements,",
+          "rule": "Add `getTextStyleRuns,` to the import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 268,
+          "to": 268,
+          "first_line": "onChange?: (nextOriginalText: string) => void;",
+          "rule": "Change to `onChange?: (data: { nextOriginalText: string; caret: number }) => void;`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 313,
+          "to": 313,
+          "first_line": "} | null = null;",
+          "rule": "Add `let styleOverlay: HTMLDivElement | null = null;` and `let overlayContent: { text: string; ranges: ExcalidrawTextElement[\"textStyleRanges\"]; isDark: boolean } | null = null;`, then `const syncStyleOverlay = (textElement: ExcalidrawTextElement) => {...}` with a doc comment that a textarea cannot draw coloured runs, so a layer behind it does. Steps: 1. ranges = textElement.textStyleRanges. If there are none: remove the overlay and reset it and overlayContent to null, remove class excalidraw-wysiwyg--styled, remove the caret-color property, and return. 2. Create the overlay when missing: an ownerDocument div with class excalidraw-wysiwyg-styles, aria-hidden true and dir auto, added with editorBox?.prepend(overlay). 3. Read baseColor = editable.style.color, set overlay.style.cssText = editable.style.cssText, then Object.assign pointerEvents none, userSelect none and unicodeBidi plaintext onto overlay.style. 4. Set editable.style.caretColor = baseColor, editable.style.color = transparent, and add class excalidraw-wysiwyg--styled. 5. isDark = app.state.theme === THEME.DARK. Return if overlayContent has the same text (editable.value), the same ranges reference and the same isDark. 6. Otherwise overlay.replaceChildren(), and for each run of getTextStyleRuns(editable.value, 0, ranges): text = value.slice(run.start, run.end); a run with no colour appends a text node; a styled run appends a span with textContent = text, style.color from applyDarkModeFilter(run.color, isDark) when set, style.backgroundColor from applyDarkModeFilter(run.highlight, isDark) when set. Then store overlayContent."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 529,
+          "to": 529,
+          "first_line": "app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });",
+          "rule": "Add `syncStyleOverlay(updatedTextElement);`. The style assignment above has just reset editable.style.color to the base colour."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 863,
+          "to": 863,
+          "first_line": "onChange(editable.value);",
+          "rule": "Change to `onChange({ nextOriginalText: editable.value, caret: editable.selectionEnd });`, formatted by Prettier."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 1116,
+          "to": 1116,
+          "first_line": "editable.remove();",
+          "rule": "Add `styleOverlay?.remove();`."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-13",
+        "FR-18",
+        "FR-19",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/components/App.text.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Moves ranges along with each text change in the editor, so the committed element carries them.",
+      "rules": [
+        "updateElement reads the scene's element, so ranges merged in during the edit are the ones that get remapped and committed. Keep reading _element, never the closed-over element.",
+        "Committing empty text stays as today: remapping drops all ranges and the element is marked deleted by the existing isDeleted path."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "refreshTextDimensions,",
+          "rule": "Add `remapTextStyles,` to the import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43,
+          "first_line": "updateBoundElements,",
+          "rule": "Add `withTextStyles,` to the import."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 187,
+          "to": 187,
+          "first_line": "const updateElement = (nextOriginalText: string, isDeleted: boolean) => {",
+          "rule": "Add a third optional parameter `caret?: number`, formatted by Prettier."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 223,
+          "to": 236,
+          "first_line": "return newElementWith(_element, {",
+          "last_line": "});",
+          "rule": "First `const textStyles = remapTextStyles(_element, nextOriginalText, { caret });` so it reads the previous originalText. Keep the newElementWith call and its arguments unchanged, store it as nextElement, and return `textStyles ? withTextStyles(nextElement, textStyles) : nextElement`. remapTextStyles returns null when the text is unchanged, so nextElement is a fresh copy whenever it is written to."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 296,
+          "to": 297,
+          "first_line": "onChange: withBatchedUpdates((nextOriginalText) => {",
+          "last_line": "updateElement(nextOriginalText, false);",
+          "rule": "Take `({ nextOriginalText, caret })` and call updateElement(nextOriginalText, false, caret)."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U13"
+      ],
+      "covers": [
+        "FR-14",
+        "FR-19",
+        "FR-32"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/css/styles.scss",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Keeps the coloured layer visible through a live selection in the textarea.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 148,
+          "to": 148,
+          "first_line": "}",
+          "rule": "Inside .excalidraw-textEditorContainer, after the `> textarea` block and a blank line, add a one-line comment that the coloured text is the layer behind, and `> textarea.excalidraw-wysiwyg--styled::selection { color: transparent; background: rgba(105, 101, 219, 0.3); }` on separate lines."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-18"
+      ],
+      "checks": [
+        "format"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the strings for the highlight and clear controls.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33,
+          "first_line": "\"textColor\": \"Text color\",",
+          "rule": "Add `\"textHighlight\": \"Highlight\",`, `\"clearTextColor\": \"Clear text color\",` and `\"clearTextHighlight\": \"Clear highlight\",`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-21"
+      ],
+      "checks": [
+        "format"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Registers the two new action names.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 66,
+          "to": 66,
+          "first_line": "| \"changeStrokeColor\"",
+          "rule": "Add `| \"changeTextHighlight\"` and `| \"clearTextStyle\"`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-15",
+        "FR-17"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Applies colour to the textarea selection, and adds the highlight and clear actions.",
+      "rules": [
+        "With no selection, every existing path of actionChangeStrokeColor runs unchanged, and ranges stay in place (FR-16).",
+        "Neither action touches strokeColor, so the sticky note ink sync has nothing to do with ranges (FR-6).",
+        "Range changes return `appState: { ...appState, ...updates }`, so App re-points editingTextElement at the new object, and captureUpdate IMMEDIATELY, as a stroke colour pick does."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 25,
+          "to": 25,
+          "first_line": "FONT_SIZES,",
+          "rule": "Add `TEXT_HIGHLIGHT_PICKS,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 34,
+          "to": 34,
+          "first_line": "syncStickyNoteInk,",
+          "rule": "Add `applyTextStyle,`, `clearTextStyle,` and `withTextStyles,` to the import."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 100,
+          "to": 100,
+          "first_line": "import type { ElementUpdate, Scene } from \"@excalidraw/element\";",
+          "rule": "Also import the types TextStyleAttribute and TextStyleState, formatted by Prettier."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 107,
+          "to": 107,
+          "first_line": "import { ColorPicker } from \"../components/ColorPicker/ColorPicker\";",
+          "rule": "Add `import { TopPicks } from \"../components/ColorPicker/TopPicks\";`."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 156,
+          "to": 156,
+          "first_line": "strokeVariabilityVariableIcon,",
+          "rule": "Add `EraserIcon,` to the icons import."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 169,
+          "to": 169,
+          "first_line": "withCaretPositionPreservation,",
+          "rule": "Add `saveCaretPosition,` to the import."
+        },
+        {
+          "id": "S7",
+          "at": "insert_before",
+          "from": 364,
+          "to": 364,
+          "first_line": "// -----------------------------------------------------------------------------",
+          "rule": "Add `getTextEditSelection(elements, appState, app)`: find the element with appState.editingTextElement's id in elements; return null unless it is a text element; caret = saveCaretPosition(app.ownerDocument); return null when caret is null or caret.start === caret.end; else return { element, selection: { start: caret.start, end: caret.end } }. textarea offsets are originalText offsets, and FR-14 is this mapping. Add `replaceTextStyles(elements, element, state: TextStyleState)`: elements.map replacing the element with that id by withTextStyles(newElementWith(el as ExcalidrawTextElement, {}, true), state). Add `changeTextStyleAttribute(elements, appState, app, attribute: TextStyleAttribute, color: string | null)`: null when getTextEditSelection is null; otherwise replaceTextStyles with clearTextStyle(element, selection, attribute) when color is null or isTransparent(color), else applyTextStyle(element, selection, attribute === \"color\" ? { color } : { highlight: color })."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 372,
+          "to": 372,
+          "first_line": "perform: (elements, appState, value) => {",
+          "rule": "Take the fourth parameter: `perform: (elements, appState, value, app) => {`."
+        },
+        {
+          "id": "S9",
+          "at": "insert_before",
+          "from": 380,
+          "to": 380,
+          "first_line": "// resolved from the state the action runs against — never from the",
+          "rule": "Add: `const styledElements = changeTextStyleAttribute(elements, appState, app, \"color\", color);` and, when non-null, return { elements: styledElements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }, with a comment that a selection colours the range and leaves the base colour and the defaults alone."
+        },
+        {
+          "id": "S10",
+          "at": "insert_before",
+          "from": 445,
+          "to": 445,
+          "first_line": "export const actionChangeBackgroundColor = register<",
+          "rule": "Add `export const actionChangeTextHighlight = register<string>({ name: \"changeTextHighlight\", label: \"labels.textHighlight\", trackEvent: false, predicate: (_, appState) => !!appState.editingTextElement, perform, PanelComponent })`. perform: changeTextStyleAttribute(elements, appState, app, \"highlight\", value ?? null); return false when null; else { elements, appState, captureUpdate: IMMEDIATELY }. PanelComponent: an h3 aria-hidden with t(\"labels.textHighlight\") when stylesPanelMode is full, then <TopPicks theme={appState.theme} type=\"elementBackground\" activeColor={null} topPicks={TEXT_HIGHLIGHT_PICKS} onChange={(color) => updateData(color)} />. Then add `export const actionClearTextStyle = register<TextStyleAttribute>({ name: \"clearTextStyle\", label: \"labels.clearTextColor\", trackEvent: false, predicate same, perform, PanelComponent })`. perform: changeTextStyleAttribute with attribute = value and color null, same return shape. PanelComponent: a div.buttonList with two <IconButton type=\"button\" icon={EraserIcon}> with title and aria-label t(\"labels.clearTextColor\") and data-testid clear-text-color calling updateData(\"color\"), and t(\"labels.clearTextHighlight\") and data-testid clear-text-highlight calling updateData(\"highlight\")."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U16",
+        "U17"
+      ],
+      "covers": [
+        "FR-14",
+        "FR-15",
+        "FR-16",
+        "FR-17",
+        "FR-21"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/components/Actions.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Shows the highlight and clear controls while text is being edited, in the full panel and in the compact text popover.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 162,
+          "to": 162,
+          "first_line": "<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>",
+          "rule": "Add `{appState.editingTextElement && (<div>{renderAction(\"changeTextHighlight\")}{renderAction(\"clearTextStyle\")}</div>)}`, formatted by Prettier."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 478,
+          "to": 478,
+          "first_line": "{predicates.text && renderAction(\"changeFontSize\")}",
+          "rule": "Add the same two renderAction calls guarded by appState.editingTextElement, inside a fragment."
+        }
+      ],
+      "depends_on": [
+        "U17",
+        "U18"
+      ],
+      "covers": [
+        "FR-15",
+        "FR-17"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/element/tests/textStyleRanges.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Unit tests for the range model: text edits, wrapping, list markers, runs, layout and creation.",
+      "rules": [
+        "Import from \"../src/textStyleRanges\", \"../src/listMarker\", \"../src/Scene\", \"../src/transform\", \"../src/duplicate\", and API from @excalidraw/excalidraw/tests/helpers/api.",
+        "Build elements as { ...API.createElement({ type: \"text\", text }), originalText, textStyleRanges } with hand-written ids and seq; wrapped text is set by hand, e.g. text: \"hello\\nworld\", originalText: \"hello world\". Build a scene with new Scene([element], { skipValidation: true }).",
+        "Canvas width in tests is the character count times 10."
+      ],
+      "tests": [
+        {
+          "name": "shifts a range on an insert before it",
+          "given": "range on \"world\" in \"hello world\", insert \"big \" at 6",
+          "expect": "the range covers \"world\" in the new text"
+        },
+        {
+          "name": "shifts a range on a delete before it",
+          "given": "same range, delete \"hello \"",
+          "expect": "start 0, end 5"
+        },
+        {
+          "name": "grows on an insert inside and shrinks on a delete inside",
+          "given": "range on \"world\", insert \"XX\" inside, then a separate delete of 2 characters inside",
+          "expect": "end grows by 2 in the first and falls by 2 in the second, start unchanged"
+        },
+        {
+          "name": "keeps an insert at either edge outside the range",
+          "given": "range on \"world\", insert exactly at its start, then exactly at its end",
+          "expect": "the range still covers exactly \"world\""
+        },
+        {
+          "name": "drops a range whose characters are all gone, with no tombstone",
+          "given": "range on \"world\", delete the word",
+          "expect": "remapTextStyles gives no such range and no cleared entry"
+        },
+        {
+          "name": "places an insert correctly among repeated characters",
+          "given": "text \"aa\", range [1,2), insert \"a\" with caret 2",
+          "expect": "range [2,3)"
+        },
+        {
+          "name": "keeps ranges through a multi-line indent",
+          "given": "text \"one\\ntwo\\nthree\", range on \"two\", next text with four spaces before each line",
+          "expect": "the range still covers \"two\""
+        },
+        {
+          "name": "keeps ranges through two separate edits",
+          "given": "\"foo bar baz\" with a range on \"bar\", next text \"Xfoo bar bazY\"",
+          "expect": "the range covers \"bar\" in the new text"
+        },
+        {
+          "name": "does not carry a range onto a stray shared letter",
+          "given": "\"abc def\" with a range on \"def\", next text \"xyz qex\"",
+          "expect": "the range is dropped"
+        },
+        {
+          "name": "keeps ranges through list renumbering and back",
+          "given": "text \"9. foo\" with ranges on \"9\" and on \"foo\", advanceDuplicatedListMarkers on a Scene, then applyListMarkerAdvances with prev",
+          "expect": "after the advance \"10\" and \"foo\" are covered; after going back the offsets equal the originals"
+        },
+        {
+          "name": "withTextStyles deletes empty fields",
+          "given": "a copy with ranges, state with no ranges and no cleared entries",
+          "expect": "neither key is in the object"
+        },
+        {
+          "name": "applyTextStyle adds a range after the highest seq",
+          "given": "a range at seq 2 and a tombstone at seq 5",
+          "expect": "the new range has seq 6 and the requested span"
+        },
+        {
+          "name": "applyTextStyle replaces a range it fully covers on the same attributes",
+          "given": "a colour range, then a colour over the same span",
+          "expect": "one live range, one cleared entry with the old id"
+        },
+        {
+          "name": "applyTextStyle keeps a covered range that sets another attribute",
+          "given": "a colour and highlight range, then a colour over it",
+          "expect": "the old range stays and the new one has the higher seq"
+        },
+        {
+          "name": "clearTextStyle splits a range and tombstones the original",
+          "given": "range [0,10), clear colour on [3,5)",
+          "expect": "cleared holds the id; live pieces [0,3) and [5,10) with new ids and the same seq"
+        },
+        {
+          "name": "clearTextStyle removes one attribute and keeps the other",
+          "given": "colour and highlight on [0,5), clear highlight on [0,5)",
+          "expect": "one live range [0,5) with colour only"
+        },
+        {
+          "name": "keeps cleared entries within the bound",
+          "given": "66 applications that each replace the previous range",
+          "expect": "cleared holds MAX_CLEARED_TEXT_STYLE_RANGES entries, the oldest seq gone"
+        },
+        {
+          "name": "maps a range across a soft wrap",
+          "given": "text \"hello\\nworld\", originalText \"hello world\", range on \"lo wo\"",
+          "expect": "line 0 has a styled run on \"lo\", line 1 on \"wo\", and the removed space belongs to neither"
+        },
+        {
+          "name": "stays aligned when only the wrapping changes",
+          "given": "same originalText and range, text changed to \"hello world\"",
+          "expect": "one line with a styled run on \"lo wo\""
+        },
+        {
+          "name": "handles hard and empty lines",
+          "given": "text and originalText \"a\\n\\nb\", range on \"b\"",
+          "expect": "lines 0 and 1 are null, line 2 holds the run"
+        },
+        {
+          "name": "returns null for unstyled text and for a line with no styled run",
+          "given": "one element with no ranges, one with a range on its second line only",
+          "expect": "null overall for the first; null for line 0 of the second"
+        },
+        {
+          "name": "returns null when a line cannot be found in originalText",
+          "given": "text \"changed\" with originalText \"hello\" and a range",
+          "expect": "null"
+        },
+        {
+          "name": "leaves an RTL line plain",
+          "given": "a two-line text whose first line is Hebrew, ranges on both lines",
+          "expect": "line 0 null, line 1 styled"
+        },
+        {
+          "name": "never splits a surrogate pair",
+          "given": "text \"a😀b\", range [0,2) ending inside the emoji",
+          "expect": "the run covers \"a😀\" whole"
+        },
+        {
+          "name": "resolves overlaps by seq per attribute",
+          "given": "range A colour red seq 1 on [0,5), range B colour blue seq 2 on [2,7), range C highlight seq 3 on [0,3)",
+          "expect": "red on [0,2), blue on [2,7), highlight on [0,3)"
+        },
+        {
+          "name": "lays runs out from the line start per alignment",
+          "given": "width 200, line \"hello world\", runs split at 6, for left, center and right",
+          "expect": "first x is 0, 45 and 90 and second x adds 60; widths are 60 and 50"
+        },
+        {
+          "name": "createTextStyleRanges fills ids and drops invalid input",
+          "given": "one valid input with no id, one with colour \"red;x\", one with start >= end",
+          "expect": "one range with an id and seq 1"
+        },
+        {
+          "name": "newTextElement carries ranges and adds no key without them",
+          "given": "newTextElement with and without textStyleRanges",
+          "expect": "field present with ids; key absent"
+        },
+        {
+          "name": "convertToExcalidrawElements accepts ranges on text and labels",
+          "given": "a text skeleton and a rectangle with a label, each with an id-less range",
+          "expect": "both text elements carry a range with an id and seq"
+        },
+        {
+          "name": "duplicates keep their ranges",
+          "given": "duplicateElement(null, new Map(), element)",
+          "expect": "ranges deep-equal the source and are not the same reference"
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/tests/textElement.test.ts",
+        "lines": [
+          1,
+          30
+        ],
+        "reason": "Test file imports and describe layout in this package."
+      },
+      "depends_on": [
+        "U03",
+        "U04",
+        "U05",
+        "U06",
+        "U07"
+      ],
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-7",
+        "FR-8",
+        "FR-31",
+        "NFR-5"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "packages/element/tests/delta.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests that deltas carry ranges as an id-keyed diff and that undo and redo restore them with their text.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14,
+          "first_line": "import { mutateElement, newElementWith } from \"../src/mutateElement\";",
+          "rule": "Add `import { noteMergedTextStyles } from \"../src/textStyleRanges\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 853,
+          "to": 853,
+          "first_line": "});",
+          "rule": "Add a top-level `describe(\"ElementsDelta text style ranges\", ...)` holding the listed cases. Helper: `apply(before, after)` as in the file's first describe, comparing with ElementsDelta.calculate(before, after).applyTo(before, before, { excludedProperties: new Set([\"version\", \"versionNonce\"]) }), and arrayToMap with an `as SceneElementsMap` cast. Build the after element with newElementWith so version moves. Undo is ElementsDelta.calculate(before, after).inverse().applyTo(after, after, same options)."
+        }
+      ],
+      "tests": [
+        {
+          "name": "carries only the ranges that changed",
+          "given": "before with ranges A and B, after with A unchanged and C added",
+          "expect": "the delta's inserted list holds C alone and its deleted list is empty"
+        },
+        {
+          "name": "keeps tombstones out of the delta",
+          "given": "after has a new cleared entry",
+          "expect": "neither partial has clearedTextStyleRanges"
+        },
+        {
+          "name": "undo restores offsets with the text",
+          "given": "text edit that shifted a range by 4",
+          "expect": "undo restores originalText and the original offsets"
+        },
+        {
+          "name": "undo of an apply tombstones the range",
+          "given": "after adds range X",
+          "expect": "undone element has no ranges and a cleared entry for X"
+        },
+        {
+          "name": "undo of a clear re-adds the range above its tombstone",
+          "given": "before holds X at seq 3, after has X cleared at seq 3",
+          "expect": "undone element holds X at seq 4 and no cleared entry"
+        },
+        {
+          "name": "undo leaves a range it did not touch",
+          "given": "a delta adding X, applied to an element that also holds Y",
+          "expect": "undo removes X and keeps Y"
+        },
+        {
+          "name": "undo remaps a range the delta did not name onto the restored text",
+          "given": "text edit delta, applied to an element also holding Y on a word after the edit",
+          "expect": "Y covers the same word in the restored text"
+        },
+        {
+          "name": "omits a range a merge added",
+          "given": "noteMergedTextStyles(local, merged) with merged holding B, then a delta from local to a later copy of merged",
+          "expect": "the delta has no entry for B and undo keeps B"
+        },
+        {
+          "name": "omits a range a merge cleared",
+          "given": "noteMergedTextStyles with merged lacking X, then a delta from local to a later copy of merged",
+          "expect": "the delta has no entry for X"
+        },
+        {
+          "name": "stops omitting after the snapshot moves on",
+          "given": "same id, delta whose base version is above the recorded one",
+          "expect": "the delta holds the entry"
+        },
+        {
+          "name": "does not count a tombstone as a visible change",
+          "given": "before and after differ only in clearedTextStyleRanges, version and versionNonce",
+          "expect": "the second value applyTo returns is false"
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/tests/delta.test.tsx",
+        "lines": [
+          15,
+          70
+        ],
+        "reason": "The file's own helpers for applying deltas."
+      },
+      "depends_on": [
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/tests/history.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests undo and redo of ranges through the editor, and that a remote merge is not a local undo step.",
+      "sites": [
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 11,
+          "to": 11,
+          "first_line": "import { newElementWith } from \"@excalidraw/element\";",
+          "rule": "Change to `import { newElementWith, noteMergedTextStyles } from \"@excalidraw/element\";`."
+        },
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 5308,
+          "to": 5308,
+          "first_line": "});",
+          "rule": "Add a top-level `describe(\"text style ranges\", ...)`, outside the snapshot checkpoints, with `beforeEach(async () => { unmountComponent(); await render(<Excalidraw handleKeyboardGlobally={true} />); });`. Never call checkpoint() or toMatchSnapshot here. Put a text element in with API.updateScene({ elements: [...], captureUpdate: CaptureUpdateAction.IMMEDIATELY }). Simulate a merge with { ...h.elements[0], textStyleRanges: [...] } (same version) through API.updateScene with CaptureUpdateAction.NEVER, after calling noteMergedTextStyles from @excalidraw/element."
+        }
+      ],
+      "tests": [
+        {
+          "name": "undo and redo a styled range",
+          "given": "a text, then an update adding a range, captured",
+          "expect": "undo removes it and redo brings it back on the same characters"
+        },
+        {
+          "name": "undo restores a range with its text",
+          "given": "a captured text change that shifted a range",
+          "expect": "undo restores both the text and the offsets"
+        },
+        {
+          "name": "a remote merge is not a local undo step",
+          "given": "a merge adds range B at the same version, then a local x move is captured",
+          "expect": "the undo stack grew by one, and undo reverts x and keeps B"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "lines": [
+          120,
+          146
+        ],
+        "reason": "How this file sets up a render."
+      },
+      "depends_on": [
+        "U08",
+        "U12"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/tests/data/restore.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests restore of legacy text, bad ranges, and the data the merge needs.",
+      "sites": [
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9,
+          "first_line": "getLineHeight,",
+          "rule": "Add `MAX_CLEARED_TEXT_STYLE_RANGES,` to the import."
+        },
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1659,
+          "to": 1659,
+          "first_line": "});",
+          "rule": "Add a top-level `describe(\"restoreElements text style ranges\", ...)`. Use `{ ...API.createElement({ type: \"text\", text: \"hello world\" }), textStyleRanges: [...] } as any` for malformed input, and restore.restoreElements([...], null)."
+        }
+      ],
+      "tests": [
+        {
+          "name": "adds no field to legacy text",
+          "given": "a text with neither field",
+          "expect": "neither key is on the restored element"
+        },
+        {
+          "name": "clamps out-of-bounds offsets",
+          "given": "range start -3, end 99",
+          "expect": "start 0, end the text length"
+        },
+        {
+          "name": "drops ranges that collapse",
+          "given": "start 20, end 30 on an 11-character text",
+          "expect": "dropped, and the key is gone"
+        },
+        {
+          "name": "drops malformed ranges",
+          "given": "non-object, missing id, non-integer offset, seq 0, no colour",
+          "expect": "all dropped"
+        },
+        {
+          "name": "drops a bad colour value",
+          "given": "colour \"red\\\" onload=\\\"x\" beside a valid range",
+          "expect": "only the valid range is left"
+        },
+        {
+          "name": "accepts hex, named and functional colours",
+          "given": "#f00, #ff000080, red, rgb(1, 2, 3)",
+          "expect": "all kept"
+        },
+        {
+          "name": "strips unknown keys from a range",
+          "given": "a valid range with an extra key",
+          "expect": "the key is gone"
+        },
+        {
+          "name": "keeps id, seq and tombstones",
+          "given": "a valid range and a valid cleared entry",
+          "expect": "deep-equal after restore"
+        },
+        {
+          "name": "removes a range its tombstone covers",
+          "given": "range id X seq 2, cleared X seq 2",
+          "expect": "no ranges, cleared kept"
+        },
+        {
+          "name": "drops malformed tombstones and caps the rest",
+          "given": "70 valid entries and one with no id",
+          "expect": "MAX_CLEARED_TEXT_STYLE_RANGES entries with the highest seq"
+        },
+        {
+          "name": "treats a non-array field as empty",
+          "given": "textStyleRanges: 5",
+          "expect": "the key is gone"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          1,
+          60
+        ],
+        "reason": "Imports and the restore namespace used in this file."
+      },
+      "depends_on": [
+        "U11"
+      ],
+      "covers": [
+        "AC-3",
+        "FR-24",
+        "FR-25",
+        "FR-26",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U24",
+      "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests the range merge on two diverged copies of one text element from a common start.",
+      "rules": [
+        "The file declares a local `test` helper that shadows the global, so use `it` inside the new describe.",
+        "Helper `textCopy(originalText, version, versionNonce, ranges?, cleared?)` returning an element from API.createElement({ type: \"text\", id: \"T\", text, index: \"a0\" as FractionalIndex }) with version and versionNonce set. Helper `both(a, b, appState?)` running reconcileElements([a], [b]) and reconcileElements([b], [a]) on cloneJSON copies with `{} as AppState`, returning both results' single element.",
+        "Assert ranges with getText(el, range) = el.originalText.slice(range.start, range.end), so a test states characters, not offsets."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { syncInvalidIndices } from \"@excalidraw/element\";",
+          "rule": "Import getTextStyleRuns, newElementWith, remapTextStyles, syncInvalidIndices and withTextStyles from @excalidraw/element, formatted by Prettier."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 3,
+          "to": 3,
+          "first_line": "import { randomInteger, cloneJSON } from \"@excalidraw/common\";",
+          "rule": "Also import MAX_CLEARED_TEXT_STYLE_RANGES, formatted by Prettier."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6,
+          "first_line": "ExcalidrawElement,",
+          "rule": "Add `FractionalIndex,` to the type import."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 10,
+          "to": 10,
+          "first_line": "import { reconcileElements } from \"../../data/reconcile\";",
+          "rule": "Keep the line and add `import { API } from \"../helpers/api\";` before it and `import { bumpElementVersions } from \"../../data/restore\";` after it."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386,
+          "first_line": "});",
+          "rule": "Add a top-level `describe(\"reconcileElements text style ranges\", ...)` holding the listed cases."
+        }
+      ],
+      "tests": [
+        {
+          "name": "AC-6: different ranges end up on both clients",
+          "given": "common text; A adds range X at v2, B adds range Y at v2",
+          "expect": "both results hold X and Y, whichever nonce is lower"
+        },
+        {
+          "name": "AC-7: a style survives an insert elsewhere",
+          "given": "A styles \"timeout\" at v2; B inserts a word at the start at v3",
+          "expect": "text is B's; the range covers \"timeout\""
+        },
+        {
+          "name": "AC-7: a style survives a delete elsewhere",
+          "given": "A styles \"timeout\" at v2; B deletes the first word at v3",
+          "expect": "the range covers \"timeout\""
+        },
+        {
+          "name": "AC-8: a range grows with an edit inside it",
+          "given": "A styles \"timeout\" at v2; B changes it to \"time-out\" at v3",
+          "expect": "the range covers \"time-out\""
+        },
+        {
+          "name": "AC-8: a range shrinks with an edit inside it",
+          "given": "A styles \"timeout\" at v2; B changes it to \"tout\" at v3",
+          "expect": "the range covers \"tout\""
+        },
+        {
+          "name": "AC-9: both edit text",
+          "given": "A edits the start and styles \"timeout\" and \"request\" at v3; B edits the end, keeps \"timeout\" and removes \"request\", at v4",
+          "expect": "text is B's; a range covers \"timeout\"; the range on \"request\" is gone"
+        },
+        {
+          "name": "AC-9: a winner's range stays when the loser deleted its characters",
+          "given": "X on \"timeout\" on both; A deletes the word and drops X at v3; B edits elsewhere at v4",
+          "expect": "X stays on B's \"timeout\" (a text edit writes no tombstone)"
+        },
+        {
+          "name": "AC-10: overlap gives one result",
+          "given": "A colours \"timeout\" red, B colours it blue, both at v2 with the same seq",
+          "expect": "both results' ranges are deep-equal, in canonical order, and getTextStyleRuns gives one colour"
+        },
+        {
+          "name": "AC-11: a cleared range does not come back from a stale peer",
+          "given": "common X; A clears X at v3; B stays at v2 with X",
+          "expect": "both results hold no X and a cleared entry for X"
+        },
+        {
+          "name": "AC-11: a clear survives a stale peer that wins",
+          "given": "common X; A clears X at v3; B, without seeing it, edits text at v5",
+          "expect": "text is B's, X is gone"
+        },
+        {
+          "name": "AC-11: a concurrent range survives a clear",
+          "given": "common X; A clears X; B adds Y on the same span",
+          "expect": "X gone, Y kept"
+        },
+        {
+          "name": "AC-12: order independence",
+          "given": "a mix of the above with each of A and B as the higher nonce",
+          "expect": "ranges and cleared entries are deep-equal between the two directions"
+        },
+        {
+          "name": "AC-12: repeating a merge changes nothing",
+          "given": "the merged element reconciled again with either input",
+          "expect": "the result's ranges and cleared lists deep-equal the first merge's"
+        },
+        {
+          "name": "FR-31: a version bump tie causes no drift",
+          "given": "merge, then bumpElementVersions against the local element, then reconcile with the other side",
+          "expect": "ranges unchanged"
+        },
+        {
+          "name": "FR-28: the merge keeps the winner's version and nonce",
+          "given": "merge where ranges change",
+          "expect": "version and versionNonce equal the winner's"
+        },
+        {
+          "name": "FR-13: a changed merge returns a new object",
+          "given": "local wins and gains a remote range",
+          "expect": "the result is not the local object, same version; with nothing to add the result is the local object"
+        },
+        {
+          "name": "AC-13: a remote update during an edit keeps its ranges",
+          "given": "local mid-edit at text L with appState.editingTextElement set; remote holds range Y on a word L still has",
+          "expect": "the text stays L and Y is on the same word; after newElementWith commit-style text change through remapTextStyles the range stays"
+        },
+        {
+          "name": "AC-14: unstyled text reconciles as before",
+          "given": "two unstyled text copies with different versions, then with equal versions",
+          "expect": "the result is the same winner object as before the change, with neither key added"
+        },
+        {
+          "name": "FR-29: tombstone only on the loser still carries over",
+          "given": "winner has no fields, loser has a cleared entry",
+          "expect": "the result holds the cleared entry"
+        },
+        {
+          "name": "NFR-5: a merge keeps the tombstone bound",
+          "given": "each side with 40 distinct cleared entries",
+          "expect": "MAX_CLEARED_TEXT_STYLE_RANGES entries, highest seq kept, same both ways"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "lines": [
+          1,
+          24
+        ],
+        "reason": "Imports used by this test file."
+      },
+      "depends_on": [
+        "U12",
+        "U14"
+      ],
+      "covers": [
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "FR-13",
+        "FR-27",
+        "FR-28",
+        "FR-29",
+        "FR-30",
+        "FR-31",
+        "FR-32",
+        "FR-33",
+        "NFR-5",
+        "NFR-6"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U25",
+      "path": "packages/excalidraw/tests/scene/export.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests canvas runs and SVG tspans through exportScene, and that unstyled lines stay as they were.",
+      "rules": [
+        "No toMatchSnapshot in the new cases. Compare unstyled output against a second export of the same element without ranges.",
+        "Read draws with (canvas.getContext(\"2d\") as any).fillText.mock.calls and __getEvents() as this file does."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1100,
+          "to": 1100,
+          "first_line": "});",
+          "rule": "Add a top-level `describe(\"text style ranges\", ...)` holding the listed cases. Elements are { ...API.createElement({ type: \"text\", text, index: \"a0\" as FractionalIndex }), width, height, textStyleRanges }, exported with exportScene({ type, data: { elements, files: null } })."
+        }
+      ],
+      "tests": [
+        {
+          "name": "AC-5: writes tspans with the right fill",
+          "given": "\"hello world\" with \"world\" red",
+          "expect": "one <text> holds tspans \"hello \" with no fill and \"world\" with fill red; the <text> keeps the base fill"
+        },
+        {
+          "name": "AC-5: writes highlights behind the text",
+          "given": "a highlight on \"world\"",
+          "expect": "a rect with that fill comes before the <text> in the same <g>, y and height from the line"
+        },
+        {
+          "name": "FR-22: positions match the canvas",
+          "given": "centre-aligned text with a highlight",
+          "expect": "the rect's x equals the x of the matching canvas fillText run"
+        },
+        {
+          "name": "FR-23: an unstyled line stays byte for byte",
+          "given": "a two-line text styled on line 2 only, and the same element with no ranges",
+          "expect": "the outerHTML of line 1's <text> is identical in both"
+        },
+        {
+          "name": "NFR-1: unstyled text exports identically",
+          "given": "an element with no ranges and a copy with an empty run set (no field)",
+          "expect": "identical SVG markup and no tspan"
+        },
+        {
+          "name": "NFR-4: a hostile colour reaches no markup",
+          "given": "a range with colour \"red\\\" onload=\\\"x\"",
+          "expect": "the SVG holds no onload attribute and no tspan"
+        },
+        {
+          "name": "FR-10: draws runs in place, one fillText each",
+          "given": "left, centre and right aligned text with a coloured word",
+          "expect": "fillText is called per run, at the line start for that alignment plus the width before the run, and the canvas textAlign is left for those calls"
+        },
+        {
+          "name": "FR-10: draws a highlight behind its text",
+          "given": "a highlight on a word",
+          "expect": "a fillRect event at the run's x, the line's top and lineHeightPx comes before that run's fillText"
+        },
+        {
+          "name": "FR-10: holds for line height and bound text",
+          "given": "a label bound to a rectangle with lineHeight 2 and a coloured word",
+          "expect": "the run's y equals the unstyled y for that line"
+        },
+        {
+          "name": "FR-11: range colours follow dark mode",
+          "given": "export with config.theme dark",
+          "expect": "the fill equals applyDarkModeFilter of the range colour, on canvas and SVG, highlight included"
+        },
+        {
+          "name": "FR-12: a line with no styled run is one fillText",
+          "given": "a two-line text styled on line 2 only",
+          "expect": "line 1 is drawn by one fillText with the whole line and the element's alignment"
+        },
+        {
+          "name": "PNG export uses the same runs",
+          "given": "exportScene type png with a coloured word",
+          "expect": "resolves, and the canvas it drew on (config.environment.createCanvas) shows the run's fillText"
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/scene/export.test.ts",
+          "lines": [
+            335,
+            395
+          ],
+          "reason": "How this file exports to a canvas and reads its events."
+        }
+      ],
+      "depends_on": [
+        "U09",
+        "U10",
+        "U11"
+      ],
+      "covers": [
+        "AC-5",
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-22",
+        "FR-23",
+        "NFR-1",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U26",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "jsdom tests of the editor: colouring a selection, the layer behind the textarea, typing, and the element operations that must keep ranges.",
+      "rules": [
+        "Setup per case: await render(<Excalidraw handleKeyboardGlobally={true} />), API.setElements([text]), API.setSelectedElements([text]), Keyboard.keyPress(KEYS.ENTER), const editor = await getTextEditor(), editor.setSelectionRange(start, end).",
+        "Pick colours with UI.clickOnTestId(`color-top-pick-${color}`) using COLOR_PALETTE.red[DEFAULT_ELEMENT_STROKE_COLOR_INDEX] for stroke and #ffec99 for highlight; open the stroke popover by clicking the element matching [data-openpopup=\"elementStroke\"] and pick with UI.clickOnTestId(\"color-red\"). Clear buttons are test ids clear-text-color and clear-text-highlight.",
+        "Run actions with act(() => { h.app.actionManager.executeAction(action, \"ui\", value); }). actionChangeFontSize takes a number. actionChangeFontFamily takes { currentItemFontFamily: FONT_FAMILY.Cascadia, currentHoveredFontFamily: null }. A container resize is UI.resize(rectangle, \"e\", [-100, 0]).",
+        "An element copy: const { elements } = JSON.parse(serializeAsClipboardJSON({ elements: [text], files: null })), then act(() => h.app.addElementsFromPasteOrLibrary({ elements, files: null, position: \"center\" })). No toMatchSnapshot."
+      ],
+      "sites": [
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9,
+          "first_line": "newElementWith,",
+          "rule": "Add `getStyledTextLines,` to the import."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13,
+          "first_line": "CODES,",
+          "rule": "Add `COLOR_PALETTE,` and `DEFAULT_ELEMENT_STROKE_COLOR_INDEX,` to the import."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 50,
+          "to": 50,
+          "first_line": "import { actionBindText } from \"../actions\";",
+          "rule": "Import actionBindText, actionChangeFontFamily, actionChangeFontSize, actionCopyStyles, actionPasteStyles and actionUnbindText from \"../actions\", formatted by Prettier, and add `import { actionWrapTextInContainer } from \"../actions/actionBoundText\";` below it."
+        },
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 49,
+          "to": 49,
+          "first_line": "import * as dataModule from \"../data\";",
+          "rule": "Add `import { serializeAsClipboardJSON } from \"../clipboard\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 3596,
+          "to": 3596,
+          "first_line": "});",
+          "rule": "Add `describe(\"styled ranges\", ...)` inside the textWysiwyg describe, holding the listed cases."
+        }
+      ],
+      "tests": [
+        {
+          "name": "AC-4: colours a selection",
+          "given": "\"hello world\" with \"world\" selected, the red top pick clicked",
+          "expect": "the element holds one range on [6,11) with that colour, base strokeColor unchanged"
+        },
+        {
+          "name": "FR-15: stays open with the selection in place",
+          "given": "same, after the pick",
+          "expect": "the editor is still in the document, selectionStart and selectionEnd are unchanged, editingTextElement is set"
+        },
+        {
+          "name": "FR-15: keeps the selection through the popover",
+          "given": "open the stroke popover and pick a palette colour",
+          "expect": "the range is applied and the selection offsets are unchanged"
+        },
+        {
+          "name": "FR-15: highlights a selection",
+          "given": "a highlight top pick with a selection",
+          "expect": "one range with highlight and no color"
+        },
+        {
+          "name": "FR-16: no selection colours the base and keeps ranges",
+          "given": "a text with a range, caret collapsed, stroke pick while editing",
+          "expect": "strokeColor changes and the ranges are deep-equal"
+        },
+        {
+          "name": "FR-16: a canvas pick keeps ranges",
+          "given": "a selected text with a range, not editing, stroke pick",
+          "expect": "strokeColor changes and the ranges are deep-equal"
+        },
+        {
+          "name": "FR-16: no selection makes the highlight a no-op",
+          "given": "collapsed caret, highlight pick",
+          "expect": "no ranges added"
+        },
+        {
+          "name": "FR-17: clears a colour and a highlight from a selection",
+          "given": "a range with both on the selection, each clear button in turn",
+          "expect": "colour goes first, then the range goes and the cleared list holds its id"
+        },
+        {
+          "name": "FR-18: shows a range behind the textarea",
+          "given": "a text with a coloured and a highlighted range, opened in the editor",
+          "expect": ".excalidraw-wysiwyg-styles holds spans with those colours and the same text as the textarea, the textarea has color transparent and class excalidraw-wysiwyg--styled"
+        },
+        {
+          "name": "FR-18: an unstyled text has no layer",
+          "given": "a text with no ranges in the editor",
+          "expect": "no .excalidraw-wysiwyg-styles, textarea color is the base colour"
+        },
+        {
+          "name": "FR-18: the layer goes with the last range and with the editor",
+          "given": "clear the only range, and separately exit the editor",
+          "expect": "no layer left, textarea colour restored"
+        },
+        {
+          "name": "FR-13: the layer shows a merge that keeps version",
+          "given": "while editing, API.updateScene with a same-version copy holding a new range",
+          "expect": "the layer gains that span"
+        },
+        {
+          "name": "FR-19: ranges follow typing and commit",
+          "given": "a range on \"world\", updateTextEditor inserts text before it, exit",
+          "expect": "the committed range covers \"world\""
+        },
+        {
+          "name": "FR-19: committing empty text behaves as today",
+          "given": "a range, then text cleared, exit",
+          "expect": "the element is deleted and no ranges are left on it"
+        },
+        {
+          "name": "FR-20: pasted text into the editor follows the edit rule",
+          "given": "a range, fireEvent input with text pasted before it",
+          "expect": "the range stays on its word"
+        },
+        {
+          "name": "FR-20: an element copy keeps its ranges",
+          "given": "serializeAsClipboardJSON of the element, parsed with JSON.parse, passed through h.app.addElementsFromPasteOrLibrary",
+          "expect": "the pasted element holds equal ranges and its own id"
+        },
+        {
+          "name": "FR-20: paste styles leaves the target's ranges",
+          "given": "actionCopyStyles on a text with ranges, actionPasteStyles on a text with other ranges",
+          "expect": "the target's base colour changes and its ranges are unchanged"
+        },
+        {
+          "name": "FR-4: keeps ranges through a font change, a resize and an auto-resize toggle",
+          "given": "a wrapped text with a range, then actionChangeFontFamily, then actionChangeFontSize, then actionTextAutoResize",
+          "expect": "the offsets are unchanged, and getStyledTextLines still styles the same characters"
+        },
+        {
+          "name": "FR-6: keeps ranges bound, unbound and wrapped",
+          "given": "actionBindText onto a rectangle, actionUnbindText, actionWrapTextInContainer",
+          "expect": "the offsets are unchanged after each step"
+        },
+        {
+          "name": "FR-6: sticky note ink sync changes the base colour only",
+          "given": "a sticky note label with a range, a stroke pick on the note",
+          "expect": "the label's strokeColor changes and its ranges are deep-equal"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "lines": [
+          3555,
+          3597
+        ],
+        "reason": "A nested describe with render, the text editor helpers and history."
+      },
+      "depends_on": [
+        "U13",
+        "U14",
+        "U15",
+        "U18",
+        "U19"
+      ],
+      "covers": [
+        "AC-4",
+        "FR-4",
+        "FR-6",
+        "FR-13",
+        "FR-14",
+        "FR-15",
+        "FR-16",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "FR-20",
+        "FR-21"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U27",
+      "path": "excalidraw-app/tests/collab.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Tests that a remote update with ranges reaches the scene through the collab path and survives the restore before reconcile.",
+      "rules": [
+        "Reach the private methods with bracket access and `// eslint-disable-next-line dot-notation`, as the file does for h.store: window.collab[\"_reconcileElements\"](remoteElements) then window.collab[\"handleRemoteSceneUpdate\"](reconciled).",
+        "This test file is the only excalidraw-app file that changes.",
+        "This unit closes AC-16 and AC-17: no snapshot call, and the project checks run after it."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 251,
+          "to": 251,
+          "first_line": "});",
+          "rule": "Add the listed cases as `it(...)` inside the collab describe, after the last test. Start with await render(<ExcalidrawApp />), then build elements with API.createElement({ type: \"text\", id: \"T\", text: \"hello world\" }) and syncInvalidIndices."
+        }
+      ],
+      "tests": [
+        {
+          "name": "AC-15: a remote update with ranges reaches the scene",
+          "given": "a local text at v2; a remote copy at v3 with a range",
+          "expect": "after _reconcileElements and handleRemoteSceneUpdate, h.elements holds the range"
+        },
+        {
+          "name": "AC-15: ranges survive the restore before reconcile",
+          "given": "a remote copy with a valid range, a tombstone and one malformed range",
+          "expect": "the scene holds the valid range and tombstone with their id and seq, and the malformed one is gone"
+        },
+        {
+          "name": "FR-34: a losing remote copy merges with no broadcast",
+          "given": "a remote copy at a lower version with a range the local copy lacks, and lastBroadcastedOrReceivedSceneVersion read before",
+          "expect": "the scene holds the range, the element's version and versionNonce are unchanged, and getSceneVersion matches the value read before"
+        }
+      ],
+      "style_from": {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "lines": [
+          70,
+          130
+        ],
+        "reason": "How this file renders the app and simulates remote updates."
+      },
+      "depends_on": [
+        "U11",
+        "U12"
+      ],
+      "covers": [
+        "AC-15",
+        "AC-16",
+        "AC-17",
+        "FR-26",
+        "FR-34",
+        "NFR-3",
+        "NFR-7"
+      ],
+      "checks": [
+        "lint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U28",
+      "path": "dev-docs/docs/codebase/json-schema.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents the two new text element fields in the file format.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 77,
+          "to": 77,
+          "first_line": "## Excalidraw clipboard format",
+          "rule": "Add a `### Styled text ranges` section, ending with a blank line. Say that a text element may carry textStyleRanges, a list of { id, seq, start, end, color?, highlight? }, with a small JSON example. Say that start and end are UTF-16 offsets into originalText, never text, with end exclusive; that at least one of color and highlight is set; that the field is absent when empty; that seq orders overlaps, so a higher seq paints over a lower one per attribute; and that id is random and holds no user data. Then say that clearedTextStyleRanges, a list of { id, seq }, records deliberately removed ranges so a stale collaborator cannot bring them back, is capped at 64 entries per element, and is also absent when empty."
+        }
+      ],
+      "depends_on": [
+        "U11"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents styled ranges on skeleton text elements and labels.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 146,
+          "to": 146,
+          "first_line": "### Lines and Arrows",
+          "rule": "Add a `#### With styled ranges` subsection, ending with a blank line. Show a text skeleton with textStyleRanges: [{ start: 6, end: 11, color: \"#e03131\", highlight: \"#ffec99\" }], matching the file's example style. Say that offsets index the text as given, that id and seq are optional and generated when missing, that invalid entries are dropped, and that a container's or arrow's label accepts the same field."
+        }
+      ],
+      "depends_on": [
+        "U06"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U30",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents how restore treats styled ranges.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 68,
+          "to": 68,
+          "first_line": "### restore",
+          "rule": "Add a paragraph, ending with a blank line, saying that restoreElements leaves text without textStyleRanges alone and adds no field. It clamps out-of-bounds offsets, drops malformed ranges (bad id, seq, offsets or colour value, and an id-less range), and removes the field when no range is left. It keeps id, seq and clearedTextStyleRanges, which collaboration relies on."
+        }
+      ],
+      "depends_on": [
+        "U11"
+      ],
+      "covers": [
+        "FR-35"
+      ]
+    },
+    {
+      "id": "U31",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Adds the unreleased changelog entry.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "",
+          "rule": "Add `### Partial text color and highlight (2026-11-02)`, with no PR link since no PR exists yet, then bullets, then a blank line. Bullets: text elements gain optional textStyleRanges and clearedTextStyleRanges; select text while editing and pick a color or highlight, with new clear controls; canvas draws runs and SVG export writes tspans, and lines holding RTL characters draw in the base color; restoreElements validates the field and leaves legacy text alone; reconcileElements keeps its signature and merges ranges on both outcomes; ExcalidrawElementSkeleton accepts the field on text and labels."
+        }
+      ],
+      "depends_on": [
+        "U12"
+      ],
+      "covers": [
+        "FR-35"
+      ],
+      "checks": [
+        "format"
+      ]
+    }
+  ]
+}

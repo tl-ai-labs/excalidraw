@@ -46,6 +46,11 @@ import { LinearElementEditor } from "./linearElementEditor";
 import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId, redrawTextBoundingBox } from "./textElement";
 import {
+  applyTextStyleDelta,
+  omitMergedTextStyleChanges,
+  withTextStyles,
+} from "./textStyleRanges";
+import {
   hasBoundTextElement,
   isArrowElement,
   isBindableElement,
@@ -1242,7 +1247,8 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
           prevElement,
           nextElement,
           ElementsDelta.stripIrrelevantProps,
-          ElementsDelta.postProcess,
+          (deleted, inserted) =>
+            ElementsDelta.postProcess(deleted, inserted, nextElement.id),
         );
 
         if (
@@ -1341,8 +1347,10 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         for (const key of Object.keys(partial) as Array<keyof typeof partial>) {
           // do not update following props:
           // - `boundElements`, as it is a reference value which is postprocessed to contain only deleted/inserted keys
-          switch (key) {
+          // - `textStyleRanges`, which likewise holds only its diff
+          switch (key as string) {
             case "boundElements":
+            case "textStyleRanges":
               latestPartial[key] = partial[key];
               break;
             default:
@@ -1753,7 +1761,7 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
     for (const key of Object.keys(delta.inserted) as Array<
       keyof typeof delta.inserted
     >) {
-      if (key === "boundElements") {
+      if (key === "boundElements" || (key as string) === "textStyleRanges") {
         continue;
       }
 
@@ -1781,6 +1789,21 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
       });
     }
 
+    const insertedText =
+      delta.inserted as ElementPartial<ExcalidrawTextElement>;
+    const deletedText = delta.deleted as ElementPartial<ExcalidrawTextElement>;
+
+    // a delta that ends the element deleted leaves its ranges alone
+    const textStyles =
+      isTextElement(element) && delta.inserted.isDeleted !== true
+        ? applyTextStyleDelta(
+            element,
+            insertedText.originalText ?? element.originalText,
+            deletedText.textStyleRanges,
+            insertedText.textStyleRanges,
+          )
+        : null;
+
     // visibility is not decided here: `applyTo` compares the applied result
     // once layout has run, so that its effects count too
     if (!flags.containsZindexDifference) {
@@ -1788,7 +1811,19 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         delta.deleted.index !== delta.inserted.index;
     }
 
-    return newElementWith(element, directlyApplicablePartial, true);
+    // a fresh copy, as force is true
+    const nextElement = newElementWith(
+      element,
+      directlyApplicablePartial,
+      true,
+    );
+
+    return textStyles
+      ? (withTextStyles(
+          nextElement as ExcalidrawTextElement,
+          textStyles,
+        ) as OrderedExcalidrawElement)
+      : nextElement;
   }
 
   /**
@@ -1872,6 +1907,7 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         case "versionNonce":
         case "updated":
         case "created":
+        case "clearedTextStyleRanges":
           return false;
         case "boundElements":
           return !isShallowEqual(
@@ -2187,9 +2223,23 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
   private static postProcess(
     deleted: ElementPartial,
     inserted: ElementPartial,
+    elementId: string,
   ): [ElementPartial, ElementPartial] {
     try {
       Delta.diffArrays(deleted, inserted, "boundElements", (x) => x.id);
+      Delta.diffArrays(
+        deleted as ElementPartial<ExcalidrawTextElement>,
+        inserted as ElementPartial<ExcalidrawTextElement>,
+        "textStyleRanges",
+        (x) => x.id,
+      );
+      // a merge keeps version, so the store's snapshot never saw it and it
+      // must not land in a local undo step
+      omitMergedTextStyleChanges(
+        elementId,
+        deleted as ElementPartial<ExcalidrawTextElement>,
+        inserted as ElementPartial<ExcalidrawTextElement>,
+      );
 
       // don't diff the points as:
       // - we can't ensure the multiplayer order consistency without fractional index on each point
@@ -2229,6 +2279,9 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
     partial: Partial<OrderedExcalidrawElement>,
   ): ElementPartial {
     const { id, updated, ...strippedPartial } = partial;
+
+    // tombstones only grow, so undo never rewinds them
+    Reflect.deleteProperty(strippedPartial, "clearedTextStyleRanges");
 
     return strippedPartial;
   }

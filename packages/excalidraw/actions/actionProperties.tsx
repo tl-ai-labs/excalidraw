@@ -23,6 +23,7 @@ import {
   reduceToCommonValue,
   invariant,
   FONT_SIZES,
+  TEXT_HIGHLIGHT_PICKS,
   type StrokeWidthKey,
 } from "@excalidraw/common";
 
@@ -32,6 +33,9 @@ import {
   getNonDeletedElements,
   isNonDeletedElement,
   syncStickyNoteInk,
+  applyTextStyle,
+  clearTextStyle,
+  withTextStyles,
 } from "@excalidraw/element";
 
 import {
@@ -97,7 +101,12 @@ import type {
   VerticalAlign,
 } from "@excalidraw/element/types";
 
-import type { ElementUpdate, Scene } from "@excalidraw/element";
+import type {
+  ElementUpdate,
+  Scene,
+  TextStyleAttribute,
+  TextStyleState,
+} from "@excalidraw/element";
 
 import type { CaptureUpdateActionType } from "@excalidraw/element";
 
@@ -105,6 +114,7 @@ import { trackEvent } from "../analytics";
 import { RadioSelection } from "../components/RadioSelection";
 import { IconButton } from "../components/IconButton";
 import { ColorPicker } from "../components/ColorPicker/ColorPicker";
+import { TopPicks } from "../components/ColorPicker/TopPicks";
 import { FontPicker } from "../components/FontPicker/FontPicker";
 import { IconPicker } from "../components/IconPicker";
 import { Range } from "../components/Range";
@@ -154,6 +164,7 @@ import {
   ArrowheadCardinalityZeroOrOneIcon,
   strokeVariabilityConstantIcon,
   strokeVariabilityVariableIcon,
+  EraserIcon,
 } from "../components/icons";
 
 import { Fonts } from "../fonts";
@@ -167,6 +178,7 @@ import {
 
 import {
   withCaretPositionPreservation,
+  saveCaretPosition,
   restoreCaretPosition,
 } from "../hooks/useTextEditorFocus";
 
@@ -361,6 +373,91 @@ const changeFontSize = (
   };
 };
 
+// textarea offsets are offsets into the element's originalText, which is
+// what ranges index, so the selection maps over unchanged
+const getTextEditSelection = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  app: AppClassProperties,
+) => {
+  const editingId = appState.editingTextElement?.id;
+  const element = editingId
+    ? elements.find((el) => el.id === editingId)
+    : undefined;
+  if (!element || !isTextElement(element)) {
+    return null;
+  }
+  const caret = saveCaretPosition(app.ownerDocument);
+  if (!caret || caret.start === caret.end) {
+    return null;
+  }
+  return {
+    element,
+    selection: { start: caret.start, end: caret.end },
+  };
+};
+
+const isSameStyleList = (a: readonly object[], b: readonly object[]): boolean =>
+  a.length === b.length &&
+  a.every((item, i) => {
+    const left = item as Record<string, unknown>;
+    const right = b[i] as Record<string, unknown>;
+    const keys = Object.keys(left);
+    return (
+      keys.length === Object.keys(right).length &&
+      keys.every((key) => left[key] === right[key])
+    );
+  });
+
+const replaceTextStyles = (
+  elements: readonly ExcalidrawElement[],
+  element: ExcalidrawTextElement,
+  state: TextStyleState,
+) =>
+  elements.map((el) =>
+    el.id === element.id
+      ? withTextStyles(
+          newElementWith(el as ExcalidrawTextElement, {}, true),
+          state,
+        )
+      : el,
+  );
+
+const changeTextStyleAttribute = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  app: AppClassProperties,
+  attribute: TextStyleAttribute,
+  color: string | null,
+  target: ReturnType<typeof getTextEditSelection> = getTextEditSelection(
+    elements,
+    appState,
+    app,
+  ),
+) => {
+  if (!target) {
+    return null;
+  }
+  const { element, selection } = target;
+  const state =
+    color === null || isTransparent(color)
+      ? clearTextStyle(element, selection, attribute)
+      : applyTextStyle(
+          element,
+          selection,
+          attribute === "color" ? { color } : { highlight: color },
+        );
+  // a no-op (e.g. clearing where nothing is set) must not bump the version,
+  // broadcast or record a history entry
+  if (
+    isSameStyleList(state.ranges, element.textStyleRanges ?? []) &&
+    isSameStyleList(state.cleared, element.clearedTextStyleRanges ?? [])
+  ) {
+    return null;
+  }
+  return replaceTextStyles(elements, element, state);
+};
+
 // -----------------------------------------------------------------------------
 
 export const actionChangeStrokeColor = register<
@@ -369,12 +466,39 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+    // a selection colors its range only and leaves the base color and the
+    // current-item defaults alone
+    // an editor opened on existing text auto-selects all of it; with no
+    // ranges yet that is not a user selection, so the base color path runs
+    const textTarget = getTextEditSelection(elements, appState, app);
+    const isAutoSelection =
+      !!textTarget &&
+      !textTarget.element.textStyleRanges &&
+      textTarget.selection.start === 0 &&
+      textTarget.selection.end === textTarget.element.originalText.length;
+    const styledElements = isAutoSelection
+      ? null
+      : changeTextStyleAttribute(
+          elements,
+          appState,
+          app,
+          "color",
+          color,
+          textTarget,
+        );
+    if (styledElements) {
+      return {
+        elements: styledElements,
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       };
     }
     // resolved from the state the action runs against — never from the
@@ -440,6 +564,95 @@ export const actionChangeStrokeColor = register<
       </>
     );
   },
+});
+
+export const actionChangeTextHighlight = register<string>({
+  name: "changeTextHighlight",
+  label: "labels.textHighlight",
+  trackEvent: false,
+  predicate: (_, appState) => !!appState.editingTextElement,
+  perform: (elements, appState, value, app) => {
+    const styledElements = changeTextStyleAttribute(
+      elements,
+      appState,
+      app,
+      "highlight",
+      value ?? null,
+    );
+    if (!styledElements) {
+      return false;
+    }
+    return {
+      elements: styledElements,
+      appState,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ appState, updateData, app }) => {
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+
+    return (
+      <>
+        {stylesPanelMode === "full" && (
+          <h3 aria-hidden="true">{t("labels.textHighlight")}</h3>
+        )}
+        <TopPicks
+          theme={appState.theme}
+          type="elementBackground"
+          activeColor={null}
+          topPicks={TEXT_HIGHLIGHT_PICKS}
+          onChange={(color) => updateData(color)}
+        />
+      </>
+    );
+  },
+});
+
+export const actionClearTextStyle = register<TextStyleAttribute>({
+  name: "clearTextStyle",
+  label: "labels.clearTextColor",
+  trackEvent: false,
+  predicate: (_, appState) => !!appState.editingTextElement,
+  perform: (elements, appState, value, app) => {
+    if (!value) {
+      return false;
+    }
+    const styledElements = changeTextStyleAttribute(
+      elements,
+      appState,
+      app,
+      value,
+      null,
+    );
+    if (!styledElements) {
+      return false;
+    }
+    return {
+      elements: styledElements,
+      appState,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ updateData }) => (
+    <div className="buttonList">
+      <IconButton
+        type="button"
+        icon={EraserIcon}
+        title={t("labels.clearTextColor")}
+        aria-label={t("labels.clearTextColor")}
+        data-testid="clear-text-color"
+        onClick={() => updateData("color")}
+      />
+      <IconButton
+        type="button"
+        icon={EraserIcon}
+        title={t("labels.clearTextHighlight")}
+        aria-label={t("labels.clearTextHighlight")}
+        data-testid="clear-text-highlight"
+        onClick={() => updateData("highlight")}
+      />
+    </div>
+  ),
 });
 
 export const actionChangeBackgroundColor = register<

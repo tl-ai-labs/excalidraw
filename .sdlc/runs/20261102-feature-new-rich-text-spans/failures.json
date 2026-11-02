@@ -1,0 +1,55 @@
+[
+ {
+  "path": "packages/common/src/constants.ts",
+  "problem": "Security fix, Gate 3. Next to MAX_CLEARED_TEXT_STYLE_RANGES add, with one short comment each: `export const MAX_TEXT_STYLE_RANGES = 1000;` (live ranges per text element), `export const MAX_TEXT_STYLE_SEQ = 2147483647;` (highest valid seq, 2^31 - 1) and `export const MAX_MERGED_TEXT_STYLE_RECORDS = 4096;` (undo map entries across all elements). Change nothing else."
+ },
+ {
+  "path": "packages/element/src/textStyleRanges.ts",
+  "problem": "Three security fixes, Gate 3. Import the new constants from @excalidraw/common.\n\n1. Medium, uncapped live ranges (security_review.md): textStyleRanges has no size cap and render cost is superlinear per line. In resolveState return `ranges: nextRanges.slice(-MAX_TEXT_STYLE_RANGES)` after the sort, so the highest (seq, then id) stay. Every write already goes through resolveState (restore's sanitizeTextStyles, mergeTextStyles, createTextStyleRanges, applyTextStyle, clearTextStyle, remapTextStyles, applyTextStyleDelta), and keeping the top N of a union stays commutative and idempotent, so both clients get identical results. Keep the eviction as the last step of resolveState. A range evicted by the cap gets no tombstone.\n\n2. Low, undo map: mergedRangeVersions is keyed by range id alone, so ids collide across elements, is filled from peer-supplied ids and is never evicted. Key it per element with a flat Map whose key is built by one small helper, `${elementId.length}:${elementId}${rangeId}`, so no two pairs share a key. In noteMergedTextStyles use local.id. Writing a record deletes the key first, so the newest stay last in insertion order, and then evicts the oldest entries while size > MAX_MERGED_TEXT_STYLE_RECORDS. omitMergedTextStyleChanges takes a new first parameter elementId: string and reads through the same helper. Update the doc comment: an evicted record only means that merged change can land in a local undo step, which is safe.\n\n3. Low, crafted seq: isValidSeq accepts MAX_SAFE_INTEGER, the next local seq is then 2^53, and restore drops the new range as invalid. A lower ceiling alone would repeat this at the ceiling, so do both: isValidSeq also requires value <= MAX_TEXT_STYLE_SEQ, and every seq the code computes saturates: nextSeq returns Math.min(highest + 1, MAX_TEXT_STYLE_SEQ), and the re-add in applyTextStyleDelta uses Math.min(tombstone.seq + 1, MAX_TEXT_STYLE_SEQ). Check for any other `seq + 1`. The re-add must still delete the tombstone, so a re-added range at the ceiling stays live."
+ },
+ {
+  "path": "packages/element/src/delta.ts",
+  "problem": "Security fix, Gate 3: omitMergedTextStyleChanges in textStyleRanges.ts now takes elementId: string as its first parameter, because its map is keyed per element. The partials reaching ElementsDelta.postProcess have no id (stripIrrelevantProps removes it). Add a third parameter `elementId: string` to the private static postProcess and pass it to omitMergedTextStyleChanges. At the one call site, in ElementsDelta.calculate's Delta.calculate<ElementPartial>(...) for an updated element, replace `ElementsDelta.postProcess` with a closure `(deleted, inserted) => ElementsDelta.postProcess(deleted, inserted, nextElement.id)`. Change nothing else.",
+  "context_paths": [
+   "packages/element/src/textStyleRanges.ts"
+  ]
+ },
+ {
+  "path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+  "problem": "Docs, Gate 3: in the paragraph on textStyleRanges, add one sentence: an element keeps at most 1000 live ranges, the highest by seq, and a seq above 2147483647 makes its range malformed, so it is dropped. Change nothing else."
+ },
+ {
+  "path": "dev-docs/docs/codebase/json-schema.mdx",
+  "problem": "Docs, Gate 3: in the paragraph on textStyleRanges, add one sentence: `seq` is a positive integer of at most 2147483647, and an element keeps at most 1000 live ranges. Change nothing else."
+ },
+ {
+  "path": "packages/element/tests/textStyleRanges.test.ts",
+  "problem": "Add tests, change no existing test. Cap: createTextStyleRanges and sanitizeTextStyles on MAX_TEXT_STYLE_RANGES + 5 ranges keep exactly MAX_TEXT_STYLE_RANGES, the highest seq. applyTextStyle on an element at the cap keeps the new range and evicts the lowest. Crafted seq: an element holding a range at MAX_TEXT_STYLE_SEQ gets a new range from applyTextStyle whose seq is at most MAX_TEXT_STYLE_SEQ, and sanitizeTextStyles keeps that new range. A range or a tombstone with seq MAX_TEXT_STYLE_SEQ + 1 or Number.MAX_SAFE_INTEGER is dropped by sanitizeTextStyles.",
+  "context_paths": [
+   "packages/element/src/textStyleRanges.ts"
+  ]
+ },
+ {
+  "path": "packages/element/tests/delta.test.tsx",
+  "problem": "Add tests, change no existing test. Undo map keyed per element: noteMergedTextStyles for element A with range id X must not make the delta for element B, holding the same range id X, omit X. Bound: after MAX_MERGED_TEXT_STYLE_RECORDS + 1 further records from noteMergedTextStyles on other elements, the first record no longer applies, so its change stays in the delta, and the newest still applies. Undo at the ceiling: applyTextStyleDelta re-adding a range whose tombstone seq is MAX_TEXT_STYLE_SEQ leaves the range live with seq MAX_TEXT_STYLE_SEQ.",
+  "context_paths": [
+   "packages/element/src/textStyleRanges.ts"
+  ]
+ },
+ {
+  "path": "packages/excalidraw/tests/data/restore.test.ts",
+  "problem": "Add tests, change no existing test. restoreElements on a text element with MAX_TEXT_STYLE_RANGES + 5 ranges keeps MAX_TEXT_STYLE_RANGES, the highest seq; file load, link import, paste and a room peer all call this function. restoreLibraryItems on a library item holding that element keeps the same number (the library route). A crafted seq of Number.MAX_SAFE_INTEGER is dropped. An element holding a range at MAX_TEXT_STYLE_SEQ plus a new range from applyTextStyle comes back through restoreElements with both ranges."
+ },
+ {
+  "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+  "problem": "Add a test, change no existing test. Two diverged copies of one text element each hold MAX_TEXT_STYLE_RANGES different ranges with overlapping seq values, and their union is over the cap. Merging local into remote and remote into local gives identical ranges, of length MAX_TEXT_STYLE_RANGES, the highest (seq, id); repeating the merge changes nothing; the winner's version and versionNonce are kept. Do this for both outcomes, remote taken and remote discarded."
+ },
+ {
+  "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+  "problem": "Add one test for the paste route, change no existing test. Call h.app.addElementsFromPasteOrLibrary with a text element holding MAX_TEXT_STYLE_RANGES + 5 ranges (use the options the app's own paste uses, with a position) and assert the pasted element holds MAX_TEXT_STYLE_RANGES ranges."
+ },
+ {
+  "path": "excalidraw-app/tests/collab.test.tsx",
+  "problem": "Add one test beside the existing range cases, change no existing test. A room peer's remote update carries a text element with MAX_TEXT_STYLE_RANGES + 5 ranges. After restore then reconcile, as the collab path does, the scene element holds MAX_TEXT_STYLE_RANGES ranges, the highest seq."
+ }
+]

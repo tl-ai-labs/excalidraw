@@ -13,6 +13,15 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Partial text color and highlight (2026-11-02)
+
+- Text elements gain optional `textStyleRanges` (colored or highlighted spans, as offsets into `originalText`) and `clearedTextStyleRanges` (bounded tracking of cleared ranges, used when merging). Both are absent when empty, and legacy text is unchanged.
+- Select text while editing and pick a text color or highlight to style just that selection. New "Clear text color" and "Clear highlight" controls remove the styling from a selection. Styled ranges show in their real colors while editing.
+- The canvas draws each styled run, and SVG export writes a `<tspan>` per run. Lines holding RTL characters draw in the base color, without highlight.
+- `restoreElements` validates the new fields and drops invalid ranges, and leaves legacy text alone.
+- `reconcileElements` keeps its signature and merges ranges on both outcomes, so concurrent styling by collaborators is kept and cleared ranges don't come back.
+- `ExcalidrawElementSkeleton` accepts `textStyleRanges` on text elements and on labels.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

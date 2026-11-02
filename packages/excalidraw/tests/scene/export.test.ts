@@ -1098,3 +1098,364 @@ describe("exporting frames", () => {
     });
   });
 });
+
+describe("text style ranges", () => {
+  const RED = "#ff0000";
+  const YELLOW = "#ffec99";
+  const GREEN = "#b2f2bb";
+
+  const makeText = (
+    text: string,
+    textStyleRanges: any,
+    width = 110,
+    extra: Record<string, any> = {},
+  ) =>
+    ({
+      ...API.createElement({
+        type: "text",
+        text,
+        index: "a0" as FractionalIndex,
+        ...extra,
+      }),
+      width,
+      height: 25,
+      textStyleRanges,
+    } as any as NonDeleted<ExcalidrawTextElement>);
+
+  const exportSvg = (elements: any[], config: any = {}) =>
+    exportScene({ type: "svg", data: { elements, files: null }, config });
+
+  const exportCanvas = (elements: any[], config: any = {}) =>
+    exportScene({ type: "canvas", data: { elements, files: null }, config });
+
+  const getFillTexts = (canvas: HTMLCanvasElement) =>
+    (canvas.getContext("2d") as any).fillText.mock.calls as [
+      string,
+      number,
+      number,
+    ][];
+
+  const getEvents = (canvas: HTMLCanvasElement) =>
+    (canvas.getContext("2d") as any).__getEvents() as any[];
+
+  const worldRange = (extra: Record<string, any> = {}) => [
+    { id: "r1", seq: 1, start: 6, end: 11, ...extra },
+  ];
+
+  it("writes tspans with the right fill", async () => {
+    const element = makeText("hello world", worldRange({ color: RED }));
+    const svg = await exportSvg([element]);
+    const texts = svg.querySelectorAll("text");
+    expect(texts).toHaveLength(1);
+    const tspans = texts[0].querySelectorAll("tspan");
+    expect(tspans).toHaveLength(2);
+    expect(tspans[0].textContent).toBe("hello ");
+    expect(tspans[0].hasAttribute("fill")).toBe(false);
+    expect(tspans[1].textContent).toBe("world");
+    expect(tspans[1].getAttribute("fill")).toBe(RED);
+    expect(texts[0].getAttribute("fill")).toBe(element.strokeColor);
+  });
+
+  it("writes highlights behind the text", async () => {
+    const element = makeText("hello world", worldRange({ highlight: YELLOW }));
+    const svg = await exportSvg([element]);
+    const text = svg.querySelector("text")!;
+    const group = text.parentElement!;
+    const rect = group.querySelector(`rect[fill="${YELLOW}"]`)!;
+    expect(rect).not.toBeNull();
+    expect(
+      rect.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(Number(rect.getAttribute("height"))).toBe(
+      element.fontSize * element.lineHeight,
+    );
+    expect(Number(rect.getAttribute("width"))).toBe(50);
+  });
+
+  it("positions highlights like the canvas runs", async () => {
+    const ranges = [
+      { id: "r1", seq: 1, start: 0, end: 5, highlight: YELLOW },
+      { id: "r2", seq: 2, start: 6, end: 11, highlight: GREEN },
+    ];
+    const element = makeText("hello world", ranges, 200, {
+      textAlign: "center",
+    });
+    const svg = await exportSvg([element]);
+    const rectX = (fill: string) =>
+      Number(svg.querySelector(`rect[fill="${fill}"]`)!.getAttribute("x"));
+
+    const canvas = await exportCanvas([element]);
+    const calls = getFillTexts(canvas);
+    const hello = calls.find((call) => call[0].startsWith("hello"))!;
+    const world = calls.find((call) => call[0] === "world")!;
+
+    expect(rectX(GREEN) - rectX(YELLOW)).toBe(world[1] - hello[1]);
+  });
+
+  it("keeps an unstyled line byte for byte", async () => {
+    const styled = makeText(
+      "one\ntwo",
+      [{ id: "r1", seq: 1, start: 4, end: 7, color: RED }],
+      30,
+    );
+    const plain = makeText("one\ntwo", undefined, 30);
+    delete (plain as any).textStyleRanges;
+
+    const svgStyled = await exportSvg([styled]);
+    const svgPlain = await exportSvg([plain]);
+    const first = (svg: SVGSVGElement) =>
+      svg.querySelectorAll("text")[0].outerHTML;
+    expect(first(svgStyled)).toBe(first(svgPlain));
+  });
+
+  it("exports unstyled text identically", async () => {
+    const withField = makeText("hello world", undefined);
+    const without = makeText("hello world", undefined);
+    delete (without as any).textStyleRanges;
+
+    const a = await exportSvg([withField]);
+    const b = await exportSvg([without]);
+    expect(a.querySelectorAll("tspan")).toHaveLength(0);
+    expect(b.querySelectorAll("tspan")).toHaveLength(0);
+    expect(a.querySelector("text")!.outerHTML).toBe(
+      b.querySelector("text")!.outerHTML,
+    );
+  });
+
+  it("does not let a hostile colour reach the markup", async () => {
+    const element = makeText(
+      "hello world",
+      worldRange({ color: 'red" onload="x' }),
+    );
+    const svg = await exportSvg([element]);
+    expect(svg.querySelector("[onload]")).toBeNull();
+    expect(svg.querySelectorAll("tspan")).toHaveLength(0);
+  });
+
+  it.each(["left", "center", "right"])(
+    "draws runs in place for %s alignment",
+    async (align) => {
+      const startX = async (textAlign: string) => {
+        const element = makeText(
+          "hello world",
+          worldRange({ color: RED }),
+          200,
+          { textAlign },
+        );
+        const canvas = await exportCanvas([element]);
+        const calls = getFillTexts(canvas);
+        const hello = calls.find((call) => call[0].startsWith("hello"))!;
+        const world = calls.find((call) => call[0] === "world")!;
+        expect(hello).toBeDefined();
+        expect(world).toBeDefined();
+        expect(world[1] - hello[1]).toBe(60);
+
+        // the align in force when each run is drawn
+        let current = "";
+        const aligns: string[] = [];
+        for (const event of getEvents(canvas)) {
+          if (event.type === "textAlign") {
+            current = event.props.value;
+          } else if (
+            event.type === "fillText" &&
+            (event.props.text === "world" ||
+              event.props.text.startsWith("hello"))
+          ) {
+            aligns.push(current);
+          }
+        }
+        expect(aligns.length).toBeGreaterThan(0);
+        expect(aligns.every((value) => value === "left")).toBe(true);
+        return hello[1];
+      };
+
+      const left = await startX("left");
+      const actual = await startX(align);
+      const offset = { left: 0, center: 45, right: 90 }[align]!;
+      expect(actual - left).toBe(offset);
+    },
+  );
+
+  it("draws a highlight behind its text", async () => {
+    const element = makeText("hello world", worldRange({ highlight: YELLOW }));
+    const canvas = await exportCanvas([element]);
+    const events = getEvents(canvas);
+    const rectIndex = events.findIndex(
+      (event) =>
+        event.type === "fillRect" &&
+        event.props.width === 50 &&
+        event.props.height === 25,
+    );
+    const textIndex = events.findIndex(
+      (event) => event.type === "fillText" && event.props.text === "world",
+    );
+    expect(rectIndex).toBeGreaterThanOrEqual(0);
+    expect(textIndex).toBeGreaterThan(rectIndex);
+    expect(events[rectIndex].props.x).toBe(events[textIndex].props.x);
+  });
+
+  it("keeps the run's y for line height and bound text", async () => {
+    const build = (textStyleRanges: any) => {
+      const rect = API.createElement({
+        type: "rectangle",
+        id: "container",
+        x: 0,
+        y: 0,
+        width: 300,
+        height: 200,
+        boundElements: [{ type: "text", id: "label" }],
+      });
+      const label = {
+        ...API.createElement({
+          type: "text",
+          id: "label",
+          text: "hello world",
+          containerId: "container",
+          textAlign: "center",
+          verticalAlign: "middle",
+          index: "a1" as FractionalIndex,
+        }),
+        // not an API.createElement option, so set it on the element itself
+        lineHeight: 2,
+        width: 110,
+        height: 40,
+        textStyleRanges,
+      } as any;
+      return [rect, label];
+    };
+
+    const styled = await exportCanvas(build(worldRange({ color: RED })));
+    const plain = await exportCanvas(build(undefined));
+    const world = getFillTexts(styled).find((call) => call[0] === "world")!;
+    const whole = getFillTexts(plain).find(
+      (call) => call[0] === "hello world",
+    )!;
+    expect(world).toBeDefined();
+    expect(whole).toBeDefined();
+    expect(world[2]).toBe(whole[2]);
+  });
+
+  it("follows dark mode for range colours", async () => {
+    const element = makeText(
+      "hello world",
+      worldRange({ color: RED, highlight: YELLOW }),
+    );
+    const config = { theme: THEME.DARK };
+
+    const svg = await exportSvg([element], config);
+    expect(svg.querySelector("tspan[fill]")!.getAttribute("fill")).toBe(
+      applyDarkModeFilter(RED),
+    );
+    expect(svg.querySelector("rect[fill]:not(:first-child)")).not.toBeNull();
+    expect(
+      Array.from(svg.querySelectorAll("rect")).some(
+        (rect) => rect.getAttribute("fill") === applyDarkModeFilter(YELLOW),
+      ),
+    ).toBe(true);
+
+    const canvas = await exportCanvas([element], config);
+    const fills = getEvents(canvas)
+      .filter((event) => event.type === "fillStyle")
+      .map((event) => event.props.value);
+    expect(fills).toContain(applyDarkModeFilter(RED));
+    expect(fills).toContain(applyDarkModeFilter(YELLOW));
+  });
+
+  it("draws a line with no styled run as one fillText", async () => {
+    const element = makeText(
+      "one\ntwo",
+      [{ id: "r1", seq: 1, start: 4, end: 7, color: RED }],
+      100,
+      { textAlign: "center" },
+    );
+    const canvas = await exportCanvas([element]);
+    const ones = getFillTexts(canvas).filter((call) => call[0] === "one");
+    expect(ones).toHaveLength(1);
+
+    let current = "";
+    let seen = "";
+    for (const event of getEvents(canvas)) {
+      if (event.type === "textAlign") {
+        current = event.props.value;
+      } else if (event.type === "fillText" && event.props.text === "one") {
+        seen = current;
+      }
+    }
+    expect(seen).toBe("center");
+  });
+
+  it("uses the same runs for PNG export", async () => {
+    const canvas = document.createElement("canvas");
+    const element = makeText("hello world", worldRange({ color: RED }));
+
+    await expect(
+      exportScene({
+        type: "png",
+        data: { elements: [element], files: null },
+        config: { environment: { createCanvas: () => canvas } },
+      }),
+    ).resolves.toBeDefined();
+
+    expect(getFillTexts(canvas).some((call) => call[0] === "world")).toBe(true);
+  });
+
+  describe("a Hebrew line followed by a styled LTR line", () => {
+    const HEBREW_TEXT = "\u05e9\u05dc\u05d5\u05dd\nhello world";
+    // "world" on the second line: 4 Hebrew letters + newline + "hello "
+    const styledRanges = () => [
+      { id: "r1", seq: 1, start: 11, end: 16, color: RED, highlight: YELLOW },
+    ];
+
+    it.each([
+      ["left", "end", "start", 60],
+      ["center", "middle", "middle", 105],
+      ["right", "end", "end", 150],
+    ])(
+      "anchors the styled line by %s alignment alone in SVG",
+      async (textAlign, hebrewAnchor, styledAnchor, highlightX) => {
+        const element = makeText(HEBREW_TEXT, styledRanges(), 200, {
+          textAlign,
+        });
+        const svg = await exportSvg([element]);
+        const texts = svg.querySelectorAll("text");
+        expect(texts).toHaveLength(2);
+
+        // the Hebrew line keeps today's attributes
+        expect(texts[0].getAttribute("direction")).toBe("rtl");
+        expect(texts[0].getAttribute("text-anchor")).toBe(hebrewAnchor);
+        expect(texts[0].querySelectorAll("tspan")).toHaveLength(0);
+
+        expect(texts[1].getAttribute("direction")).toBe("ltr");
+        expect(texts[1].getAttribute("text-anchor")).toBe(styledAnchor);
+
+        const rect = svg.querySelector(`rect[fill="${YELLOW}"]`)!;
+        expect(rect).not.toBeNull();
+        expect(Number(rect.getAttribute("x"))).toBe(highlightX);
+      },
+    );
+
+    it("draws every run of the styled line with direction ltr on canvas", async () => {
+      const drawn: { text: string; direction: string }[] = [];
+      const spy = vi
+        .spyOn(CanvasRenderingContext2D.prototype, "fillText")
+        .mockImplementation(function (
+          this: CanvasRenderingContext2D,
+          text: string,
+        ) {
+          drawn.push({ text, direction: this.direction });
+        });
+
+      try {
+        await exportCanvas([makeText(HEBREW_TEXT, styledRanges(), 200)]);
+      } finally {
+        spy.mockRestore();
+      }
+
+      const runs = drawn.filter(
+        (call) => call.text.startsWith("hello") || call.text === "world",
+      );
+      expect(runs.map((call) => call.text)).toEqual(["hello ", "world"]);
+      expect(runs.every((call) => call.direction === "ltr")).toBe(true);
+    });
+  });
+});
