@@ -19,6 +19,7 @@ import type { SceneBounds } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
   FileId,
+  ExcalidrawPage,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 import type {
@@ -62,6 +63,17 @@ export const getSyncableElements = (
     isSyncableElement(element),
   ) as SyncableExcalidrawElement[];
 
+export const isSyncablePage = (page: ExcalidrawPage): boolean => {
+  if (page.isDeleted) {
+    return page.updated > Date.now() - DELETED_ELEMENT_TIMEOUT;
+  }
+  return true;
+};
+
+export const getSyncablePages = (
+  pages: readonly ExcalidrawPage[],
+): ExcalidrawPage[] => pages.filter((page) => isSyncablePage(page));
+
 const BACKEND_V2_GET = import.meta.env.VITE_APP_BACKEND_V2_GET_URL;
 const BACKEND_V2_POST = import.meta.env.VITE_APP_BACKEND_V2_POST_URL;
 
@@ -84,12 +96,15 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      // absent from clients that predate pages
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {
@@ -100,6 +115,7 @@ export type SocketUpdateDataSource = {
       button: "down" | "up";
       selectedElementIds: AppState["selectedElementIds"];
       username: string;
+      pageId?: string;
     };
   };
   USER_VISIBLE_SCENE_BOUNDS: {
@@ -108,6 +124,7 @@ export type SocketUpdateDataSource = {
       socketId: SocketId;
       username: string;
       sceneBounds: SceneBounds;
+      pageId?: string;
     };
   };
   IDLE_STATUS: {

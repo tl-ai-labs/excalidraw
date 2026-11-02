@@ -27,6 +27,14 @@ You can use this prop when you want to access some [Excalidraw APIs](https://git
 | [resetScene](#resetscene) | `function` | Resets the scene. If `resetLoadingState` is passed as true then it will also force set the loading state to false. |
 | [getSceneElementsIncludingDeleted](#getsceneelementsincludingdeleted) | `function` | Returns all the elements including the deleted in the scene |
 | [getSceneElements](#getsceneelements) | `function` | Returns all the elements excluding the deleted in the scene |
+| [getAllPagesElementsIncludingDeleted](#getallpageselementsincludingdeleted) | `function` | Returns the elements of every page, including the deleted |
+| [getPages](#getpages) | `function` | Returns the pages of the drawing |
+| [getActivePageId](#getactivepageid) | `function` | Returns the id of the active page |
+| [setActivePage](#setactivepage) | `function` | Switches to a page |
+| [createPage](#createpage) | `function` | Creates a page |
+| [renamePage](#renamepage) | `function` | Renames a page |
+| [movePage](#movepage) | `function` | Moves a page to a new position |
+| [deletePage](#deletepage) | `function` | Deletes a page |
 | [getAppState](#getappstate) | `function` | Returns current appState |
 | [history](#history) | `object` | This is the history API. `history.clear()` will clear the history |
 | [scrollToContent](#scrolltocontent) | `function` | Scroll the nearest element out of the elements supplied to the center. Defaults to the elements on the scene. |
@@ -66,6 +74,9 @@ You can use this function to update the scene with the sceneData. It accepts the
 | `appState` | [`ImportedDataState["appState"]`](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/data/types.ts#L39) | The `appState` to be updated in the scene. |
 | `collaborators` | <code>Map<string, <a href="https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/types.ts#L37">Collaborator></a></code> | The list of collaborators to be updated in the scene. |
 | `captureUpdate` | [`CaptureUpdateAction`](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/store.ts#L40) | Controls which updates should be captured by the `Store`. Captured updates are emmitted and listened to by other components, such as `History` for undo / redo purposes. |
+| `pages` | `ExcalidrawPage[]` | The pages of the drawing. When passed, `elements` is the whole drawing and replaces every page; pages with no incoming elements become empty. |
+
+Without `pages`, each element in `elements` stays on its page if it has a `pageId` naming a live page or an id already known to the scene, and any other element goes to the active page. Only the pages that elements land on are replaced, so an empty array clears the active page. The page keys in `appState` (`pages`, `activePageId`, `pageViewports`) are ignored; use the [page APIs](#pages) instead.
 
 ```jsx live
 function App() {
@@ -242,7 +253,7 @@ Resets the scene. If `resetLoadingState` is passed as true then it will also for
   </a>
 </pre>
 
-Returns all the elements including the deleted in the scene.
+Returns the elements of the active page, including the deleted. Use [getAllPagesElementsIncludingDeleted](#getallpageselementsincludingdeleted) for the whole drawing.
 
 ## getSceneElements
 
@@ -254,7 +265,77 @@ Returns all the elements including the deleted in the scene.
   []&#62;
 </pre>
 
-Returns all the elements excluding the deleted in the scene
+Returns the elements of the active page, excluding the deleted.
+
+## Pages
+
+A drawing is made of pages. A page record holds `id`, `name`, `index` (its fractional order), `version`, `versionNonce`, `isDeleted` and `updated`. Elements belong to a page through their `pageId`; elements without one are on the default page.
+
+Page methods apply synchronously, so the result of `createPage` can be passed to `setActivePage` right away. Do not call them from inside `onChange`.
+
+### getAllPagesElementsIncludingDeleted
+
+```tsx
+() => readonly ExcalidrawElement[]
+```
+
+Returns the elements of every page, including the deleted.
+
+### getPages
+
+```tsx
+() => readonly ExcalidrawPage[]
+```
+
+Returns the pages in order.
+
+### getActivePageId
+
+```tsx
+() => string
+```
+
+Returns the id of the active page.
+
+### setActivePage
+
+```tsx
+(pageId: string) => void
+```
+
+Switches to the page.
+
+### createPage
+
+```tsx
+(opts?: { name?: string; activate?: boolean }) => ExcalidrawPage
+```
+
+Creates a page and returns it. It switches to the new page unless `activate` is `false`.
+
+### renamePage
+
+```tsx
+(pageId: string, name: string) => void
+```
+
+Renames the page.
+
+### movePage
+
+```tsx
+(pageId: string, toPosition: number) => void
+```
+
+Moves the page to the given position in the page order.
+
+### deletePage
+
+```tsx
+(pageId: string) => boolean
+```
+
+Deletes the page and its elements. Returns `false` and does nothing for the last page. Deleting a page is not undoable.
 
 ## getAppState
 
@@ -413,6 +494,8 @@ This API can be used to reset to default mouse cursor.
 ```
 
 Subscribes to change events, similar to [`props.onChange`](/docs/@excalidraw/excalidraw/api/props#onchange).
+
+The `elements` argument holds every page.
 
 Returns an unsubscribe function.
 

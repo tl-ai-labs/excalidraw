@@ -1,0 +1,258 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Fix the test setup only. Keep every assertion's intent: do not delete, skip or loosen an expectation to make it pass. If a test still fails after its setup is right, leave the assertion as it is.\n\n1. `openMenu`: the selector ends in `,[aria-haspopup]`, so querySelector returns the first tab's menu trigger whichever page is asked for. That is why `delete an empty page` fails with `expected [ 'id5' ] to deeply equal [ 'default' ]`, `delete asks with elements` with `expected [ 'id7' ] to deeply equal [ 'default' ]`, and `reorder by menu` at line 267 with `expected false to be true`. Query only `[data-testid=\"page-tab-menu-${pageId}\"]`. `menuItem` also reuses a menu already open for another page: make sure the menu open is the requested page's (PageTabs closes it on a second click of the same trigger).\n\n2. `describe(\"pages (scene scope)\")` renders `<Excalidraw />` without handleKeyboardGlobally, so Keyboard.undo and Keyboard.redo never reach the editor. `undo stays on its page` (line 361), `stack survives a switch` (line 382) and `deleting a page discards its stack` (line 399) fail with `expected false to be true`. Render it with `handleKeyboardGlobally={true}`, as the `pages (paste)` block does.\n\n3. `text edit commits on switch`: `const second = createPage()` activates the new page by default, so the text is typed on `second` and `switchTo(second)` does nothing; fails at line 347 with the text still in h.elements. Use `createPage({ activate: false })`.\n\n4. `render scope` fails at line 316: `expected [] to deeply equal [ 'B' ]`. B sits at (500, 500), which is probably outside the jsdom viewport, and h.app.visibleElements only holds what is on screen. Keep the assertion that B is visible and A is not; put B where the viewport can see it, and let the render settle if needed.\n\n5. `paste lands on the active page` (line 513, `expected +0 to be 1`) with an unhandled rejection: `TypeError: this.app.ownerDocument.elementFromPoint is not a function` at App.clipboard.ts:331. jsdom has no elementFromPoint: define it for this test file the way the repo's clipboard test does.\n\n6. yarn test:typecheck: packages/excalidraw/tests/pages.test.tsx(529,46) and (564,46): error TS2322: `index` is `string`, not assignable to `FractionalIndex`. Cast the fixture's index values to FractionalIndex.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/PageTabs.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/clipboard.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pagesSearch.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pagesSearch.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/tests/pagesSearch.test.tsx(32,59): error TS2339: Property 'element' does not exist on type 'SearchMatch'. At runtime `finds matches on every page` and `deleted pages aren't searched` fail with `TypeError: Cannot read properties of undefined (reading 'id')` at line 32 in getMatchedIds. SearchMatch has `id` directly (types.ts): use `match.id`. Keep every expectation.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pagesSearch.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pagesSearch.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U38.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pagesSearch.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pagesExport.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pagesExport.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Test `embedded PNG scene holds one page and only its elements` fails: `expected \"encodePngMetadata\" to be called 1 times, but got 0 times` at line 123. exportCanvas passes fileSave a promise of the blob, and that promise is what calls encodePngMetadata (data/index.ts, the `type === \"png\"` branch). The test mocks fileSave, so nothing awaits it before the expectation. Await the blob that fileSave received (saveSpy.mock.lastCall) before asserting. Keep the assertions.\n\nyarn test:typecheck: packages/excalidraw/tests/pagesExport.test.tsx(117,7): error TS2345: the elements argument is missing the NonDeleted brand that exportCanvas's parameter requires (`Property '_brand' is missing`). Cast `allElements` at that call to the parameter's type.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pagesExport.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pagesExport.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U37.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pagesExport.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. The helper at line 130 is `const createPage = (name: string) => act(() => h.app.pages.createPage({ name, activate: false }));`. act() returns a thenable, not the callback's value, so `second` is a Promise and `second.id` is undefined. That is the cause of the TS2339 errors below and of three failures: `active page stays local when a remote page list arrives` (expected 'default' to be undefined at line 302), `cursors follow the page` (expected [ 'missing', 'other', 'same' ] to deeply equal [ 'missing', 'same' ] at line 380) and `page records hold no viewport` (expected 0 to be greater than 0 at line 392). Make the helper synchronous: assign the page to a local inside the act callback and return it. Keep every assertion. If one still fails with the real id, leave the assertion as it is.\n\nyarn test:typecheck: excalidraw-app/tests/pages.test.tsx lines 297, 302, 310, 314, 318, 356, 368, 388: error TS2339: Property 'id' does not exist on type 'Promise<...>'.\n\nyarn test:typecheck: excalidraw-app/tests/pages.test.tsx(169,22): error TS2352: Conversion of type '{ pages: ...; activePageId: string; ... }' to 'AppState' may be a mistake: the object is missing width, height, offsetTop, offsetLeft. Cast through unknown or add the missing keys.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U39.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/data/pages.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/pages.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/tests/data/pages.test.ts(65,27): error TS2352: Conversion of type '{ pages: ...; activePageId: string; name: string | null; ... }' to type 'AppState' may be a mistake: the object is missing width, height, offsetTop, offsetLeft. Cast through unknown or add the missing keys. The tests themselves pass: change only the type at that line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/pages.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/pages.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/pages.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

@@ -8,6 +8,7 @@ import {
 } from "@excalidraw/common";
 
 import { getRenderEnvironment } from "@excalidraw/element/renderEnvironment";
+import { getActivePageElements, getPageViewport } from "@excalidraw/element";
 
 import type { ValueOf } from "@excalidraw/common/utility-types";
 import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
@@ -23,6 +24,8 @@ import { nativeFileSystemSupported } from "./filesystem";
 import { isValidExcalidrawData, isValidLibrary } from "./json";
 import {
   restoreAppState,
+  restoreActivePageId,
+  restorePages,
   restoreElements,
   restoreLibraryItems,
 } from "./restore";
@@ -160,9 +163,15 @@ export const loadSceneOrLibraryFromBlob = async (
       throw error;
     }
     if (isValidExcalidrawData(data)) {
+      const pages = restorePages(data.appState?.pages);
+      const activePageId = restoreActivePageId(
+        data.appState?.activePageId,
+        pages,
+      );
       const elements = restoreElements(data.elements, localElements, {
         repairBindings: true,
         deleteInvisibleElements: true,
+        pages,
       });
       return {
         type: MIME_TYPES.excalidraw,
@@ -173,8 +182,12 @@ export const loadSceneOrLibraryFromBlob = async (
               theme: localAppState?.theme,
               fileHandle: fileHandle || blob.handle || null,
               ...cleanAppStateForExport(data.appState || {}),
-              ...(localAppState
-                ? getScrollToContentState(elements, localAppState)
+              ...(localAppState &&
+              !getPageViewport(data.appState?.pageViewports, activePageId)
+                ? getScrollToContentState(
+                    getActivePageElements(elements, { activePageId }),
+                    localAppState,
+                  )
                 : {}),
             },
             localAppState,

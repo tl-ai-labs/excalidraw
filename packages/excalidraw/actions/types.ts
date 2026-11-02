@@ -29,6 +29,10 @@ export type ActionResult =
       files?: BinaryFiles | null;
       captureUpdate: CaptureUpdateActionType;
       replaceFiles?: boolean;
+      /** `elements` is the whole drawing and `appState` supplies `pages`,
+       *  `activePageId` and `pageViewports`; without it those keys in
+       *  `appState` are ignored */
+      replaceDrawing?: boolean;
     }
   | false;
 

@@ -47,11 +47,17 @@ import {
   share,
   youtubeIcon,
 } from "@excalidraw/excalidraw/components/icons";
-import { isElementLink } from "@excalidraw/element";
+import {
+  getNonDeletedElements,
+  isElementLink,
+  reconcilePages,
+  sanitizeRemotePages,
+} from "@excalidraw/element";
 import {
   bumpElementVersions,
   restoreAppState,
   restoreElements,
+  restorePages,
 } from "@excalidraw/excalidraw/data/restore";
 import { newElementWith } from "@excalidraw/element";
 import { isInitializedImageElement } from "@excalidraw/element";
@@ -231,6 +237,7 @@ const initializeScene = async (opts: {
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
 
   const localDataState = importFromLocalStorage();
+  const localAppState = restoreAppState(localDataState?.appState, null);
 
   let scene: Omit<
     RestoredDataState,
@@ -243,8 +250,9 @@ const initializeScene = async (opts: {
     elements: restoreElements(localDataState?.elements, null, {
       repairBindings: true,
       deleteInvisibleElements: true,
+      pages: localAppState.pages,
     }),
-    appState: restoreAppState(localDataState?.appState, null),
+    appState: localAppState,
   };
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
@@ -264,20 +272,23 @@ const initializeScene = async (opts: {
           jsonBackendMatch[2],
         );
 
+        const importedAppState = restoreAppState(
+          imported.appState,
+          // local appState when importing from backend to ensure we restore
+          // localStorage user settings which we do not persist on server.
+          localDataState?.appState,
+        );
+
         scene = {
           elements: bumpElementVersions(
             restoreElements(imported.elements, null, {
               repairBindings: true,
               deleteInvisibleElements: true,
+              pages: importedAppState.pages,
             }),
             localDataState?.elements,
           ),
-          appState: restoreAppState(
-            imported.appState,
-            // local appState when importing from backend to ensure we restore
-            // localStorage user settings which we do not persist on server.
-            localDataState?.appState,
-          ),
+          appState: importedAppState,
         };
       }
       scene.scrollToContent = true;
@@ -341,6 +352,10 @@ const initializeScene = async (opts: {
           ...restoreAppState(
             {
               ...scene?.appState,
+              pages: reconcilePages(
+                excalidrawAPI.getAppState().pages,
+                sanitizeRemotePages(scene?.appState?.pages),
+              ),
               theme: localDataState?.appState?.theme || scene?.appState?.theme,
             },
             excalidrawAPI.getAppState(),
@@ -351,7 +366,7 @@ const initializeScene = async (opts: {
         },
         elements: reconcileElements(
           scene?.elements || [],
-          excalidrawAPI.getSceneElementsIncludingDeleted() as RemoteExcalidrawElement[],
+          excalidrawAPI.getAllPagesElementsIncludingDeleted() as RemoteExcalidrawElement[],
           excalidrawAPI.getAppState(),
         ),
       },
@@ -493,7 +508,7 @@ const ExcalidrawWrapper = () => {
               updateStaleImageStatuses({
                 excalidrawAPI,
                 erroredFiles,
-                elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+                elements: excalidrawAPI.getAllPagesElementsIncludingDeleted(),
               });
             });
         }
@@ -522,7 +537,7 @@ const ExcalidrawWrapper = () => {
             updateStaleImageStatuses({
               excalidrawAPI,
               erroredFiles,
-              elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+              elements: excalidrawAPI.getAllPagesElementsIncludingDeleted(),
             });
             FileStatusStore.updateStatuses([
               ...loadedFiles.map((f) => [f.id, "loaded"] as [FileId, "loaded"]),
@@ -542,7 +557,7 @@ const ExcalidrawWrapper = () => {
                 updateStaleImageStatuses({
                   excalidrawAPI,
                   erroredFiles,
-                  elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+                  elements: excalidrawAPI.getAllPagesElementsIncludingDeleted(),
                 });
               });
           }
@@ -582,11 +597,14 @@ const ExcalidrawWrapper = () => {
         initializeScene({ collabAPI, excalidrawAPI }).then((data) => {
           loadImages(data);
           if (data.scene) {
+            const appState = restoreAppState(data.scene.appState, null);
             excalidrawAPI.updateScene({
               elements: restoreElements(data.scene.elements, null, {
                 repairBindings: true,
+                pages: appState.pages,
               }),
-              appState: restoreAppState(data.scene.appState, null),
+              appState,
+              pages: appState.pages,
               captureUpdate: CaptureUpdateAction.IMMEDIATELY,
             });
           }
@@ -607,9 +625,24 @@ const ExcalidrawWrapper = () => {
           const localDataState = importFromLocalStorage();
           const username = importUsernameFromLocalStorage();
           setLangCode(getPreferredLanguage());
+          // this browser tab keeps its own active page
+          let appState = localDataState.appState;
+          if (
+            appState &&
+            appState.activePageId !== excalidrawAPI.getActivePageId()
+          ) {
+            appState = Object.fromEntries(
+              Object.entries(appState).filter(
+                ([key]) =>
+                  !(["scrollX", "scrollY", "zoom"] as string[]).includes(key),
+              ),
+            ) as typeof appState;
+          }
           excalidrawAPI.updateScene({
-            ...localDataState,
+            elements: localDataState.elements,
+            appState: appState ?? undefined,
             captureUpdate: CaptureUpdateAction.NEVER,
+            ...(appState ? { pages: restorePages(appState.pages) } : {}),
           });
           LibraryIndexedDBAdapter.load().then((data) => {
             if (data) {
@@ -622,7 +655,7 @@ const ExcalidrawWrapper = () => {
         }
 
         if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_FILES)) {
-          const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
+          const elements = excalidrawAPI.getAllPagesElementsIncludingDeleted();
           const currFiles = excalidrawAPI.getFiles();
           const fileIds =
             elements?.reduce((acc, element) => {
@@ -645,7 +678,7 @@ const ExcalidrawWrapper = () => {
                 updateStaleImageStatuses({
                   excalidrawAPI,
                   erroredFiles,
-                  elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+                  elements: excalidrawAPI.getAllPagesElementsIncludingDeleted(),
                 });
               });
           }
@@ -694,7 +727,9 @@ const ExcalidrawWrapper = () => {
       if (
         excalidrawAPI &&
         LocalData.fileStorage.shouldPreventUnload(
-          excalidrawAPI.getSceneElements(),
+          getNonDeletedElements(
+            excalidrawAPI.getAllPagesElementsIncludingDeleted(),
+          ),
         )
       ) {
         if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
@@ -718,7 +753,7 @@ const ExcalidrawWrapper = () => {
     files: BinaryFiles,
   ) => {
     if (collabAPI?.isCollaborating()) {
-      collabAPI.syncElements(elements);
+      collabAPI.syncElements(elements, appState);
     }
 
     // this check is redundant, but since this is a hot path, it's best
@@ -729,7 +764,7 @@ const ExcalidrawWrapper = () => {
           let didChange = false;
 
           const elements = excalidrawAPI
-            .getSceneElementsIncludingDeleted()
+            .getAllPagesElementsIncludingDeleted()
             .map((element) => {
               if (
                 LocalData.fileStorage.shouldUpdateImageElementStatus(element)
@@ -1055,7 +1090,9 @@ const ExcalidrawWrapper = () => {
               actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
               onClick={() => {
                 exportToExcalidrawPlus(
-                  excalidrawAPI.getSceneElements(),
+                  getNonDeletedElements(
+                    excalidrawAPI.getAllPagesElementsIncludingDeleted(),
+                  ),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                   excalidrawAPI.getName(),
@@ -1097,7 +1134,9 @@ const ExcalidrawWrapper = () => {
             if (excalidrawAPI) {
               try {
                 await onExportToBackend(
-                  excalidrawAPI.getSceneElements(),
+                  getNonDeletedElements(
+                    excalidrawAPI.getAllPagesElementsIncludingDeleted(),
+                  ),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                 );
@@ -1273,7 +1312,9 @@ const ExcalidrawWrapper = () => {
               perform: () => {
                 if (excalidrawAPI) {
                   exportToExcalidrawPlus(
-                    excalidrawAPI.getSceneElements(),
+                    getNonDeletedElements(
+                      excalidrawAPI.getAllPagesElementsIncludingDeleted(),
+                    ),
                     excalidrawAPI.getAppState(),
                     excalidrawAPI.getFiles(),
                     excalidrawAPI.getName(),

@@ -1,4 +1,4 @@
-import { Emitter } from "@excalidraw/common";
+import { DEFAULT_PAGE_ID, Emitter } from "@excalidraw/common";
 
 import {
   CaptureUpdateAction,
@@ -99,8 +99,31 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private readonly stacks = new Map<
+    string,
+    { undoStack: HistoryDelta[]; redoStack: HistoryDelta[] }
+  >();
+
+  private activePageId: string = DEFAULT_PAGE_ID;
+
+  private get activeStacks() {
+    let pair = this.stacks.get(this.activePageId);
+
+    if (!pair) {
+      pair = { undoStack: [], redoStack: [] };
+      this.stacks.set(this.activePageId, pair);
+    }
+
+    return pair;
+  }
+
+  public get undoStack() {
+    return this.activeStacks.undoStack;
+  }
+
+  public get redoStack() {
+    return this.activeStacks.redoStack;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -113,8 +136,19 @@ export class History {
   constructor(private readonly store: Store) {}
 
   public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+    this.stacks.clear();
+  }
+
+  public setActivePage(pageId: string) {
+    this.activePageId = pageId;
+
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  public deletePage(pageId: string) {
+    this.stacks.delete(pageId);
   }
 
   /**

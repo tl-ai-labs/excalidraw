@@ -10,7 +10,11 @@ import {
   isShallowEqual,
 } from "@excalidraw/common";
 
-import { getColorUpdate, mutateElement } from "@excalidraw/element";
+import {
+  getColorUpdate,
+  getNonDeletedElements,
+  mutateElement,
+} from "@excalidraw/element";
 
 import { showSelectedShapeActions } from "@excalidraw/element";
 
@@ -57,6 +61,7 @@ import { FixedSideContainer } from "./FixedSideContainer";
 import { HelpDialog } from "./HelpDialog";
 import { ImageExportDialog } from "./ImageExportDialog";
 import { Island } from "./Island";
+import { PageTabs } from "./PageTabs";
 import { JSONExportDialog } from "./JSONExportDialog";
 import { LaserPointerButton } from "./LaserPointerButton";
 import { Toast } from "./Toast";
@@ -204,7 +209,11 @@ const LayerUI = ({
 
     return (
       <JSONExportDialog
-        elements={elements}
+        elements={
+          app.scene.hasOtherPages()
+            ? getNonDeletedElements(app.scene.getAllElementsIncludingDeleted())
+            : elements
+        }
         appState={appState}
         files={files}
         actionManager={actionManager}
@@ -701,6 +710,11 @@ const LayerUI = ({
           {renderSidebars()}
         </>
       )}
+      {defaultUIEnabled &&
+        !appState.zenModeEnabled &&
+        UIOptions.pageTabs !== false && (
+          <PageTabs app={app} appState={appState} />
+        )}
     </>
   );
 

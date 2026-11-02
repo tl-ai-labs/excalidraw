@@ -85,7 +85,12 @@ export class LaserTrails implements Trail {
 
     for (const [key, collaborator] of collaborators.entries()) {
       // Current user has their own trail drawn via localTrail
-      if (collaborator.isCurrentUser) {
+      // A collaborator on another page has no trail on this page's canvas
+      if (
+        collaborator.isCurrentUser ||
+        (collaborator.pageId &&
+          collaborator.pageId !== this.app.state.activePageId)
+      ) {
         continue;
       }
 

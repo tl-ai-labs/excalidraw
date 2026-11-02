@@ -209,6 +209,22 @@ export class Store {
   }
 
   /**
+   * Re-seeds the snapshot from the passed elements and appState without
+   * emitting an increment. Use for a page switch, where the new page's
+   * elements are not a change.
+   */
+  public resetSnapshot(
+    elements: SceneElementsMap,
+    appState: AppState | ObservedAppState,
+  ): void {
+    this.snapshot = StoreSnapshot.empty().maybeClone(
+      CaptureUpdateAction.NEVER,
+      elements,
+      appState,
+    );
+  }
+
+  /**
    * Performs delta & change calculation and emits a durable increment.
    *
    * @emits StoreIncrement.

@@ -1,0 +1,91 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pagesCollab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pagesCollab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 1. Test race: `multi-page collaboration broadcasts > relays the pointer with its pageId on a page switch` fails at line 311: `expected 'default' to be 'id6'`. broadcastMouseLocation encrypts asynchronously, so the first onPointerUpdate's emit can land after `emit.mockClear()`, and `payloads.find` returns that earlier MOUSE_LOCATION. Portal reads the live activePageId, so the source is right. Keep the assertion that a MOUSE_LOCATION carrying the new page's id is sent after the switch: either wait for the first pointer's emit to land before clearing, or assert on the last MOUSE_LOCATION payload. Do not loosen it to accept `default`.\n\n2. yarn test:code fails with --max-warnings=0, prettier/prettier: line 124 replace the multi-line arguments with `rectangle(\"one\", first.id), rectangle(\"two\", second.id)` on one line; lines 264 and 300 put `h.app.scene.getAllElementsIncludingDeleted(), h.state` on one line. Format the whole file to the repo's prettier rules.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pagesCollab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pagesCollab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "excalidraw-app/collab/Portal.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/pagesCollab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-160801-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review, still missing: the earlier attempt failed only because of a missing export elsewhere, now fixed, and was rolled back. Add a test to the tab bar block that a Space keydown on a focused tab is not defaultPrevented and does not reach the canvas handler, and the same for Enter (fire the keydown on the tab button and assert the event was not prevented; PageTabs stops these keys at the `.page-tabs` root). Keep the existing tests as they are.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-160801-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PageTabs.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

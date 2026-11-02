@@ -13,6 +13,17 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Pages (2026-11-02)
+
+- A drawing now holds ordered, named pages. A tab bar centered above the footer creates, switches, renames, reorders and deletes pages (double-click a tab to rename, drag to reorder, and use the tab menu to delete). It is hidden in zen mode and when the default UI is off. Set `UIOptions.pageTabs` to `false` to hide it. A drawing with one page behaves as before.
+- New `appState.pages` (the page list, including deleted pages kept as tombstones for collaboration), `appState.activePageId` and `appState.pageViewports` (the saved scroll and zoom of pages you left). They are saved with files and in browser storage, are not part of undo history, and `pages` is the only one of the three that syncs in collaboration. Each element has an optional `pageId`. Elements on the default page (id `"default"`) never carry it.
+- Imperative API: `getPages()`, `getActivePageId()`, `setActivePage(id)`, `createPage({ name?, activate? })`, `renamePage(id, name)`, `movePage(id, position)`, `deletePage(id)` and `getAllPagesElementsIncludingDeleted()`. Page changes apply synchronously, so the id returned by `createPage` can be passed to `setActivePage` right away.
+- `onChange`'s `elements` now carry every page, so a host that persists them keeps all pages. `getSceneElements()` and `getSceneElementsIncludingDeleted()` still return the active page only, and so do the editor's actions, selection and hit-testing. Elements added by paste, library insert, Mermaid or drawing go to the active page.
+- `updateScene({ elements })` without `pages` routes each element: an explicit `pageId` naming a live page stays there, a known element id stays on its page, and anything else goes to the active page. Only the pages that elements land on are replaced, and an empty array clears the active page. `updateScene({ elements, pages })` writes the whole drawing and replaces it exactly. Page state set through `sceneData.appState` is ignored.
+- `exportScene` exports the active page when `data.appState.activePageId` is set, including when a host passes `onChange`'s elements straight in, and embedded scene data keeps only that page. To export another page, pass `appState: { activePageId }`. Share links and JSON files carry every page.
+- `onIncrement` describes the active page only. Undo and redo keep a separate history per page, and loading a multi-page drawing replaces the current one and cannot be undone.
+- Files stay at version 2. Versions without pages ignore `appState.pages` and show every page's elements overlapped on one canvas. If such a version saves the file, the page list is lost and a newer version restores the file onto one default page. In collaboration, elements created by an older client have no `pageId` and land on the default page.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

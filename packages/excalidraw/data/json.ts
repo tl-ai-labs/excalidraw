@@ -5,6 +5,12 @@ import {
   VERSIONS,
 } from "@excalidraw/common";
 
+import {
+  dropDeletedPageElements,
+  getLivePages,
+  getPageViewportsForSave,
+} from "@excalidraw/element";
+
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import type { MaybePromise } from "@excalidraw/common/utility-types";
@@ -55,18 +61,30 @@ export const serializeAsJSON = (
   files: BinaryFiles,
   type: "local" | "database",
 ): string => {
+  const savedAppState: Partial<AppState> = appState.pages
+    ? {
+        ...appState,
+        pages: getLivePages(appState.pages),
+        pageViewports: getPageViewportsForSave(appState),
+      }
+    : appState;
+
+  const savedElements = appState.pages
+    ? dropDeletedPageElements(elements, appState.pages)
+    : elements;
+
   const data: ExportedDataState = {
     type: EXPORT_DATA_TYPES.excalidraw,
     version: VERSIONS.excalidraw,
     source: getExportSource(),
-    elements,
+    elements: savedElements,
     appState:
       type === "local"
-        ? cleanAppStateForExport(appState)
-        : clearAppStateForDatabase(appState),
+        ? cleanAppStateForExport(savedAppState)
+        : clearAppStateForDatabase(savedAppState),
     files:
       type === "local"
-        ? filterOutDeletedFiles(elements, files)
+        ? filterOutDeletedFiles(savedElements, files)
         : // will be stripped from JSON
           undefined,
   };

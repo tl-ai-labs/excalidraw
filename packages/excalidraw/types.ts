@@ -39,6 +39,8 @@ import type {
   BindMode,
   ExcalidrawTextElement,
   StrokeVariability,
+  ExcalidrawPage,
+  PageViewport,
 } from "@excalidraw/element/types";
 
 import type {
@@ -96,6 +98,9 @@ export type Collaborator = Readonly<{
   isInCall?: boolean;
   isSpeaking?: boolean;
   isMuted?: boolean;
+  // The collaborator's active page. Absent for clients that predate pages,
+  // which are always shown.
+  pageId?: string;
 }>;
 
 export type CollaboratorPointer = {
@@ -243,6 +248,7 @@ export type InteractiveCanvasAppState = Readonly<
     elementsToHighlight: AppState["elementsToHighlight"];
     // Collaborators
     collaborators: AppState["collaborators"];
+    activePageId: AppState["activePageId"];
     // SnapLines
     snapLines: AppState["snapLines"];
     zenModeEnabled: AppState["zenModeEnabled"];
@@ -588,6 +594,18 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  /**
+   * Every page record, including tombstones. Use `getLivePages` for the list
+   * a person sees.
+   */
+  pages: readonly ExcalidrawPage[];
+  /** The page being edited. Local to this editor, never shared. */
+  activePageId: ExcalidrawPage["id"];
+  /**
+   * Viewports of the pages other than the active one. The active page's
+   * viewport is `scrollX`, `scrollY` and `zoom`.
+   */
+  pageViewports: Readonly<Record<ExcalidrawPage["id"], PageViewport>>;
 }
 
 export type SearchMatch = {
@@ -876,6 +894,10 @@ export interface ExcalidrawProps {
    * @default { createCanvas: () => ownerDocument.createElement("canvas"), createImage: () => new ownerWindow.Image(), createPath: (d) => new ownerWindow.Path2D(d), document: ownerDocument }
    */
   renderEnvironment?: RenderEnvironment;
+  /**
+   * `elements` holds every page's elements, including deleted, so persisting
+   * it keeps all pages.
+   */
   onChange?: (
     elements: readonly OrderedExcalidrawElement[],
     appState: AppState,
@@ -1123,6 +1145,12 @@ export type SceneData = {
   appState?: ImportedDataState["appState"];
   collaborators?: Map<SocketId, Collaborator>;
   captureUpdate?: CaptureUpdateActionType;
+  /**
+   * With `pages`, `elements` is the whole drawing and replaces every page.
+   * Without it, elements are routed per element and only the pages they land
+   * on change. The page keys in `appState` are ignored: use the page API.
+   */
+  pages?: readonly ExcalidrawPage[];
 };
 
 export type ExportOpts = {
@@ -1170,6 +1198,8 @@ export type UIOptions = Partial<{
   tools: {
     image: boolean;
   };
+  /** whether the page tab bar shows, default true */
+  pageTabs: boolean;
   /**
    * Optionally control the editor form factor and desktop UI mode from the host app.
    * If not provided, we will take care of it internally.
@@ -1253,6 +1283,7 @@ export type AppClassProperties = {
   activeResizeHandle: App["activeResizeHandle"];
   selectionTool: App["selectionTool"];
   wrap: App["wrap"];
+  pages: App["pages"];
   modifiers: App["modifiers"];
   isToolLocked: App["isToolLocked"];
   getEffectiveGridSize: App["getEffectiveGridSize"];
@@ -1401,6 +1432,20 @@ export interface ExcalidrawImperativeAPI {
   getSceneElementsMapIncludingDeleted: InstanceType<
     typeof App
   >["getSceneElementsMapIncludingDeleted"];
+  /**
+   * The scene getters above are the active page; this one is the whole
+   * drawing.
+   */
+  getAllPagesElementsIncludingDeleted: InstanceType<
+    typeof App
+  >["getAllPagesElementsIncludingDeleted"];
+  getPages: InstanceType<typeof App>["pages"]["getPages"];
+  getActivePageId: InstanceType<typeof App>["pages"]["getActivePageId"];
+  setActivePage: InstanceType<typeof App>["pages"]["setActivePage"];
+  createPage: InstanceType<typeof App>["pages"]["createPage"];
+  renamePage: InstanceType<typeof App>["pages"]["renamePage"];
+  movePage: InstanceType<typeof App>["pages"]["movePage"];
+  deletePage: InstanceType<typeof App>["pages"]["deletePage"];
   history: {
     clear: InstanceType<typeof App>["resetHistory"];
   };

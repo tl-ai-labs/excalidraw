@@ -12,6 +12,9 @@ import {
 
 import {
   getCommonBounds,
+  getElementPageId,
+  getLivePages,
+  getNonDeletedElements,
   isElementCompletelyInViewport,
 } from "@excalidraw/element";
 
@@ -32,6 +35,7 @@ import { getDefaultFrameName } from "@excalidraw/element/frame";
 import type { RenderEnvironment } from "@excalidraw/element";
 import type {
   ExcalidrawFrameLikeElement,
+  ExcalidrawPage,
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
 
@@ -71,6 +75,8 @@ type SearchMatchItem = {
     moreAfter: boolean;
   };
   matchedLines: SearchMatch["matchedLines"];
+  pageId: string;
+  pageName: string;
 };
 
 type SearchMatches = {
@@ -97,6 +103,10 @@ export const SearchMenu = () => {
   });
   const searchedQueryRef = useRef<SearchQuery | null>(null);
   const lastSceneNonceRef = useRef<number | undefined>(undefined);
+  const lastActivatedRef = useRef<{
+    focusIndex: number;
+    elementId: string;
+  } | null>(null);
 
   const [focusIndex, setFocusIndex] = useAtom(searchItemInFocusAtom);
   const elementsMap = app.scene.getNonDeletedElementsMap();
@@ -193,64 +203,91 @@ export const SearchMenu = () => {
   }, [focusIndex, setAppState]);
 
   useEffect(() => {
-    if (searchMatches.items.length > 0 && focusIndex !== null) {
-      const match = searchMatches.items[focusIndex];
+    if (searchMatches.items.length === 0 || focusIndex === null) {
+      return;
+    }
 
-      if (match) {
-        const zoomValue = app.state.zoom.value;
+    const match = searchMatches.items[focusIndex];
 
-        const matchAsElement = newTextElement({
-          text: match.searchQuery,
-          x: match.element.x + (match.matchedLines[0]?.offsetX ?? 0),
-          y: match.element.y + (match.matchedLines[0]?.offsetY ?? 0),
-          width: match.matchedLines[0]?.width,
-          height: match.matchedLines[0]?.height,
-          fontSize: isFrameLikeElement(match.element)
-            ? FRAME_STYLE.nameFontSize
-            : match.element.fontSize,
-          fontFamily: isFrameLikeElement(match.element)
-            ? FONT_FAMILY.Assistant
-            : match.element.fontFamily,
+    if (!match) {
+      return;
+    }
+
+    const focusMatch = () => {
+      const zoomValue = app.state.zoom.value;
+
+      const matchAsElement = newTextElement({
+        text: match.searchQuery,
+        x: match.element.x + (match.matchedLines[0]?.offsetX ?? 0),
+        y: match.element.y + (match.matchedLines[0]?.offsetY ?? 0),
+        width: match.matchedLines[0]?.width,
+        height: match.matchedLines[0]?.height,
+        fontSize: isFrameLikeElement(match.element)
+          ? FRAME_STYLE.nameFontSize
+          : match.element.fontSize,
+        fontFamily: isFrameLikeElement(match.element)
+          ? FONT_FAMILY.Assistant
+          : match.element.fontFamily,
+      });
+
+      const FONT_SIZE_LEGIBILITY_THRESHOLD = 14;
+
+      const fontSize = matchAsElement.fontSize;
+      const isTextTiny = fontSize * zoomValue < FONT_SIZE_LEGIBILITY_THRESHOLD;
+
+      if (
+        !isElementCompletelyInViewport(
+          [matchAsElement],
+          app.canvas.width / app.ownerWindow.devicePixelRatio,
+          app.canvas.height / app.ownerWindow.devicePixelRatio,
+          {
+            offsetLeft: app.state.offsetLeft,
+            offsetTop: app.state.offsetTop,
+            scrollX: app.state.scrollX,
+            scrollY: app.state.scrollY,
+            zoom: app.state.zoom,
+          },
+          app.scene.getNonDeletedElementsMap(),
+          app.viewport.getOffsets(),
+        ) ||
+        isTextTiny
+      ) {
+        // tiny, illegible text fills the viewport so it becomes readable;
+        // otherwise just fit the match into view (capped at 100%)
+        const behavior =
+          isTextTiny && fontSize < FONT_SIZE_LEGIBILITY_THRESHOLD
+            ? "contain"
+            : "scale-down";
+
+        app.viewport.setViewport({
+          target: getCommonBounds([matchAsElement]),
+          fit: behavior,
+          animation: { duration: 300 },
+          offsets: { ui: true },
         });
-
-        const FONT_SIZE_LEGIBILITY_THRESHOLD = 14;
-
-        const fontSize = matchAsElement.fontSize;
-        const isTextTiny =
-          fontSize * zoomValue < FONT_SIZE_LEGIBILITY_THRESHOLD;
-
-        if (
-          !isElementCompletelyInViewport(
-            [matchAsElement],
-            app.canvas.width / app.ownerWindow.devicePixelRatio,
-            app.canvas.height / app.ownerWindow.devicePixelRatio,
-            {
-              offsetLeft: app.state.offsetLeft,
-              offsetTop: app.state.offsetTop,
-              scrollX: app.state.scrollX,
-              scrollY: app.state.scrollY,
-              zoom: app.state.zoom,
-            },
-            app.scene.getNonDeletedElementsMap(),
-            app.viewport.getOffsets(),
-          ) ||
-          isTextTiny
-        ) {
-          // tiny, illegible text fills the viewport so it becomes readable;
-          // otherwise just fit the match into view (capped at 100%)
-          const behavior =
-            isTextTiny && fontSize < FONT_SIZE_LEGIBILITY_THRESHOLD
-              ? "contain"
-              : "scale-down";
-
-          app.viewport.setViewport({
-            target: getCommonBounds([matchAsElement]),
-            fit: behavior,
-            animation: { duration: 300 },
-            offsets: { ui: true },
-          });
-        }
       }
+    };
+
+    const isNewActivation =
+      lastActivatedRef.current?.focusIndex !== focusIndex ||
+      lastActivatedRef.current?.elementId !== match.element.id;
+
+    // a re-search alone (e.g. the user switched pages) must not pull the
+    // user back to the page of the previously activated match
+    if (!isNewActivation && match.pageId !== app.state.activePageId) {
+      return;
+    }
+
+    lastActivatedRef.current = { focusIndex, elementId: match.element.id };
+
+    if (match.pageId !== app.state.activePageId) {
+      // flushSync can't run inside an effect, so defer the page switch
+      queueMicrotask(() => {
+        app.pages.setActivePage(match.pageId);
+        focusMatch();
+      });
+    } else {
+      focusMatch();
     }
   }, [focusIndex, searchMatches, app]);
 
@@ -259,6 +296,7 @@ export const SearchMenu = () => {
       setFocusIndex(null);
       searchedQueryRef.current = null;
       lastSceneNonceRef.current = undefined;
+      lastActivatedRef.current = null;
       setAppState({
         searchMatches: null,
       });
@@ -426,6 +464,8 @@ export const SearchMenu = () => {
         onItemClick={setFocusIndex}
         focusIndex={focusIndex}
         searchQuery={searchQuery}
+        showPageNames={getLivePages(app.state.pages).length > 1}
+        pages={app.state.pages}
       />
     </div>
   );
@@ -435,6 +475,7 @@ const ListItem = (props: {
   preview: SearchMatchItem["preview"];
   searchQuery: SearchQuery;
   highlighted: boolean;
+  pageName: string | null;
   onClick?: () => void;
 }) => {
   const preview = [
@@ -468,6 +509,7 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName && <div className="preview-page">{props.pageName}</div>}
     </div>
   );
 };
@@ -477,6 +519,8 @@ interface MatchListProps {
   onItemClick: (index: number) => void;
   focusIndex: number | null;
   searchQuery: SearchQuery;
+  showPageNames: boolean;
+  pages: readonly ExcalidrawPage[];
 }
 
 const MatchListBase = (props: MatchListProps) => {
@@ -489,6 +533,11 @@ const MatchListBase = (props: MatchListProps) => {
   const textMatches = useMemo(
     () => props.matches.items.filter((match) => isTextElement(match.element)),
     [props.matches],
+  );
+
+  const pageNames = useMemo(
+    () => new Map(getLivePages(props.pages).map((p) => [p.id, p.name])),
+    [props.pages],
   );
 
   return (
@@ -506,6 +555,11 @@ const MatchListBase = (props: MatchListProps) => {
               preview={searchMatch.preview}
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
+              pageName={
+                props.showPageNames
+                  ? pageNames.get(searchMatch.pageId) ?? searchMatch.pageName
+                  : null
+              }
             />
           ))}
 
@@ -526,6 +580,11 @@ const MatchListBase = (props: MatchListProps) => {
               preview={searchMatch.preview}
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
+              pageName={
+                props.showPageNames
+                  ? pageNames.get(searchMatch.pageId) ?? searchMatch.pageName
+                  : null
+              }
             />
           ))}
         </div>
@@ -537,7 +596,9 @@ const MatchListBase = (props: MatchListProps) => {
 const areEqual = (prevProps: MatchListProps, nextProps: MatchListProps) => {
   return (
     prevProps.matches.nonce === nextProps.matches.nonce &&
-    prevProps.focusIndex === nextProps.focusIndex
+    prevProps.focusIndex === nextProps.focusIndex &&
+    prevProps.showPageNames === nextProps.showPageNames &&
+    prevProps.pages === nextProps.pages
   );
 };
 
@@ -800,7 +861,19 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const pageInfo = new Map<string, { position: number; name: string }>(
+      getLivePages(app.state.pages).map((page, position) => [
+        page.id,
+        { position, name: page.name },
+      ]),
+    );
+
+    const getPagePosition = (el: { pageId?: string }) =>
+      pageInfo.get(getElementPageId(el))?.position ?? 0;
+
+    const elements = getNonDeletedElements(
+      app.scene.getAllElementsIncludingDeleted(),
+    ).filter((el) => pageInfo.has(getElementPageId(el)));
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -809,8 +882,8 @@ const handleSearch = debounce(
       isFrameLikeElement(el),
     ) as ExcalidrawFrameLikeElement[];
 
-    texts.sort((a, b) => a.y - b.y);
-    frames.sort((a, b) => a.y - b.y);
+    texts.sort((a, b) => getPagePosition(a) - getPagePosition(b) || a.y - b.y);
+    frames.sort((a, b) => getPagePosition(a) - getPagePosition(b) || a.y - b.y);
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -832,6 +905,8 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           textMatches.push({
             element: textEl,
+            pageId: getElementPageId(textEl),
+            pageName: pageInfo.get(getElementPageId(textEl))?.name ?? "",
             searchQuery,
             preview,
             index: match.index,
@@ -860,6 +935,8 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           frameMatches.push({
             element: frame,
+            pageId: getElementPageId(frame),
+            pageName: pageInfo.get(getElementPageId(frame))?.name ?? "",
             searchQuery,
             preview,
             index: match.index,
