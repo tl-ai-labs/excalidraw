@@ -59,9 +59,14 @@
           "expect": "range is [20, 23)"
         },
         {
-          "name": "a range whose characters are all deleted is removed",
+          "name": "a range whose characters are all deleted styles nothing",
           "given": "T to \"Bid request timeout \"",
-          "expect": "ranges is [] and the container is defined with textHash hashString of the new text"
+          "expect": "one record [20, 20) with no origin; getTextStyleRuns is []; textHash is hashString of the new text"
+        },
+        {
+          "name": "retyping deleted text does not reopen its range",
+          "given": "then \"Bid request timeout \" to T",
+          "expect": "the record is collapsed at [25, 25); getTextStyleRuns is []"
         },
         {
           "name": "insertion at a range's start does not extend it",
@@ -122,6 +127,31 @@
           "name": "removing a style splits a range",
           "given": "RED on [0, 10), then { color: null, highlight: null } on [3, 5)",
           "expect": "runs [0,3) and [5,10), both RED"
+        },
+        {
+          "name": "a removal retires what it fully covers",
+          "given": "RED on [20, 25), then { color: null, highlight: null } on [20, 25)",
+          "expect": "two records: the RED one retired on [20, 25), and a clear on [20, 25) at z 2; getTextStyleRuns is []"
+        },
+        {
+          "name": "a partial removal retires the record and keeps its remainder",
+          "given": "RED on [0, 10), then { color: null, highlight: null } on [3, 5)",
+          "expect": "the original record is retired; two new RED records [0, 3) and [5, 10) at its z, with other ids and no retired key; a clear on [3, 5) at z 2"
+        },
+        {
+          "name": "a removal leaves an attribute it does not clear",
+          "given": "RED on [0, 5), { highlight: YELLOW } on [0, 5), then { highlight: null } on [0, 5)",
+          "expect": "the RED record is not retired, the highlight record is; one run [0, 5) RED with highlight null"
+        },
+        {
+          "name": "a removal does not retire a record it does not touch",
+          "given": "RED on [0, 3), BLUE on [5, 8), then { color: null, highlight: null } on [0, 3)",
+          "expect": "the BLUE record is not retired; one run [5, 8) BLUE"
+        },
+        {
+          "name": "a colour pick retires nothing",
+          "given": "RED on [0, 10), then BLUE on [0, 10)",
+          "expect": "no record has retired"
         },
         {
           "name": "a clear beats a colour at equal z",
@@ -350,9 +380,9 @@
           "expect": "no throw and length 1024"
         },
         {
-          "name": "a retired record and a collapsed carried record stay",
-          "given": "a retired record, and a record with start === end and a valid origin",
-          "expect": "both remain"
+          "name": "retired and collapsed records stay",
+          "given": "a retired record, a record with start === end and a valid origin, and a record with start === end and no origin",
+          "expect": "all three remain"
         },
         {
           "name": "an invalid origin is removed",
@@ -399,7 +429,8 @@
       "rules": [
         "Helpers: T = \"Bid request timeout 120ms\", W = `Urgent: ${T}`, RED = \"#e03131\". version(element, text, version, versionNonce) returns { ...element, originalText: text, text, version, versionNonce, index: \"a0\" }. run(local, remote, appState = {}) returns reconcileElements(cloneJSON([local]), cloneJSON([remote]) as RemoteExcalidrawElement[], appState as AppState)[0]. Text changes on a version go through shiftTextRanges when that version already has ranges.",
         "A range edit is { ...element, textRanges: applyTextRangeStyle(element, span, style), version, versionNonce } built by spreading, so the test sets version and nonce itself. Lower versionNonce wins a tie, as in reconcile today.",
-        "Client convergence is expect(a).toEqual(b) on whole elements, so version, versionNonce, originalText and textRanges must all agree.",
+        "sync(local, remote) is the path Collab._reconcileElements takes after restore: existing = cloneJSON([local]); return bumpElementVersions(reconcileElements(existing, cloneJSON([remote]) as RemoteExcalidrawElement[], {} as AppState), existing)[0]. bumpElementVersions comes from ../../data/restore. Never assert a bumped versionNonce's value, which is random: spread a fixed versionNonce over a bumped element where a test needs to know who wins next.",
+        "Client convergence is expect(a).toEqual(b) on whole elements, so version, versionNonce, originalText and textRanges must all agree. Between run calls that holds at once. After sync, the two clients of an equal-version race differ in version, versionNonce and updated until the next delivery, so before it assert originalText and textRanges only, and after it assert whole elements.",
         "Assert a carried offset with text.slice(start, end) === \"120ms\", which is what stale offsets would break."
       ],
       "tests": [
@@ -444,6 +475,26 @@
           "expect": "version and versionNonce equal B's"
         },
         {
+          "name": "only the client that took the remote is bumped",
+          "given": "A: T, RED on [20, 25), v6 nonce 300. B: W, no ranges, v6 nonce 200. a = sync(A, B), b = sync(B, A)",
+          "expect": "a.version 7 and a.versionNonce is not 200; b.version 6 and b.versionNonce 200; a.originalText equals b.originalText, which is W; a.textRanges toEqual b.textRanges; the range is [28, 33), slice \"120ms\", origin { version: 6, versionNonce: 300, text: T, start: 20, end: 25 } on both"
+        },
+        {
+          "name": "the next delivery ends the difference in both directions",
+          "given": "a and b as above. Then the same race with A at nonce 100, so B's client is the one bumped",
+          "expect": "for each race, with x the bumped client and y the other, sync(y, x) and sync(x, y) both toEqual x, and x.version stays 7"
+        },
+        {
+          "name": "two bumped clients converge on the delivery after next",
+          "given": "c = { ...sync(A, B), versionNonce: 500 }, d = { ...sync(A, B), versionNonce: 600 }. Then e = sync(d, c), f = sync(c, d)",
+          "expect": "e.version 8; f toEqual c; e.textRanges toEqual c.textRanges; sync(f, e) and sync(e, f) both toEqual e"
+        },
+        {
+          "name": "a bumped register places a record where the unbumped one does",
+          "given": "A: T, no ranges, v6 nonce 300. B: W, RED on [28, 33), v6 nonce 200. a = { ...sync(A, B), versionNonce: 500 }, b = sync(B, A). C: `${W}!`, no ranges, v8 nonce 100. p = run(a, C), q = run(b, C)",
+          "expect": "the range in p and in q is [28, 33); origin differs, with version 7 in p and 6 in q; run(p, q) and run(q, p) both toEqual p"
+        },
+        {
           "name": "merging again changes nothing",
           "given": "merged element reconciled against each input and against a clone of itself",
           "expect": "toEqual merged; with a clone as remote the local object is returned, so toBe"
@@ -467,6 +518,36 @@
           "name": "a retired id stays retired",
           "given": "A holds the record with retired: true, B holds it alive at a higher version",
           "expect": "the merged record is retired in both orders and getTextStyleRuns is []"
+        },
+        {
+          "name": "a deleted styled word leaves nothing on the peer",
+          "given": "base v5, T with RED on [20, 25), held by both. A: \"Bid request timeout \" through shiftTextRanges, v6. run(base, A) and run(A, base)",
+          "expect": "equal; the record is collapsed and no record has origin; JSON.stringify of the element does not contain \"120ms\"; a restoreElements([result], null) keeps the record"
+        },
+        {
+          "name": "retyping a deleted word stays unstyled on both clients",
+          "given": "then A2: A's text back to T through shiftTextRanges, v7. p = run(A, A2), q = run(base, A2)",
+          "expect": "p toEqual q; originalText T; the record is collapsed with no origin; getTextStyleRuns is []"
+        },
+        {
+          "name": "a deletion that loses the race keeps the range on the surviving word",
+          "given": "base as above. A: the word deleted, v6 nonce 300. B: W with shifted ranges, v6 nonce 200. run(A, B) and run(B, A)",
+          "expect": "equal; originalText W; range [28, 33), slice \"120ms\", no origin"
+        },
+        {
+          "name": "a deletion that wins the race styles nothing",
+          "given": "the same with A at nonce 100",
+          "expect": "equal; originalText \"Bid request timeout \"; getTextStyleRuns is []; the record is collapsed with no origin"
+        },
+        {
+          "name": "a removal at a repeated character leaves no sliver",
+          "given": "base \"ab\" v7, RED on [1, 2). A: reset on [1, 2), v8 nonce 300. B: \"ab\" to \"abb\" then \"abb\" to \"bb\" through shiftTextRanges, v8 nonce 200, which leaves B's record on [0, 1) while diffText(\"ab\", \"bb\") carries the clear to [1, 2). Then the same with the nonces swapped",
+          "expect": "getTextStyleRuns is [] in both orders of both cases"
+        },
+        {
+          "name": "a partial removal at a repeated character shows only its kept part",
+          "given": "base \"abc\" v7, RED on [1, 3). A: reset on [1, 2), v8 nonce 300. B: \"abc\" to \"abbc\" then \"abbc\" to \"bbc\" through shiftTextRanges, v8 nonce 200, which leaves B's record on [0, 3). Then the same with the nonces swapped",
+          "expect": "getTextStyleRuns is [{ start: 2, end: 3, color: RED, highlight: null }] in both orders of both cases"
         },
         {
           "name": "a dropped update's ranges reach the editing client",
@@ -884,9 +965,19 @@
           "expect": "after undo originalText is W and runs are []; after redo the run's slice is \"120ms\""
         },
         {
+          "name": "undo brings back a deleted word's range after a remote text edit",
+          "given": "T with RED on [20, 25), delete \"120ms\", exit, then a remote version that appends \"!\" through shiftTextRanges, then undo",
+          "expect": "originalText is T; the run is [20, 25)"
+        },
+        {
           "name": "undoing a removal shows the range again",
           "given": "RED on [20, 25), reset as a later step, undo",
           "expect": "the RED run is back"
+        },
+        {
+          "name": "undoing a partial removal keeps the layer order",
+          "given": "RED on [20, 25), then BLUE (\"#1971c2\") on [24, 25), then reset on [20, 22) as a later step, undo, then redo",
+          "expect": "after reset the runs are [22, 24) RED and [24, 25) BLUE; after undo [20, 24) RED and [24, 25) BLUE; after redo as after reset"
         },
         {
           "name": "an unchanged range makes no history noise",

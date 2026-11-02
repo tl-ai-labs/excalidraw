@@ -47,7 +47,8 @@ the mechanism is the change spec's to choose unless the brief or a Gate 0 answer
   carry a marker, which is what FR-19 needs.
 - **FR-3 Text edits shift ranges.** Given the old text, the new text and the ranges, a pure function returns the ranges
   for the new text: insertion before a range shifts it, insertion inside extends it, deletion before shifts it,
-  deletion inside shrinks it, and a range whose characters are all deleted is removed. Behaviour at a range's two
+  deletion inside shrinks it, and a range whose characters are all deleted styles nothing from then on, even if the
+  same text is typed again. Behaviour at a range's two
   boundaries is defined once, in the change spec, and tested. The function handles replacing a selection, pasting,
   native textarea undo and any other change that only reveals old and new text.
 - **FR-4 Range operations.** Applying a colour or highlight to a span adds to or changes the ranges without overlapping
@@ -90,8 +91,10 @@ the mechanism is the change spec's to choose unless the brief or a Gate 0 answer
   and at the right position for every `textAlign`. A highlight exports as a `<rect>` that comes before the text in
   document order. A text element with no ranges exports exactly as it does today.
 - **FR-18 Restore.** A file with no ranges restores unchanged. Ranges in a file survive save and load. Malformed
-  ranges (wrong types, out of bounds, inverted, overlapping, an unusable colour, or stale against the text) are repaired
-  or dropped, never thrown on, and never reach the renderer.
+  ranges (wrong types, out of bounds, inverted, an unusable colour, or stale against the text) are repaired or dropped,
+  never thrown on, and never reach the renderer. Overlap between stored ranges is not malformed: it is the normal output
+  of FR-4 and of merging, it stays as stored, and the fixed layer order resolves it, so that renderers only ever receive
+  disjoint runs.
 
 ### Collaboration
 
@@ -128,9 +131,13 @@ the mechanism is the change spec's to choose unless the brief or a Gate 0 answer
 
 | Field | Sensitivity | Protection |
 | --- | --- | --- |
-| Styled ranges (offsets, colours, identity) | None. Ranges hold no user content or user identity | Range identity must not encode a user, client or device id |
+| Styled ranges (offsets, colours, identity) | None. These fields hold no user content or user identity | Range identity must not encode a user, client or device id |
+| A carried range's `origin.text` (the losing version's full text) | Same as the element's text content | Written only after a concurrent-edit race. Dropped by the next style action or text edit on that element |
 
-Text content is unchanged by this feature and is handled as it is today.
+Text content is handled as it is today, with one exception. After a concurrent-edit race, a range carried from the
+losing version keeps that version's full text in its `origin` until the next style action or text edit on that element,
+so text deleted on one client can stay in the saved element for that long. A deletion with no race leaves no old text in
+the element.
 
 ## Role matrix
 
