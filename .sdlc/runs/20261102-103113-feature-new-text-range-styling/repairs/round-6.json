@@ -1,0 +1,142 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/element/src/textRangeMerge.ts",
+    "instruction": "Fix `packages/element/src/textRangeMerge.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security finding, Medium: a crafted element can freeze the main thread through unbounded diff work in one merge. mergeTextRanges runs one uncached mapTextSpan per carried record, at line 128. Measured: 1,024 records with distinct 100-character origins against a 10,000-character text take 4.4 to 4.5 s per reconcile.\n\nMake exactly this change and no other behaviour change. This decision is not in your brief yet: it is the spec.\n\nDECISION (topic: Diff budget per merge (NFR-2, Gate 3)):\nmergeTextRanges bounds its diff work per call, and every change is in packages/element/src/textRangeMerge.ts; textDiff.ts does not change. Constants: `export const MAX_MERGE_DIFF_CELLS = 3_000_000;` is the budget for one call, and `const DIFF_TEXT_MAX_CELLS = 1_000_000;` (not exported) repeats MAX_DIFF_CELLS from textDiff.ts, which has no export. Imports: replace the mapTextSpan import with `import { diffText, mapSpanThroughHunks } from \"./textDiff\";` and add `import type { TextHunk } from \"./textDiff\";`. Helper: `const getCoarseHunk = (oldText: string, newText: string): TextHunk` repeats diffText's trim exactly, in this order. prefix counts up while prefix < Math.min(oldText.length, newText.length) and oldText[prefix] === newText[prefix]; if prefix > 0 and oldText.charCodeAt(prefix - 1) is in 0xd800..0xdbff, prefix -= 1. suffix counts up while suffix < Math.min(oldText.length, newText.length) - prefix and oldText[oldText.length - 1 - suffix] === newText[newText.length - 1 - suffix]; if suffix > 0 and oldText.charCodeAt(oldText.length - suffix) is in 0xdc00..0xdfff, suffix -= 1. With n = oldText.length - prefix - suffix and m = newText.length - prefix - suffix it returns { oldStart: prefix, oldEnd: prefix + n, newStart: prefix, newEnd: prefix + m }, the hunk diffText falls back to. Order: after allIds, `const survivors = canonicalizeTextRanges([...allIds].map((id) => (baseMap.get(id) ?? otherMap.get(id))!)).reverse();` and the loop becomes `for (const { id } of survivors)`, so records the MAX_TEXT_RANGES cap drops are gone before any diff runs, and the highest (z, id) is served first. Spend: before the loop, `let diffCellsLeft = MAX_MERGE_DIFF_CELLS;` and `const hunksByText = new Map<string, readonly TextHunk[]>();`. Where the code calls mapTextSpan today, read hunksByText.get(reg.text). On a miss, `const coarse = getCoarseHunk(reg.text, base.originalText);` and `const cells = (coarse.oldEnd - coarse.oldStart) * (coarse.newEnd - coarse.newStart);`. If cells <= DIFF_TEXT_MAX_CELLS and cells <= diffCellsLeft, subtract cells from diffCellsLeft and use diffText(reg.text, base.originalText). Otherwise use [coarse] and charge nothing. Either result is stored in hunksByText under reg.text, so each distinct text is priced once, and a text that does not fit does not stop a later, cheaper one. `const mapped = mapSpanThroughHunks(hunks, reg.start, reg.end);` then replaces the mapTextSpan call. The cost is the trimmed size: a one-word edit in a 10,000-character text costs almost nothing and stays precise. Test, in packages/excalidraw/tests/data/reconcile.textRanges.test.ts, counts diff work and never times it: `vi.mock(\"@excalidraw/element/textDiff\", ...)` wraps diffText in a vi.fn over importOriginal, cleared just before the merge. Case 1: 1,024 records with distinct 100-character origins that share no first or last character with a 10,000-character base give exactly 3 diffText calls. Case 2: a one-word edit in a 10,000-character text carries a range to the exact offsets. Case 3: W holds 1,024 native records, L1 one record at a higher z whose origin is a 100-character slice from the middle of W's text, L2 three records at a lower z whose ids sort first, with distinct 100-character origins: both arrival orders give the same element, and merging L2 again returns the base object.\n\nThe test paragraph at the end of the decision is another packet's work; do not write a test here. textDiff.ts must not change. Every record field, the merged-record building and everything after the loop stay as they are. Note `survivors` holds records, and the loop reads bRec and oRec from baseMap and otherMap by id as it does today.\n\nRun constraint: work only from this branch's code and the brief. Do not look at the upstream excalidraw repo, its PRs or issues, upstream/master or master, and do not base anything on them. This binds every phase and every model, the Gemini worker included.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRangeMerge.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRangeMerge.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRangeMerge.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRanges.elements.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck reports 4 errors in this file. Types only: do not change any step or expectation of any test.\n(167,5): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeleted<ExcalidrawTextElement>'.\n(191,5): same\n(240,5): same\n(249,5): same\nAt those four lines, change the type argument of `h.app.scene.getElement<ExcalidrawTextElement>(...)!` to `h.app.scene.getElement<NonDeleted<ExcalidrawTextElement>>(...)!`. Change nothing else. The variables they assign to were declared from API.createElement with the type NonDeleted<ExcalidrawTextElement>.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRanges.elements.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRanges.elements.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-103113-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add the tests for a diff budget in mergeTextRanges to this file. Change no existing test.\n\nIMPORTANT: the fix to packages/element/src/textRangeMerge.ts is typed by another packet of this same round and may land after your first check runs. If your check fails only because diffText was called more than 3 times, because a range did not land where case 2 or 3 says, or by a timeout, the fix had not landed yet. Send the same answer again. Never weaken, remove or loosen an assertion to make it pass, and never assert on time.\n\nThe decision the fix implements, for reference:\nmergeTextRanges bounds its diff work per call, and every change is in packages/element/src/textRangeMerge.ts; textDiff.ts does not change. Constants: `export const MAX_MERGE_DIFF_CELLS = 3_000_000;` is the budget for one call, and `const DIFF_TEXT_MAX_CELLS = 1_000_000;` (not exported) repeats MAX_DIFF_CELLS from textDiff.ts, which has no export. Imports: replace the mapTextSpan import with `import { diffText, mapSpanThroughHunks } from \"./textDiff\";` and add `import type { TextHunk } from \"./textDiff\";`. Helper: `const getCoarseHunk = (oldText: string, newText: string): TextHunk` repeats diffText's trim exactly, in this order. prefix counts up while prefix < Math.min(oldText.length, newText.length) and oldText[prefix] === newText[prefix]; if prefix > 0 and oldText.charCodeAt(prefix - 1) is in 0xd800..0xdbff, prefix -= 1. suffix counts up while suffix < Math.min(oldText.length, newText.length) - prefix and oldText[oldText.length - 1 - suffix] === newText[newText.length - 1 - suffix]; if suffix > 0 and oldText.charCodeAt(oldText.length - suffix) is in 0xdc00..0xdfff, suffix -= 1. With n = oldText.length - prefix - suffix and m = newText.length - prefix - suffix it returns { oldStart: prefix, oldEnd: prefix + n, newStart: prefix, newEnd: prefix + m }, the hunk diffText falls back to. Order: after allIds, `const survivors = canonicalizeTextRanges([...allIds].map((id) => (baseMap.get(id) ?? otherMap.get(id))!)).reverse();` and the loop becomes `for (const { id } of survivors)`, so records the MAX_TEXT_RANGES cap drops are gone before any diff runs, and the highest (z, id) is served first. Spend: before the loop, `let diffCellsLeft = MAX_MERGE_DIFF_CELLS;` and `const hunksByText = new Map<string, readonly TextHunk[]>();`. Where the code calls mapTextSpan today, read hunksByText.get(reg.text). On a miss, `const coarse = getCoarseHunk(reg.text, base.originalText);` and `const cells = (coarse.oldEnd - coarse.oldStart) * (coarse.newEnd - coarse.newStart);`. If cells <= DIFF_TEXT_MAX_CELLS and cells <= diffCellsLeft, subtract cells from diffCellsLeft and use diffText(reg.text, base.originalText). Otherwise use [coarse] and charge nothing. Either result is stored in hunksByText under reg.text, so each distinct text is priced once, and a text that does not fit does not stop a later, cheaper one. `const mapped = mapSpanThroughHunks(hunks, reg.start, reg.end);` then replaces the mapTextSpan call. The cost is the trimmed size: a one-word edit in a 10,000-character text costs almost nothing and stays precise. Test, in packages/excalidraw/tests/data/reconcile.textRanges.test.ts, counts diff work and never times it: `vi.mock(\"@excalidraw/element/textDiff\", ...)` wraps diffText in a vi.fn over importOriginal, cleared just before the merge. Case 1: 1,024 records with distinct 100-character origins that share no first or last character with a 10,000-character base give exactly 3 diffText calls. Case 2: a one-word edit in a 10,000-character text carries a range to the exact offsets. Case 3: W holds 1,024 native records, L1 one record at a higher z whose origin is a 100-character slice from the middle of W's text, L2 three records at a lower z whose ids sort first, with distinct 100-character origins: both arrival orders give the same element, and merging L2 again returns the base object.\n\nHow to build it. At the top of the file, after the imports, add:\nvi.mock(\"@excalidraw/element/textDiff\", async (importOriginal) => {\n  const actual = await importOriginal<typeof import(\"@excalidraw/element/textDiff\")>();\n  return { ...actual, diffText: vi.fn(actual.diffText) };\n});\n`vi` is a global here. The file already imports diffText from \"@excalidraw/element\", which is this same mocked function, so `vi.mocked(diffText).mockClear()` goes just before the merge under test. Add hashString to the \"@excalidraw/element\" import. If lint refuses the `typeof import(...)` annotation, use `const actual = await importOriginal<Record<string, any>>();`.\n\nA helper sets forged ranges: `const withRanges = (el, ranges) => ({ ...el, textRanges: { textHash: hashString(el.originalText), ranges } })`, typed with ExcalidrawTextElement and `as unknown as` where needed. A carried record is { id, start, end, z, color: RED, origin: { version, versionNonce, text, start, end } }. The ranges must sit on BOTH versions, because mergeTextRanges returns early when the other side has none.\n\nCase 1, 'one merge diffs at most three distinct texts': base text `\"b\".repeat(10000)`. B version 6 nonce 100 holds one native record. A version 6 nonce 200 holds 1,024 carried records with ids from String(i).padStart(4, \"0\"), z from 1, start 0, end 10, and distinct 100-character origins `\"a\" + String(i).padStart(98, \"c\") + \"a\"`. Clear the mock, then `run(A, B)`. Expect diffText toHaveBeenCalledTimes(3), exactly. Expect run(B, A) gives the same textRanges, and that the same merge with A's ranges array reversed gives the same textRanges.\n\nCase 2, 'a one-word edit in a long text stays exact': old text `\"p\".repeat(5000) + \"cat\" + \"s\".repeat(5000)`, new text the same with \"zebra\" for \"cat\". A carried record with origin text the old text and offsets [5013, 5018) on an element holding the new text, plus one native record on the other version. Expect the merged range is [5015, 5020) and diffText was called once.\n\nCase 3, 'records the cap drops spend no budget': W's text is `Array.from({ length: 2500 }, (_, i) => String(i).padStart(4, \"0\")).join(\"\")`, version 9 nonce 1, holding 1,024 native records with ids `w` + padded i, z from 10, each on [i, i + 1). L1 version 6 nonce 2 holds one record id \"z1\", z 5000, whose origin text is W's text.slice(5000, 5100) with offsets [10, 20). L2 version 6 nonce 3 holds three records with ids \"000\", \"001\", \"002\", z 1 to 3, with distinct 100-character origins as in case 1. Using mergeTextRanges directly: m1 = merge(merge(W, L1), L2), m2 = merge(merge(W, L2), L1). Expect m1.textRanges toEqual m2.textRanges, the record \"z1\" is on [5010, 5020) in both, and mergeTextRanges(m1, L2) toBe(m1).\n\nRun constraint: work only from this branch's code and the brief. Do not look at the upstream excalidraw repo, its PRs or issues, upstream/master or master, and do not base anything on them. This binds every phase and every model, the Gemini worker included.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-103113-feature-new-text-range-styling/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 --ext .js,.ts,.tsx '{path}'",
+          "fix": "yarn -s eslint --fix --max-warnings=0 --ext .js,.ts,.tsx '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]
