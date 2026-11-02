@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/tests/textStyleRanges.test.ts",
+    "instruction": "Create `packages/element/tests/textStyleRanges.test.ts` so that these problems are solved, following the conventions in the shared brief:\n1. Unit U16 has not been written in two rounds: the typist timed out once, and the last reply was not one JSON object in the {path, content} contract. Answer with exactly one JSON object {\"path\": \"packages/element/tests/textStyleRanges.test.ts\", \"content\": \"<whole file>\"} and nothing else. Keep the file compact (about 250 lines, no more than about 20 `it` cases), covering: normalizeStyleRanges (clamp, drop empty, sort, merge adjacent equal styles); applyStyleToRange splitting a range; shift on insert before/inside/after and delete before/overlapping/covering a range; getStyleRunsForLines for wrapped text, a bound-text container width, and a font change that re-wraps; undo/redo of a styleRanges change via ElementsDelta. ElementsDelta has no hasVisibleDifferences: use `ElementsDelta.calculate(before, after)`, `delta.isEmpty()`, `delta.inverse()`, `delta.applyTo(current, snapshot)` returning `[elementsMap, isVisible]`, and `delta.updated[elementId]`, with SceneElementsMap built via arrayToMap (see packages/element/tests/delta.test.tsx). For an equal-content styleRanges change assert `delta.isEmpty()` is true. Create text elements with newTextElement({ text, styleRanges, ... }) from @excalidraw/element (API.createElement drops styleRanges).\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/delta.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

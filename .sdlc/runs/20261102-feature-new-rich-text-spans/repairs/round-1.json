@@ -1,0 +1,294 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "instruction": "Fix `packages/element/src/textStyleRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/element/src/textStyleRanges.ts(245,54): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'. packages/element/src/textStyleRanges.ts(249,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'. (style.strokeColor / style.backgroundColor are optional; narrow them, e.g. via a local const after the `!== null`/`!== undefined` check, before passing to isTransparent or similar.) Keep behaviour unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textStyleRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textStyleRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/colorTargets.ts",
+    "instruction": "Fix `packages/excalidraw/actions/colorTargets.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/actions/colorTargets.ts(299,32): error TS2345: Argument of type '{ styleRanges: readonly Readonly<{ start: number; end: number; strokeColor?: string; backgroundColor?: string; }>[] | undefined; }' is not assignable to parameter of type 'ElementUpdate<T & { originalText: string; strokeColor: string; styleRanges?: any; }>'. The call is `newElementWith(target, { styleRanges: nextRanges }, true)` inside a function generic over T. Fix the typing (e.g. type `target` as ExcalidrawTextElement for the newElementWith call and cast the result back to the element type of the array), keep behaviour unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/colorTargets.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/tests/data/reconcile.test.ts(394,7) and (419,7): error TS2353: Object literal may only specify known properties, and 'version' does not exist in the API.createElement options type. API.createElement (tests/helpers/api.ts, not editable) accepts neither `version` nor `styleRanges`. Create the element with API.createElement({ type: 'text', text, index }) and then set the version with newElementWith(el, { version: 1 }) (or bumpVersion-free object spread), keeping the tests' assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3614,32): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'. At `API.setSelectedElements([text])` in the new 'text style ranges' describe block's beforeEach: declare the `text` variable as `NonDeleted<ExcalidrawTextElement>` (or ExcalidrawTextElement narrowed via the createElement return type) so it is assignable. Only touch the new describe block.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/scene/export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U21 did not apply (no_content: 'the answer changes lines outside its sites: new lines after 655; change only the planned sites'). Its last checked attempt failed `yarn -s vitest run packages/excalidraw/tests/scene/export.test.ts` in the new 'text style ranges export' describe: 'exports a highlight rect behind the background run' -> expected [] to have a length of 1; 'filters run colours in dark mode' -> tspans[0] undefined; 'draws runs on canvas with their own fillStyle and a highlight' -> no fillRect found. Cause: API.createElement (tests/helpers/api.ts, context only, not editable) passes only text/fontSize/fontFamily/textAlign/verticalAlign/containerId to newTextElement, so a `styleRanges` option given to it is dropped and the element has no runs. Build the text with API.createElement({type:'text', text, ...}) and then `newElementWith(el, { styleRanges: [...] })` before exporting. Add the new describe block only at its planned site; change no other lines of the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/tests/textStyleRanges.test.ts",
+    "instruction": "Create `packages/element/tests/textStyleRanges.test.ts` so that these problems are solved, following the conventions in the shared brief:\n1. Unit U16 did not apply (dispatch_failed: the last attempt, the lean Opus typist, did not answer within 540 s). The previous checked attempt's file passed every case but two in `yarn -s vitest run packages/element/tests/textStyleRanges.test.ts`: 'undo restores the previous ranges and redo re-applies them' -> TypeError: delta.hasVisibleDifferences is not a function (textStyleRanges.test.ts:392); 'an equal-content styleRanges change is not recorded' -> Cannot read properties of undefined (reading 'updated'). ElementsDelta has no hasVisibleDifferences: use `ElementsDelta.calculate(before, after)`, `delta.isEmpty()`, `delta.inverse()`, `delta.applyTo(current, snapshot)` which returns `[elementsMap, isVisible]`, and the public record `delta.updated[elementId]` (see packages/element/tests/delta.test.tsx for usage). Maps are SceneElementsMap built with arrayToMap. For the equal-content case assert `delta.isEmpty()` is true (or `delta.updated[id]` is undefined). Keep the file focused; write the whole file.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-feature-new-rich-text-spans/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/delta.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]
