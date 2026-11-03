@@ -79,6 +79,7 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import { restoreStyleRanges } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -593,6 +594,18 @@ export const restoreElement = (
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
       });
+      {
+        const styleRanges = restoreStyleRanges(
+          (element as any).styleRanges,
+          element.originalText,
+        );
+        const restoredText: Mutable<ExcalidrawTextElement> = { ...element };
+        delete restoredText.styleRanges;
+        if (styleRanges !== undefined) {
+          restoredText.styleRanges = styleRanges;
+        }
+        element = restoredText;
+      }
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)

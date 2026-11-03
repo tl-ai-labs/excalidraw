@@ -41,6 +41,7 @@ import { getLineWidth } from "@excalidraw/element";
 import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
+import { shiftRangesForEdit, withStyleRanges } from "@excalidraw/element";
 import {
   isArrowElement,
   isBoundToContainer,
@@ -751,6 +752,25 @@ export const textWysiwyg = ({
       };
     })();
 
+  const syncTextEditorSelection = () => {
+    if (isDestroyed) {
+      return;
+    }
+    const start = editable.selectionStart;
+    const end = editable.selectionEnd;
+    const next = { elementId: element.id, start, end };
+    const current = app.state.textEditorSelection;
+    if (
+      current &&
+      current.elementId === next.elementId &&
+      current.start === next.start &&
+      current.end === next.end
+    ) {
+      return;
+    }
+    app.setState({ textEditorSelection: next });
+  };
+
   if (onChange) {
     editable.onpaste = async (event) => {
       // we need to synchronously get the MIME types so we can preventDefault()
@@ -860,7 +880,28 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
+      const latest = app.scene.getElement(element.id);
+      if (
+        latest &&
+        isTextElement(latest) &&
+        latest.styleRanges &&
+        latest.styleRanges.length > 0
+      ) {
+        const next = withStyleRanges(
+          latest,
+          shiftRangesForEdit(
+            latest.styleRanges,
+            latest.originalText,
+            editable.value,
+          ),
+          editable.value.length,
+        );
+        if (next !== latest) {
+          app.scene.mapElements((el) => (el.id === latest.id ? next : el));
+        }
+      }
       onChange(editable.value);
+      syncTextEditorSelection();
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1038,6 +1079,9 @@ export const textWysiwyg = ({
     // it'd get stuck in an infinite loop of blur→onSubmit after we re-focus the
     // wysiwyg on update
     cleanup();
+    if (app.state.textEditorSelection !== null) {
+      app.setState({ textEditorSelection: null });
+    }
     const updateElement = app.scene.getElement(
       element.id,
     ) as ExcalidrawTextElement;
@@ -1093,6 +1137,9 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.removeEventListener("select", syncTextEditorSelection);
+    editable.removeEventListener("keyup", syncTextEditorSelection);
+    editable.removeEventListener("mouseup", syncTextEditorSelection);
 
     if (observer) {
       observer.disconnect();
@@ -1318,6 +1365,11 @@ export const textWysiwyg = ({
   }
 
   editable.onpointerdown = (event) => event.stopPropagation();
+
+  editable.addEventListener("select", syncTextEditorSelection);
+  editable.addEventListener("keyup", syncTextEditorSelection);
+  editable.addEventListener("mouseup", syncTextEditorSelection);
+  syncTextEditorSelection();
 
   // rAF (+ capture to by doubly sure) so we don't catch te pointerdown that
   // triggered the wysiwyg

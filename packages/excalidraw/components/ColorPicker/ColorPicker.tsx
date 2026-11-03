@@ -67,6 +67,11 @@ interface ColorPickerProps {
    * from the picker popup onto it. The value names the
    * `appState.colorTopPicks` slot the customization is stored in */
   customizableTopPicks?: keyof AppState["colorTopPicks"];
+  /** the `appState.openPopup` key this picker opens under; defaults to `type` */
+  popupId?: Extract<
+    AppState["openPopup"],
+    "textRangeColor" | "textRangeHighlight"
+  >;
 }
 
 const ColorPickerPopupContent = ({
@@ -81,6 +86,7 @@ const ColorPickerPopupContent = ({
   appState,
   excludedColors,
   onResetTopPicks,
+  popupKey,
 }: Pick<
   ColorPickerProps,
   | "type"
@@ -94,6 +100,7 @@ const ColorPickerPopupContent = ({
   | "excludedColors"
 > & {
   getOpenPopup: () => AppState["openPopup"];
+  popupKey: NonNullable<AppState["openPopup"]>;
   /** present only while the top picks are customized */
   onResetTopPicks?: () => void;
 }) => {
@@ -174,7 +181,7 @@ const ColorPickerPopupContent = ({
       }}
       onClose={() => {
         // only clear if we're still the active popup (avoid racing with switch)
-        if (getOpenPopup() === type) {
+        if (getOpenPopup() === popupKey) {
           updateData({ openPopup: null });
         }
         setActiveColorPickerSection(null);
@@ -259,15 +266,18 @@ const ColorPickerPopupContent = ({
 
 const isColorPickerPopup = (
   popup: AppState["openPopup"],
-): popup is ColorPickerType =>
+): popup is ColorPickerType | "textRangeColor" | "textRangeHighlight" =>
   popup === "elementStroke" ||
   popup === "elementBackground" ||
-  popup === "canvasBackground";
+  popup === "canvasBackground" ||
+  popup === "textRangeColor" ||
+  popup === "textRangeHighlight";
 
 const ColorPickerTrigger = ({
   label,
   color,
   type,
+  popupKey,
   theme,
   mode = "background",
   onToggle,
@@ -276,6 +286,7 @@ const ColorPickerTrigger = ({
   color: string | null;
   label: string;
   type: ColorPickerType;
+  popupKey: NonNullable<AppState["openPopup"]>;
   theme: Theme;
   mode?: "background" | "stroke";
   onToggle: () => void;
@@ -319,7 +330,7 @@ const ColorPickerTrigger = ({
           ? t("labels.showStroke")
           : t("labels.showBackground")
       }
-      data-openpopup={type}
+      data-openpopup={popupKey}
       onClick={handleClick}
       // the active-color swatch can be dragged onto the top-picks strip to
       // pin the current (possibly custom) color
@@ -359,7 +370,9 @@ const ColorPickerComponent = ({
   appState,
   excludedColors,
   customizableTopPicks,
+  popupId,
 }: ColorPickerProps) => {
+  const popupKey = popupId ?? type;
   const openRef = useRef(appState.openPopup);
   useEffect(() => {
     openRef.current = appState.openPopup;
@@ -433,12 +446,12 @@ const ColorPickerComponent = ({
               // focus over to this picker (same as clicking its trigger)
               if (
                 isColorPickerPopup(appState.openPopup) &&
-                appState.openPopup !== type
+                appState.openPopup !== popupKey
               ) {
                 // deferred: each updateData spreads the full pre-commit
                 // appState, so issuing this in the same task would clobber
                 // the color change committed by `onChange` above
-                setTimeout(() => updateData({ openPopup: type }), 0);
+                setTimeout(() => updateData({ openPopup: popupKey }), 0);
               }
             }}
             type={type}
@@ -449,10 +462,10 @@ const ColorPickerComponent = ({
         )}
         {!isCompactMode && <ButtonSeparator />}
         <Popover.Root
-          open={appState.openPopup === type}
+          open={appState.openPopup === popupKey}
           onOpenChange={(open) => {
             if (open) {
-              updateData({ openPopup: type });
+              updateData({ openPopup: popupKey });
             }
           }}
         >
@@ -461,26 +474,28 @@ const ColorPickerComponent = ({
             color={color}
             label={label}
             type={type}
+            popupKey={popupKey}
             theme={appState.theme}
             mode={type === "elementStroke" ? "stroke" : "background"}
             editingTextElement={!!appState.editingTextElement}
             onToggle={() => {
               // atomic switch: if another popup is open, close it first, then open this one next tick
-              if (appState.openPopup === type) {
+              if (appState.openPopup === popupKey) {
                 // toggle off on same trigger
                 updateData({ openPopup: null });
               } else if (appState.openPopup) {
-                updateData({ openPopup: type });
+                updateData({ openPopup: popupKey });
               } else {
                 // open this one
-                updateData({ openPopup: type });
+                updateData({ openPopup: popupKey });
               }
             }}
           />
           {/* popup content */}
-          {appState.openPopup === type && (
+          {appState.openPopup === popupKey && (
             <ColorPickerPopupContent
               type={type}
+              popupKey={popupKey}
               color={color}
               onChange={onChange}
               label={label}
@@ -521,13 +536,14 @@ const areColorPickerPropsEqual = (
   // the open popup is interactive (hotkeys, eye dropper, most-used custom
   // colors) — never memoize it, including the open/close transitions
   if (
-    prev.appState.openPopup === prev.type ||
-    next.appState.openPopup === next.type
+    prev.appState.openPopup === (prev.popupId ?? prev.type) ||
+    next.appState.openPopup === (next.popupId ?? next.type)
   ) {
     return false;
   }
   return (
     prev.type === next.type &&
+    prev.popupId === next.popupId &&
     prev.color === next.color &&
     prev.label === next.label &&
     // popup open/close is rare, and the strip's click handler branches on

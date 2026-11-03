@@ -47,7 +47,7 @@ import {
   restoreOriginalGetBoundingClientRect,
 } from "../tests/test-utils";
 import * as dataModule from "../data";
-import { actionBindText } from "../actions";
+import { actionBindText, actionChangeTextRangeColor } from "../actions";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { getTextAutoResizeHandle } from "../textAutoResizeHandle";
 
@@ -3592,6 +3592,70 @@ describe("textWysiwyg", () => {
       Keyboard.undo();
 
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+    });
+  });
+
+  describe("style ranges", () => {
+    const color = "#e03131";
+
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    const startWithColored = async (
+      start: number,
+      end: number,
+    ): Promise<HTMLTextAreaElement> => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "hello world");
+      editor.setSelectionRange(start, end);
+      fireEvent.select(editor);
+      expect(h.state.textEditorSelection).toEqual(
+        expect.objectContaining({ start, end }),
+      );
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeTextRangeColor, "api", {
+          color,
+        });
+      });
+      expect((h.elements[0] as ExcalidrawTextElement).styleRanges).toEqual([
+        { start, end, color },
+      ]);
+      return editor;
+    };
+
+    it("moves a range when typing before it", async () => {
+      const editor = await startWithColored(0, 5);
+      updateTextEditor(editor, ">> hello world");
+      expect((h.elements[0] as ExcalidrawTextElement).styleRanges).toEqual([
+        { start: 3, end: 8, color },
+      ]);
+    });
+
+    it("trims a range when part of it is deleted", async () => {
+      const editor = await startWithColored(6, 11);
+      updateTextEditor(editor, "hello wo");
+      expect((h.elements[0] as ExcalidrawTextElement).styleRanges).toEqual([
+        { start: 6, end: 8, color },
+      ]);
+    });
+
+    it("leaves text typed at the end of a range unstyled", async () => {
+      const editor = await startWithColored(6, 11);
+      updateTextEditor(editor, "hello world!");
+      expect((h.elements[0] as ExcalidrawTextElement).styleRanges).toEqual([
+        { start: 6, end: 11, color },
+      ]);
+    });
+
+    it("clears textEditorSelection on submit", async () => {
+      const editor = await startWithColored(6, 11);
+      expect(h.state.textEditorSelection).not.toBe(null);
+      Keyboard.exitTextEditor(editor);
+      expect(h.state.textEditorSelection).toBe(null);
     });
   });
 });

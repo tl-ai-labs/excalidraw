@@ -26,6 +26,7 @@ import {
 import { LinearElementEditor } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
+import { getStyledTextLines } from "@excalidraw/element";
 import {
   isArrowElement,
   isIframeLikeElement,
@@ -812,7 +813,68 @@ const renderElementToSvg = (
             : element.textAlign === "right" || direction === "rtl"
             ? "end"
             : "start";
+        const styledLines = getStyledTextLines(
+          element,
+          renderConfig.renderEnvironment,
+        );
+        const isDark = renderConfig.theme === THEME.DARK;
         for (let i = 0; i < lines.length; i++) {
+          const styledLine = styledLines ? styledLines[i] : null;
+          if (styledLines) {
+            const runs = styledLine?.runs ?? [];
+            for (const run of runs) {
+              if (run.highlight) {
+                const rect = svgRoot.ownerDocument.createElementNS(
+                  SVG_NS,
+                  "rect",
+                );
+                rect.setAttribute("x", `${run.x}`);
+                rect.setAttribute("y", `${i * lineHeightPx}`);
+                rect.setAttribute("width", `${run.width}`);
+                rect.setAttribute("height", `${lineHeightPx}`);
+                rect.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(run.highlight, isDark),
+                );
+                node.appendChild(rect);
+              }
+            }
+            const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
+            text.setAttribute("x", `${runs.length ? runs[0].x : 0}`);
+            text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
+            text.setAttribute("font-family", getFontFamilyString(element));
+            text.setAttribute("font-size", `${element.fontSize}px`);
+            text.setAttribute(
+              "fill",
+              applyDarkModeFilter(element.strokeColor, isDark),
+            );
+            // `text-anchor` is logical in SVG: pin the direction so "start"
+            // anchors each run's left edge at run.x, as the canvas does
+            text.setAttribute("text-anchor", "start");
+            text.setAttribute("style", "white-space: pre;");
+            text.setAttribute("direction", "ltr");
+            text.setAttribute("dominant-baseline", "alphabetic");
+            for (const run of runs) {
+              if (!run.text) {
+                continue;
+              }
+              const tspan = svgRoot.ownerDocument.createElementNS(
+                SVG_NS,
+                "tspan",
+              );
+              tspan.setAttribute("x", `${run.x}`);
+              if (run.color) {
+                tspan.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(run.color, isDark),
+                );
+              }
+              tspan.textContent = run.text;
+              text.appendChild(tspan);
+            }
+            node.appendChild(text);
+            continue;
+          }
           const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
           text.textContent = lines[i];
           text.setAttribute("x", `${horizontalOffset}`);
