@@ -15,6 +15,10 @@ Please add the latest change on the top under the correct section.
 
 ## Excalidraw API
 
+### Lasso selection follows the "Select on" preference
+
+- The lasso tool now follows `appState.boxSelectionMode` (Preferences → "Select on"). With Wrap (`"contain"`, the default) it selects only elements it fully encloses, a container only together with its bound text, and a group only when every member is enclosed. With Overlap (`"overlap"`) it selects what it selected before (crossed or partly enclosed elements). The preference is read on every stroke.
+
 ### Host-controlled active tool (2026-07-14) [#11665](https://github.com/excalidraw/excalidraw/pull/11665)
 
 - Added `activeTool` prop (`{ type: ToolType } | { type: "custom"; customType: string }`) for forcing the active editor tool (controlled). While set, user- and API-driven tool switching is ignored — `setActiveTool` refuses non-matching activations with a console warning, non-forced toolbar buttons render disabled, and the tool-lock toggle (`Q`) is inert — and the editor snaps back if internal flows reset the tool (e.g. `restore()` on scene load). The forced tool behaves as if locked — it doesn't revert to selection after use and drawn elements aren't auto-selected — without mutating `appState.activeTool.locked`, so the user's persisted padlock preference stays untouched. Unset the prop to return tool control to the editor (the current tool stays active). The forced tool must be activatable to take effect — not disabled via `UIOptions.tools`, and (while non-interactive) allowed via `interaction.enabled.tools`; otherwise the editor stays on the `selection` tool and applies the forced tool once it becomes activatable. `image` cannot be forced (its activation opens the file picker). Composes with `interaction.enabled.tools` for presentation-style hosts: force `laser` for the presenter, `selection` + `interaction={false}` for viewers.

@@ -1,0 +1,55 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/lasso.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 1927): Spec deviation that may hide a defect. change_plan says the bound-text case should use the wrapping lasso (40,40)-(260,260). The unit test uses (10,10)-(490,490) instead, and so does the integration test at line 2024. The label sits at x 70..230 and y 140..160, so (40,40)-(260,260) already encloses the container and its label with at least 30px to spare. The test was widened by 220px without a recorded reason, which suggests the planned lasso failed. If so, wrapTest or the bound-text segment check rejects a label that really is fully enclosed, and the tests now hide the bug. Confidence: medium. Not run, per review policy. — fix: Go back to the planned rectPath(40, 40, 260, 260) in both bound-text cases (lines ~1927 and ~2024). If that fails, fix the cause in lasso/utils.ts wrapTest (for example, label segments that don't match the position computeBoundTextPosition gives). Do not keep the widened lasso.\n2. minor (line 2002): Redundant `API.setAppState({ boxSelectionMode: \"contain\" })` before the second stroke in 'wrap stroke over part of a group selects nothing'. The same happens at line 2023 in 'wrap stroke selects a container only with its bound text enclosed'. The mode is already \"contain\", so the reader may wrongly think the stroke resets it. — fix: Remove the second `API.setAppState({ boxSelectionMode: \"contain\" })` in both tests.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest-file",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 420,
+      "max_retries": 2
+    }
+  }
+]

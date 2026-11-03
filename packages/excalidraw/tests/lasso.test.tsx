@@ -32,7 +32,11 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
-import { act, render } from "./test-utils";
+import { API } from "./helpers/api";
+
+import { act, assertSelectedElements, render } from "./test-utils";
+
+import type { AppState } from "../types";
 
 const { h } = window;
 
@@ -1800,5 +1804,270 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+const rectPath = (
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): GlobalPoint[] => [
+  pointFrom<GlobalPoint>(x1, y1),
+  pointFrom<GlobalPoint>(x2, y1),
+  pointFrom<GlobalPoint>(x2, y2),
+  pointFrom<GlobalPoint>(x1, y2),
+];
+
+const rect = (
+  id: string,
+  x: number,
+  y: number,
+  size: number,
+  groupIds: string[] = [],
+) =>
+  API.createElement({
+    type: "rectangle",
+    id,
+    x,
+    y,
+    width: size,
+    height: size,
+    groupIds,
+    roundness: null,
+    roughness: 0,
+  });
+
+const setBoundTextFixture = () => {
+  API.setElements([
+    API.createElement({
+      type: "rectangle",
+      id: "container",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+      roundness: null,
+      roughness: 0,
+      boundElements: [{ type: "text", id: "label" }],
+    }),
+    API.createElement({
+      type: "text",
+      id: "label",
+      x: 70,
+      y: 140,
+      width: 160,
+      height: 20,
+      roundness: null,
+      roughness: 0,
+      containerId: "container",
+    }),
+  ]);
+};
+
+describe("getLassoSelectedElementIds with boxSelectionMode", () => {
+  const lassoSelect = (
+    path: GlobalPoint[],
+    options: {
+      boxSelectionMode?: AppState["boxSelectionMode"];
+      editingGroupId?: string | null;
+    } = {},
+  ) => {
+    const elementsSegments: ElementsSegmentsMap = new Map();
+    for (const element of h.elements) {
+      elementsSegments.set(
+        element.id,
+        getElementLineSegments(element, h.app.scene.getNonDeletedElementsMap()),
+      );
+    }
+    const { selectedElementIds } = getLassoSelectedElementIds({
+      lassoPath: path,
+      elements: h.elements,
+      elementsMap: h.scene.getNonDeletedElementsMap(),
+      elementsSegments,
+      intersectedElements: new Set(),
+      enclosedElements: new Set(),
+      ...options,
+    });
+    return [...selectedElementIds].sort();
+  };
+
+  it("contain selects a fully enclosed element", () => {
+    API.setElements([rect("A", 100, 100, 100)]);
+    expect(
+      lassoSelect(rectPath(50, 50, 250, 250), { boxSelectionMode: "contain" }),
+    ).toEqual(["A"]);
+  });
+
+  it("contain ignores an element the lasso only crosses", () => {
+    API.setElements([rect("A", 100, 100, 100)]);
+    const path = rectPath(130, 50, 170, 250);
+    expect(lassoSelect(path, { boxSelectionMode: "contain" })).toEqual([]);
+    expect(lassoSelect(path, { boxSelectionMode: "overlap" })).toEqual(["A"]);
+  });
+
+  it("contain ignores a partly enclosed element", () => {
+    API.setElements([rect("A", 100, 100, 100)]);
+    const path = rectPath(50, 50, 150, 150);
+    expect(lassoSelect(path, { boxSelectionMode: "contain" })).toEqual([]);
+    expect(lassoSelect(path, { boxSelectionMode: "overlap" })).toEqual(["A"]);
+  });
+
+  it("omitting boxSelectionMode keeps overlap results", () => {
+    API.setElements([rect("A", 100, 100, 100)]);
+    expect(lassoSelect(rectPath(50, 50, 150, 150))).toEqual(["A"]);
+  });
+
+  it("contain selects a container only when its bound text is enclosed too", () => {
+    setBoundTextFixture();
+    expect(
+      lassoSelect(rectPath(80, 80, 220, 220), { boxSelectionMode: "contain" }),
+    ).toEqual([]);
+    expect(
+      lassoSelect(rectPath(10, 10, 490, 490), { boxSelectionMode: "contain" }),
+    ).toEqual(["container"]);
+  });
+
+  it("contain drops a partly enclosed group and keeps other wrapped elements", () => {
+    API.setElements([
+      rect("A", 100, 100, 50, ["g1"]),
+      rect("B", 300, 100, 50, ["g1"]),
+      rect("C", 100, 250, 50),
+    ]);
+    expect(
+      lassoSelect(rectPath(50, 50, 200, 350), { boxSelectionMode: "contain" }),
+    ).toEqual(["C"]);
+  });
+
+  it("contain selects a group when every member is enclosed", () => {
+    API.setElements([
+      rect("A", 100, 100, 50, ["g1"]),
+      rect("B", 300, 100, 50, ["g1"]),
+      rect("C", 100, 250, 50),
+    ]);
+    expect(
+      lassoSelect(rectPath(50, 50, 400, 350), { boxSelectionMode: "contain" }),
+    ).toEqual(["A", "B", "C"]);
+  });
+
+  it("contain inside an edited group does not require the whole group", () => {
+    API.setElements([
+      rect("A", 100, 100, 50, ["g1"]),
+      rect("B", 300, 100, 50, ["g1"]),
+      rect("C", 100, 250, 50),
+    ]);
+    expect(
+      lassoSelect(rectPath(50, 50, 200, 350), {
+        boxSelectionMode: "contain",
+        editingGroupId: "g1",
+      }),
+    ).toEqual(["A", "C"]);
+  });
+});
+
+describe("lasso tool follows boxSelectionMode", () => {
+  const lassoStroke = (path: GlobalPoint[]) => {
+    act(() => {
+      h.app.lassoTrail.startPath(path[0][0], path[0][1]);
+      for (const [x, y] of path.slice(1)) {
+        h.app.lassoTrail.addPointToPath(x, y);
+      }
+      h.app.lassoTrail.addPointToPath(path[0][0], path[0][1]);
+      h.app.lassoTrail.endPath();
+    });
+  };
+
+  it("wrap stroke selects only the fully enclosed element", () => {
+    API.setElements([rect("A", 100, 100, 50), rect("B", 300, 100, 100)]);
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoStroke(rectPath(50, 50, 350, 250));
+    assertSelectedElements(["A"]);
+  });
+
+  it("overlap stroke selects crossed and partly enclosed elements", () => {
+    API.setElements([rect("A", 100, 100, 50), rect("B", 300, 100, 100)]);
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoStroke(rectPath(50, 50, 350, 250));
+    assertSelectedElements(["A", "B"]);
+  });
+
+  it("wrap stroke over part of a group selects nothing", () => {
+    API.setElements([
+      rect("A", 100, 100, 50, ["g1"]),
+      rect("B", 300, 100, 50, ["g1"]),
+    ]);
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoStroke(rectPath(50, 50, 200, 200));
+    assertSelectedElements([]);
+    lassoStroke(rectPath(50, 50, 400, 200));
+    assertSelectedElements(["A", "B"]);
+    expect(h.state.selectedGroupIds.g1).toBe(true);
+  });
+
+  it("overlap stroke over one group member selects the whole group", () => {
+    API.setElements([
+      rect("A", 100, 100, 50, ["g1"]),
+      rect("B", 300, 100, 50, ["g1"]),
+    ]);
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoStroke(rectPath(50, 50, 200, 200));
+    assertSelectedElements(["A", "B"]);
+  });
+
+  it("wrap stroke selects a container only with its bound text enclosed", () => {
+    setBoundTextFixture();
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoStroke(rectPath(80, 80, 220, 220));
+    assertSelectedElements([]);
+    lassoStroke(rectPath(10, 10, 490, 490));
+    assertSelectedElements(["container"]);
+  });
+
+  it("overlap stroke over bound text selects its container", () => {
+    setBoundTextFixture();
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoStroke(rectPath(40, 120, 90, 180));
+    assertSelectedElements(["container"]);
+  });
+
+  it("frame children are removed from the selection in both modes", () => {
+    for (const boxSelectionMode of ["contain", "overlap"] as const) {
+      API.setElements([
+        API.createElement({
+          type: "frame",
+          id: "frame",
+          x: 100,
+          y: 100,
+          width: 200,
+          height: 200,
+          roundness: null,
+          roughness: 0,
+        }),
+        API.createElement({
+          type: "rectangle",
+          id: "child",
+          x: 150,
+          y: 150,
+          width: 50,
+          height: 50,
+          frameId: "frame",
+          roundness: null,
+          roughness: 0,
+        }),
+      ]);
+      API.setAppState({ boxSelectionMode });
+      lassoStroke(rectPath(50, 50, 350, 350));
+      assertSelectedElements(["frame"]);
+    }
+  });
+
+  it("switching the preference between strokes changes the second stroke", () => {
+    API.setElements([rect("A", 100, 100, 50), rect("B", 300, 100, 100)]);
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoStroke(rectPath(50, 50, 350, 250));
+    assertSelectedElements(["A"]);
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoStroke(rectPath(50, 50, 350, 250));
+    assertSelectedElements(["A", "B"]);
   });
 });

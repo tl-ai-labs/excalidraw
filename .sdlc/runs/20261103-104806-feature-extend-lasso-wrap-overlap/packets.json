@@ -1,0 +1,466 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/lasso/utils.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/utils.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 11-17 (line 11 reads `import {`, line 17 reads `} from \"@excalidraw/element\";`) — Same import with boundsContainBounds, getElementLineSegments and isBoundToContainer added, alphabetical (rule 9).\n- S2: insert after line 20 (line 20 reads `import type { ElementsMap, ExcalidrawElement } from \"@excalidraw/element/types\";`) — A blank line, then `import type { AppState } from \"../types\";` (rule 9).\n- S3: replace lines 22-41 (line 22 reads `export const getLassoSelectedElementIds = (input: {`, line 41 reads `} = input;`) — Signature and destructuring with the two new optional inputs and their defaults (rule 1).\n- S4: replace lines 62-90 (line 62 reads `for (const element of unlockedElements) {`, line 90 reads `};`) — Branch on boxSelectionMode: the \"overlap\" branch is today's loop and return verbatim; the \"contain\" branch follows rules 4 and 5; the function's closing `};` stays.\n- S5: insert after line 143 (line 143 reads `};`) — A blank line, then wrapTest, getOuterGroupId and filterIncompleteGroups (rules 6-8), each separated by a blank line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/groups.ts",
+        "lines": [
+          92,
+          107
+        ],
+        "reason": "uses: Group key relative to editingGroupId that getOuterGroupId must mirror."
+      },
+      {
+        "path": "packages/element/src/bounds.ts",
+        "lines": [
+          1259,
+          1265
+        ],
+        "reason": "uses: boundsContainBounds(outerBounds, innerBounds) argument order."
+      },
+      {
+        "path": "packages/element/src/selection.ts",
+        "lines": [
+          33,
+          34
+        ],
+        "reason": "uses: Box select ignores locked and bound-text elements; the group member count does the same."
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 17
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 20,
+          "to": 20
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 22,
+          "to": 41
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 62,
+          "to": 90
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 143,
+          "to": 143
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/lasso/index.ts",
+    "depends_on": [
+      "tp_codegen_U01"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/index.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 204 (line 204 reads `simplifyDistance: 5 / this.app.state.zoom.value,`) — The two new properties of rule 1, one per line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 204,
+          "to": 204
+        }
+      ],
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U03",
+    "unit": "U03",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/lasso.test.tsx` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 35 (line 35 reads `import { act, render } from \"./test-utils\";`) — The import lines of rule 7.\n- S2: insert after line 1804 (line 1804 reads `});`) — A blank line, then the unit describe (rule 4) and the integration describe (rule 5) with the cases listed in tests.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "lines": [
+          154,
+          199
+        ],
+        "reason": "style file: API.createElement / API.setElements / act / assertSelectedElements usage around the lasso tool."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          69,
+          90
+        ],
+        "reason": "uses: API.setAppState and API.setElements signatures."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          163,
+          232
+        ],
+        "reason": "uses: API.createElement options (id, groupIds, frameId, boundElements, containerId, roundness, roughness)."
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "lines": [
+          214,
+          231
+        ],
+        "reason": "uses: assertSelectedElements compares the exact selected set by id."
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "contain selects a fully enclosed element: given rectangle A at (100,100) 100x100; lasso (50,50)-(250,250); boxSelectionMode \"contain\", expect [\"A\"]",
+      "contain ignores an element the lasso only crosses: given rectangle A at (100,100) 100x100; band lasso (130,50)-(170,250) crossing its top and bottom edges, expect \"contain\" gives []; \"overlap\" gives [\"A\"]",
+      "contain ignores a partly enclosed element: given rectangle A at (100,100) 100x100; lasso (50,50)-(150,150) enclosing only its top-left corner, expect \"contain\" gives []; \"overlap\" gives [\"A\"]",
+      "omitting boxSelectionMode keeps overlap results: given the partial lasso of the previous case and no boxSelectionMode option, expect [\"A\"]",
+      "contain selects a container only when its bound text is enclosed too: given the bound-text fixture; lasso (80,80)-(220,220) wraps the container but cuts the label, then lasso (40,40)-(260,260) wraps both, expect first gives []; second gives [\"container\"] (no label id)",
+      "contain drops a partly enclosed group and keeps other wrapped elements: given A (100,100) and B (300,100) 50x50 in group g1, ungrouped C (100,250) 50x50; lasso (50,50)-(200,350), expect [\"C\"]",
+      "contain selects a group when every member is enclosed: given the same A, B, C; lasso (50,50)-(400,350), expect [\"A\", \"B\", \"C\"]",
+      "contain inside an edited group does not require the whole group: given the same A, B, C; lasso (50,50)-(200,350); editingGroupId \"g1\", expect [\"A\", \"C\"]",
+      "wrap stroke selects only the fully enclosed element: given A (100,100) 50x50, B (300,100) 100x100; boxSelectionMode \"contain\"; lassoStroke (50,50)-(350,250), expect selection is [A]",
+      "overlap stroke selects crossed and partly enclosed elements: given the same A, B; boxSelectionMode \"overlap\"; the same stroke, expect selection is [A, B]",
+      "wrap stroke over part of a group selects nothing: given A (100,100) and B (300,100) 50x50 in group g1; \"contain\"; stroke (50,50)-(200,200), then stroke (50,50)-(400,200), expect first leaves the selection empty; second selects [A, B] and h.state.selectedGroupIds.g1 is true",
+      "overlap stroke over one group member selects the whole group: given the same grouped A, B; \"overlap\"; stroke (50,50)-(200,200), expect selection is [A, B]",
+      "wrap stroke selects a container only with its bound text enclosed: given the bound-text fixture; \"contain\"; stroke (80,80)-(220,220), then stroke (40,40)-(260,260), expect first leaves the selection empty; second selects [container]",
+      "overlap stroke over bound text selects its container: given the bound-text fixture; \"overlap\"; stroke (40,120)-(90,180) touching only the label's left overflow, expect selection is [container]",
+      "frame children are removed from the selection in both modes: given frame `frame` (100,100) 200x200 and rectangle `child` (150,150) 50x50 with frameId \"frame\"; for each of \"contain\" and \"overlap\", stroke (50,50)-(350,350), expect selection is [frame] in both modes",
+      "switching the preference between strokes changes the second stroke: given A (100,100) 50x50, B (300,100) 100x100; \"contain\" and stroke (50,50)-(350,250); then API.setAppState overlap and the same stroke, expect first selects [A]; second selects [A, B]"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest-file",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 35,
+          "to": 35
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 1804,
+          "to": 1804
+        }
+      ],
+      "verify_timeout_sec": 420,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U04",
+    "unit": "U04",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/selection.test.tsx` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 156 (line 156 reads `await render(<Excalidraw />);`) — The render call of rule 1.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "should allow ctrl+alt lasso reselection when starting inside the active common bounds: given existing test, now rendered with boxSelectionMode \"overlap\", expect unchanged: selection is [rectA]"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest-file",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 156,
+          "to": 156
+        }
+      ],
+      "verify_timeout_sec": 420,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U05",
+    "unit": "U05",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 16 (line 16 reads `## Excalidraw API`) — The heading and bullet of rules 1-2.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 16,
+          "to": 16
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U06",
+    "unit": "U06",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261103-104806-feature-extend-lasso-wrap-overlap",
+    "artifact_path": ".gitignore",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `.gitignore` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 29 (line 29 reads `.claude`) — The single `.sdlc/` line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \".gitignore\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \".gitignore\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261103-104806-feature-extend-lasso-wrap-overlap/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": ".gitignore",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 29,
+          "to": 29
+        }
+      ],
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:app --watch=false packages/excalidraw/tests/lasso.test.tsx packages/excalidraw/tests/selection.test.tsx",
+      "yarn test:typecheck"
+    ]
+  }
+]

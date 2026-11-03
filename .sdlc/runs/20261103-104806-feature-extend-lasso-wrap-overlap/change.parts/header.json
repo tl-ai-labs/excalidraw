@@ -1,0 +1,115 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "TypeScript strict mode throughout; introduce no `any`, no `@ts-ignore`, and no new non-null assertions.",
+      "Formatting is Prettier 2.6.2 with @excalidraw/prettier-config: 80-column wrap, double quotes, semicolons, trailing commas, 2-space indent; the file check's fix step runs prettier --write, so never hand-align.",
+      "Import order (eslint import/order, --max-warnings=0): third-party, then @excalidraw/* value imports, then `import type` from @excalidraw/*/types, then relative value imports, then relative `import type`; a blank line between groups.",
+      "Type-only imports use a separate `import type { ... }` statement (@typescript-eslint/consistent-type-imports is an error).",
+      "lasso/utils.ts helpers are arrow-function consts: the exported function takes one object input with an explicit return type, optional fields last as `?:`; private helpers are non-exported consts with explicit return types, defined after their caller like the existing enclosureTest/intersectionTest.",
+      "The lasso runs on every pointer move: no allocation inside per-element loops beyond what today's code does, build the lasso polygon once per call, prefer const, ?. and ??.",
+      "The preference vocabulary is the existing `\"contain\" | \"overlap\"` typed as `AppState[\"boxSelectionMode\"]`; add no appState key, locale string, menu item or new exported type.",
+      "Tests use Vitest globals (describe/it/expect/beforeEach, no imports from vitest), drive the editor through `window.h`, create elements with `API.createElement` and put them on the scene with `API.setElements`, change appState with `API.setAppState`, and wrap direct LassoTrail calls in `act`.",
+      "Test geometry is axis-aligned and unambiguous: shapes use `roundness: null` and `roughness: 0`, and every lasso vertex sits at least 10 scene px from the nearest element edge, so path simplification cannot change an outcome."
+    ],
+    "decisions": [
+      {
+        "topic": "Default mode of getLassoSelectedElementIds",
+        "choice": "`boxSelectionMode` is optional and defaults to \"overlap\" inside the function; LassoTrail always passes `this.app.state.boxSelectionMode`, so the editor follows the preference (default \"contain\") while direct callers keep today's results.",
+        "rejected": [
+          "default to \"contain\" in the function (breaks existing direct callers and the existing unit assertions)"
+        ],
+        "reason": "FR-1 and NFR-1/AC-7 require omitted input to behave exactly as today."
+      },
+      {
+        "topic": "Which group a Wrap-mode element must complete",
+        "choice": "The group key is the outermost group relative to the editing context, computed exactly like selectGroupsForSelectedElements: with editingGroupId E present in element.groupIds at index i, the key is groupIds[i - 1] (null when i is 0); otherwise the key is groupIds.at(-1) ?? null. getLassoSelectedElementIds gains a second optional input `editingGroupId` (default null) that LassoTrail fills from `this.app.state.editingGroupId`.",
+        "rejected": [
+          "box select's plain groupIds.at(-1) with no editing context (inside an edited group, Wrap could never select a single member, regressing today's lasso)",
+          "enforcing groups only in selectElementsFromIds (unit path would not cover FR-5)"
+        ],
+        "reason": "FR-5 names the editing context, and the key must match the group selectGroupsForSelectedElements later expands, or a filtered group could still be expanded."
+      },
+      {
+        "topic": "Where group members are counted",
+        "choice": "Members are counted over `elementsMap.values()` (all non-deleted scene elements), in one pass that runs only when at least one enclosed element has a non-null group key; an eligible member is not deleted, not locked and not bound text (isBoundToContainer), mirroring box select's ignored elements.",
+        "rejected": [
+          "counting over `elements` (LassoTrail passes only visible elements, so an off-screen member would make a partial group look complete)",
+          "calling getElementsInGroup once per touched group (one scan per group instead of one in total)"
+        ],
+        "reason": "Correct for off-screen members, a single O(n) integer-counting pass with one small Map, and zero cost when nothing grouped is enclosed (NFR-2)."
+      },
+      {
+        "topic": "Bound text in Wrap mode",
+        "choice": "A text element bound to a container is never a standalone Wrap candidate; it is judged only as part of its container (FR-4), so Wrap results never contain bound text ids.",
+        "rejected": [
+          "selecting enclosed bound text and letting selectElementsFromIds map it to its container (would select a container that is not enclosed)"
+        ],
+        "reason": "Keeps AC-4 true without touching the text-to-container mapping, which still applies unchanged in Overlap."
+      },
+      {
+        "topic": "Wrap enclosure test",
+        "choice": "An element is wrapped when its AABB lies inside the lasso AABB (boundsContainBounds), every point of every segment in elementsSegments.get(element.id) is inside the lasso polygon (polygonIncludesPointNonZero), its bound text (if any) passes the same point test on elementsSegments.get(text.id), and intersectionTest (which already checks bound text) is false; a missing or empty segments entry means not wrapped.",
+        "rejected": [
+          "checking only AABB corners against the polygon (wrong for rotated and non-rectangular shapes)"
+        ],
+        "reason": "Implements FR-3/FR-4/FR-6 with the cheapest test first and the costly segment intersection last."
+      },
+      {
+        "topic": "selectElementsFromIds in lasso/index.ts",
+        "choice": "Left unchanged: group completeness is enforced in getLassoSelectedElementIds, so the ids reaching selectElementsFromIds are already group-complete; its text-to-container mapping, frame-children removal and selectGroupsForSelectedElements call stay as they are in both modes.",
+        "rejected": [
+          "a second Wrap group filter in selectElementsFromIds (duplicate logic, two places to keep in sync)"
+        ],
+        "reason": "FR-8 requires completeness before selectGroupsForSelectedElements; doing it once upstream satisfies that for both the unit and the LassoTrail path."
+      },
+      {
+        "topic": "Accumulator sets in Wrap mode",
+        "choice": "In \"contain\" mode only `enclosedElements` is filled; ids dropped by the group filter are deleted from it, `intersectedElements` stays empty, and selectedElementIds is `[...enclosedElements]`.",
+        "rejected": [
+          "recording crossed elements in intersectedElements in Wrap mode (nothing reads them and the set would no longer mirror the result)"
+        ],
+        "reason": "The caller's sets keep mirroring the returned selection in both modes."
+      },
+      {
+        "topic": "Pinning the existing lasso reselection test",
+        "choice": "Pin `describe(\"lasso reselection\")` to Overlap by rendering `<Excalidraw initialData={{ appState: { boxSelectionMode: \"overlap\" } }} />` in its beforeEach; the path and the assertion stay byte-identical.",
+        "rejected": [
+          "widening the lasso path (changes where the stroke starts relative to the common bounds, which is what the test is about)"
+        ],
+        "reason": "FR-11 keeps intent and assertions; the same initialData pattern is already used by the box-selection overlap describe in that file."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "prettier",
+        "run": "node_modules/.bin/prettier --check {path}",
+        "fix": "node_modules/.bin/prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "eslint",
+        "run": "node_modules/.bin/eslint --max-warnings=0 {path}",
+        "fix": "node_modules/.bin/eslint --fix {path}",
+        "timeout_s": 180
+      },
+      {
+        "id": "vitest-file",
+        "run": "node_modules/.bin/vitest run {path}",
+        "timeout_s": 420
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "tests",
+        "run": "yarn test:app --watch=false packages/excalidraw/tests/lasso.test.tsx packages/excalidraw/tests/selection.test.tsx"
+      },
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      }
+    ]
+  },
+  "hashes": {}
+}

@@ -9,15 +9,20 @@ import {
 import { type Bounds } from "@excalidraw/common";
 
 import {
+  boundsContainBounds,
   computeBoundTextPosition,
   doBoundsIntersect,
   getBoundTextElement,
   getElementBounds,
+  getElementLineSegments,
   intersectElementWithLineSegment,
+  isBoundToContainer,
 } from "@excalidraw/element";
 
 import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
+
+import type { AppState } from "../types";
 
 export const getLassoSelectedElementIds = (input: {
   lassoPath: GlobalPoint[];
@@ -27,6 +32,8 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  boxSelectionMode?: AppState["boxSelectionMode"];
+  editingGroupId?: AppState["editingGroupId"];
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +45,8 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "overlap",
+    editingGroupId = null,
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -59,6 +68,29 @@ export const getLassoSelectedElementIds = (input: {
     },
     [Infinity, Infinity, -Infinity, -Infinity],
   ) as Bounds;
+
+  if (boxSelectionMode === "contain") {
+    const lassoPolygon = polygonFromPoints(path);
+    for (const element of unlockedElements) {
+      if (element.isDeleted || isBoundToContainer(element)) {
+        continue;
+      }
+      const elementBounds = getElementBounds(element, elementsMap);
+      if (
+        boundsContainBounds(lassoBounds, elementBounds) &&
+        wrapTest(path, lassoPolygon, element, elementsMap, elementsSegments)
+      ) {
+        enclosedElements.add(element.id);
+      }
+    }
+
+    filterIncompleteGroups(enclosedElements, elementsMap, editingGroupId);
+
+    return {
+      selectedElementIds: [...enclosedElements],
+    };
+  }
+
   for (const element of unlockedElements) {
     // First check if the lasso segment intersects the element's axis-aligned
     // bounding box as it is much faster than checking intersection against
@@ -140,4 +172,100 @@ const intersectionTest = (
           true,
         ).length > 0),
   );
+};
+
+const wrapTest = (
+  lassoPath: GlobalPoint[],
+  lassoPolygon: GlobalPoint[],
+  element: ExcalidrawElement,
+  elementsMap: ElementsMap,
+  elementsSegments: ElementsSegmentsMap,
+): boolean => {
+  const segments = elementsSegments.get(element.id);
+  if (!segments || segments.length === 0) {
+    return false;
+  }
+
+  const allInside = segments.every((segment) =>
+    segment.every((point) => polygonIncludesPointNonZero(point, lassoPolygon)),
+  );
+  if (!allInside) {
+    return false;
+  }
+
+  const boundTextElement = getBoundTextElement(element, elementsMap);
+  if (boundTextElement) {
+    const textSegments =
+      elementsSegments.get(boundTextElement.id) ??
+      getElementLineSegments(boundTextElement, elementsMap);
+    const textInside = textSegments.every((segment) =>
+      segment.every((point) =>
+        polygonIncludesPointNonZero(point, lassoPolygon),
+      ),
+    );
+    if (!textInside) {
+      return false;
+    }
+  }
+
+  return !intersectionTest(lassoPath, element, elementsMap);
+};
+
+const getOuterGroupId = (
+  groupIds: readonly string[],
+  editingGroupId: AppState["editingGroupId"],
+): string | null => {
+  if (editingGroupId !== null) {
+    const i = groupIds.indexOf(editingGroupId);
+    if (i > -1) {
+      return i > 0 ? groupIds[i - 1] : null;
+    }
+  }
+  return groupIds.at(-1) ?? null;
+};
+
+const filterIncompleteGroups = (
+  enclosedElements: Set<ExcalidrawElement["id"]>,
+  elementsMap: ElementsMap,
+  editingGroupId: AppState["editingGroupId"],
+): void => {
+  const missing = new Map<string, number>();
+  for (const id of enclosedElements) {
+    const element = elementsMap.get(id);
+    if (!element) {
+      continue;
+    }
+    const key = getOuterGroupId(element.groupIds, editingGroupId);
+    if (key !== null) {
+      missing.set(key, (missing.get(key) ?? 0) + 1);
+    }
+  }
+
+  if (missing.size === 0) {
+    return;
+  }
+
+  for (const member of elementsMap.values()) {
+    if (member.isDeleted || member.locked || isBoundToContainer(member)) {
+      continue;
+    }
+    const key = getOuterGroupId(member.groupIds, editingGroupId);
+    if (key !== null) {
+      const count = missing.get(key);
+      if (count !== undefined) {
+        missing.set(key, count - 1);
+      }
+    }
+  }
+
+  for (const id of enclosedElements) {
+    const element = elementsMap.get(id);
+    if (!element) {
+      continue;
+    }
+    const key = getOuterGroupId(element.groupIds, editingGroupId);
+    if (key !== null && missing.get(key) !== 0) {
+      enclosedElements.delete(id);
+    }
+  }
 };

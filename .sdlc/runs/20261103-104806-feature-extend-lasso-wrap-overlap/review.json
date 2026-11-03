@@ -1,0 +1,30 @@
+{
+  "module": "packages/excalidraw/lasso (lasso Wrap/Overlap)",
+  "verdict": "needs_changes",
+  "tool_calls": 9,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/lasso.test.tsx",
+      "line": 1927,
+      "issue": "Spec deviation that may hide a defect. change_plan says the bound-text case should use the wrapping lasso (40,40)-(260,260). The unit test uses (10,10)-(490,490) instead, and so does the integration test at line 2024. The label sits at x 70..230 and y 140..160, so (40,40)-(260,260) already encloses the container and its label with at least 30px to spare. The test was widened by 220px without a recorded reason, which suggests the planned lasso failed. If so, wrapTest or the bound-text segment check rejects a label that really is fully enclosed, and the tests now hide the bug. Confidence: medium. Not run, per review policy.",
+      "fix": "Go back to the planned rectPath(40, 40, 260, 260) in both bound-text cases (lines ~1927 and ~2024). If that fails, fix the cause in lasso/utils.ts wrapTest (for example, label segments that don't match the position computeBoundTextPosition gives). Do not keep the widened lasso."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/lasso.test.tsx",
+      "line": 2002,
+      "issue": "Redundant `API.setAppState({ boxSelectionMode: \"contain\" })` before the second stroke in 'wrap stroke over part of a group selects nothing'. The same happens at line 2023 in 'wrap stroke selects a container only with its bound text enclosed'. The mode is already \"contain\", so the reader may wrongly think the stroke resets it.",
+      "fix": "Remove the second `API.setAppState({ boxSelectionMode: \"contain\" })` in both tests."
+    }
+  ],
+  "passing": [
+    "lasso/utils.ts: overlap path unchanged, defaults overlap/null; contain branch, wrapTest, getOuterGroupId and filterIncompleteGroups match plan rules 1-10; no any/ts-ignore/non-null assertions; import order OK",
+    "lasso/index.ts: reads boxSelectionMode and editingGroupId live from this.app.state; selectElementsFromIds untouched",
+    "selection.test.tsx: only the render call is pinned to overlap; test body unchanged",
+    "CHANGELOG.md: one Unreleased entry under Excalidraw API, newest on top; no other lines changed",
+    ".gitignore: only `.sdlc/` appended; nothing removed",
+    "Authz/PII/env-fixture: not applicable (client-side editor library, no validating config module)"
+  ],
+  "refinement_packets": []
+}
