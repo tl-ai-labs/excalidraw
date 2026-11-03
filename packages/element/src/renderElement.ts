@@ -59,6 +59,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { getStyledTextLines } from "./textRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -703,12 +704,55 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          const styledLines = getStyledTextLines(
+            element,
+            getRenderEnvironment(renderConfig.renderEnvironment),
+          );
+
+          if (styledLines === null) {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
+          } else {
+            context.textAlign = "left";
+            const isDark = renderConfig.theme === THEME.DARK;
+            const defaultFill = applyDarkModeFilter(
+              element.strokeColor,
+              isDark,
             );
+            for (let i = 0; i < styledLines.length; i++) {
+              const { runs } = styledLines[i];
+              for (const run of runs) {
+                if (run.highlight) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.highlight,
+                    isDark,
+                  );
+                  context.fillRect(
+                    run.x,
+                    i * lineHeightPx,
+                    run.width,
+                    lineHeightPx,
+                  );
+                }
+              }
+              for (const run of runs) {
+                if (run.text) {
+                  context.fillStyle = run.color
+                    ? applyDarkModeFilter(run.color, isDark)
+                    : defaultFill;
+                  context.fillText(
+                    run.text,
+                    run.x,
+                    i * lineHeightPx + verticalOffset,
+                  );
+                }
+              }
+            }
           }
         });
         if (shouldTemporarilyAttach) {

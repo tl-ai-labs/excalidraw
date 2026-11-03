@@ -9,7 +9,13 @@ import {
   getBoundTextMaxWidth,
   getBoundTextMaxHeight,
   computeBoundTextPosition,
+  redrawTextBoundingBox,
 } from "../src/textElement";
+import { newTextElement } from "../src/newElement";
+import { getStyledTextLines } from "../src/textRanges";
+import { newElementWith } from "../src/mutateElement";
+import { syncInvalidIndices } from "../src/fractionalIndex";
+import { Scene } from "../src/Scene";
 import { detectLineHeight, getLineHeightInPx } from "../src/textMeasurements";
 
 import type { ExcalidrawTextElementWithContainer } from "../src/types";
@@ -375,5 +381,88 @@ describe("Test computeBoundTextPosition", () => {
       expect(result.x).toBeCloseTo(135, 1);
       expect(result.y).toBeCloseTo(185, 1);
     });
+  });
+});
+
+describe("style ranges", () => {
+  const ranges = [
+    { start: 0, end: 5, color: "#e03131" },
+    { start: 6, end: 11, highlight: "#ffec99" },
+  ];
+
+  it("newTextElement omits styleRanges when none are given", () => {
+    const a = newTextElement({ text: "hi", x: 0, y: 0 });
+    const b = newTextElement({ text: "hi", x: 0, y: 0, styleRanges: [] });
+    expect("styleRanges" in a).toBe(false);
+    expect("styleRanges" in b).toBe(false);
+  });
+
+  it("newTextElement normalizes given ranges", () => {
+    const el = newTextElement({
+      text: "abc",
+      x: 0,
+      y: 0,
+      styleRanges: [
+        { start: 0, end: 1, color: "red" },
+        { start: 1, end: 2, color: "red" },
+      ],
+    });
+    expect(el.styleRanges).toEqual([{ start: 0, end: 2, color: "red" }]);
+  });
+
+  it("ranges survive font family and size changes", () => {
+    const el = newTextElement({
+      text: "hello world",
+      x: 0,
+      y: 0,
+      styleRanges: ranges,
+    });
+    const original = el.styleRanges;
+    const changed = newElementWith(el, {
+      fontSize: 40,
+      fontFamily: FONT_FAMILY.Nunito,
+    });
+    expect(changed.styleRanges).toEqual(original);
+    const lines = getStyledTextLines(changed, undefined);
+    expect(lines).not.toBeNull();
+    expect(
+      lines!.map((line) => line.runs.map((run) => run.text).join("")).join(""),
+    ).toBe(changed.text.replace(/\n/g, ""));
+  });
+
+  it("ranges survive binding into a container and re-wrap", () => {
+    const container = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 60,
+      height: 200,
+    });
+    const text = newTextElement({
+      text: "hello world foo bar",
+      x: 0,
+      y: 0,
+      containerId: container.id,
+      styleRanges: ranges,
+    });
+    const boundContainer = newElementWith(container, {
+      boundElements: [{ type: "text", id: text.id }],
+    });
+    const elements = syncInvalidIndices([boundContainer, text]);
+    const scene = new Scene(elements);
+    const sceneText = scene.getElement(text.id) as typeof text;
+    const sceneContainer = scene.getElement(container.id)!;
+    const original = sceneText.styleRanges;
+
+    redrawTextBoundingBox(sceneText, sceneContainer, scene);
+
+    const updated = scene.getElement(text.id) as typeof text;
+    expect(updated.text).toContain("\n");
+    expect(updated.styleRanges).toEqual(original);
+    const lines = getStyledTextLines(updated, undefined);
+    expect(lines).not.toBeNull();
+    expect(
+      lines!.map((line) => line.runs.map((run) => run.text).join("")),
+    ).toEqual(updated.text.split("\n"));
   });
 });

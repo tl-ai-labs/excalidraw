@@ -425,6 +425,15 @@ export interface AppState {
    * set when a new text is created or when an existing text is being edited
    */
   editingTextElement: ExcalidrawTextElement | null;
+  /**
+   * the text editor's selection, in originalText offsets, while a text is
+   * being edited (transient: never saved, exported or synced)
+   */
+  textEditorSelection: {
+    elementId: ExcalidrawTextElement["id"];
+    start: number;
+    end: number;
+  } | null;
   activeTool: {
     /**
      * indicates a previous tool we should revert back to if we deselect the
@@ -481,6 +490,8 @@ export interface AppState {
     | "canvasBackground"
     | "elementBackground"
     | "elementStroke"
+    | "textRangeColor"
+    | "textRangeHighlight"
     | "fontFamily"
     | "compactTextProperties"
     | "compactStrokeStyles"
@@ -618,6 +629,7 @@ export type UIAppState = Omit<
   | "originSnapOffset"
   | "suggestedBinding"
   | "textToolHover"
+  | "textEditorSelection"
   | "frameToHighlight"
   | "elementsToHighlight"
 >;

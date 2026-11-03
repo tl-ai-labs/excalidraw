@@ -1,0 +1,67 @@
+{
+  "module": "text-range-styles (brownfield feature-new, run 20261102-162424-feature-new-text-range-styles)",
+  "mode": "brownfield",
+  "intent": "feature-new",
+  "verdict": "needs_changes",
+  "tool_calls": 19,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "line": 890,
+      "issue": "Range shifting while typing cuts ranges short. This is the source defect behind the failed U22 test 'shifts ranges while typing' (expected end 27, got 25). In oninput, shiftRangesForEdit(latest.styleRanges, latest.originalText, editable.value) returns ranges measured against the NEW text: \"XX\" + 'Bid request timeout 120ms' with [20,25) correctly becomes [22,27). Those ranges then go through withStyleRanges(latest, ...), which normalizes against latest.originalText.length. That is still the OLD text length (25), because onChange has not run yet, so the end is cut to 25. Any insertion before a range near the end of the text loses that many styled characters. The textWysiwyg.test.tsx cases miss it because their shifted ends stay within the old length (11).",
+      "fix": "Normalize against the new text length. One option: give withStyleRanges an optional third parameter `textLength = element.originalText.length` (packages/element/src/textRanges.ts:317-321) and pass editable.value.length here. Then add a textWysiwyg.test.tsx case that colours [6,11) of 'hello world', prepends 'XX' and expects [{start:8,end:13,color}]."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+      "issue": "U22 was never written (dispatch_failed). Six acceptance criteria have no test. AC-5: only the colour apply is covered, in textWysiwyg.test.tsx; the highlight action and the overlapping-highlight merge are untested. AC-7: no test that the selection pickers show only while editing. AC-11: no canvas fillText/fillRect assertions. AC-12: no test that textEditorSelection is left out of clearAppStateForLocalStorage, cleanAppStateForExport, clearAppStateForDatabase and serializeAsJSON. AC-15: no undo test. AC-6: only partly covered; the 'committed element carries the shifted ranges' check after exit is missing, and that check is the one that would catch the blocker above. actionChangeTextRangeHighlight has no test at all.",
+      "fix": "Write the file as U22 specifies, with one change to the undo test (see the next finding). Re-run it after the textWysiwyg.tsx fix: the 'shifts ranges while typing' case should then pass unchanged."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+      "issue": "The U22 test 'undo restores the earlier ranges' (expected true to be false) asks for more than the history system can give, and does not point at a defect in actionProperties.tsx. The capture itself is correct: the action returns IMMEDIATELY when it changes the element. The cause: Delta.calculate (packages/element/src/delta.ts:134-137) uses a full key join, so a key that exists only on the next element is recorded with prev value `undefined`. On undo, applyDelta Reflect.sets `styleRanges: undefined` (delta.ts:1754-1765). The key is then present with the value undefined, so `'styleRanges' in el` is true. Readers (getStyleRanges), JSON serialization and restore all treat this as 'no ranges', so nothing is wrong for the user. Making the key truly absent would mean editing delta.ts, which is outside the write contract. Confidence: medium-high, from reading the code without running it.",
+      "fix": "In the undo test, check `el.styleRanges` toBeUndefined() (or getStyleRanges(el) toEqual([])) instead of `'styleRanges' in el`. Add a second check that serializeAsJSON of the undone element has no styleRanges."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "line": 853,
+      "issue": "Styled RTL lines land in the wrong place in SVG exports. The styled <text> sets text-anchor='start' and also direction=rtl for RTL text. In SVG, 'start' is a logical anchor: under rtl it pins each tspan chunk's RIGHT edge to its x. getStyledTextLines gives run.x as the run's LEFT edge, so every RTL run is drawn one run-width too far left. The canvas path uses textAlign 'left', which is a physical anchor, so canvas and SVG output differ. This file already pins direction for that reason at lines 245-248 ('text-anchor is logical in SVG: pin the direction').",
+      "fix": "In the styled branch, set direction to 'ltr' on the <text>, as the date text does, so text-anchor 'start' places each run's left edge at run.x. The bidi order inside a run is unaffected. Add an export.test.ts case with an RTL styled string that checks each tspan's x matches its laid-out run."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "issue": "The colour shown in the selection pickers can be out of date. PanelComponent works out the swatch colour from app.state.textEditorSelection (getTextEditorSelectionStyle), but U08 left textEditorSelection out of UIAppState on purpose. So when only the selection moves, the panel does not re-render, and the swatch keeps the previous selection's colour until some other state change. Confidence: medium; this is inferred from the UIAppState Omit and was not run.",
+      "fix": "Accept and document this as a trade-off. Or, in textWysiwyg's syncTextEditorSelection, also update a cheap UI-visible key (for example re-render only when the computed colour at the new selection start changes). Or pass the computed swatch colours in through a UI-visible field."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "issue": "DRY: actionChangeTextRangeColor and actionChangeTextRangeHighlight have the same perform body (split color, EVENTUALLY/IMMEDIATELY branches, the transparent-to-null mapping). They differ only in the patch key and the picker configuration.",
+      "fix": "Extract a module-private `performTextRangeStyle(key: 'color' | 'highlight')` (or a small action factory) and call it from both register calls."
+    }
+  ],
+  "acceptance_without_tests": [
+    "AC-5 (partial: the highlight apply and the overlapping-highlight merge are untested)",
+    "AC-6 (partial: no check that the committed element keeps the shifted ranges after exit; no case where the shifted range passes the old text length)",
+    "AC-7 (picker visibility only while editing)",
+    "AC-11 (canvas fillText per run / fillRect for a highlight)",
+    "AC-12 (textEditorSelection never persisted; the code is correct, since APP_STATE_STORAGE_CONF sets all three flags to false, but nothing tests it)",
+    "AC-15 (undo)"
+  ],
+  "passing_checks": [
+    "textRanges.ts: range maths, restore validation and the no-key invariant match the plan; no DOM globals, all ownerDocument.",
+    "restore.ts: legacy or invalid input leaves no key; clamping is tested.",
+    "ColorPicker popupId: every openPopup comparison, the memo comparison and data-openpopup go through popupKey; the stroke picker behaves as before.",
+    "appState/types: transient field set to false in browser, export and server; openPopup union and UIAppState Omit match U08/U09.",
+    "Canvas renderer: the unstyled path is unchanged; a new element identity invalidates the cache.",
+    "Sensitive files: en.json only gains two keys; CHANGELOG is additive; no manifest or config touched.",
+    "Snapshots: only the approved Q4 one-key insertion.",
+    "Env-fixture check: not applicable (frontend library, no validating config module)."
+  ],
+  "refinement_packets": [],
+  "done": true
+}

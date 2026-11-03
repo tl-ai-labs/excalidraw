@@ -332,6 +332,102 @@ describe("exportToSvg", () => {
   });
 });
 
+describe("exportToSvg text style ranges", () => {
+  const TEXT = "Bid request timeout 120ms";
+  const APP_STATE = { viewBackgroundColor: "#ffffff" };
+
+  const createText = () =>
+    API.createElement({
+      type: "text",
+      text: TEXT,
+      width: 1000,
+      height: 25,
+    }) as NonDeleted<ExcalidrawTextElement>;
+
+  const exportElements = (
+    elements: readonly NonDeletedExcalidrawElement[],
+    theme?: typeof THEME.DARK,
+  ) =>
+    exportScene({
+      type: "svg",
+      data: { elements, appState: APP_STATE, files: {} },
+      config: theme
+        ? { canvasBackgroundColor: false, theme }
+        : { canvasBackgroundColor: false },
+    });
+
+  it("exports a coloured run as a tspan with its fill", async () => {
+    const el = {
+      ...createText(),
+      styleRanges: [{ start: 20, end: 25, color: "#e03131" }],
+    } as NonDeletedExcalidrawElement;
+
+    const svg = await exportElements([el]);
+    const tspans = Array.from(svg.querySelectorAll("tspan"));
+    const colored = tspans.find((tspan) => tspan.textContent === "120ms");
+
+    expect(colored).toBeDefined();
+    expect(colored?.getAttribute("fill")).toBe("#e03131");
+    tspans
+      .filter((tspan) => tspan !== colored)
+      .forEach((tspan) => {
+        expect(tspan.hasAttribute("fill")).toBe(false);
+      });
+  });
+
+  it("exports a highlighted run as a rect before its text", async () => {
+    const el = {
+      ...createText(),
+      styleRanges: [{ start: 0, end: 3, highlight: "#ffec99" }],
+    } as NonDeletedExcalidrawElement;
+
+    const svg = await exportElements([el]);
+    const rect = Array.from(svg.querySelectorAll("rect")).find(
+      (r) => r.getAttribute("fill") === "#ffec99",
+    );
+
+    expect(rect).toBeDefined();
+    expect(Number(rect?.getAttribute("width"))).toBeGreaterThan(0);
+
+    let sibling = rect?.nextElementSibling ?? null;
+    while (sibling && sibling.tagName !== "text") {
+      sibling = sibling.nextElementSibling;
+    }
+    expect(sibling).not.toBeNull();
+    expect(sibling?.textContent).toBe(TEXT);
+  });
+
+  it("filters run colours in dark mode", async () => {
+    const el = {
+      ...createText(),
+      styleRanges: [{ start: 20, end: 25, color: "#e03131" }],
+    } as NonDeletedExcalidrawElement;
+
+    const svg = await exportElements([el], THEME.DARK);
+    const colored = Array.from(svg.querySelectorAll("tspan")).find(
+      (tspan) => tspan.textContent === "120ms",
+    );
+
+    expect(colored?.getAttribute("fill")).toBe(
+      applyDarkModeFilter("#e03131", true),
+    );
+  });
+
+  it("exports unstyled text exactly as before", async () => {
+    const el = createText();
+    expect("styleRanges" in el).toBe(false);
+
+    const svg = await exportElements([el]);
+
+    expect(svg.querySelectorAll("tspan")).toHaveLength(0);
+    expect(svg.querySelectorAll("rect")).toHaveLength(0);
+    const texts = svg.querySelectorAll("text");
+    expect(texts).toHaveLength(1);
+    expect(texts[0].textContent).toBe(TEXT);
+    expect(texts[0].getAttribute("text-anchor")).toBe("start");
+  });
+});
+
 describe("exportToCanvas", () => {
   it("does not paint over elements beneath a labeled arrow's label (#11591)", async () => {
     const rectangle = API.createElement({

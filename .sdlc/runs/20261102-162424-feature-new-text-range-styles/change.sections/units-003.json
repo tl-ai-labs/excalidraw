@@ -1,0 +1,206 @@
+[
+  {
+    "id": "U08",
+    "path": "packages/excalidraw/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "AppState gains textEditorSelection, and openPopup gains the two selection-picker popup ids.",
+    "rules": [
+      "1. After `editingTextElement: ExcalidrawTextElement | null;` add a JSDoc'd `textEditorSelection: { elementId: ExcalidrawTextElement[\"id\"]; start: number; end: number } | null;` (the text editor's selection in originalText offsets while a text is edited; transient, never saved, exported or synced).",
+      "2. In the openPopup union, after `| \"elementStroke\"`, add `| \"textRangeColor\"` and `| \"textRangeHighlight\"`.",
+      "3. Add `| \"textEditorSelection\"` to the UIAppState Omit list after `| \"textToolHover\"`, so selection churn does not re-render the UI; the selection actions read it from the full AppState passed to perform."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 427, "to": 427, "first_line": "editingTextElement: ExcalidrawTextElement | null;", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_after", "from": 483, "to": 483, "first_line": "| \"elementStroke\"", "rule": "rule 2" },
+      { "id": "S3", "at": "insert_after", "from": 620, "to": 620, "first_line": "| \"textToolHover\"", "rule": "rule 3" }
+    ],
+    "depends_on": [],
+    "covers": ["FR-11"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U09",
+    "path": "packages/excalidraw/appState.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Defaults textEditorSelection to null and stores it nowhere.",
+    "rules": [
+      "1. In getDefaultAppState add `textEditorSelection: null,` right after `editingTextElement: null,`.",
+      "2. In APP_STATE_STORAGE_CONF add `textEditorSelection: { browser: false, export: false, server: false },` right after the editingTextElement entry."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 59, "to": 59, "first_line": "editingTextElement: null,", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_after", "from": 215, "to": 215, "first_line": "editingTextElement: { browser: false, export: false, server: false },", "rule": "rule 2" }
+    ],
+    "depends_on": ["U08"],
+    "covers": ["FR-11", "AC-12"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U10",
+    "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "ColorPicker accepts an optional popupId that replaces `type` as its AppState.openPopup key, so several pickers of one palette type can coexist.",
+    "rules": [
+      "1. ColorPickerProps gains `popupId?: Extract<AppState[\"openPopup\"], \"textRangeColor\" | \"textRangeHighlight\">;` with a JSDoc (the openPopup key this picker opens under; defaults to `type`).",
+      "2. ColorPickerComponent destructures popupId and derives `const popupKey = popupId ?? type;`; every `appState.openPopup === type`, `appState.openPopup !== type` and `updateData({ openPopup: type })` in ColorPickerComponent uses popupKey instead (TopPicks follow-focus, Popover open/onOpenChange, trigger toggle, popup-content condition).",
+      "3. ColorPickerPopupContent gets a `popupKey: NonNullable<AppState[\"openPopup\"]>` prop and its onClose compares `getOpenPopup() === popupKey`; ColorPickerComponent passes popupKey.",
+      "4. isColorPickerPopup also returns true for \"textRangeColor\" and \"textRangeHighlight\"; its type predicate becomes `popup is ColorPickerType | \"textRangeColor\" | \"textRangeHighlight\"`.",
+      "5. ColorPickerTrigger gets a `popupKey` prop and uses it for data-openpopup; title logic stays keyed on `type`.",
+      "6. areColorPickerPropsEqual compares `prev.appState.openPopup === (prev.popupId ?? prev.type)` / same for next in the early return, and adds `prev.popupId === next.popupId` to the equality list.",
+      "7. With popupId absent, behaviour and rendered markup are exactly as today."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 69, "to": 69, "first_line": "customizableTopPicks?: keyof AppState[\"colorTopPicks\"];", "rule": "rule 1" },
+      { "id": "S2", "at": "replace", "from": 95, "to": 96, "first_line": "> & {", "last_line": "getOpenPopup: () => AppState[\"openPopup\"];", "rule": "rule 3: add popupKey to the extra props (destructure it in the parameter list too, see S3)" },
+      { "id": "S3", "at": "replace", "from": 83, "to": 83, "first_line": "onResetTopPicks,", "rule": "rule 3: destructure popupKey after onResetTopPicks" },
+      { "id": "S4", "at": "replace", "from": 177, "to": 177, "first_line": "if (getOpenPopup() === type) {", "rule": "rule 3" },
+      { "id": "S5", "at": "replace", "from": 260, "to": 265, "first_line": "const isColorPickerPopup = (", "last_line": "popup === \"canvasBackground\";", "rule": "rule 4" },
+      { "id": "S6", "at": "replace", "from": 267, "to": 283, "first_line": "const ColorPickerTrigger = ({", "last_line": "}) => {", "rule": "rule 5: add popupKey to the destructured props and the prop type" },
+      { "id": "S7", "at": "replace", "from": 322, "to": 322, "first_line": "data-openpopup={type}", "rule": "rule 5" },
+      { "id": "S8", "at": "replace", "from": 361, "to": 363, "first_line": "customizableTopPicks,", "last_line": "const openRef = useRef(appState.openPopup);", "rule": "rule 2: destructure popupId and declare popupKey right after the parameter list" },
+      { "id": "S9", "at": "replace", "from": 434, "to": 441, "first_line": "if (", "last_line": "setTimeout(() => updateData({ openPopup: type }), 0);", "rule": "rule 2" },
+      { "id": "S10", "at": "replace", "from": 452, "to": 456, "first_line": "open={appState.openPopup === type}", "last_line": "}", "rule": "rule 2" },
+      { "id": "S11", "at": "replace", "from": 463, "to": 497, "first_line": "type={type}", "last_line": ")}", "rule": "rules 2, 3 and 5: pass popupKey to the trigger, use popupKey in onToggle and the popup-content condition, pass popupKey to ColorPickerPopupContent" },
+      { "id": "S12", "at": "replace", "from": 523, "to": 530, "first_line": "if (", "last_line": "prev.type === next.type &&", "rule": "rule 6" }
+    ],
+    "depends_on": ["U08"],
+    "covers": ["FR-16"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/locales/en.json",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the two selection-picker labels.",
+    "rules": [
+      "1. After `\"textColor\": \"Text color\",` add `\"textRangeColor\": \"Selection color\",` and `\"textRangeHighlight\": \"Selection highlight\",` inside labels."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 33, "to": 33, "first_line": "\"textColor\": \"Text color\",", "rule": "rule 1" }
+    ],
+    "depends_on": [],
+    "covers": ["FR-16"],
+    "checks": ["format"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds actionChangeTextRangeColor and actionChangeTextRangeHighlight, which style the AppState text-editor selection of the edited text and render the two selection colour pickers.",
+    "rules": [
+      "1. Add `DEFAULT_ELEMENT_BACKGROUND_PICKS`, `DEFAULT_ELEMENT_STROKE_PICKS` and `DEFAULT_ELEMENT_STROKE_COLOR_PALETTE` to the @excalidraw/common import if not already imported, and `import { applyStyle, getStyleRanges, withStyleRanges } from \"@excalidraw/element\";` as its own import line after the getArrowheadForPicker import.",
+      "2. A module-private helper `applyStyleToTextEditorSelection(elements, appState, patch)` returns the new elements array or null: null unless appState.editingTextElement is set, appState.textEditorSelection is set with elementId === editingTextElement.id and start < end; find the element by id in `elements` (must be a non-deleted text element, else null); next = withStyleRanges(el, applyStyle(getStyleRanges(el), start, end, patch, el.originalText.length)); return null when next === el; else elements.map replacing that element.",
+      "3. Both actions use register<Partial<AppState> & { color?: string }>, trackEvent: false, and the same perform shape as actionChangeStrokeColor: split `color` from app-state updates; when color is undefined return { appState: { ...appState, ...appStateUpdates }, captureUpdate: EVENTUALLY }; patch is `{ color: isTransparent(color) ? null : color }` (highlight action: `{ highlight: ... }`); when the helper returns null return the same EVENTUALLY result; otherwise return { elements, appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
+      "4. name/label: \"changeTextRangeColor\" / \"labels.textRangeColor\" and \"changeTextRangeHighlight\" / \"labels.textRangeHighlight\".",
+      "5. Both define `predicate: (elements, appState) => !!appState.editingTextElement` so renderAction-independent callers know when they apply.",
+      "6. PanelComponent: when !appState.editingTextElement return null; otherwise render, like actionChangeStrokeColor's panel, an optional `<h3 aria-hidden=\"true\">` label in full styles-panel mode and a ColorPicker with label t(<the action label>), elements, appState, updateData, onChange={(color) => updateData({ color })}, color = the style of the first range covering the element's current selection start or null. Colour picker: type \"elementStroke\", popupId \"textRangeColor\", palette DEFAULT_ELEMENT_STROKE_COLOR_PALETTE, topPicks `[COLOR_PALETTE.transparent, DEFAULT_ELEMENT_STROKE_PICKS[1], DEFAULT_ELEMENT_STROKE_PICKS[2], DEFAULT_ELEMENT_STROKE_PICKS[3], DEFAULT_ELEMENT_STROKE_PICKS[4]] as const`. Highlight picker: type \"elementBackground\", popupId \"textRangeHighlight\", palette DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE, topPicks DEFAULT_ELEMENT_BACKGROUND_PICKS. The selection value comes from app.state.textEditorSelection (UIAppState omits it).",
+      "7. Insert both actions right after actionChangeStrokeColor."
+    ],
+    "exports": [
+      { "name": "actionChangeTextRangeColor", "kind": "const", "params": [], "returns": "Action<Partial<AppState> & { color?: string }>" },
+      { "name": "actionChangeTextRangeHighlight", "kind": "const", "params": [], "returns": "Action<Partial<AppState> & { color?: string }>" }
+    ],
+    "import_line": "import { actionChangeTextRangeColor, actionChangeTextRangeHighlight } from \"../actions/actionProperties\";",
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 7, "to": 7, "first_line": "COLOR_PALETTE,", "rule": "rule 1: add the missing common constants to this import list" },
+      { "id": "S2", "at": "insert_after", "from": 46, "to": 46, "first_line": "import { getArrowheadForPicker } from \"@excalidraw/element\";", "rule": "rule 1: the element import line" },
+      { "id": "S3", "at": "insert_after", "from": 443, "to": 443, "first_line": "});", "rule": "rules 2-7: the helper and both actions, after actionChangeStrokeColor" }
+    ],
+    "style_from": { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [366, 443], "reason": "actionChangeStrokeColor: perform shape, capture modes, panel with ColorPicker" },
+    "uses": [
+      { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [1, 30], "reason": "the @excalidraw/common import list to extend" },
+      { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [180, 200], "reason": "getStylesPanelInfo helper used by the panels" }
+    ],
+    "depends_on": ["U03", "U09", "U10", "U11"],
+    "covers": ["FR-3", "FR-9", "FR-14", "FR-15", "FR-16", "FR-17"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/actions/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "ActionName gains the two new action names.",
+    "rules": [
+      "1. After `| \"changeStrokeColor\"` add `| \"changeTextRangeColor\"` and `| \"changeTextRangeHighlight\"`."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 66, "to": 66, "first_line": "| \"changeStrokeColor\"", "rule": "rule 1" }
+    ],
+    "depends_on": [],
+    "covers": ["FR-14", "FR-15"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U14",
+    "path": "packages/excalidraw/actions/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Re-exports the two new actions.",
+    "rules": [
+      "1. Add `actionChangeTextRangeColor,` and `actionChangeTextRangeHighlight,` after `actionChangeStrokeColor,` in the ./actionProperties export list."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 11, "to": 11, "first_line": "actionChangeStrokeColor,", "rule": "rule 1" }
+    ],
+    "depends_on": ["U12", "U13"],
+    "covers": ["FR-14", "FR-15"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U15",
+    "path": "packages/excalidraw/components/Actions.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Shows the Selection color and Selection highlight pickers next to the stroke picker while a text element is being edited, in the full, compact and mobile panels.",
+    "rules": [
+      "1. In SelectedShapeActions, right after the stroke-colour `<div>` line, render `{appState.editingTextElement && (<><div>{renderAction(\"changeTextRangeColor\")}</div><div>{renderAction(\"changeTextRangeHighlight\")}</div></>)}`.",
+      "2. In CompactShapeActions and MobileShapeActions, right after the stroke-colour block, render the same two actions each in a `<div className=\"compact-action-item\">` under the same appState.editingTextElement condition.",
+      "3. The existing stroke-colour control is unchanged (Q3)."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 162, "to": 162, "first_line": "<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_after", "from": 634, "to": 634, "first_line": ")}", "rule": "rule 2 (compact panel)" },
+      { "id": "S3", "at": "insert_after", "from": 793, "to": 793, "first_line": ")}", "rule": "rule 2 (mobile panel)" }
+    ],
+    "depends_on": ["U14"],
+    "covers": ["FR-16"],
+    "checks": ["lint", "format"]
+  },
+  {
+    "id": "U16",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "While a text is edited, shifts its style ranges on every text change and keeps AppState.textEditorSelection in sync with the textarea selection; clears it on submit.",
+    "rules": [
+      "1. Add `import { shiftRangesForEdit, withStyleRanges } from \"@excalidraw/element\";` after the getWrappedTextLines import line.",
+      "2. Declare a local `const syncTextEditorSelection = () => { ... }` before `if (onChange) {`: if isDestroyed is true return; read start/end from editable.selectionStart/selectionEnd; build next = { elementId: element.id, start, end }; if app.state.textEditorSelection has the same three values return; else app.setState({ textEditorSelection: next }). (isDestroyed is declared later with `let`, so reference it only inside the function body.)",
+      "3. In editable.oninput, after normalization and BEFORE onChange(editable.value): read `const latest = app.scene.getElement(element.id)`; when it is a text element with non-empty styleRanges, compute `const next = withStyleRanges(latest, shiftRangesForEdit(latest.styleRanges, latest.originalText, editable.value))` and, when next !== latest, call `app.scene.mapElements((el) => (el.id === latest.id ? next : el))` (a new object, so the key is dropped when the list empties). Then call onChange as today (App.text.ts's updateElement spreads this latest element and sets the new originalText), then syncTextEditorSelection().",
+      "4. Register textarea listeners for \"select\", \"keyup\" and \"mouseup\" calling syncTextEditorSelection, and call it once after the initial selection is applied (after the autoSelect block); remove the three listeners in cleanup().",
+      "5. In handleSubmit, right after cleanup(), when app.state.textEditorSelection is not null call app.setState({ textEditorSelection: null }).",
+      "6. Use ownerDocument/ownerWindow only; no document/window globals in new code."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 43, "to": 43, "first_line": "import { getWrappedTextLines } from \"@excalidraw/element\";", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_before", "from": 754, "to": 754, "first_line": "if (onChange) {", "rule": "rule 2" },
+      { "id": "S3", "at": "replace", "from": 863, "to": 863, "first_line": "onChange(editable.value);", "rule": "rule 3" },
+      { "id": "S4", "at": "insert_after", "from": 1040, "to": 1040, "first_line": "cleanup();", "rule": "rule 5" },
+      { "id": "S5", "at": "insert_after", "from": 1095, "to": 1095, "first_line": "editable.onkeydown = null;", "rule": "rule 4: remove the three selection listeners" },
+      { "id": "S6", "at": "insert_after", "from": 1320, "to": 1320, "first_line": "editable.onpointerdown = (event) => event.stopPropagation();", "rule": "rule 4: add the three listeners and the initial syncTextEditorSelection call" }
+    ],
+    "uses": [
+      { "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx", "lines": [1027, 1060], "reason": "handleSubmit and isDestroyed" },
+      { "path": "packages/excalidraw/components/App.text.ts", "lines": [186, 240], "reason": "updateElement: onChange spreads the latest scene element with the new originalText, so ranges written before onChange are kept" },
+      { "path": "packages/element/src/Scene.ts", "lines": [254, 270], "reason": "mapElements" }
+    ],
+    "depends_on": ["U03", "U09"],
+    "covers": ["FR-12", "FR-13", "FR-9", "NFR-3"],
+    "checks": ["lint", "format"]
+  }
+]

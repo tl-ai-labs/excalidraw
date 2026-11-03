@@ -13,6 +13,13 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Text colour and highlight on part of a text (2026-11-02)
+
+- Text elements have a new optional `styleRanges` field, a list of `TextStyleRange` (`{ start, end, color?, highlight? }`, exported from `@excalidraw/element`). Offsets index into `originalText`, so ranges survive re-wrapping. The key is absent when a text has no styled ranges, and older clients ignore it and draw the whole text in `strokeColor`.
+- While editing a text, the styles panel shows "Selection color" and "Selection highlight" pickers that style the selected characters; picking transparent clears that style. Edits to the text shift the ranges along with it, and the changes are undoable like any other element property.
+- Styled ranges render on the canvas and in exports: SVG export writes each run as a `<tspan>` and each highlight as a `<rect>` behind the line's text.
+- New transient `appState.textEditorSelection` (`{ elementId, start, end } | null`) tracks the selection in the text editor. It is never saved, exported or synced.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

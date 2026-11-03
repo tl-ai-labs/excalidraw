@@ -1,4 +1,9 @@
 import { syncInvalidIndices } from "@excalidraw/element";
+import {
+  applyStyle,
+  newElementWith,
+  withStyleRanges,
+} from "@excalidraw/element";
 
 import { randomInteger, cloneJSON } from "@excalidraw/common";
 
@@ -8,6 +13,7 @@ import type {
 } from "@excalidraw/element/types";
 
 import { reconcileElements } from "../../data/reconcile";
+import { API } from "../helpers/api";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
 
@@ -382,5 +388,65 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+
+  it("concurrent text edits keep text and ranges from the same version", () => {
+    const base = API.createElement({ type: "text", text: "abc def" });
+
+    const localText = "abc def";
+    const localRanges = applyStyle(
+      [],
+      0,
+      3,
+      { color: "#e03131" },
+      localText.length,
+    );
+    const local = {
+      ...withStyleRanges(
+        newElementWith(base, { text: localText, originalText: localText }),
+        localRanges,
+      ),
+      version: 3,
+      index: "a0",
+    } as unknown as OrderedExcalidrawElement;
+
+    const remoteText = "abc XYZ def";
+    const remoteRanges = applyStyle(
+      [],
+      4,
+      7,
+      { highlight: "#ffec99" },
+      remoteText.length,
+    );
+    const remote = {
+      ...withStyleRanges(
+        newElementWith(base, { text: remoteText, originalText: remoteText }),
+        remoteRanges,
+      ),
+      version: 4,
+      index: "a0",
+    } as unknown as OrderedExcalidrawElement;
+
+    const onLocal = reconcileElements(
+      [local],
+      [remote] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+    const onRemote = reconcileElements(
+      [remote],
+      [local] as unknown as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+
+    for (const result of [onLocal, onRemote]) {
+      expect(result).toHaveLength(1);
+      const winner = result[0] as any;
+      expect(winner.version).toBe(4);
+      expect(winner.originalText).toBe(remoteText);
+      expect(winner.text).toBe(remoteText);
+      expect(winner.styleRanges).toEqual([
+        { start: 4, end: 7, highlight: "#ffec99" },
+      ]);
+    }
   });
 });

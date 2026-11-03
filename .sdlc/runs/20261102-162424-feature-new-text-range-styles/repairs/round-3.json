@@ -1,0 +1,214 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/element/src/textRanges.ts",
+    "instruction": "Fix `packages/element/src/textRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 approved security fixes (security_review.md). (1) MEDIUM, client DoS: restoreStyleRanges and normalizeStyleRanges accept an unbounded number of ranges, and normalization is O(ranges x boundaries); rangeAt in splitRangesIntoLines does a linear find per character on every render/export. Fix: export a constant MAX_STYLE_RANGES (e.g. 1000) and drop input entries beyond it in restoreStyleRanges BEFORE any normalization work, and apply the same cap in normalizeStyleRanges as the shared guard (truncate the input list first). Replace the per-character range lookup in splitRangesIntoLines (and any helper the canvas/SVG renderers call, e.g. getStyledTextLines) with a single pass that walks the sorted normalized ranges with a moving pointer. Outputs must be unchanged for valid input. (2) LOW: color/highlight accept any non-empty string of any length. Fix: export MAX_STYLE_COLOR_LENGTH (e.g. 64) and an isPlausibleStyleColor(value: unknown): value is string helper that requires a string of length 1..MAX_STYLE_COLOR_LENGTH matching a plausible CSS colour (#rgb/#rgba/#rrggbb/#rrggbbaa hex, rgb()/rgba()/hsl()/hsla() functional notation, or a plain alphabetic named colour such as 'red' or 'transparent'), rejecting anything else (e.g. 'url(#x)', strings with quotes, semicolons or angle brackets). Use it in both restoreStyleRanges and normalizeStyleRanges: an invalid attribute is dropped, and a range left with neither attribute is dropped. Keep the module pure; no new dependencies.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 90,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/element/tests/textRanges.test.ts",
+    "instruction": "Fix `packages/element/tests/textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add unit tests for the Gate 3 security fixes in packages/element/src/textRanges.ts: (a) restoreStyleRanges given MAX_STYLE_RANGES + 500 valid one-character ranges returns at most MAX_STYLE_RANGES ranges and finishes quickly; normalizeStyleRanges applies the same cap; (b) splitRangesIntoLines / getStyledTextLines output is unchanged for an existing multi-range wrapped example (keep the existing tests passing); (c) color/highlight values longer than MAX_STYLE_COLOR_LENGTH, 'url(#x)', and strings containing '\"', ';' or '<' are dropped by restoreStyleRanges and normalizeStyleRanges, while '#ff0000', 'rgb(1, 2, 3)', 'red' and 'transparent' are kept. Append a new describe block; do not change existing tests.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textRangeStyles.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FAIL text range styles > undo restores the earlier ranges: AssertionError: expected [ { start: 20, end: 25, …(1) } ] to be undefined. Root cause verified by the user: the test is wrong, not undo. openEditor creates the text with API.setElements, which bypasses history, so the first undo entry records the element as added with the colour already applied, and undo cannot return to an uncoloured version. Fix the undo test only: create its element with h.app.updateScene({ elements: [el], captureUpdate: CaptureUpdateAction.IMMEDIATELY }) inside act() (CaptureUpdateAction from @excalidraw/element) instead of API.setElements, before opening the editor; keep the existing undo loop and assertions (styleRanges undefined, isDeleted false, serialized JSON has no styleRanges). Replace the misleading comment at the loop ('the element came from setElements (not in history)...') with an accurate one. Do not change any other test, and do not change app or history code.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textRangeStyles.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textRangeStyles.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 approved minor finding (review.json): the 'Selection color' / 'Selection highlight' picker swatches can show an out-of-date colour, because getTextEditorSelectionStyle reads app.state.textEditorSelection, which is stripped from UIAppState, so a selection change alone does not re-render the panel. Fix: in the PanelComponent of actionChangeTextRangeColor and actionChangeTextRangeHighlight, subscribe to the selection with the internal hook `useAppStateValue` from \"../hooks/useAppStateValue\" (e.g. `const selection = useAppStateValue(\"textEditorSelection\")`, or a small inner component that calls it, so hooks are called unconditionally and at the top level of a React component), and compute the swatch from that subscribed value instead of app.state, so the swatch re-renders when the selection moves. Remove the 'Trade-off: ... swatch may lag' comment. Do not merge or refactor the two actions' perform bodies (out of scope). Keep AGENTS.md rules.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/hooks/useAppStateValue.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 90,
+      "max_retries": 2
+    }
+  }
+]

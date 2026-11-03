@@ -191,6 +191,66 @@ describe("restoreElements", () => {
     ]);
   });
 
+  it("should restore a legacy text element without styleRanges", () => {
+    const textElement = API.createElement({ type: "text", text: "hello" });
+
+    const restored = restore.restoreElements([textElement], null)[0];
+
+    expect("styleRanges" in restored).toBe(false);
+  });
+
+  it("should drop invalid styleRanges", () => {
+    const notArray: any = API.createElement({ type: "text", text: "hello" });
+    notArray.styleRanges = "nope";
+    const badEntry: any = API.createElement({ type: "text", text: "hello" });
+    badEntry.styleRanges = [{ start: "x" }];
+
+    const [restoredNotArray, restoredBadEntry] = restore.restoreElements(
+      [notArray, badEntry],
+      null,
+    );
+
+    expect("styleRanges" in restoredNotArray).toBe(false);
+    expect("styleRanges" in restoredBadEntry).toBe(false);
+  });
+
+  it("should clamp out-of-bounds styleRanges", () => {
+    const textElement: any = API.createElement({ type: "text", text: "hello" });
+    textElement.styleRanges = [{ start: 2, end: 50, color: "#e03131" }];
+
+    const restored = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restored.styleRanges).toEqual([
+      { start: 2, end: 5, color: "#e03131" },
+    ]);
+  });
+
+  it("should round-trip valid styleRanges through serializeAsJSON", () => {
+    const textElement: any = API.createElement({
+      type: "text",
+      text: "hello world",
+    });
+    const styleRanges = [
+      { start: 0, end: 5, color: "#e03131" },
+      { start: 6, end: 11, highlight: "#ffec99" },
+    ];
+    textElement.styleRanges = styleRanges;
+
+    const exported: ImportedDataState = JSON.parse(
+      serializeAsJSON([textElement], getDefaultAppState(), {}, "local"),
+    );
+    const restored = restore.restoreElements(
+      exported.elements,
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect("styleRanges" in restored).toBe(true);
+    expect(restored.styleRanges).toEqual(styleRanges);
+  });
+
   it("should restore text element correctly with unknown font family, null text and undefined alignment", () => {
     const textElement: any = API.createElement({
       type: "text",

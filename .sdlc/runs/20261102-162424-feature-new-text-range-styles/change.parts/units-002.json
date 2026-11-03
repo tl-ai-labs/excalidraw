@@ -1,0 +1,174 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U05",
+      "path": "packages/element/src/renderElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Draws a text element with style ranges as per-run fillText calls with highlight rects behind them; unstyled text keeps the one-fillText-per-line path.",
+      "rules": [
+        "1. Add `import { getStyledTextLines } from \"./textRanges\";` after the `./textMeasurements` import.",
+        "2. Inside the existing withSavedContext callback, after lineHeightPx and verticalOffset are computed, call `const styledLines = getStyledTextLines(element, getRenderEnvironment(renderConfig.renderEnvironment));`.",
+        "3. When styledLines is null, run the existing per-line fillText loop unchanged (exactly the same calls, NFR-3).",
+        "4. Otherwise set `context.textAlign = \"left\"`, compute `const isDark = renderConfig.theme === THEME.DARK` and `const defaultFill = applyDarkModeFilter(element.strokeColor, isDark)`; for each line index i: first, for every run with a highlight, set fillStyle to applyDarkModeFilter(run.highlight, isDark) and fillRect(run.x, i * lineHeightPx, run.width, lineHeightPx); then for every run with non-empty text set fillStyle to run.color ? applyDarkModeFilter(run.color, isDark) : defaultFill and fillText(run.text, run.x, i * lineHeightPx + verticalOffset).",
+        "5. Do not touch the RTL temporary-attach logic, the canvas cache code, or any other element type."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 61,
+          "to": 61,
+          "first_line": "import { getLineHeightInPx } from \"./textMeasurements\";",
+          "rule": "rule 1"
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 706,
+          "to": 712,
+          "first_line": "for (let index = 0; index < lines.length; index++) {",
+          "last_line": "}",
+          "rule": "rules 2-4: wrap the existing loop in the null branch and add the styled branch"
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/element/src/renderElement.ts",
+          "lines": [
+            659,
+            721
+          ],
+          "reason": "the full text branch the styled path slots into"
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-18",
+        "FR-20",
+        "NFR-3"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Exports a text element with style ranges as one <text> per line holding one <tspan> per run, with highlight <rect>s before each line's <text>; unstyled text produces the same markup as before.",
+      "rules": [
+        "1. Add `import { getStyledTextLines } from \"@excalidraw/element\";` next to the getLineHeightInPx import (one import per line, matching the file).",
+        "2. Before the per-line loop compute `const styledLines = getStyledTextLines(element, renderConfig.renderEnvironment);`.",
+        "3. When styledLines is null the loop body is unchanged (same attributes, same order, same textContent).",
+        "4. When styledLines is non-null, for line i: for each run with a highlight create (via svgRoot.ownerDocument.createElementNS(SVG_NS, \"rect\")) a rect with x = run.x, y = i * lineHeightPx, width = run.width, height = lineHeightPx, fill = applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK), and append it to node BEFORE that line's <text>. The <text> keeps x/y/font-family/font-size/fill(strokeColor)/style/direction/dominant-baseline as today, but text-anchor is \"start\" and x is the first laid-out run's x; it has no textContent of its own; append one <tspan> per run with non-empty text, each with x = run.x, textContent = run.text, and `fill` set (applyDarkModeFilter(run.color, isDark)) only when run.color is set.",
+        "5. All attribute values go through setAttribute; never build markup strings (NFR-5)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+          "rule": "rule 1"
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 815,
+          "to": 834,
+          "first_line": "for (let i = 0; i < lines.length; i++) {",
+          "last_line": "}",
+          "rule": "rules 2-5"
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+          "lines": [
+            778,
+            846
+          ],
+          "reason": "the full text branch (direction, textAnchor, node) the styled path slots into"
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-19",
+        "FR-20",
+        "NFR-5"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Restores styleRanges on text elements through restoreStyleRanges; legacy or invalid input leaves no key.",
+      "rules": [
+        "1. Add `import { restoreStyleRanges } from \"@excalidraw/element\";` after the refreshTextDimensions import line.",
+        "2. In the text case, right after the restoreElementWithProperties call that assigns `element` (the one ending with baseFontSize), compute `const styleRanges = restoreStyleRanges((element as any).styleRanges, element.originalText);` then make a shallow copy of element, `delete` its styleRanges key, and set `styleRanges` on the copy only when the restored value is defined; assign the copy back to `element`. Do not use rest destructuring to drop the key (lint unused-vars).",
+        "3. Non-text element types are untouched; a `styleRanges` key that leaked onto a non-text element is left as the forward-compatible spread already does (out of scope)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81,
+          "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";",
+          "rule": "rule 1"
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 595,
+          "to": 595,
+          "first_line": "});",
+          "rule": "rule 2"
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/data/restore.ts",
+          "lines": [
+            555,
+            604
+          ],
+          "reason": "the text restore case"
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-8",
+        "FR-10",
+        "NFR-1",
+        "NFR-5"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/element/src/renderElement.ts": "e36c3418798b7dec6d374b02710180df560bb6283ec0ffe195670b0171298995",
+    "packages/excalidraw/renderer/staticSvgScene.ts": "4b2a086d26cd48b70468d0272b397eda9167420011753ec760c052cae6fffafa",
+    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f"
+  }
+}

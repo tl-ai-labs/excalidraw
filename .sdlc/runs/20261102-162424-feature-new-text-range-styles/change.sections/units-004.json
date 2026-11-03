@@ -1,0 +1,136 @@
+[
+  {
+    "id": "U17",
+    "path": "packages/element/tests/textRanges.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit tests for the pure range model in packages/element/src/textRanges.ts.",
+    "rules": [
+      "1. Import the functions from \"../src/textRanges\" and types from \"../src/types\"; use a FontString like `\"10px Cascadia, Segoe UI Emoji\" as FontString` with wrapText from \"../src/textWrapping\" where a wrapped text is needed.",
+      "2. Freeze inputs with Object.freeze (array and each range) in at least the apply and shift cases to prove inputs are not mutated.",
+      "3. Assert values with toEqual; no snapshots."
+    ],
+    "tests": [
+      { "name": "normalize merges adjacent equal runs", "given": "[{0,3,color red},{3,6,color red}] over length 10", "expect": "[{0,6,color red}]" },
+      { "name": "normalize resolves overlaps and clamps", "given": "overlapping red [0,5) and blue [3,8) plus [-2,1) and [8,99) entries over length 9", "expect": "sorted, non-overlapping, clamped to [0,9], later entry wins on overlap" },
+      { "name": "normalize drops empty, inverted and unstyled ranges", "given": "[{2,2,color},{5,3,color},{0,4}]", "expect": "[]" },
+      { "name": "applyStyle colour inside a highlight keeps the highlight", "given": "highlight yellow [0,10), apply color red to [3,6)", "expect": "[{0,3,hl},{3,6,hl+red},{6,10,hl}]" },
+      { "name": "applyStyle clearing both attributes removes the range", "given": "[{2,5,color,highlight}], apply {color:null, highlight:null} to [2,5)", "expect": "[]" },
+      { "name": "applyStyle with an empty selection is a no-op", "given": "any list, start === end", "expect": "returns the same array instance" },
+      { "name": "shift: insert before a range", "given": "'abc def' range [4,7), insert 'XX' at 0", "expect": "range [6,9)" },
+      { "name": "shift: insert inside a range extends it", "given": "range [4,7), insert 'X' at 5", "expect": "range [4,8)" },
+      { "name": "shift: insert at range start and end stays unstyled", "given": "range [4,7), insert at 4 and separately at 7", "expect": "[5,8) and [4,7)" },
+      { "name": "shift: insert after a range", "given": "range [0,3), insert at 5", "expect": "[0,3) unchanged" },
+      { "name": "shift: delete inside and spanning a range trims it", "given": "range [2,8), delete [4,6) and separately delete [0,4)", "expect": "[2,6) and [0,4)" },
+      { "name": "shift: delete that empties a range drops it", "given": "range [2,4), delete [1,5)", "expect": "[]" },
+      { "name": "shift: replacement inside a range", "given": "range [0,10), replace [3,5) with 'XYZ'", "expect": "[0,11)" },
+      { "name": "split onto wrapped lines with a break inside a styled range", "given": "originalText 'Hello Excalidraw world' wrapped at 100 (break drops a space), red over 'Excalidraw wo'", "expect": "each line's run texts concatenate to the line; red runs cover exactly the styled characters on both lines" },
+      { "name": "split keeps hard line breaks", "given": "'ab\\ncd' with highlight over [1,4)", "expect": "line 0 runs ['a', 'b'(hl)], line 1 runs ['c'(hl), 'd']" },
+      { "name": "restoreStyleRanges drops invalid entries and clamps", "given": "[{start:'a'},{start:1.5,end:3,color:'red'},{start:0,end:99,color:'red'},null,{start:0,end:2,color:''}] with text length 5", "expect": "[{0,5,color red}]" },
+      { "name": "restoreStyleRanges returns undefined for legacy/invalid input", "given": "undefined, null, {}, []", "expect": "undefined each time" },
+      { "name": "withStyleRanges omits the key for an empty list and bumps the version", "given": "a text element with ranges, set []", "expect": "no 'styleRanges' key (`'styleRanges' in el` false), version + 1; setting an equal list returns the same object" }
+    ],
+    "style_from": { "path": "packages/element/tests/textWrapping.test.ts", "lines": [1, 25], "reason": "pure unit test layout in packages/element/tests" },
+    "uses": [
+      { "path": "packages/excalidraw/tests/helpers/api.ts", "lines": [167, 200], "reason": "API.createElement for a text element in the withStyleRanges case" }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["AC-1", "AC-2", "AC-3", "AC-4", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6", "NFR-6"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U18",
+    "path": "packages/element/tests/textWrapping.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds a describe block checking that styled runs follow wrapText output across re-wraps at different widths.",
+    "rules": [
+      "1. Add `import { splitRangesIntoLines } from \"../src/textRanges\";` after the ../src/textWrapping import.",
+      "2. New top-level describe \"splitRangesIntoLines with wrapText\" appended at the end of the file."
+    ],
+    "tests": [
+      { "name": "runs cover the same characters at every wrap width", "given": "originalText 'Bid request timeout 120ms' with red on '120ms', wrapped by wrapText at widths 60, 120 and Infinity", "expect": "for each width the concatenated runs equal the wrapped lines and the red runs join to '120ms'" },
+      { "name": "whitespace dropped at a break does not shift styles", "given": "text with several spaces at the break point and a highlight right after it", "expect": "the highlighted run text equals the styled original substring" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 5, "to": 5, "first_line": "} from \"../src/textWrapping\";", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_after", "from": 703, "to": 703, "first_line": "});", "rule": "rule 2" }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["AC-3", "AC-9", "FR-5", "FR-20"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U19",
+    "path": "packages/element/tests/textElement.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds element-level tests that ranges survive binding into a container, font family and font size changes, and re-wrap.",
+    "rules": [
+      "1. Import newTextElement from \"../src/newElement\", getStyledTextLines from \"../src/textRanges\" and redrawTextBoundingBox from \"../src/textElement\" (extend the existing ../src/textElement import list).",
+      "2. Append a top-level describe \"style ranges\" at the end of the file; build elements with newTextElement / API.createElement and change them with newElementWith or a Scene from @excalidraw/element where a container is needed."
+    ],
+    "tests": [
+      { "name": "newTextElement omits styleRanges when none are given", "given": "newTextElement({ text: 'hi', x: 0, y: 0 }) and the same with styleRanges: []", "expect": "`'styleRanges' in el` is false for both" },
+      { "name": "newTextElement normalizes given ranges", "given": "styleRanges [{0,1,red},{1,2,red}] on 'abc'", "expect": "[{0,2,red}]" },
+      { "name": "ranges survive font family and size changes", "given": "a styled text, then newElementWith(el, { fontSize: 40, fontFamily: FONT_FAMILY.Nunito })", "expect": "styleRanges deep-equal the original; getStyledTextLines still covers the same characters" },
+      { "name": "ranges survive binding into a container and re-wrap", "given": "a styled text bound to a narrow rectangle via redrawTextBoundingBox so text wraps", "expect": "styleRanges unchanged; joined run texts per line equal the wrapped lines" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 12, "to": 12, "first_line": "} from \"../src/textElement\";", "rule": "rule 1: add redrawTextBoundingBox to the list, and the two new import lines after it" },
+      { "id": "S2", "at": "insert_after", "from": 379, "to": 379, "first_line": "});", "rule": "rule 2" }
+    ],
+    "uses": [
+      { "path": "packages/element/src/textElement.ts", "lines": [54, 70], "reason": "redrawTextBoundingBox signature" }
+    ],
+    "depends_on": ["U04"],
+    "covers": ["AC-9", "FR-7", "FR-20"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U20",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds restore tests for styleRanges: legacy text has no key, invalid entries dropped, out-of-bounds clamped, valid ranges round-trip through serializeAsJSON.",
+    "rules": [
+      "1. Insert the cases inside describe(\"restoreElements\") after the 'should not delete empty text element…' case; build input with API.createElement({ type: \"text\", text: ... }) and assign styleRanges through a cast to any.",
+      "2. Assert with `'styleRanges' in restored` and toEqual, never snapshots."
+    ],
+    "tests": [
+      { "name": "legacy text element restores without styleRanges", "given": "a text element with no styleRanges key", "expect": "restored element has no styleRanges key" },
+      { "name": "invalid styleRanges are dropped", "given": "styleRanges 'nope' and separately [{start:'x'}]", "expect": "no styleRanges key" },
+      { "name": "out-of-bounds styleRanges are clamped", "given": "text 'hello', styleRanges [{start:2,end:50,color:'#e03131'}]", "expect": "[{start:2,end:5,color:'#e03131'}]" },
+      { "name": "valid styleRanges round-trip through serializeAsJSON", "given": "a styled text serialized with serializeAsJSON then parsed and restored", "expect": "styleRanges deep-equal the original" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 192, "to": 192, "first_line": "});", "rule": "rule 1" }
+    ],
+    "depends_on": ["U07"],
+    "covers": ["AC-4", "FR-8", "FR-10", "NFR-1"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U21",
+    "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds a concurrent-edit case: two versions of one text with different text and ranges reconcile to the same winner on both sides, carrying that winner's ranges.",
+    "rules": [
+      "1. Import API from \"../helpers/api\" and withStyleRanges, applyStyle from \"@excalidraw/element\".",
+      "2. Build a base text element, then a local and a remote version (each newElementWith new originalText/text plus withStyleRanges), giving the remote a higher version; call reconcileElements(local, remote, {} as AppState) and reconcileElements(remote, local, {} as AppState).",
+      "3. Append the case inside describe(\"elements reconciliation\") before its closing line."
+    ],
+    "tests": [
+      { "name": "concurrent text edits keep text and ranges from the same version", "given": "local 'abc def' with red [0,3) (version 3) vs remote 'abc XYZ def' with highlight [4,7) (version 4)", "expect": "both reconciliations return the remote element, whose originalText and styleRanges belong together" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 1, "to": 1, "first_line": "import { syncInvalidIndices } from \"@excalidraw/element\";", "rule": "rule 1: the @excalidraw/element value import (keep it separate); the ../helpers/api import goes after the ../../data/reconcile import via S2" },
+      { "id": "S2", "at": "insert_after", "from": 10, "to": 10, "first_line": "import { reconcileElements } from \"../../data/reconcile\";", "rule": "rule 1: the API import" },
+      { "id": "S3", "at": "insert_before", "from": 386, "to": 386, "first_line": "});", "rule": "rules 2-3" }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["AC-10", "FR-9"],
+    "checks": ["lint", "format", "test"]
+  }
+]

@@ -1,0 +1,132 @@
+[
+  {
+    "id": "U22",
+    "path": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "jsdom tests for the editor flow: selection tracking in AppState, applying colour and highlight to a selection, controls visibility, canvas drawing, persistence exclusion and undo.",
+    "rules": [
+      "1. Render <Excalidraw handleKeyboardGlobally={true} /> in beforeEach via render from \"./test-utils\"; use `const { h } = window;`, API from \"./helpers/api\", Keyboard/UI from \"./helpers/ui\", getTextEditor from \"./queries/dom\".",
+      "2. Open the editor on an existing text: API.setElements([text]); API.setSelectedElements([text]); Keyboard.keyPress(KEYS.ENTER); const editor = await getTextEditor(). Select with editor.setSelectionRange(start, end) followed by fireEvent.select(editor).",
+      "3. Apply styles with act(() => h.app.actionManager.executeAction(actionChangeTextRangeColor, \"ui\", { color })) (and the highlight action); actions are imported from \"../actions\".",
+      "4. For canvas assertions export with exportScene({ type: \"canvas\", data: { elements, files: {} } }) from \"../scene/export\" and spy with vi.spyOn on the 2d context prototype's fillText/fillRect, recording `this.fillStyle` at each call.",
+      "5. Assert values directly; no snapshots."
+    ],
+    "tests": [
+      { "name": "tracks the editor selection in appState", "given": "editing 'Bid request timeout 120ms', select [20,25)", "expect": "h.state.textEditorSelection equals { elementId: text.id, start: 20, end: 25 }" },
+      { "name": "applies a text colour to the selection", "given": "selection [20,25), executeAction changeTextRangeColor with '#e03131'", "expect": "element styleRanges equal [{ start: 20, end: 25, color: '#e03131' }]" },
+      { "name": "merges a highlight over an overlapping selection", "given": "after the colour, select [12,22) and apply highlight '#ffec99'", "expect": "styleRanges equal [{12,20,highlight},{20,22,color+highlight},{22,25,color}]" },
+      { "name": "transparent clears the colour on the selection", "given": "coloured [20,25), apply colour 'transparent' on [20,25)", "expect": "no styleRanges key" },
+      { "name": "does nothing without an editor or with an empty selection", "given": "editor closed, and separately a collapsed selection", "expect": "element unchanged (same version)" },
+      { "name": "shifts ranges while typing and clears the selection on exit", "given": "coloured [20,25), then updateTextEditor with 'XX' prepended, then Keyboard.exitTextEditor", "expect": "styleRanges [{22,27,color}] on the committed element; h.state.textEditorSelection is null" },
+      { "name": "shows the selection pickers only while editing", "given": "a selected text element, before and after pressing Enter", "expect": "no element with aria-label 'Selection color' / 'Selection highlight' before; both present while editing" },
+      { "name": "draws styled runs on canvas", "given": "text 'ab cd' with color red on [3,5) and highlight on [0,2), exported to canvas", "expect": "fillText called once per run ('ab', ' ', 'cd') with 'cd' drawn in red; fillRect called with the highlight fillStyle; an unstyled text gets one fillText per line" },
+      { "name": "never persists the editor selection", "given": "appState with textEditorSelection set", "expect": "key absent from clearAppStateForLocalStorage, cleanAppStateForExport and clearAppStateForDatabase results and from serializeAsJSON output" },
+      { "name": "undo restores the earlier ranges", "given": "apply a colour while editing, exit the editor, Keyboard.undo()", "expect": "element has no styleRanges key" }
+    ],
+    "style_from": { "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx", "lines": [1, 60], "reason": "imports, render setup, h global and editor helpers" },
+    "uses": [
+      { "path": "packages/excalidraw/tests/queries/dom.ts", "lines": [1, 38], "reason": "getTextEditor / updateTextEditor" },
+      { "path": "packages/excalidraw/tests/stickyNotes.test.tsx", "lines": [1160, 1178], "reason": "exportScene to canvas and inspecting fillText" }
+    ],
+    "depends_on": ["U05", "U09", "U14", "U15", "U16"],
+    "covers": ["AC-5", "AC-6", "AC-7", "AC-11", "AC-12", "AC-14", "AC-15", "FR-12", "FR-13", "FR-14", "FR-15", "FR-16", "FR-17", "FR-18", "NFR-4"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U23",
+    "path": "packages/excalidraw/tests/scene/export.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds SVG export tests for styled text: tspans with fill, highlight rects before the line's text, unstyled markup unchanged.",
+    "rules": [
+      "1. Append a new top-level describe \"exportToSvg text style ranges\" after the exportToSvg describe; build elements with API.createElement({ type: \"text\", ... }) and add styleRanges by spreading `{ ...el, styleRanges: [...] }`; export with exportScene({ type: \"svg\", data: { elements, appState: DEFAULT_APP_STATE-like { viewBackgroundColor: \"#ffffff\" }, files: {} }, config: { canvasBackgroundColor: false } }).",
+      "2. Query the result with querySelectorAll(\"text\"), (\"tspan\"), (\"rect\") and assert attributes; no snapshots."
+    ],
+    "tests": [
+      { "name": "coloured run exports a tspan with its fill", "given": "'Bid request timeout 120ms' with color '#e03131' on [20,25)", "expect": "a <tspan> with textContent '120ms' and fill '#e03131'; the other tspans have no fill" },
+      { "name": "highlighted run exports a rect before its text", "given": "highlight '#ffec99' on [0,3)", "expect": "a <rect> with fill '#ffec99' whose next sibling chain reaches the line's <text>, and width > 0" },
+      { "name": "dark mode filters run colours", "given": "the coloured element exported with config theme dark", "expect": "tspan fill equals applyDarkModeFilter('#e03131', true)" },
+      { "name": "unstyled text exports exactly as before", "given": "the same text without styleRanges", "expect": "no <tspan> and no extra <rect>; the <text> textContent equals the line and keeps its text-anchor" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 333, "to": 333, "first_line": "});", "rule": "rules 1-2" }
+    ],
+    "uses": [
+      { "path": "packages/excalidraw/tests/scene/export.test.ts", "lines": [35, 160], "reason": "exportScene call shape and the dark-mode config option" }
+    ],
+    "depends_on": ["U06"],
+    "covers": ["AC-8", "FR-19", "NFR-5"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U24",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds editor tests that ranges shift and trim as the textarea text changes, and that the selection clears on submit.",
+    "rules": [
+      "1. Replace the `import { actionBindText } from \"../actions\";` line with an import of actionBindText and actionChangeTextRangeColor from \"../actions\".",
+      "2. Append a describe \"style ranges\" inside the outer describe, before its final closing line; it renders <Excalidraw handleKeyboardGlobally={true} /> in its own beforeEach like the neighbouring blocks."
+    ],
+    "tests": [
+      { "name": "typing before a range moves it", "given": "text 'hello world' with color on [6,11) applied through the action while editing, then updateTextEditor('>> hello world')", "expect": "styleRanges [{9,14,color}]" },
+      { "name": "deleting part of a range trims it", "given": "same start, then updateTextEditor('hello wo')", "expect": "styleRanges [{6,8,color}]" },
+      { "name": "typing at the end of a range leaves the new text unstyled", "given": "same start, then updateTextEditor('hello world!')", "expect": "styleRanges [{6,11,color}]" },
+      { "name": "submitting clears textEditorSelection", "given": "editor open with a selection, Keyboard.exitTextEditor(editor)", "expect": "h.state.textEditorSelection is null" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 50, "to": 50, "first_line": "import { actionBindText } from \"../actions\";", "rule": "rule 1" },
+      { "id": "S2", "at": "insert_before", "from": 3597, "to": 3597, "first_line": "});", "rule": "rule 2" }
+    ],
+    "depends_on": ["U14", "U16"],
+    "covers": ["AC-6", "FR-4", "FR-12", "FR-13"],
+    "checks": ["lint", "format", "test"]
+  },
+  {
+    "id": "U25",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Adds an Unreleased entry for per-range text colour and highlight.",
+    "rules": [
+      "1. Under `## Unreleased`, before the exportScene entry, add `### Text colour and highlight on part of a text (2026-11-02)` and 3-5 bullets: the optional `styleRanges` field on text elements (`TextStyleRange` exported from @excalidraw/element, offsets into `originalText`, key absent when empty, older clients draw the text in strokeColor); the Selection color / Selection highlight pickers shown while editing; canvas and SVG export rendering (`<tspan>` runs, highlight `<rect>`s); the transient `appState.textEditorSelection` (never saved, exported or synced)."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 15, "to": 15, "first_line": "", "rule": "rule 1 (after the blank line that follows `## Unreleased`; end the entry with a blank line)" }
+    ],
+    "depends_on": ["U12"],
+    "covers": ["FR-21", "NFR-2"],
+    "checks": ["format"]
+  },
+  {
+    "id": "U26",
+    "path": "packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+    "action": "tooling",
+    "phase": "tests",
+    "behaviour": "Adds the one approved key (`\"textEditorSelection\": null,`) before every top-level textToolHover line of the whole-appState snapshots (Q4); no other change.",
+    "run": "perl -0pi -e 's/^  \"textToolHover\": null,\\n/  \"textEditorSelection\": null,\\n  \"textToolHover\": null,\\n/mg' packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+    "depends_on": ["U09"],
+    "covers": ["AC-13"]
+  },
+  {
+    "id": "U27",
+    "path": "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+    "action": "tooling",
+    "phase": "tests",
+    "behaviour": "Same one-key insertion for the history appState snapshots (Q4).",
+    "run": "perl -0pi -e 's/^  \"textToolHover\": null,\\n/  \"textEditorSelection\": null,\\n  \"textToolHover\": null,\\n/mg' packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+    "depends_on": ["U09"],
+    "covers": ["AC-13"]
+  },
+  {
+    "id": "U28",
+    "path": "packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap",
+    "action": "tooling",
+    "phase": "tests",
+    "behaviour": "Same one-key insertion for the contextmenu appState snapshots (Q4).",
+    "run": "perl -0pi -e 's/^  \"textToolHover\": null,\\n/  \"textEditorSelection\": null,\\n  \"textToolHover\": null,\\n/mg' packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap",
+    "depends_on": ["U09"],
+    "covers": ["AC-13"]
+  }
+]

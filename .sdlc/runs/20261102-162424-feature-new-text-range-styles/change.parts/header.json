@@ -1,0 +1,134 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "TypeScript strict, ESM; Prettier 2 via @excalidraw/prettier-config (double quotes, trailing commas, 2-space indent, 80 cols); eslint-plugin-prettier enforces it, max-warnings 0.",
+      "Import order: package aliases (@excalidraw/common, @excalidraw/math, @excalidraw/element) first, then relative imports, then `import type` statements grouped last, blank line between groups (eslint import/order).",
+      "Inside packages/element/src import sibling modules relatively (./textRanges); outside packages/element import from \"@excalidraw/element\" and types from \"@excalidraw/element/types\".",
+      "AGENTS.md: never use the document/window globals in new code; use app.ownerDocument / app.ownerWindow, an element's ownerDocument, or svgRoot.ownerDocument.",
+      "AGENTS.md: combine object types with Merge<Base, Overrides> from \"@excalidraw/common/utility-types\", never Omit<...> & {...}.",
+      "Elements are immutable: change them only through mutateElement / scene.mutateElement / newElementWith, never by assignment.",
+      "A text element with no style ranges must not have the styleRanges key at all (not even undefined): add it with a conditional spread `...(ranges ? { styleRanges: ranges } : {})`.",
+      "UI strings go through t(\"labels.<key>\") and only packages/excalidraw/locales/en.json gets new keys.",
+      "Tests: vitest globals (describe/it/expect), vi from \"vitest\"; jsdom with vitest-canvas-mock (measureText width = text.length * fontSize/10 roughly); UI tests render <Excalidraw /> via ../tests/test-utils and drive it with API/UI/Keyboard helpers from tests/helpers.",
+      "Never call yarn test:update; never add snapshot assertions to existing tests; new tests assert values directly rather than toMatchSnapshot."
+    ],
+    "decisions": [
+      {
+        "topic": "Names",
+        "choice": "Element field `styleRanges?: readonly TextStyleRange[]` on ExcalidrawTextElement; type `TextStyleRange = Readonly<{ start: number; end: number; color?: string; highlight?: string }>` in packages/element/src/types.ts; AppState field `textEditorSelection: { elementId: string; start: number; end: number } | null`; actions `changeTextRangeColor` / `changeTextRangeHighlight` (exports actionChangeTextRangeColor / actionChangeTextRangeHighlight); en.json keys labels.textRangeColor = \"Selection color\", labels.textRangeHighlight = \"Selection highlight\".",
+        "rejected": [
+          "textRanges / richText field names",
+          "a separate jotai store for the selection"
+        ],
+        "reason": "Requirements' working names, kept; Gate 0 put the selection in AppState."
+      },
+      {
+        "topic": "Where the range logic lives",
+        "choice": "All range maths, wrapped-line splitting and run layout (x offset and width per run) live in packages/element/src/textRanges.ts and are re-exported from @excalidraw/element; renderElement.ts and staticSvgScene.ts both call getStyledTextLines from it. textElement.ts, textWrapping.ts, textMeasurements.ts, mutateElement.ts and reconcile.ts are not edited.",
+        "rejected": [
+          "splitting helpers across textWrapping.ts / textMeasurements.ts",
+          "duplicating the run layout in the SVG renderer"
+        ],
+        "reason": "One module for canvas and SVG keeps the two renderers identical and the change small; the split aligns wrapped text to originalText itself, so the wrapping code needs no change."
+      },
+      {
+        "topic": "No-ranges representation",
+        "choice": "No ranges = the styleRanges key is absent. Code that sets ranges goes through withStyleRanges(element, ranges), which returns a NEW element object (version and versionNonce bumped, as newElementWith does) carrying the normalized list, or the element without the key when the list is empty; it returns the same object when the normalized list is deep-equal to the current one. Readers treat undefined and [] the same (no ranges).",
+        "rejected": [
+          "styleRanges: [] or null as the empty value",
+          "mutateElement in place"
+        ],
+        "reason": "Keeps existing snapshots byte-identical (C-3), and a new object identity is what invalidates elementWithCanvasCache (a WeakMap keyed by element), so no cache code changes."
+      },
+      {
+        "topic": "Editor-side shifting and selection tracking",
+        "choice": "Both live in packages/excalidraw/wysiwyg/textWysiwyg.tsx (App.text.ts, which owns handleTextWysiwyg, is not writable): editable.oninput shifts the latest scene element's ranges with shiftRangesForEdit before calling onChange, and textarea select/keyup/mouseup/input listeners write app.setState({ textEditorSelection }). handleSubmit sets it back to null. App.tsx is not edited.",
+        "rejected": [
+          "editing App.text.ts updateElement (outside the write contract)",
+          "wiring callbacks through App.tsx"
+        ],
+        "reason": "textWysiwyg already holds `app` and the textarea; App.text.ts's updateElement spreads the latest scene element, so ranges written to the scene before onChange are carried with the new text."
+      },
+      {
+        "topic": "Two extra colour pickers next to the stroke picker",
+        "choice": "ColorPicker gains an optional prop `popupId?: \"textRangeColor\" | \"textRangeHighlight\"`; when given it replaces `type` as the AppState.openPopup key (open state, toggles, close, memo comparison, data-openpopup). AppState.openPopup's union gains those two values. Selection color uses type \"elementStroke\" with topPicks [transparent, red, green, blue, yellow stroke shades]; Selection highlight uses type \"elementBackground\" with the default background picks.",
+        "rejected": [
+          "new ColorPickerType values (branches in Picker, TopPicks, colorPickerUtils)",
+          "reusing the stroke picker for the selection (Q3)"
+        ],
+        "reason": "Two pickers of the same type would otherwise open together with the stroke picker; one optional prop keeps the palette code untouched."
+      },
+      {
+        "topic": "Clearing a style",
+        "choice": "Picking COLOR_PALETTE.transparent (\"transparent\") in either selection picker clears that attribute on the selection (patch value null); any other string sets it.",
+        "rejected": [
+          "a separate clear button"
+        ],
+        "reason": "Matches how the background picker expresses none."
+      },
+      {
+        "topic": "Run layout and RTL",
+        "choice": "A styled line is laid out with absolute run positions: lineWidth = sum of run widths measured with getLineWidth in the element's font; lineStart = 0 (left), (element.width - lineWidth) / 2 (center), element.width - lineWidth (right). LTR lines place runs left to right from lineStart; a line for which isRTL(line text) is true places runs in logical order from the right edge (first run ends at lineStart + lineWidth). Each run is drawn left-anchored at its x (canvas textAlign \"left\"; SVG tspan x with text-anchor \"start\").",
+        "rejected": [
+          "bidi-exact per-glyph positioning (out of scope 8)"
+        ],
+        "reason": "Q1 default approved at Gate 1."
+      },
+      {
+        "topic": "Highlight geometry",
+        "choice": "A highlighted run gets a rect at (run.x, lineIndex * lineHeightPx), width run.width, height lineHeightPx, filled with applyDarkModeFilter(highlight, isDark); drawn before any text of that line (canvas fillRect; SVG <rect> appended to the element's <g> before that line's <text>).",
+        "reason": "FR-18/FR-19: highlight sits behind the text and spans one line height."
+      },
+      {
+        "topic": "AppState snapshot update (Q4)",
+        "choice": "textEditorSelection defaults to null, so pretty-format adds the line `  \"textEditorSelection\": null,` right before each top-level `  \"textToolHover\": null,` line in regressionTests/history/contextmenu .snap files; that insertion is a deterministic perl tooling step per file, never vitest -u / yarn test:update.",
+        "rejected": [
+          "vitest --update on the three files",
+          "leaving the field out of getDefaultAppState"
+        ],
+        "reason": "Gate 1 approved exactly this one-key diff; a fixed text insertion cannot hide any other snapshot change."
+      },
+      {
+        "topic": "Undo and capture",
+        "choice": "Both selection actions return captureUpdate CaptureUpdateAction.IMMEDIATELY when they change the element and CaptureUpdateAction.EVENTUALLY when they only pass app-state updates (popup open/close) or do nothing; the editor's input-time shift is not captured separately (the existing submit capture records it).",
+        "reason": "Same contract as actionChangeStrokeColor; history then restores ranges like any other element property (FR-17)."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "node_modules/.bin/eslint --max-warnings=0 {path}",
+        "fix": "node_modules/.bin/eslint --fix {path}",
+        "timeout_s": 90
+      },
+      {
+        "id": "format",
+        "run": "node_modules/.bin/prettier --check {path}",
+        "fix": "node_modules/.bin/prettier --write {path}",
+        "timeout_s": 30
+      },
+      {
+        "id": "test",
+        "run": "node_modules/.bin/vitest run {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "code",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "app-tests",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}

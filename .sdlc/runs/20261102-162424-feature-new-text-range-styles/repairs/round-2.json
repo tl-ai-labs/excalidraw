@@ -1,0 +1,112 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/element/src/textRanges.ts",
+    "instruction": "Fix `packages/element/src/textRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/wysiwyg/textWysiwyg.tsx(897,11): error TS2554: Expected 2 arguments, but got 3. The senior review's blocker fix (review.json, textWysiwyg.tsx:890) calls withStyleRanges(latest, shiftedRanges, editable.value.length): ranges shifted against the NEW text must be normalized against the new text length, not element.originalText.length (still the old text while typing), or ranges near the end of the text are cut short. Add an optional third parameter `textLength: number = element.originalText.length` to withStyleRanges (line 317) and pass it to normalizeStyleRanges instead of element.originalText.length. Keep every existing caller's behaviour unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 90,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261102-162424-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/tests/textRangeStyles.test.tsx",
+    "instruction": "Create `packages/excalidraw/tests/textRangeStyles.test.tsx` so that these problems are solved, following the conventions in the shared brief:\n1. This test file does not exist; two earlier attempts timed out (540 s) without an answer. Write it compactly (aim under ~300 lines; one describe, small helpers, no long fixtures). It must cover the acceptance criteria the senior review lists as untested (review.json): AC-5 highlight apply via actionChangeTextRangeHighlight and an overlapping colour+highlight merge; AC-6 the committed element keeps shifted ranges after exiting the editor, including prepending text before a range that ends at the end of the text (range [20,25) of 'Bid request timeout 120ms' becomes [22,27) after typing 'XX' at 0); AC-7 the 'Selection color' and 'Selection highlight' pickers render only while a text is being edited; AC-11 rendering a styled element calls fillText per run and fillRect for a highlighted run (read fillStyle from the vitest-canvas-mock context's __getEvents()); AC-12 textEditorSelection is absent from clearAppStateForLocalStorage, cleanAppStateForExport, clearAppStateForDatabase and serializeAsJSON output; AC-15 after applying a range colour and committing, undo leaves el.styleRanges undefined (history sets the key to undefined rather than deleting it, so assert the value, not `'styleRanges' in el`) and serialized JSON has no styleRanges.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261102-162424-feature-new-text-range-styles/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "format",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

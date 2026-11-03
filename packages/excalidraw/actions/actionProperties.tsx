@@ -5,6 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BUCKET_FILL_BACKGROUND_PICKS,
   COLOR_PALETTE,
+  DEFAULT_ELEMENT_BACKGROUND_PICKS,
+  DEFAULT_ELEMENT_STROKE_PICKS,
+  DEFAULT_ELEMENT_STROKE_COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
   ARROW_TYPE,
   DEFAULT_FONT_FAMILY,
@@ -44,6 +47,11 @@ import { LinearElementEditor } from "@excalidraw/element";
 
 import { newElementWith } from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
+import {
+  applyStyle,
+  getStyleRanges,
+  withStyleRanges,
+} from "@excalidraw/element";
 
 import {
   getBoundTextElement,
@@ -169,6 +177,7 @@ import {
   withCaretPositionPreservation,
   restoreCaretPosition,
 } from "../hooks/useTextEditorFocus";
+import { useAppStateValue } from "../hooks/useAppStateValue";
 
 import { getShortcutKey } from "../shortcut";
 
@@ -432,6 +441,174 @@ export const actionChangeStrokeColor = register<
             true,
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={appState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+const applyStyleToTextEditorSelection = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  patch: { color?: string | null; highlight?: string | null },
+): readonly ExcalidrawElement[] | null => {
+  const editing = appState.editingTextElement;
+  const selection = appState.textEditorSelection;
+  if (
+    !editing ||
+    !selection ||
+    selection.elementId !== editing.id ||
+    selection.start >= selection.end
+  ) {
+    return null;
+  }
+  const el = elements.find((element) => element.id === editing.id);
+  if (!el || el.isDeleted || !isTextElement(el)) {
+    return null;
+  }
+  const next = withStyleRanges(
+    el,
+    applyStyle(
+      getStyleRanges(el),
+      selection.start,
+      selection.end,
+      patch,
+      el.originalText.length,
+    ),
+  );
+  if (next === el) {
+    return null;
+  }
+  return elements.map((element) => (element.id === el.id ? next : element));
+};
+
+// shared perform of the two selection-style actions; they differ only in the
+// range attribute they write (`transparent` clears it)
+const performTextRangeStyle =
+  (key: "color" | "highlight") =>
+  (
+    elements: readonly ExcalidrawElement[],
+    appState: AppState,
+    value: (Partial<AppState> & { color?: string }) | undefined,
+  ) => {
+    const { color, ...appStateUpdates } = value ?? {};
+    const unchanged = {
+      appState: { ...appState, ...appStateUpdates },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    };
+    if (color === undefined) {
+      return unchanged;
+    }
+    const nextElements = applyStyleToTextEditorSelection(elements, appState, {
+      [key]: isTransparent(color) ? null : color,
+    });
+    if (!nextElements) {
+      return unchanged;
+    }
+    return {
+      elements: nextElements,
+      appState: { ...appState, ...appStateUpdates },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  };
+
+// `selection` is the subscribed textEditorSelection (UIAppState omits it)
+const getTextEditorSelectionStyle = (
+  app: AppClassProperties,
+  selection: AppState["textEditorSelection"],
+  key: "color" | "highlight",
+): string | null => {
+  const editing = app.state.editingTextElement;
+  if (!editing || !selection || selection.elementId !== editing.id) {
+    return null;
+  }
+  const el = app.scene.getElement(editing.id);
+  if (!el || !isTextElement(el)) {
+    return null;
+  }
+  const range = getStyleRanges(el).find(
+    (r) =>
+      r.start <= selection.start &&
+      selection.start < r.end &&
+      r[key] !== undefined,
+  );
+  return range?.[key] ?? null;
+};
+
+export const actionChangeTextRangeColor = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextRangeColor",
+  label: "labels.textRangeColor",
+  trackEvent: false,
+  predicate: (elements, appState) => !!appState.editingTextElement,
+  perform: performTextRangeStyle("color"),
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const selection = useAppStateValue("textEditorSelection");
+    if (!appState.editingTextElement) {
+      return null;
+    }
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+    const label = t("labels.textRangeColor");
+
+    return (
+      <>
+        {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
+        <ColorPicker
+          topPicks={
+            [
+              COLOR_PALETTE.transparent,
+              DEFAULT_ELEMENT_STROKE_PICKS[1],
+              DEFAULT_ELEMENT_STROKE_PICKS[2],
+              DEFAULT_ELEMENT_STROKE_PICKS[3],
+              DEFAULT_ELEMENT_STROKE_PICKS[4],
+            ] as const
+          }
+          palette={DEFAULT_ELEMENT_STROKE_COLOR_PALETTE}
+          type="elementStroke"
+          popupId="textRangeColor"
+          label={label}
+          color={getTextEditorSelectionStyle(app, selection, "color")}
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={appState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+export const actionChangeTextRangeHighlight = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextRangeHighlight",
+  label: "labels.textRangeHighlight",
+  trackEvent: false,
+  predicate: (elements, appState) => !!appState.editingTextElement,
+  perform: performTextRangeStyle("highlight"),
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const selection = useAppStateValue("textEditorSelection");
+    if (!appState.editingTextElement) {
+      return null;
+    }
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+    const label = t("labels.textRangeHighlight");
+
+    return (
+      <>
+        {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
+        <ColorPicker
+          topPicks={DEFAULT_ELEMENT_BACKGROUND_PICKS}
+          palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+          type="elementBackground"
+          popupId="textRangeHighlight"
+          label={label}
+          color={getTextEditorSelectionStyle(app, selection, "highlight")}
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

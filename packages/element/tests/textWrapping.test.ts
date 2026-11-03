@@ -3,6 +3,7 @@ import {
   parseTokens,
   wrapText,
 } from "../src/textWrapping";
+import { splitRangesIntoLines } from "../src/textRanges";
 
 import type { FontString } from "../src/types";
 
@@ -699,5 +700,48 @@ describe("Test wrapText", () => {
       expect(tokens).toContain("〰");
       expect(tokens).toContain("＃");
     });
+  });
+});
+
+describe("splitRangesIntoLines with wrapText", () => {
+  const font = "10px Cascadia, Segoe UI Emoji" as FontString;
+
+  it("runs cover the same characters at every wrap width", () => {
+    const originalText = "Bid request timeout 120ms";
+    const start = originalText.indexOf("120ms");
+    const ranges = [{ start, end: start + 5, color: "red" }];
+
+    [60, 120, Infinity].forEach((width) => {
+      const wrapped = wrapText(originalText, font, width);
+      const lines = splitRangesIntoLines(originalText, wrapped, ranges);
+
+      expect(
+        lines.map((line) => line.runs.map((run) => run.text).join("")),
+      ).toEqual(wrapped.split("\n"));
+
+      const red = lines
+        .flatMap((line) => line.runs)
+        .filter((run) => run.color === "red")
+        .map((run) => run.text)
+        .join("");
+      expect(red).toBe("120ms");
+    });
+  });
+
+  it("whitespace dropped at a break does not shift styles", () => {
+    const originalText = "Hello     World";
+    const start = originalText.indexOf("World");
+    const ranges = [{ start, end: start + 5, highlight: "yellow" }];
+
+    const wrapped = wrapText(originalText, font, 50);
+    expect(wrapped.split("\n").length).toBeGreaterThan(1);
+
+    const lines = splitRangesIntoLines(originalText, wrapped, ranges);
+    const highlighted = lines
+      .flatMap((line) => line.runs)
+      .filter((run) => run.highlight === "yellow")
+      .map((run) => run.text)
+      .join("");
+    expect(highlighted).toBe(originalText.slice(start, start + 5));
   });
 });

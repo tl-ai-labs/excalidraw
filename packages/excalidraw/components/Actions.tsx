@@ -160,6 +160,12 @@ export const SelectedShapeActions = ({
   return (
     <div className="selected-shape-actions">
       <div>{predicates.strokeColor && renderAction("changeStrokeColor")}</div>
+      {appState.editingTextElement && (
+        <>
+          <div>{renderAction("changeTextRangeColor")}</div>
+          <div>{renderAction("changeTextRangeHighlight")}</div>
+        </>
+      )}
       {predicates.backgroundColor && (
         <div>{renderAction("changeBackgroundColor")}</div>
       )}
@@ -633,6 +639,18 @@ export const CompactShapeActions = ({
         </div>
       )}
 
+      {/* Text selection color / highlight */}
+      {appState.editingTextElement && (
+        <>
+          <div className="compact-action-item">
+            {renderAction("changeTextRangeColor")}
+          </div>
+          <div className="compact-action-item">
+            {renderAction("changeTextRangeHighlight")}
+          </div>
+        </>
+      )}
+
       {/* Background Color (the bucket fill variant excludes `transparent`) */}
       {predicates.backgroundColor && (
         <div className="compact-action-item">
@@ -790,6 +808,16 @@ export const MobileShapeActions = ({
           <div className={clsx("compact-action-item")}>
             {renderAction("changeStrokeColor")}
           </div>
+        )}
+        {appState.editingTextElement && (
+          <>
+            <div className="compact-action-item">
+              {renderAction("changeTextRangeColor")}
+            </div>
+            <div className="compact-action-item">
+              {renderAction("changeTextRangeHighlight")}
+            </div>
+          </>
         )}
         {/* Background Color (the bucket fill variant excludes `transparent`) */}
         {predicates.backgroundColor && (
