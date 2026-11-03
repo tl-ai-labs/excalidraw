@@ -1,0 +1,397 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the TextStyleRange type and the optional readonly styleRanges field on ExcalidrawTextElement.",
+      "rules": [
+        "1. Insert, immediately before `export type ExcalidrawTextElement = _ExcalidrawElementBase &`, an exported `TextStyleRange = Readonly<{ start: number; end: number; color?: string; highlight?: string }>` with a JSDoc block: offsets are UTF-16 code units into `originalText`, start inclusive, end exclusive; `color` overrides `strokeColor` for the run, `highlight` is a background fill behind it.",
+        "2. After `labelPosition?: number | null;` add `styleRanges?: readonly TextStyleRange[];` with a JSDoc: normalized (sorted, non-overlapping, each with color and/or highlight, adjacent equal runs merged); the key is absent when the text has no styled ranges.",
+        "3. Do not change any other type."
+      ],
+      "exports": [
+        {
+          "name": "TextStyleRange",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ start: number; end: number; color?: string; highlight?: string }>"
+        }
+      ],
+      "import_line": "import type { TextStyleRange } from \"@excalidraw/element/types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253,
+          "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
+          "rule": "rule 1"
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 290,
+          "to": 290,
+          "first_line": "labelPosition?: number | null;",
+          "rule": "rule 2"
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-7"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/textRanges.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Pure range model for styled text runs: normalize, apply a style, shift on edit, restore-validate, set on an element, and lay out styled runs per wrapped line for the canvas and SVG renderers.",
+      "rules": [
+        "1. Every function is pure: never mutate an input array or range object; return new arrays/objects (NFR-6).",
+        "2. normalizeStyleRanges(ranges, textLength): drop entries whose start/end are not finite integers, or with no non-empty color and no non-empty highlight; clamp start/end to [0, textLength]; drop empty or inverted spans; resolve overlaps by painting entries in input order onto a per-boundary segment list so a later entry overrides the attributes it sets (sweep over sorted unique boundaries, not per character); sort by start; merge touching neighbours (a.end === b.start) whose color and highlight are both equal; never emit an attribute key whose value is undefined. Returns a new array (possibly empty).",
+        "3. applyStyle(ranges, start, end, patch: { color?: string | null; highlight?: string | null }, textLength): if end <= start return the input array itself; otherwise split existing ranges at start and end, and for each sub-span in [start, end) set an attribute when the patch value is a string, delete it when null, keep it when the key is absent from the patch (a colour applied to highlighted text keeps the highlight); uncovered gaps inside [start, end) get only the patch's string attributes; then normalizeStyleRanges(result, textLength).",
+        "4. shiftRangesForEdit(ranges, oldText, newText): if the texts are equal return the input array. Find common prefix length p and common suffix length s, with s capped so p + s <= min(oldText.length, newText.length). The edit replaces old [p, oldEnd = oldText.length - s) with ins = newText.length - p - s inserted chars; delta = ins - (oldEnd - p). Map a range's start: <= p stays, >= oldEnd moves by delta, inside the deleted span collapses to p. Map its end: < p stays, >= oldEnd moves by delta, inside the deleted span collapses to p, and end === p stays p only when start < p and the range does not extend past oldEnd. Net effect: insertion strictly inside a range (start < p < end, or a replacement whose deleted span lies strictly inside) extends it by ins; insertion exactly at a range's start or end leaves it unstyled (Q2); deleted chars are removed from covering ranges; drop ranges that end up empty; normalizeStyleRanges against newText.length.",
+        "5. restoreStyleRanges(value: unknown, originalText: string): return undefined unless value is an array; keep entries that are non-null objects with finite integer start/end and color/highlight that are non-empty strings when present (copy only start, end, color, highlight); normalizeStyleRanges(kept, originalText.length); return undefined when the result is empty.",
+        "6. getStyleRanges(element): return element.styleRanges when it is a non-empty array, else an empty frozen array constant; hasStyleRanges(element) is getStyleRanges(element).length > 0.",
+        "7. withStyleRanges(element, ranges): normalize ranges against element.originalText.length; if the normalized list deep-equals getStyleRanges(element) return element; otherwise build `{ ...element }`, delete the styleRanges key, add it back only when the list is non-empty, then set version: element.version + 1, versionNonce: randomInteger(), updated: getUpdatedTimestamp() (both from @excalidraw/common).",
+        "8. splitRangesIntoLines(originalText, wrappedText, ranges): returns StyledTextLine[] with one entry per wrappedText line (split on \\n after normalizing \\r\\n). Align with two cursors: for each wrapped line, skip original characters that wrapping dropped (spaces or a single \\n at a break) until the next original char equals the line's first char, then map each line char to its original offset by advancing both cursors (a mismatch skips the original char); after a line, step over one original \\n if present. Group consecutive line chars whose original offsets fall in the same range (or none) into runs { text, color?, highlight? }; run texts concatenate exactly to the line; an empty line yields one run with text \"\". Never throw on misalignment: unmatched chars become unstyled. First normalize the input ranges against originalText.length, so stale out-of-bounds ranges are clamped.",
+        "9. getStyledTextLines(element, env?: RenderEnvironment): return null when !hasStyleRanges(element). Otherwise split element.text into lines with splitRangesIntoLines(element.originalText, element.text, styleRanges); for each line measure each run with getLineWidth(run.text, getFontString(element), env); lineWidth = sum; lineStart = 0 for left, (element.width - lineWidth) / 2 for center, element.width - lineWidth for right; if isRTL(line text) place runs right-to-left in logical order starting at lineStart + lineWidth, else left-to-right from lineStart. Each laid-out run is { text, color?, highlight?, x, width }.",
+        "10. Use getFontString and isRTL from @excalidraw/common, getLineWidth from ./textMeasurements, RenderEnvironment type from ./renderEnvironment; no DOM access."
+      ],
+      "exports": [
+        {
+          "name": "StyledTextRun",
+          "kind": "type",
+          "params": [],
+          "returns": "{ text: string; color?: string; highlight?: string }"
+        },
+        {
+          "name": "StyledTextLine",
+          "kind": "type",
+          "params": [],
+          "returns": "{ runs: StyledTextRun[] }"
+        },
+        {
+          "name": "LaidOutTextRun",
+          "kind": "type",
+          "params": [],
+          "returns": "StyledTextRun & { x: number; width: number }"
+        },
+        {
+          "name": "TextStylePatch",
+          "kind": "type",
+          "params": [],
+          "returns": "{ color?: string | null; highlight?: string | null }"
+        },
+        {
+          "name": "normalizeStyleRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            }
+          ],
+          "returns": "TextStyleRange[]"
+        },
+        {
+          "name": "applyStyle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            },
+            {
+              "name": "patch",
+              "type": "TextStylePatch"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            }
+          ],
+          "returns": "readonly TextStyleRange[]"
+        },
+        {
+          "name": "shiftRangesForEdit",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            },
+            {
+              "name": "oldText",
+              "type": "string"
+            },
+            {
+              "name": "newText",
+              "type": "string"
+            }
+          ],
+          "returns": "readonly TextStyleRange[]"
+        },
+        {
+          "name": "restoreStyleRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "value",
+              "type": "unknown"
+            },
+            {
+              "name": "originalText",
+              "type": "string"
+            }
+          ],
+          "returns": "TextStyleRange[] | undefined"
+        },
+        {
+          "name": "getStyleRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            }
+          ],
+          "returns": "readonly TextStyleRange[]"
+        },
+        {
+          "name": "hasStyleRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            }
+          ],
+          "returns": "boolean"
+        },
+        {
+          "name": "withStyleRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "T extends ExcalidrawTextElement"
+            },
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            }
+          ],
+          "returns": "T"
+        },
+        {
+          "name": "splitRangesIntoLines",
+          "kind": "function",
+          "params": [
+            {
+              "name": "originalText",
+              "type": "string"
+            },
+            {
+              "name": "wrappedText",
+              "type": "string"
+            },
+            {
+              "name": "ranges",
+              "type": "readonly TextStyleRange[]"
+            }
+          ],
+          "returns": "StyledTextLine[]"
+        },
+        {
+          "name": "getStyledTextLines",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "env",
+              "type": "RenderEnvironment | undefined"
+            }
+          ],
+          "returns": "{ runs: LaidOutTextRun[] }[] | null"
+        }
+      ],
+      "import_line": "import { applyStyle, getStyledTextLines, restoreStyleRanges, shiftRangesForEdit, withStyleRanges } from \"@excalidraw/element\";",
+      "style_from": {
+        "path": "packages/element/src/textWrapping.ts",
+        "lines": [
+          1,
+          40
+        ],
+        "reason": "pure element-package module: import grouping, JSDoc style, exported arrow functions"
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/textMeasurements.ts",
+          "lines": [
+            187,
+            198
+          ],
+          "reason": "getLineWidth signature"
+        },
+        {
+          "path": "packages/element/src/mutateElement.ts",
+          "lines": [
+            149,
+            181
+          ],
+          "reason": "newElementWith's version/versionNonce/updated bump, which withStyleRanges mirrors"
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-20",
+        "NFR-3",
+        "NFR-6"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-exports the range model from @excalidraw/element.",
+      "rules": [
+        "1. Add `export * from \"./textRanges\";` right after `export * from \"./textMeasurements\";` (alphabetical position among the text modules)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101,
+          "first_line": "export * from \"./textMeasurements\";",
+          "rule": "rule 1"
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-1"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/newElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "newTextElement accepts styleRanges and sets the key only when the normalized list is non-empty.",
+      "rules": [
+        "1. Add `import { normalizeStyleRanges } from \"./textRanges\";` after the `./textMeasurements` import, and add `TextStyleRange,` to the existing `import type { ... } from \"./types\";` list.",
+        "2. newTextElement opts gain `styleRanges?: readonly TextStyleRange[] | null;`.",
+        "3. Declare `const styleRanges = opts.styleRanges ? normalizeStyleRanges(opts.styleRanges, (opts.originalText ?? text).length) : [];` right before `const textElementProps`, and add `...(styleRanges.length ? { styleRanges } : {}),` as the last entry of textElementProps.",
+        "4. refreshTextDimensions is NOT changed: its `text` argument defaults to the wrapped element.text (not originalText) and it returns a partial update, so styleRanges carry through every caller untouched; clamping after an originalText change is done where the text changes (the editor, U12) and defensively at render time (splitRangesIntoLines clamps)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 32,
+          "to": 32,
+          "first_line": "import { normalizeText, measureText } from \"./textMeasurements\";",
+          "rule": "rule 1: the textRanges value import"
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "ExcalidrawTextElement,",
+          "rule": "rule 1: add `TextStyleRange,` to the type import list"
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 349,
+          "to": 350,
+          "first_line": "baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];",
+          "last_line": "renderEnvironment?: RenderEnvironment;",
+          "rule": "rule 2: keep both lines and add the styleRanges option between them"
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 370,
+          "to": 370,
+          "first_line": "const textElementProps: NonDeleted<ExcalidrawTextElement> = {",
+          "rule": "rule 3: the styleRanges const"
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386,
+          "first_line": "labelPosition: opts.labelPosition ?? null,",
+          "rule": "rule 3: the conditional spread"
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-10",
+        "FR-20"
+      ],
+      "checks": [
+        "lint",
+        "format"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/element/src/types.ts": "ae55b7f4e5e62aa33c36ae54c26b34e7c5853c0a4bb9accbf384a635b4070ef4",
+    "packages/element/src/textWrapping.ts": "29b9203ed4547238e76cf8ff725dcc0a8724d3bffac8e2d8e0682bb4ce9c54c3",
+    "packages/element/src/textMeasurements.ts": "3c92e8570c05c77e0609a191552c3ea112e6fade38ea0a2e38c620b2acf5d774",
+    "packages/element/src/mutateElement.ts": "fe0a157b339a128b8e049f57a1c726b053aa91b0e415971dc5983e4e6f806a70",
+    "packages/element/src/index.ts": "c6b46d0a5bfb81315e64577e6d07f78540950dfae9a328de047a2369fb399939",
+    "packages/element/src/newElement.ts": "a8e340ef0890c63933d4ce9b0dcc6a6f393b72da15e347209c340d1add1e8539"
+  }
+}
