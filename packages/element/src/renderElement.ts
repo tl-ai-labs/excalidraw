@@ -48,7 +48,11 @@ import type {
 
 import { getCreatePath, getRenderEnvironment } from "./renderEnvironment";
 
-import { getElementAbsoluteCoords, getElementBounds } from "./bounds";
+import {
+  getArrowheadSizeScale,
+  getElementAbsoluteCoords,
+  getElementBounds,
+} from "./bounds";
 import { getUncroppedImageElement } from "./cropElement";
 import { LinearElementEditor } from "./linearElementEditor";
 import {
@@ -103,15 +107,16 @@ const isPendingImageElement = (
   isInitializedImageElement(element) &&
   !renderConfig.imageCache.has(element.fileId);
 
-const getCanvasPadding = (element: ExcalidrawElement) => {
+export const getCanvasPadding = (element: ExcalidrawElement): number => {
   switch (element.type) {
     case "freedraw":
       return element.strokeWidth * 12;
     case "text":
       return element.fontSize / 2;
     case "arrow":
-      if (element.endArrowhead || element.endArrowhead) {
-        return 40;
+      if (element.startArrowhead || element.endArrowhead) {
+        // heads grow with arrowheadSize; small heads keep the headless padding
+        return Math.max(20, 40 * getArrowheadSizeScale(element));
       }
       return 20;
     default:

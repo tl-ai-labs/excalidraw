@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-211345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 30): makeArrow takes Partial<ExcalidrawArrowElement>, spreads it as `overrides as any`, and casts the result `as unknown as ExcalidrawArrowElement`. That turns off type checking for every override, even though API.createElement now accepts arrowheadSize, startArrowhead and endArrowhead directly. — fix: Type overrides as `{ arrowheadSize?: ArrowheadSize; startArrowhead?: Arrowhead | null; endArrowhead?: Arrowhead | null }`. Spread it without `as any` and drop the `as unknown` double cast.\n2. minor: No test covers the elbow-arrow paths the change touches. Nothing checks actionChangeArrowheadSize's updateElbowArrowRoute branch or the scaled head room in elbowArrow.ts getSimpleRoute. The clampLabelPositionOffEnds head term in transform.ts and the new Math.min(scale, cardinalityScale) cardinality branch in bounds.ts are also untested. All four ship with no check. — fix: Add one jsdom case. Select an elbowed arrow (API.createElement({ type: 'arrow', elbowed: true, ... })), click arrowheadSize-large, and expect arrowheadSize to be 'large' with the points still valid (re-routed, version bumped). Optionally add a bounds.test.ts case checking that a large cardinality marker on a short multi-segment arrow is no bigger than the unscaled one.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-211345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-211345-feature-extend-arrowhead-size/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 400,
+      "max_retries": 2
+    }
+  }
+]

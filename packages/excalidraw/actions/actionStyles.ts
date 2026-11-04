@@ -17,6 +17,8 @@ import {
   getDefaultRoundnessTypeForElement,
   isFrameLikeElement,
   isArrowElement,
+  isArrowheadSize,
+  isLinearElement,
   isElbowArrow,
   isExcalidrawElement,
   getColorUpdate,
@@ -38,7 +40,11 @@ import {
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
-import type { ExcalidrawTextElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawLinearElement,
+  ExcalidrawTextElement,
+} from "@excalidraw/element/types";
+import type { Mutable } from "@excalidraw/common/utility-types";
 
 import { paintIcon } from "../components/icons";
 
@@ -179,6 +185,23 @@ export const actionPasteStyles = register({
                   app.scene,
                   app.renderEnvironment,
                 );
+              }
+            }
+
+            // the arrowhead size matches the source like the other styles
+            if (
+              isLinearElement(newElement) &&
+              isLinearElement(elementStylesToCopyFrom)
+            ) {
+              if (isArrowheadSize(elementStylesToCopyFrom.arrowheadSize)) {
+                newElement = newElementWith(newElement, {
+                  arrowheadSize: elementStylesToCopyFrom.arrowheadSize,
+                });
+              } else if (newElement.arrowheadSize !== undefined) {
+                const cleared = newElementWith(newElement, {}, true);
+                delete (cleared as Mutable<ExcalidrawLinearElement>)
+                  .arrowheadSize;
+                newElement = cleared;
               }
             }
 

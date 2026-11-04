@@ -56,6 +56,7 @@ import {
   aabbForElement,
   doBoundsIntersect,
   getArrowheadSize,
+  getArrowheadSizeScale,
   pointInsideBounds,
 } from "./bounds";
 import { getHoveredElementForBinding } from "./collision";
@@ -64,6 +65,7 @@ import { ELBOW_ARROW_CORNER_RADIUS } from "./shape";
 import type { Heading } from "./heading";
 import type {
   Arrowhead,
+  ArrowheadSize,
   ElementsMap,
   ExcalidrawBindableElement,
   FixedPointBinding,
@@ -98,6 +100,7 @@ type ElbowArrowState = {
   endBinding: FixedPointBinding | null;
   startArrowhead: Arrowhead | null;
   endArrowhead: Arrowhead | null;
+  arrowheadSize?: ArrowheadSize;
 };
 
 type ElbowArrowData = {
@@ -1490,12 +1493,17 @@ const getSimpleRoute = (
     firstLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.startArrowhead ? getArrowheadSize(arrow.startArrowhead) : 0,
+        arrow.startArrowhead
+          ? getArrowheadSize(arrow.startArrowhead) *
+              getArrowheadSizeScale(arrow)
+          : 0,
       ) ||
     lastLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.endArrowhead ? getArrowheadSize(arrow.endArrowhead) : 0,
+        arrow.endArrowhead
+          ? getArrowheadSize(arrow.endArrowhead) * getArrowheadSizeScale(arrow)
+          : 0,
       )
   ) {
     return null;

@@ -39,6 +39,7 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  isArrowheadSize,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -262,6 +263,13 @@ const restoreStrokeVariability = (
     ALLOWED_STROKE_VARIABILITIES.has(variability as StrokeVariability)
     ? (variability as StrokeVariability)
     : defaultValue;
+};
+
+// absent stays absent, invalid values are dropped
+const restoreArrowheadSize = (element: Mutable<ExcalidrawLinearElement>) => {
+  if (!isArrowheadSize(element.arrowheadSize)) {
+    delete element.arrowheadSize;
+  }
 };
 
 const getStrokeWidthKey = (strokeWidth: unknown): StrokeWidthKey | null => {
@@ -627,6 +635,7 @@ export const restoreElement = (
     // @ts-ignore LEGACY type
     // eslint-disable-next-line no-fallthrough
     case "draw":
+      restoreArrowheadSize(element as Mutable<ExcalidrawLinearElement>);
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead = normalizeArrowhead(element.endArrowhead);
       let x = element.x;
@@ -668,6 +677,7 @@ export const restoreElement = (
 
       return handleOversizedLinearElements(restoredLine);
     case "arrow": {
+      restoreArrowheadSize(element as Mutable<ExcalidrawLinearElement>);
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
         element.endArrowhead === undefined

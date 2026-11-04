@@ -236,6 +236,7 @@ export class API {
       ? ExcalidrawArrowElement["endArrowhead"] | ExcalidrawElbowArrowElement["endArrowhead"]
       : never;
     elbowed?: boolean;
+    arrowheadSize?: T extends "arrow" | "line" ? ExcalidrawLinearElement["arrowheadSize"] : never;
     fixedSegments?: FixedSegment[] | null;
   }): NonDeleted<
     T extends "arrow" | "line"
@@ -374,6 +375,7 @@ export class API {
             pointFrom<LocalPoint>(100, 100),
           ],
           elbowed: rest.elbowed ?? false,
+          arrowheadSize: rest.arrowheadSize,
         });
         break;
       case "line":
@@ -387,6 +389,7 @@ export class API {
             pointFrom<LocalPoint>(100, 100),
           ],
           polygon: rest.polygon,
+          arrowheadSize: rest.arrowheadSize,
         });
         break;
       case "image":

@@ -34,6 +34,40 @@ describe("arrowhead shapes", () => {
   );
 });
 
+describe("arrowhead size shapes", () => {
+  const getHead = (arrowheadSize?: "small" | "medium" | "large") => {
+    const arrow = API.createElement({
+      type: "arrow",
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      endArrowhead: "triangle",
+      roughness: 0,
+      arrowheadSize,
+    });
+    return ShapeCache.generateElementShape(arrow, null)[1];
+  };
+
+  // the shaft lies on y = 0, so the head's y coordinates give its height
+  const getExtent = (head: ReturnType<typeof getHead>) => {
+    const ys = head.sets.flatMap((set) =>
+      set.ops.flatMap((op) => op.data.filter((_, i) => i % 2 === 1)),
+    );
+    return Math.max(...ys) - Math.min(...ys);
+  };
+
+  it("draws larger head shapes for larger arrowhead sizes", () => {
+    const small = getExtent(getHead("small"));
+    const absent = getExtent(getHead());
+    const large = getExtent(getHead("large"));
+
+    expect(large).toBeGreaterThan(absent);
+    expect(absent).toBeGreaterThan(small);
+  });
+
+  it("draws medium head shapes like heads without arrowheadSize", () => {
+    expect(getHead("medium").sets).toEqual(getHead().sets);
+  });
+});
+
 describe("elbow arrow shapes", () => {
   const getCorners = (points: [number, number][]) =>
     generateElbowArrowShape(

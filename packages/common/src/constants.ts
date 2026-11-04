@@ -1,4 +1,5 @@
 import type {
+  ArrowheadSize,
   ExcalidrawElement,
   FontFamilyValues,
 } from "@excalidraw/element/types";
@@ -513,6 +514,15 @@ export const getStrokeWidthByKey = (
 };
 
 export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = "medium";
+
+// scales the per-type base arrowhead size
+export const ARROWHEAD_SIZE_SCALE: Readonly<Record<ArrowheadSize, number>> = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+};
+
+export const DEFAULT_ARROWHEAD_SIZE: ArrowheadSize = "medium";
 
 export const DEFAULT_ELEMENT_PROPS: {
   strokeColor: ExcalidrawElement["strokeColor"];

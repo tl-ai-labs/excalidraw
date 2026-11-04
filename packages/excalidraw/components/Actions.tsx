@@ -17,7 +17,10 @@ import { actionToggleZenMode } from "../actions";
 import { t } from "../i18n";
 import { getTargetElements } from "../scene";
 
-import { getFormValue } from "../actions/actionProperties";
+import {
+  getFormValue,
+  isArrowheadSizeTarget,
+} from "../actions/actionProperties";
 
 import { useTextEditorFocus } from "../hooks/useTextEditorFocus";
 
@@ -187,6 +190,8 @@ export const SelectedShapeActions = ({
 
       {predicates.verticalAlign && renderAction("changeVerticalAlign")}
       {predicates.arrowheads && <>{renderAction("changeArrowhead")}</>}
+      {targetElements.some(isArrowheadSizeTarget) &&
+        renderAction("changeArrowheadSize")}
 
       {predicates.opacity && renderAction("changeOpacity")}
 

@@ -1,0 +1,125 @@
+[
+  {
+    "id": "U10",
+    "path": "packages/excalidraw/locales/en.json",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the English labels of the arrowhead size control and its three options.",
+    "rules": [
+      "1. Inside \"labels\", right after \"arrowhead_cardinality_zero_or_many\", add in this order: \"arrowheadSize\": \"Arrowhead size\", \"arrowheadSize_small\": \"Small\", \"arrowheadSize_medium\": \"Medium\", \"arrowheadSize_large\": \"Large\", each line ending with a comma.",
+      "2. No other key changes; no other locale file is touched."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 70, "to": 70, "first_line": "\"arrowhead_cardinality_zero_or_many\": \"Cardinality (zero or many)\",", "rule": "Rule 1: the four label lines, indented like their neighbours." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-14"],
+    "checks": ["json-format"]
+  },
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds actionChangeArrowheadSize, which sets the arrowhead size of every selected line or arrow with a head, and its three-option panel control, and shows that control in the compact and mobile arrow popover.",
+    "rules": [
+      "1. Imports: DEFAULT_ARROWHEAD_SIZE in the @excalidraw/common import, isArrowheadSize next to getArrowheadForPicker in the same @excalidraw/element import line, and ArrowheadSize in the @excalidraw/element/types type import; the icons FontSizeSmallIcon, FontSizeMediumIcon and FontSizeLargeIcon are already imported.",
+      "2. After actionChangeArrowhead, export `isArrowheadSizeTarget = (element: ExcalidrawElement): element is ExcalidrawLinearElement` returning isLinearElement(element) && (element.startArrowhead !== null || element.endArrowhead !== null), with a one-line comment.",
+      "3. Then export `actionChangeArrowheadSize = register<ArrowheadSize>({ name: \"changeArrowheadSize\", label: \"labels.arrowheadSize\", trackEvent: false, perform, PanelComponent })`.",
+      "4. perform(elements, appState, value, app): invariant(value, \"actionChangeArrowheadSize: value must be defined\"); elements = changeProperty(elements, appState, callback) where the callback returns a non-target unchanged, and for a target builds `newElementWith(el, { arrowheadSize: value })`, then, when isElbowArrow holds for it, re-routes it with newElementWith(element, updateElbowArrowRoute(element, app.scene.getNonDeletedElementsMap())) exactly as actionChangeArrowhead does.",
+      "5. perform returns { elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY } and no appState key: no AppState field changes.",
+      "6. PanelComponent({ elements, appState, updateData, app }) renders <fieldset><legend>{t(\"labels.arrowheadSize\")}</legend><div className=\"buttonList\"><RadioSelection<ArrowheadSize> group=\"arrowhead-size\" .../></div></fieldset>, shaped like actionChangeStrokeWidth's panel.",
+      "7. Options in order small, medium, large: text t(\"labels.arrowheadSize_small\"), t(\"labels.arrowheadSize_medium\"), t(\"labels.arrowheadSize_large\"); icons FontSizeSmallIcon, FontSizeMediumIcon, FontSizeLargeIcon; testIds \"arrowheadSize-small\", \"arrowheadSize-medium\", \"arrowheadSize-large\".",
+      "8. value = getFormValue<ArrowheadSize | null>(elements, app, (element) => isArrowheadSizeTarget(element) && isArrowheadSize(element.arrowheadSize) ? element.arrowheadSize : DEFAULT_ARROWHEAD_SIZE, isArrowheadSizeTarget, (hasSelection) => (hasSelection ? null : DEFAULT_ARROWHEAD_SIZE)), so an absent size shows as medium and a mixed selection shows none; onChange={(value) => updateData(value)}.",
+      "9. actionChangeArrowProperties' PanelComponent (the compact and mobile arrow popover) first computes `const hasArrowheadSizeTarget = getTargetElements(getNonDeletedElements(elements), appState).some(isArrowheadSizeTarget);` (both helpers are already imported), then renders `{hasArrowheadSizeTarget && renderAction(\"changeArrowheadSize\")}` right after `{renderAction(\"changeArrowhead\")}`; its perform and the changeArrowType line are unchanged."
+    ],
+    "exports": [
+      { "name": "isArrowheadSizeTarget", "kind": "function", "params": [{ "name": "element", "type": "ExcalidrawElement" }], "returns": "element is ExcalidrawLinearElement" },
+      { "name": "actionChangeArrowheadSize", "kind": "const", "params": [], "returns": "Action<ArrowheadSize>" }
+    ],
+    "import_line": "import { actionChangeArrowheadSize, isArrowheadSizeTarget } from \"../actions/actionProperties\";",
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 25, "to": 25, "first_line": "FONT_SIZES,", "rule": "Rule 1: the `DEFAULT_ARROWHEAD_SIZE,` member." },
+      { "id": "S2", "at": "replace", "from": 46, "to": 46, "first_line": "import { getArrowheadForPicker } from \"@excalidraw/element\";", "rule": "Rule 1: import getArrowheadForPicker and isArrowheadSize on this line." },
+      { "id": "S3", "at": "insert_after", "from": 85, "to": 85, "first_line": "Arrowhead,", "rule": "Rule 1: the `ArrowheadSize,` member." },
+      { "id": "S4", "at": "insert_after", "from": 2056, "to": 2056, "first_line": "});", "rule": "Rules 2-8: a blank line, isArrowheadSizeTarget, a blank line, actionChangeArrowheadSize." },
+      { "id": "S5", "at": "insert_before", "from": 2068, "to": 2068, "first_line": "return (", "rule": "Rule 9: the hasArrowheadSizeTarget constant and a blank line." },
+      { "id": "S6", "at": "insert_after", "from": 2070, "to": 2070, "first_line": "{renderAction(\"changeArrowhead\")}", "rule": "Rule 9: the gated changeArrowheadSize render." }
+    ],
+    "style_from": { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [716, 772], "reason": "actionChangeStrokeWidth is the RadioSelection panel and perform shape to copy" },
+    "uses": [
+      { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [1960, 2075], "reason": "actionChangeArrowhead's elbow re-route and its use of changeProperty, and actionChangeArrowProperties' PanelComponent that rule 9 extends" },
+      { "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [1795, 1799], "reason": "how this file calls getTargetElements(getNonDeletedElements(elements), appState) in a PanelComponent" },
+      { "path": "packages/excalidraw/components/RadioSelection.tsx", "reason": "the RadioSelection props" }
+    ],
+    "depends_on": ["U01", "U02", "U03", "U09", "U10"],
+    "covers": ["FR-10", "FR-11", "FR-14", "NFR-3", "NFR-6"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/components/Actions.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Renders the arrowhead size control in the full styles panel, right after the arrowhead pickers, when a selected element has a head.",
+    "rules": [
+      "1. Import isArrowheadSizeTarget together with getFormValue from \"../actions/actionProperties\".",
+      "2. In SelectedShapeActions, right after the changeArrowhead line, render `{targetElements.some(isArrowheadSizeTarget) && renderAction(\"changeArrowheadSize\")}`.",
+      "3. CompactShapeActions, MobileShapeActions and CombinedArrowProperties are not edited: they render changeArrowProperties, whose PanelComponent (U11 rule 9) adds the size control on those layouts."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 20, "to": 20, "first_line": "import { getFormValue } from \"../actions/actionProperties\";", "rule": "Rule 1." },
+      { "id": "S2", "at": "insert_after", "from": 189, "to": 189, "first_line": "{predicates.arrowheads && <>{renderAction(\"changeArrowhead\")}</>}", "rule": "Rule 2." }
+    ],
+    "depends_on": ["U11"],
+    "covers": ["FR-12"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/actions/actionStyles.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Makes Paste styles set a linear target's arrowhead size to the copied linear element's, clearing it when the source has none.",
+    "rules": [
+      "1. Import isArrowheadSize and isLinearElement in the @excalidraw/element import block that holds isArrowElement; extend the type import to `import type { ExcalidrawLinearElement, ExcalidrawTextElement } from \"@excalidraw/element/types\";` and add `import type { Mutable } from \"@excalidraw/common/utility-types\";` after it.",
+      "2. Copy styles needs no change: it already serializes the whole source element, arrowheadSize included.",
+      "3. In actionPasteStyles, right before the existing `if (newElement.type === \"arrow\" && isArrowElement(elementStylesToCopyFrom))` block, add a block guarded by isLinearElement(newElement) && isLinearElement(elementStylesToCopyFrom), with a one-line comment that the size matches the source like the other styles.",
+      "4. Inside it: when isArrowheadSize(elementStylesToCopyFrom.arrowheadSize), newElement = newElementWith(newElement, { arrowheadSize: elementStylesToCopyFrom.arrowheadSize }).",
+      "5. Otherwise, when newElement.arrowheadSize !== undefined: `const cleared = newElementWith(newElement, {}, true);` then `delete (cleared as Mutable<ExcalidrawLinearElement>).arrowheadSize;` then newElement = cleared, so the version bumps, the change is undoable, and the element serializes without the key.",
+      "6. Otherwise (source and target both without a size) newElement is left as it is, so no key appears.",
+      "7. The existing arrowheads block keeps running after this one, so an elbow target is re-routed with its new size when the source is an arrow."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 19, "to": 19, "first_line": "isArrowElement,", "rule": "Rule 1: the `isArrowheadSize,` and `isLinearElement,` members." },
+      { "id": "S2", "at": "replace", "from": 41, "to": 41, "first_line": "import type { ExcalidrawTextElement } from \"@excalidraw/element/types\";", "rule": "Rule 1: the extended type import followed by the Mutable type import." },
+      { "id": "S3", "at": "insert_before", "from": 185, "to": 185, "first_line": "if (", "rule": "Rules 3-6: the arrowhead size block and a blank line after it." }
+    ],
+    "uses": [
+      { "path": "packages/element/src/mutateElement.ts", "lines": [149, 181], "reason": "newElementWith skips undefined updates, which is why clearing forces a copy and deletes the key" }
+    ],
+    "depends_on": ["U01", "U03"],
+    "covers": ["FR-13"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U14",
+    "path": "packages/excalidraw/tests/helpers/api.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Lets API.createElement take arrowheadSize for arrows and lines and pass it to the element factories.",
+    "rules": [
+      "1. The createElement options type gains `arrowheadSize?: T extends \"arrow\" | \"line\" ? ExcalidrawLinearElement[\"arrowheadSize\"] : never;` after elbowed.",
+      "2. The newArrowElement call and the newLinearElement call each pass `arrowheadSize: rest.arrowheadSize,`; the factories drop an undefined value, so elements created without it keep no key.",
+      "3. Nothing else in the file changes, its existing formatting included."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 238, "to": 238, "first_line": "elbowed?: boolean;", "rule": "Rule 1." },
+      { "id": "S2", "at": "insert_after", "from": 376, "to": 376, "first_line": "elbowed: rest.elbowed ?? false,", "rule": "Rule 2 for the arrow factory." },
+      { "id": "S3", "at": "insert_after", "from": 389, "to": 389, "first_line": "polygon: rest.polygon,", "rule": "Rule 2 for the line factory." }
+    ],
+    "depends_on": ["U01", "U07"],
+    "covers": ["FR-15", "NFR-2"],
+    "checks": ["lint"]
+  }
+]
