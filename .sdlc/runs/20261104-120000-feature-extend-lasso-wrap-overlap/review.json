@@ -1,0 +1,37 @@
+{
+  "module": "packages/excalidraw/lasso (lasso Wrap/Overlap box selection mode)",
+  "verdict": "needs_changes",
+  "tool_calls": 10,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 220,
+      "issue": "Root cause of both failing UI tests is in the test, not in lasso/utils.ts or lasso/index.ts. The test renders <Excalidraw/> under jsdom where appState.width/height are 0, so app.visibleElements (which LassoTrail.updateSelection passes as both 'elements' and the source of elementsSegments) contains only rect1 (touching the origin); rect2 at x=100 is culled and can never be selected in any mode. Confirmed with a throwaway debug test: visibleElements = [rect1] on every pointermove, state.width = state.height = 0. lasso.test.tsx avoids this with h.state.width/height = 1000 in its beforeEach. The densify helper added in the fix round was based on a wrong diagnosis (simplify(…, 5) does not collapse the corners).",
+      "fix": "Give the editor a viewport before drawing: add API.setAppState({ width: 1000, height: 1000 }); as the first statement of createScene (before API.setElements). Verified: with that line and the plan's plain 5-point lasso, all three cases pass (contain -> [rect1], switch-to-overlap -> [rect1, rect2], overlap -> [rect1, rect2])."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 245,
+      "issue": "Deviation from change_plan U04 rule 4: the fix round added a densify() helper with an incorrect comment ('one pointermove per corner gets collapsed by path simplification') and changed the lasso's closing point to (-20, -15). Neither is needed once the viewport is sized, and the comment misdocuments the lasso util.",
+      "fix": "Delete the densify helper and its comment; define the lasso as lassoSelect([[-20, -20], [125, -20], [125, 70], [-20, 70], [-20, -20]]) exactly as the plan states (line 264 onward), keeping the one-line comment that rect1 is enclosed and rect2 is only partially covered."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 284,
+      "issue": "'wrap (contain) > selects only the fully enclosed element' currently passes vacuously: rect2 is never in visibleElements (0x0 viewport), so the assertion [rect1] does not prove that Wrap mode rejects the partially touched rect2 (AC-1).",
+      "fix": "Resolved by the same createScene viewport fix above; no separate change needed beyond it, but the test must be re-run after that fix to confirm it still asserts [rect1] with rect2 visible (it does in the debug run)."
+    }
+  ],
+  "passing_checks": [
+    "U01 lasso/utils.ts: matches plan rules 1-11; overlap branch and return order byte-identical to before; omitted mode defaults to overlap.",
+    "U01 vs elementsOverlappingBBox: frame clip uses the same getContainingFrame + elementOverlapsWithFrame + frame AABB; bound text skipped in contain like shouldIgnoreElementFromSelection; group pass mirrors contain-mode group.every on groupIds.at(-1) ignoring locked/bound-text members (members taken from elementsMap per plan decision). Arrow labels: box selection folds the label AABB into the contain test; lasso covers the only reachable case (label crossing a lasso edge) via intersectionTest on bound text, so no finding.",
+    "U02 lasso/index.ts: reads this.app.state.boxSelectionMode at call time; nothing else changed.",
+    "U03 lasso.test.tsx: all existing calls pinned to overlap; new describe covers every plan case; passes.",
+    "U05 CHANGELOG.md: heading/bullet placement and wording per plan; no keys/values dropped.",
+    "Type safety: no any; BoxSelectionMode imported type-only from ../types."
+  ],
+  "refinement_packets": []
+}

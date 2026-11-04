@@ -32,7 +32,11 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
+
 import { act, render } from "./test-utils";
+
+import type { BoxSelectionMode } from "../types";
 
 const { h } = window;
 
@@ -43,7 +47,13 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode: BoxSelectionMode,
+) => {
+  API.setAppState({ boxSelectionMode });
+
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +84,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode,
     });
 
     act(() =>
@@ -454,7 +465,7 @@ describe("Basic lasso selection tests", () => {
       [1304.80078125, -70.2578125],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.app.state);
 
@@ -637,7 +648,7 @@ describe("Basic lasso selection tests", () => {
       [455.4453125, 422.06640625],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(3);
     expect(selectedElements.filter((e) => e.type === "arrow").length).toBe(1);
@@ -859,7 +870,7 @@ describe("Basic lasso selection tests", () => {
       [17.85546875, -53.44921875],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(4);
@@ -909,7 +920,7 @@ describe("Basic lasso selection tests", () => {
       [-42.0625, 102.12109375],
       [-42.0625, 102.12109375],
     ] as LocalPoint[];
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(1);
@@ -1186,7 +1197,7 @@ describe("Special cases", () => {
       [258.9296875, 170.1875],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(1);
@@ -1795,10 +1806,389 @@ describe("Special cases", () => {
       [60.09375, -1.76953125],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("lasso box selection mode", () => {
+  beforeEach(() => {
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+  });
+
+  const squareLasso = (x: number, y: number, size: number) => ({
+    startPoint: pointFrom<GlobalPoint>(x, y),
+    points: [
+      [0, 0],
+      [size, 0],
+      [size, size],
+      [0, size],
+      [0, 0],
+    ] as LocalPoint[],
+  });
+
+  const ENCLOSING = squareLasso(-50, -50, 200);
+  const TOUCHING = squareLasso(60, 60, 200);
+
+  const selectedIds = () =>
+    getSelectedElements(h.elements, h.state).map((e) => e.id);
+
+  const shapes: [string, () => ExcalidrawElement][] = [
+    [
+      "rectangle",
+      () =>
+        API.createElement({
+          type: "rectangle",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        }),
+    ],
+    [
+      "ellipse",
+      () =>
+        API.createElement({
+          type: "ellipse",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        }),
+    ],
+    [
+      "diamond",
+      () =>
+        API.createElement({
+          type: "diamond",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        }),
+    ],
+    [
+      "rotated rectangle",
+      () =>
+        API.createElement({
+          type: "rectangle",
+          x: 20,
+          y: 20,
+          width: 60,
+          height: 60,
+          angle: Math.PI / 4,
+        }),
+    ],
+    [
+      "line",
+      () =>
+        API.createElement({
+          type: "line",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+          points: [
+            pointFrom<LocalPoint>(0, 0),
+            pointFrom<LocalPoint>(100, 100),
+          ],
+        }),
+    ],
+    [
+      "arrow",
+      () =>
+        API.createElement({
+          type: "arrow",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+          points: [
+            pointFrom<LocalPoint>(0, 0),
+            pointFrom<LocalPoint>(100, 100),
+          ],
+        }),
+    ],
+    [
+      "freedraw",
+      () =>
+        API.createElement({
+          type: "freedraw",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+          points: [
+            pointFrom<LocalPoint>(0, 0),
+            pointFrom<LocalPoint>(50, 20),
+            pointFrom<LocalPoint>(100, 100),
+          ],
+        }),
+    ],
+  ];
+
+  it.each(shapes)(
+    "%s fully enclosed is selected in contain mode",
+    (_, make) => {
+      const element = make();
+      API.setElements([element]);
+      updatePath(ENCLOSING.startPoint, ENCLOSING.points, "contain");
+      expect(selectedIds()).toEqual([element.id]);
+    },
+  );
+
+  it.each(shapes)(
+    "%s fully enclosed is selected in overlap mode",
+    (_, make) => {
+      const element = make();
+      API.setElements([element]);
+      updatePath(ENCLOSING.startPoint, ENCLOSING.points, "overlap");
+      expect(selectedIds()).toEqual([element.id]);
+    },
+  );
+
+  it.each(shapes)(
+    "%s partially touched is not selected in contain mode",
+    (_, make) => {
+      const element = make();
+      API.setElements([element]);
+      updatePath(TOUCHING.startPoint, TOUCHING.points, "contain");
+      expect(selectedIds()).toEqual([]);
+    },
+  );
+
+  it.each(shapes)(
+    "%s partially touched is selected in overlap mode",
+    (_, make) => {
+      const element = make();
+      API.setElements([element]);
+      updatePath(TOUCHING.startPoint, TOUCHING.points, "overlap");
+      expect(selectedIds()).toEqual([element.id]);
+    },
+  );
+
+  it("omitting the mode returns the overlap result", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    const elementsSegments: ElementsSegmentsMap = new Map();
+    for (const element of h.elements) {
+      elementsSegments.set(
+        element.id,
+        getElementLineSegments(
+          element,
+          h.app.scene.getElementsMapIncludingDeleted(),
+        ),
+      );
+    }
+
+    const lassoPath = [
+      pointFrom<GlobalPoint>(60, 60),
+      pointFrom<GlobalPoint>(260, 60),
+      pointFrom<GlobalPoint>(260, 260),
+      pointFrom<GlobalPoint>(60, 260),
+      pointFrom<GlobalPoint>(60, 60),
+    ];
+
+    const run = (boxSelectionMode?: BoxSelectionMode) =>
+      getLassoSelectedElementIds({
+        lassoPath,
+        elements: h.elements,
+        elementsMap: h.scene.getNonDeletedElementsMap(),
+        elementsSegments,
+        intersectedElements: new Set(),
+        enclosedElements: new Set(),
+        boxSelectionMode,
+      }).selectedElementIds;
+
+    const omitted = run();
+    expect(omitted).toEqual(run("overlap"));
+    expect(omitted).toContain(rect.id);
+    expect(run("contain")).toEqual([]);
+  });
+
+  describe("bound text", () => {
+    const setup = () => {
+      const [container, label] = API.createTextContainer();
+      API.setElements([container, label]);
+      const { x, y, width, height } = API.getElement(label);
+      return {
+        container,
+        lasso: squareLasso(x - 5, y - 5, Math.max(width, height) + 10),
+      };
+    };
+
+    it("contain mode does not select a container when only its label is enclosed", () => {
+      const { lasso } = setup();
+      updatePath(lasso.startPoint, lasso.points, "contain");
+      expect(selectedIds()).toEqual([]);
+    });
+
+    it("overlap mode selects the container when its label is enclosed", () => {
+      const { container, lasso } = setup();
+      updatePath(lasso.startPoint, lasso.points, "overlap");
+      expect(selectedIds()).toEqual([container.id]);
+    });
+  });
+
+  describe("frames", () => {
+    const setup = () => {
+      const frame = API.createElement({
+        type: "frame",
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 400,
+      });
+      const child = API.createElement({
+        type: "rectangle",
+        x: 50,
+        y: 50,
+        width: 100,
+        height: 100,
+        frameId: frame.id,
+      });
+      API.setElements([frame, child]);
+      return { frame, child };
+    };
+
+    it("contain mode selects a frame child when only the child is enclosed", () => {
+      const { child } = setup();
+      const lasso = squareLasso(25, 25, 150);
+      updatePath(lasso.startPoint, lasso.points, "contain");
+      expect(selectedIds()).toEqual([child.id]);
+    });
+
+    it("contain mode selects only the frame when the whole frame is enclosed", () => {
+      const { frame } = setup();
+      const lasso = squareLasso(-50, -50, 500);
+      updatePath(lasso.startPoint, lasso.points, "contain");
+      expect(selectedIds()).toEqual([frame.id]);
+    });
+
+    it("contain mode selects a frame child protruding from its frame when its visible part is enclosed", () => {
+      const frame = API.createElement({
+        type: "frame",
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 200,
+      });
+      const child = API.createElement({
+        type: "rectangle",
+        x: 150,
+        y: 50,
+        width: 100,
+        height: 100,
+        frameId: frame.id,
+      });
+      API.setElements([frame, child]);
+
+      updatePath(
+        pointFrom<GlobalPoint>(140, 40),
+        [
+          [0, 0],
+          [70, 0],
+          [70, 120],
+          [0, 120],
+          [0, 0],
+        ] as LocalPoint[],
+        "contain",
+      );
+      expect(selectedIds()).toEqual([child.id]);
+    });
+  });
+
+  describe("groups", () => {
+    const setup = () => {
+      const rectA = API.createElement({
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        groupIds: ["g1"],
+      });
+      const rectB = API.createElement({
+        type: "rectangle",
+        x: 300,
+        y: 0,
+        width: 100,
+        height: 100,
+        groupIds: ["g1"],
+      });
+      API.setElements([rectA, rectB]);
+      return { rectA, rectB };
+    };
+
+    it("contain mode does not select a group when one member is not enclosed", () => {
+      setup();
+      updatePath(ENCLOSING.startPoint, ENCLOSING.points, "contain");
+      expect(selectedIds()).toEqual([]);
+    });
+
+    it("overlap mode selects the whole group when one member is enclosed", () => {
+      const { rectA, rectB } = setup();
+      updatePath(ENCLOSING.startPoint, ENCLOSING.points, "overlap");
+      expect(selectedIds().sort()).toEqual([rectA.id, rectB.id].sort());
+    });
+
+    it("contain mode selects the group when every member is enclosed", () => {
+      const { rectA, rectB } = setup();
+      const lasso = squareLasso(-50, -50, 500);
+      updatePath(lasso.startPoint, lasso.points, "contain");
+      expect(selectedIds().sort()).toEqual([rectA.id, rectB.id].sort());
+    });
+  });
+
+  describe("concave lasso", () => {
+    const notch = {
+      startPoint: pointFrom<GlobalPoint>(-50, -50),
+      points: [
+        [0, 0],
+        [90, 0],
+        [100, 100],
+        [110, 0],
+        [200, 0],
+        [200, 200],
+        [0, 200],
+        [0, 0],
+      ] as LocalPoint[],
+    };
+
+    const setup = () => {
+      const rect = API.createElement({
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      });
+      API.setElements([rect]);
+      return rect;
+    };
+
+    it("contain mode does not select an element a concave lasso edge cuts across", () => {
+      setup();
+      updatePath(notch.startPoint, notch.points, "contain");
+      expect(selectedIds()).toEqual([]);
+    });
+
+    it("overlap mode selects an element a concave lasso edge cuts across", () => {
+      const rect = setup();
+      updatePath(notch.startPoint, notch.points, "overlap");
+      expect(selectedIds()).toEqual([rect.id]);
+    });
   });
 });

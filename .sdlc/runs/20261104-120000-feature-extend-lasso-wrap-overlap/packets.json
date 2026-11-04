@@ -1,0 +1,474 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/lasso/utils.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/utils.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S0: replace lines 3-7 (line 3 reads `import {`, line 7 reads `} from \"@excalidraw/math\";`) — Same named import from @excalidraw/math with pointFrom added (keep the other three names).\n- S1: replace lines 11-17 (line 11 reads `import {`, line 17 reads `} from \"@excalidraw/element\";`) — Same named import from @excalidraw/element with elementOverlapsWithFrame, getContainingFrame, isBoundToContainer and pointInsideBounds added (keep the other five names).\n- S2: insert after line 20 (line 20 reads `import type { ElementsMap, ExcalidrawElement } from \"@excalidraw/element/types\";`) — Insert a blank line, then `import type { BoxSelectionMode } from \"../types\";`.\n- S3: replace lines 22-90 (line 22 reads `export const getLassoSelectedElementIds = (input: {`, line 90 reads `};`) — The whole function rewritten per rules 1-7: new optional input field, defaulted destructure, contain-mode bound-text skip, mode branch inside the existing bounds guard, contain-mode group pass, unchanged return.\n- S4: insert after line 108 (line 108 reads `};`) — After the closing line of enclosureTest insert a blank line and fullEnclosureTest per rule 8.\n- S5: replace lines 110-143 (line 110 reads `const intersectionTest = (`, line 143 reads `};`) — intersectionTest with the optional clipBounds parameter per rule 9; unchanged behaviour when clipBounds is null.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/typeChecks.ts",
+        "lines": [
+          294,
+          303
+        ],
+        "reason": "uses: isBoundToContainer signature (exported through @excalidraw/element)."
+      },
+      {
+        "path": "packages/element/src/frame.ts",
+        "lines": [
+          148,
+          158
+        ],
+        "reason": "uses: elementOverlapsWithFrame signature (exported through @excalidraw/element)."
+      },
+      {
+        "path": "packages/element/src/frame.ts",
+        "lines": [
+          436,
+          445
+        ],
+        "reason": "uses: getContainingFrame signature (exported through @excalidraw/element)."
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S0",
+          "at": "replace",
+          "from": 3,
+          "to": 7
+        },
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 17
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 20,
+          "to": 20
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 22,
+          "to": 90
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 108,
+          "to": 108
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 110,
+          "to": 143
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/lasso/index.ts",
+    "depends_on": [
+      "tp_codegen_U01"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/index.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 204 (line 204 reads `simplifyDistance: 5 / this.app.state.zoom.value,`) — Insert `boxSelectionMode: this.app.state.boxSelectionMode,` at the same indentation.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 204,
+          "to": 204
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U03",
+    "unit": "U03",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/lasso.test.tsx` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 35 (line 35 reads `import { act, render } from \"./test-utils\";`) — Import block per rule 1.\n- S2: replace lines 46-85 (line 46 reads `const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {`, line 85 reads `};`) — updatePath per rule 2.\n- S3: replace line 457 (line 457 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S4: replace line 640 (line 640 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S5: replace line 862 (line 862 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S6: replace line 912 (line 912 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S7: replace line 1189 (line 1189 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S8: replace line 1798 (line 1798 reads `updatePath(startPoint, points);`) — Pass \"overlap\" as the third argument.\n- S9: insert after line 1804 (line 1804 reads `});`) — A blank line, then the new describe per rules 4-10 with the listed test cases.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          74,
+          86
+        ],
+        "reason": "uses: API.setAppState and API.setElements wrap act."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          163,
+          232
+        ],
+        "reason": "uses: API.createElement option shape (points, angle, frameId)."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          407,
+          447
+        ],
+        "reason": "uses: API.createTextContainer returns [rectangle, label]."
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "%s fully enclosed is selected in contain mode: given each shape from `shapes` and the ENCLOSING lasso in \"contain\" mode, expect the selection is exactly that element's id",
+      "%s fully enclosed is selected in overlap mode: given each shape from `shapes` and the ENCLOSING lasso in \"overlap\" mode, expect the selection is exactly that element's id",
+      "%s partially touched is not selected in contain mode: given each shape from `shapes` and the TOUCHING lasso in \"contain\" mode, expect nothing is selected",
+      "%s partially touched is selected in overlap mode: given each shape from `shapes` and the TOUCHING lasso in \"overlap\" mode, expect the selection is exactly that element's id",
+      "omitting the mode returns the overlap result: given a 100x100 rectangle at the origin and the TOUCHING path passed straight to getLassoSelectedElementIds without, with \"overlap\" and with \"contain\", expect the omitted call equals the overlap call and contains the rectangle id; the contain call returns an empty array",
+      "contain mode does not select a container when only its label is enclosed: given a text container and a lasso around the label only, in \"contain\" mode, expect nothing is selected",
+      "overlap mode selects the container when its label is enclosed: given the same container and label lasso in \"overlap\" mode, expect the selection is exactly the container's id",
+      "contain mode selects a frame child when only the child is enclosed: given a frame with one child rectangle and the child-only lasso in \"contain\" mode, expect the selection is exactly the child's id",
+      "contain mode selects only the frame when the whole frame is enclosed: given the same frame and child and the whole-frame lasso in \"contain\" mode, expect the selection is exactly the frame's id",
+      "contain mode selects a frame child protruding from its frame when its visible part is enclosed: given the 200x200 frame, the child sticking out past its right edge and the visible-part lasso, in \"contain\" mode, expect the selection is exactly the child's id",
+      "contain mode does not select a group when one member is not enclosed: given rectA and rectB in group g1 and the ENCLOSING lasso around rectA only, in \"contain\" mode, expect nothing is selected",
+      "overlap mode selects the whole group when one member is enclosed: given the same group and the ENCLOSING lasso, in \"overlap\" mode, expect the selection is exactly rectA's and rectB's ids",
+      "contain mode selects the group when every member is enclosed: given the same group and the whole-group lasso, in \"contain\" mode, expect the selection is exactly rectA's and rectB's ids",
+      "contain mode does not select an element a concave lasso edge cuts across: given the rectangle and the notched lasso whose corners-all-inside edge cuts it, in \"contain\" mode, expect nothing is selected",
+      "overlap mode selects an element a concave lasso edge cuts across: given the same rectangle and notched lasso, in \"overlap\" mode, expect the selection is exactly the rectangle's id"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest-file",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 35,
+          "to": 35
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 46,
+          "to": 85
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 457,
+          "to": 457
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 640,
+          "to": 640
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 862,
+          "to": 862
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 912,
+          "to": 912
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 1189,
+          "to": 1189
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 1798,
+          "to": 1798
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 1804,
+          "to": 1804
+        }
+      ],
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U04",
+    "unit": "U04",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/selection.test.tsx` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 156 (line 156 reads `await render(<Excalidraw />);`) — Render with overlap initialData per rule 1.\n- S2: insert after line 199 (line 199 reads `});`) — A blank line, then the new describe per rules 2-7 with the listed test cases.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          74,
+          86
+        ],
+        "reason": "uses: API.setAppState and API.setElements wrap act."
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "wrap (contain) > selects only the fully enclosed element: given rect1 enclosed and rect2 partially covered by the lasso, boxSelectionMode \"contain\", expect assertSelectedElements([rect1.id])",
+      "wrap (contain) > follows a switch to overlap made before the lasso: given the same scene and lasso after API.setAppState({ boxSelectionMode: \"overlap\" }), expect assertSelectedElements([rect1.id, rect2.id])",
+      "overlap > selects the enclosed element and the partially touched one: given the same scene and lasso, boxSelectionMode \"overlap\", expect assertSelectedElements([rect1.id, rect2.id])"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest-file",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 156,
+          "to": 156
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 199,
+          "to": 199
+        }
+      ],
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U05",
+    "unit": "U05",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 215 (line 215 reads `- `getClosestElementBounds` is no longer exported from `@excalidraw/element`. Use `getCommonBounds` / `getElementBounds` from `@excalidraw/element`, or reimplement the closest-target distance check with `getElementBounds` if you need the same behavior [#11554](https://github.com/excalidraw/excalidraw/pull/11554).`) — The new heading and bullet per rules 1-2.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 215,
+          "to": 215
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

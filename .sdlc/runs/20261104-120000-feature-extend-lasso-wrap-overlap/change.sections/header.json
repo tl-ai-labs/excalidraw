@@ -1,0 +1,119 @@
+{
+  "conventions": [
+    "TypeScript strict; ESM; Prettier via @excalidraw/prettier-config (2-space indent, double quotes, trailing commas, 80-column wrap); the file_checks fix commands reformat, so never hand-align.",
+    "ESLint runs with --max-warnings=0; import/order groups are builtin, external, @excalidraw/** (after external), parent, sibling, then type-only imports last, each group separated by one blank line.",
+    "Type-only imports use a separate `import type { X } from \"...\";` statement (consistent-type-imports, separate-type-imports style).",
+    "Inside packages/excalidraw, import sibling modules relatively (`../types`, `./utils`); never import from the package barrel (`../index`) in source files (tests may, as lasso.test.tsx already does).",
+    "Helpers are `const` arrow functions; module-private helpers are not exported; prefer `const`, `?.` and `??`.",
+    "The lasso util runs on every pointer move: per candidate, Wrap mode runs at most the all-points enclosure test and, only for a fully enclosed candidate, the existing intersection test (today runs enclosure then intersection); extra allocation is limited to clamped points of frame children and one group pass that runs only when an enclosed element belongs to a group.",
+    "Tests run on Vitest with jsdom and globals (`describe`, `it`, `it.each`, `expect`, `beforeEach` are not imported); render with `render` from ./test-utils, drive state through `API` (./helpers/api) and `act`, assert selection with `assertSelectedElements` or `getSelectedElements`.",
+    "Do not add locale strings, UI controls, AppState fields or snapshot files; do not hand-edit __snapshots__.",
+    "Comments are short and only where the reason is not obvious from the code."
+  ],
+  "decisions": [
+    {
+      "topic": "Wrap (\"contain\") test in the lasso util",
+      "choice": "An element qualifies in contain mode only when (1) every point of every one of its precomputed outline segments (elementsSegments), clamped into its frame clip bounds when it has them, lies inside the lasso polygon by polygonIncludesPointNonZero, and then (2) intersectionTest finds no lasso edge cutting the element (or, for a clipped frame child, no cut inside the clip bounds); intersectionTest runs only on candidates that pass (1).",
+      "rejected": [
+        "Reuse the existing enclosureTest (any single outline point inside), which still selects an element whose corner the lasso clips",
+        "All-points enclosure without the intersection test, which selects an element a concave lasso notch cuts across (refused at Gate 2)"
+      ],
+      "reason": "NFR-2 puts correctness first and allows intersection on Wrap candidates; an element is enclosed only when all outline points are inside and no lasso edge crosses it, and per-candidate work stays within today's enclosure-then-intersection."
+    },
+    {
+      "topic": "Default when the mode input is omitted",
+      "choice": "getLassoSelectedElementIds treats an omitted boxSelectionMode as \"overlap\"; LassoTrail always passes this.app.state.boxSelectionMode.",
+      "rejected": [
+        "Default to \"contain\" like getElementsWithinSelection, which changes the result for existing direct callers"
+      ],
+      "reason": "AC-6 and NFR-1: callers that omit the input keep today's result."
+    },
+    {
+      "topic": "Frames in Wrap mode (assumption A-2)",
+      "choice": "In contain mode a frame qualifies only when its own outline is fully enclosed (selectElementsFromIds then drops its children as today). A frame child is clipped as in elementsOverlappingBBox: when getContainingFrame(element, elementsMap) returns a frame and elementOverlapsWithFrame(element, frame, elementsMap) is true, clipBounds = getElementBounds(frame, elementsMap); its outline points are clamped into clipBounds (x into [clipBounds[0], clipBounds[2]], y into [clipBounds[1], clipBounds[3]]) before the polygon test, and an intersection hit counts only when pointInsideBounds(hit, clipBounds). A child that does not overlap its frame is tested unclipped.",
+      "rejected": [
+        "Require a frame child's whole outline, including the part hidden outside the frame (refused at Gate 2)",
+        "Exact polygon clipping of the outline against the frame, which adds new geometry where clamping to the frame AABB mirrors box selection's AABB clip"
+      ],
+      "reason": "FR-6 (b) and A-2: box selection clips a child's bounds to its frame, so only the visible part has to be enclosed; the clip uses the same frame lookup and overlap test box selection uses."
+    },
+    {
+      "topic": "Bound text labels in Wrap mode (assumption A-3)",
+      "choice": "In contain mode the util skips elements for which isBoundToContainer(element) is true, so a container qualifies only by its own outline; overlap mode keeps today's handling (labels tested and mapped to their container by selectElementsFromIds).",
+      "rejected": [
+        "No bound-text rule (A-3 as written), under which a lasso enclosing only a label selects its unenclosed container in Wrap mode and breaks AC-1"
+      ],
+      "reason": "Mirrors box selection, whose shouldIgnoreElementFromSelection ignores bound text; recorded as A-3."
+    },
+    {
+      "topic": "Groups in Wrap mode",
+      "choice": "After the loop, in contain mode only, the util drops every member of a failing top-level group from enclosedElements: a group (groupId = element.groupIds.at(-1)) fails when some member in elementsMap that is not deleted, not locked and not bound to a container is missing from enclosedElements. The pass runs only when at least one enclosed element has a groupId. Overlap mode keeps today's expansion by selectGroupsForSelectedElements.",
+      "rejected": [
+        "Expand any qualifying member to its whole group in Wrap mode (refused at Gate 2)",
+        "Collect group members from the `elements` input, which in the app is the viewport-visible subset and would ignore off-screen members"
+      ],
+      "reason": "FR-6 (a): mirrors elementsOverlappingBBox's contain-mode group.every check over the top-level group, with locked and bound-text members ignored as shouldIgnoreElementFromSelection does; elementsMap holds all non-deleted elements, as box selection's scene elements do."
+    },
+    {
+      "topic": "Where BoxSelectionMode comes from",
+      "choice": "`import type { BoxSelectionMode } from \"../types\";` in lasso/utils.ts and in tests/lasso.test.tsx; types.ts is not edited.",
+      "reason": "The type already exists in packages/excalidraw/types.ts and is off-limits for edits."
+    },
+    {
+      "topic": "Result order",
+      "choice": "selectedElementIds stays [...intersectedElements, ...enclosedElements]; in contain mode intersectedElements stays empty.",
+      "reason": "Keeps overlap output byte-identical to today."
+    },
+    {
+      "topic": "Pinning existing intersection-dependent tests",
+      "choice": "lasso.test.tsx's updatePath takes a required boxSelectionMode argument and every existing call passes \"overlap\"; selection.test.tsx's \"lasso reselection\" describe renders with initialData appState boxSelectionMode \"overlap\".",
+      "rejected": [
+        "Rewrite those tests to assert the Wrap result, which turns their selections into empty assertions"
+      ],
+      "reason": "FR-7: the existing cases exercise intersection; pinning them keeps every assertion intact."
+    },
+    {
+      "topic": "Snapshot file",
+      "choice": "packages/excalidraw/tests/__snapshots__/selection.test.tsx.snap is not edited: no new test uses snapshots and no existing snapshot test draws a lasso.",
+      "reason": "Snapshots are regenerated only when one shifts."
+    },
+    {
+      "topic": "CHANGELOG placement",
+      "choice": "A new `### Behavior changes` heading with one bullet under `## Excalidraw Library` in the Unreleased block, after its `### Breaking changes` list, linking issue #11809.",
+      "reason": "It is an editor behaviour change, not an API change; no PR number exists yet, so the issue is linked."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn -s eslint --max-warnings=0 {path}",
+      "fix": "yarn -s eslint --fix {path}",
+      "timeout_s": 120
+    },
+    {
+      "id": "prettier",
+      "run": "npx --no-install prettier --check {path}",
+      "fix": "npx --no-install prettier --write {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "vitest-file",
+      "run": "yarn test:app --watch=false {path}",
+      "timeout_s": 600
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lint",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "test-suite",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}

@@ -214,6 +214,10 @@ The toolbar UI was rewritten from hidden radio/checkbox inputs to real `<button>
 
 - `getClosestElementBounds` is no longer exported from `@excalidraw/element`. Use `getCommonBounds` / `getElementBounds` from `@excalidraw/element`, or reimplement the closest-target distance check with `getElementBounds` if you need the same behavior [#11554](https://github.com/excalidraw/excalidraw/pull/11554).
 
+### Behavior changes
+
+- The lasso tool now follows the box selection mode preference (`appState.boxSelectionMode`). In the default Wrap (`"contain"`) mode it selects only elements it fully encloses, matching box selection (a group only when all its members are enclosed, a frame child by its part visible inside the frame), while Overlap (`"overlap"`) mode keeps the previous behavior of also selecting elements the lasso path touches. `getLassoSelectedElementIds` is unaffected for callers that omit the new optional `boxSelectionMode` input [#11809](https://github.com/excalidraw/excalidraw/issues/11809).
+
 ## 0.18.0 (2025-03-11)
 
 ### Highlights

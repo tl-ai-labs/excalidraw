@@ -1,0 +1,11 @@
+[
+  {
+    "path": "packages/excalidraw/tests/selection.test.tsx",
+    "problem": "Full suite `yarn test:app --watch=false`: 2 failures, both new in this run (baseline was 1847 passed, 0 failed).\n(1) FAIL packages/excalidraw/tests/selection.test.tsx > lasso box selection mode > wrap (contain) > follows a switch to overlap made before the lasso — AssertionError: expected 1 to be 2 // Object.is equality, at assertSelectedElements (test-utils.ts:229) from selection.test.tsx:276.\n(2) FAIL packages/excalidraw/tests/selection.test.tsx > lasso box selection mode > overlap > selects the enclosed element and the partially touched one — AssertionError: expected 1 to be 2 // Object.is equality, at assertSelectedElements (test-utils.ts:229) from selection.test.tsx:294.\nIn Overlap mode the mouse-driven lasso selects only one of rect1/rect2. The util-level overlap tests in lasso.test.tsx (which call getLassoSelectedElementIds directly) pass, the Wrap UI test in the same describe passes, and LassoTrail.updateSelection passes this.app.state.boxSelectionMode. Find why the mouse-driven lasso in this describe does not register rect2 as touched (how lassoSelect drives the trail: one pointermove per corner, path simplification, the closing segment, element creation/scene timing, the scene coordinates the mouse helper uses) and fix the test so it drives a lasso that really encloses rect1 and cuts across rect2. Do not weaken the assertions: in Overlap mode both rect1 and rect2 must be selected, in Wrap mode only rect1. Do not change any test outside the `lasso box selection mode` describe.",
+    "context_paths": [
+      "packages/excalidraw/lasso/index.ts",
+      "packages/excalidraw/lasso/utils.ts",
+      "packages/excalidraw/tests/helpers/ui.ts"
+    ]
+  }
+]

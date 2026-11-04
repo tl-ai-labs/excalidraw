@@ -1,0 +1,51 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 220): Root cause of both failing UI tests is in the test, not in lasso/utils.ts or lasso/index.ts. The test renders <Excalidraw/> under jsdom where appState.width/height are 0, so app.visibleElements (which LassoTrail.updateSelection passes as both 'elements' and the source of elementsSegments) contains only rect1 (touching the origin); rect2 at x=100 is culled and can never be selected in any mode. Confirmed with a throwaway debug test: visibleElements = [rect1] on every pointermove, state.width = state.height = 0. lasso.test.tsx avoids this with h.state.width/height = 1000 in its beforeEach. The densify helper added in the fix round was based on a wrong diagnosis (simplify(…, 5) does not collapse the corners). — fix: Give the editor a viewport before drawing: add API.setAppState({ width: 1000, height: 1000 }); as the first statement of createScene (before API.setElements). Verified: with that line and the plan's plain 5-point lasso, all three cases pass (contain -> [rect1], switch-to-overlap -> [rect1, rect2], overlap -> [rect1, rect2]).\n2. major (line 245): Deviation from change_plan U04 rule 4: the fix round added a densify() helper with an incorrect comment ('one pointermove per corner gets collapsed by path simplification') and changed the lasso's closing point to (-20, -15). Neither is needed once the viewport is sized, and the comment misdocuments the lasso util. — fix: Delete the densify helper and its comment; define the lasso as lassoSelect([[-20, -20], [125, -20], [125, 70], [-20, 70], [-20, -20]]) exactly as the plan states (line 264 onward), keeping the one-line comment that rect1 is enclosed and rect2 is only partially covered.\n3. major (line 284): 'wrap (contain) > selects only the fully enclosed element' currently passes vacuously: rect2 is never in visibleElements (0x0 viewport), so the assertion [rect1] does not prove that Wrap mode rejects the partially touched rect2 (AC-1). — fix: Resolved by the same createScene viewport fix above; no separate change needed beyond it, but the test must be re-run after that fix to confirm it still asserts [rect1] with rect2 visible (it does in the debug run).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

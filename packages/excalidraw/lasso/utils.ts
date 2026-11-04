@@ -4,6 +4,7 @@ import {
   polygonFromPoints,
   lineSegment,
   polygonIncludesPointNonZero,
+  pointFrom,
 } from "@excalidraw/math";
 
 import { type Bounds } from "@excalidraw/common";
@@ -11,13 +12,19 @@ import { type Bounds } from "@excalidraw/common";
 import {
   computeBoundTextPosition,
   doBoundsIntersect,
+  elementOverlapsWithFrame,
   getBoundTextElement,
+  getContainingFrame,
   getElementBounds,
   intersectElementWithLineSegment,
+  isBoundToContainer,
+  pointInsideBounds,
 } from "@excalidraw/element";
 
 import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
+
+import type { BoxSelectionMode } from "../types";
 
 export const getLassoSelectedElementIds = (input: {
   lassoPath: GlobalPoint[];
@@ -27,6 +34,7 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  boxSelectionMode?: BoxSelectionMode;
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +46,7 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "overlap",
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -60,6 +69,9 @@ export const getLassoSelectedElementIds = (input: {
     [Infinity, Infinity, -Infinity, -Infinity],
   ) as Bounds;
   for (const element of unlockedElements) {
+    if (boxSelectionMode === "contain" && isBoundToContainer(element)) {
+      continue;
+    }
     // First check if the lasso segment intersects the element's axis-aligned
     // bounding box as it is much faster than checking intersection against
     // the element's shape
@@ -70,22 +82,68 @@ export const getLassoSelectedElementIds = (input: {
       !intersectedElements.has(element.id) &&
       !enclosedElements.has(element.id)
     ) {
-      const enclosed = enclosureTest(path, element, elementsSegments);
-      if (enclosed) {
-        enclosedElements.add(element.id);
+      if (boxSelectionMode === "contain") {
+        const frame = getContainingFrame(element, elementsMap);
+        const clipBounds =
+          frame && elementOverlapsWithFrame(element, frame, elementsMap)
+            ? getElementBounds(frame, elementsMap)
+            : null;
+        if (
+          fullEnclosureTest(path, element, elementsSegments, clipBounds) &&
+          !intersectionTest(path, element, elementsMap, clipBounds)
+        ) {
+          enclosedElements.add(element.id);
+        }
       } else {
-        const intersects = intersectionTest(path, element, elementsMap);
-        if (intersects) {
-          intersectedElements.add(element.id);
+        const enclosed = enclosureTest(path, element, elementsSegments);
+        if (enclosed) {
+          enclosedElements.add(element.id);
+        } else {
+          const intersects = intersectionTest(path, element, elementsMap);
+          if (intersects) {
+            intersectedElements.add(element.id);
+          }
         }
       }
     }
   }
 
-  const results = [...intersectedElements, ...enclosedElements];
+  if (boxSelectionMode === "contain") {
+    const groupIds = new Set<string>();
+    for (const id of enclosedElements) {
+      const groupId = elementsMap.get(id)?.groupIds.at(-1);
+      if (groupId) {
+        groupIds.add(groupId);
+      }
+    }
+    if (groupIds.size > 0) {
+      const failingGroups = new Set<string>();
+      for (const el of elementsMap.values()) {
+        const groupId = el.groupIds.at(-1);
+        if (
+          groupId &&
+          groupIds.has(groupId) &&
+          !el.isDeleted &&
+          !el.locked &&
+          !isBoundToContainer(el) &&
+          !enclosedElements.has(el.id)
+        ) {
+          failingGroups.add(groupId);
+        }
+      }
+      if (failingGroups.size > 0) {
+        for (const id of [...enclosedElements]) {
+          const groupId = elementsMap.get(id)?.groupIds.at(-1);
+          if (groupId && failingGroups.has(groupId)) {
+            enclosedElements.delete(id);
+          }
+        }
+      }
+    }
+  }
 
   return {
-    selectedElementIds: results,
+    selectedElementIds: [...intersectedElements, ...enclosedElements],
   };
 };
 
@@ -107,10 +165,36 @@ const enclosureTest = (
   });
 };
 
+const fullEnclosureTest = (
+  lassoPath: GlobalPoint[],
+  element: ExcalidrawElement,
+  elementsSegments: ElementsSegmentsMap,
+  clipBounds: Bounds | null,
+): boolean => {
+  const lassoPolygon = polygonFromPoints(lassoPath);
+  const segments = elementsSegments.get(element.id);
+  if (!segments || segments.length === 0) {
+    return false;
+  }
+
+  return segments.every((segment) => {
+    return segment.every((point) => {
+      const p = clipBounds
+        ? pointFrom<GlobalPoint>(
+            Math.min(Math.max(point[0], clipBounds[0]), clipBounds[2]),
+            Math.min(Math.max(point[1], clipBounds[1]), clipBounds[3]),
+          )
+        : point;
+      return polygonIncludesPointNonZero(p, lassoPolygon);
+    });
+  });
+};
+
 const intersectionTest = (
   lassoPath: GlobalPoint[],
   element: ExcalidrawElement,
   elementsMap: ElementsMap,
+  clipBounds: Bounds | null = null,
 ): boolean => {
   const lassoSegments = lassoPath
     .slice(1)
@@ -119,25 +203,40 @@ const intersectionTest = (
 
   const boundTextElement = getBoundTextElement(element, elementsMap);
 
-  return lassoSegments.some(
-    (lassoSegment) =>
-      intersectElementWithLineSegment(
-        element,
-        elementsMap,
-        lassoSegment,
-        0,
-        true,
-      ).length > 0 ||
-      (!!boundTextElement &&
+  const hits = (
+    target: ExcalidrawElement,
+    lassoSegment: typeof lassoSegments[number],
+  ) => {
+    if (!clipBounds) {
+      return (
         intersectElementWithLineSegment(
-          {
-            ...boundTextElement,
-            ...computeBoundTextPosition(element, boundTextElement, elementsMap),
-          },
+          target,
           elementsMap,
           lassoSegment,
           0,
           true,
-        ).length > 0),
+        ).length > 0
+      );
+    }
+    return intersectElementWithLineSegment(
+      target,
+      elementsMap,
+      lassoSegment,
+      0,
+      false,
+    ).some((point) => pointInsideBounds(point, clipBounds));
+  };
+
+  return lassoSegments.some(
+    (lassoSegment) =>
+      hits(element, lassoSegment) ||
+      (!!boundTextElement &&
+        hits(
+          {
+            ...boundTextElement,
+            ...computeBoundTextPosition(element, boundTextElement, elementsMap),
+          },
+          lassoSegment,
+        )),
   );
 };

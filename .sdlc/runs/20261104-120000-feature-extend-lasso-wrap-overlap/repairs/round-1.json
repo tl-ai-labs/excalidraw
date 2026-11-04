@@ -1,0 +1,63 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Full suite `yarn test:app --watch=false`: 2 failures, both new in this run (baseline was 1847 passed, 0 failed).\n(1) FAIL packages/excalidraw/tests/selection.test.tsx > lasso box selection mode > wrap (contain) > follows a switch to overlap made before the lasso — AssertionError: expected 1 to be 2 // Object.is equality, at assertSelectedElements (test-utils.ts:229) from selection.test.tsx:276.\n(2) FAIL packages/excalidraw/tests/selection.test.tsx > lasso box selection mode > overlap > selects the enclosed element and the partially touched one — AssertionError: expected 1 to be 2 // Object.is equality, at assertSelectedElements (test-utils.ts:229) from selection.test.tsx:294.\nIn Overlap mode the mouse-driven lasso selects only one of rect1/rect2. The util-level overlap tests in lasso.test.tsx (which call getLassoSelectedElementIds directly) pass, the Wrap UI test in the same describe passes, and LassoTrail.updateSelection passes this.app.state.boxSelectionMode. Find why the mouse-driven lasso in this describe does not register rect2 as touched (how lassoSelect drives the trail: one pointermove per corner, path simplification, the closing segment, element creation/scene timing, the scene coordinates the mouse helper uses) and fix the test so it drives a lasso that really encloses rect1 and cuts across rect2. Do not weaken the assertions: in Overlap mode both rect1 and rect2 must be selected, in Wrap mode only rect1. Do not change any test outside the `lasso box selection mode` describe.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-120000-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

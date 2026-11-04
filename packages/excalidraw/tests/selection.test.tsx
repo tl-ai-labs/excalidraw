@@ -153,7 +153,11 @@ describe("box-selection", () => {
 
 describe("lasso reselection", () => {
   beforeEach(async () => {
-    await render(<Excalidraw />);
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "overlap" } }}
+      />,
+    );
   });
 
   it("should allow ctrl+alt lasso reselection when starting inside the active common bounds", () => {
@@ -195,6 +199,103 @@ describe("lasso reselection", () => {
     });
 
     assertSelectedElements([rectA.id]);
+  });
+});
+
+describe("lasso box selection mode", () => {
+  const lassoSelect = (points: [number, number][]) => {
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const [[startX, startY], ...rest] = points;
+
+    mouse.downAt(startX, startY);
+    rest.forEach(([x, y]) => {
+      mouse.moveTo(x, y);
+    });
+    mouse.up();
+  };
+
+  const createScene = () => {
+    API.setAppState({ width: 1000, height: 1000 });
+
+    const rect1 = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+    const rect2 = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 0,
+      width: 50,
+      height: 50,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+
+    API.setElements([rect1, rect2]);
+
+    return { rect1, rect2 };
+  };
+
+  // rect1 is fully enclosed, rect2 is only partially covered
+  const lassoPath: [number, number][] = [
+    [-20, -20],
+    [125, -20],
+    [125, 70],
+    [-20, 70],
+    [-20, -20],
+  ];
+
+  describe("wrap (contain)", () => {
+    beforeEach(async () => {
+      await render(
+        <Excalidraw
+          initialData={{ appState: { boxSelectionMode: "contain" } }}
+        />,
+      );
+    });
+
+    it("selects only the fully enclosed element", () => {
+      const { rect1 } = createScene();
+
+      lassoSelect(lassoPath);
+
+      assertSelectedElements([rect1.id]);
+    });
+
+    it("follows a switch to overlap made before the lasso", () => {
+      const { rect1, rect2 } = createScene();
+
+      API.setAppState({ boxSelectionMode: "overlap" });
+      lassoSelect(lassoPath);
+
+      assertSelectedElements([rect1.id, rect2.id]);
+    });
+  });
+
+  describe("overlap", () => {
+    beforeEach(async () => {
+      await render(
+        <Excalidraw
+          initialData={{ appState: { boxSelectionMode: "overlap" } }}
+        />,
+      );
+    });
+
+    it("selects the enclosed element and the partially touched one", () => {
+      const { rect1, rect2 } = createScene();
+
+      lassoSelect(lassoPath);
+
+      assertSelectedElements([rect1.id, rect2.id]);
+    });
   });
 });
 
