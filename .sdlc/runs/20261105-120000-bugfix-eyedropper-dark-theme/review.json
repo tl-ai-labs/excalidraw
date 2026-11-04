@@ -1,0 +1,20 @@
+{
+  "module": "eyedropper-dark-theme (packages/common/src/colors.ts, packages/excalidraw/components/EyeDropper.tsx + tests)",
+  "verdict": "approved",
+  "tool_calls": 4,
+  "findings": [],
+  "refinement_packets": [],
+  "checks": {
+    "correctness": "pass: revertDarkModeFilter follows U03 rules 1-8 (candidate order, skips invalid and alpha-0 candidates, lowercase 6-digit output, invalid input returned unchanged, 180deg hue-rotate then algebraic 93% invert, JSDoc). getCurrentColor follows U04 rules 1-6; light theme path is byte-identical to HEAD; the effect deps are unchanged.",
+    "type_safety": "pass: no any; the one cast (`as unknown as ImageData`) is test-only and the plan sanctions it; `180 as Degrees` matches the existing branded-type usage.",
+    "error_handling": "pass: invalid colours and transparent candidates are handled; no throws were added.",
+    "authz_pii": "n/a (client-side colour utility)",
+    "dry": "pass: reuses applyDarkModeFilter, cssHueRotate, clamp and rgbToHex; the palette flattening in the tests mirrors the production list on purpose.",
+    "tests": "pass: 4 integration cases (3 dark: palette, off-palette scene element, canvas background; 1 light: raw pixel) and 7 unit groups (palette round-trip, canvas picks round-trip, caller candidate, alpha/case, transparent, mid-tone fallback within 2, invalid). Red before the fix and green after, as measured by the orchestrator.",
+    "sensitive_files": "none touched",
+    "env_fixture": "skipped (intent=bugfix)"
+  },
+  "notes": [
+    "Advisory only, not a defect: getCurrentColor rebuilds the scene candidate Set and tinycolor-parses about 100 candidates on every mousemove in dark theme. Each call is O(elements), which is negligible at realistic scene sizes. The plan chose to read these values at event time on purpose."
+  ]
+}

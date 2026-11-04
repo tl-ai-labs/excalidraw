@@ -1,6 +1,8 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  DEFAULT_CANVAS_BACKGROUND_PICKS,
+  revertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -212,6 +214,65 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("revertDarkModeFilter", () => {
+  const paletteColors = [
+    COLOR_PALETTE.black,
+    COLOR_PALETTE.white,
+    ...(Object.values(COLOR_PALETTE).filter(Array.isArray).flat() as string[]),
+  ];
+
+  const channels = (hex: string) =>
+    [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+  it.each(paletteColors)("round-trips palette colour %s", (color) => {
+    expect(revertDarkModeFilter(applyDarkModeFilter(color))).toBe(color);
+  });
+
+  it.each([...DEFAULT_CANVAS_BACKGROUND_PICKS])(
+    "round-trips canvas background pick %s",
+    (color) => {
+      expect(revertDarkModeFilter(applyDarkModeFilter(color))).toBe(color);
+    },
+  );
+
+  it("returns an exact caller candidate", () => {
+    expect(
+      revertDarkModeFilter(applyDarkModeFilter("#123456"), ["#123456"]),
+    ).toBe("#123456");
+  });
+
+  it("ignores the pixel's alpha and letter case", () => {
+    expect(revertDarkModeFilter("#D3D3D3FF")).toBe(COLOR_PALETTE.black);
+  });
+
+  it("never matches a transparent candidate", () => {
+    expect(revertDarkModeFilter("#ededed", ["transparent"])).toBe("#000000");
+  });
+
+  it.each(["#123456", "#abcdef", "#7a6b5c"])(
+    "numerically inverts a mid-tone pixel that matches no candidate (%s)",
+    (color) => {
+      const pixel = applyDarkModeFilter(color);
+      const result = revertDarkModeFilter(pixel);
+      expect(result).toMatch(/^#[0-9a-f]{6}$/);
+
+      const expected = channels(color);
+      channels(result).forEach((value, i) => {
+        expect(Math.abs(value - expected[i])).toBeLessThanOrEqual(2);
+      });
+
+      const expectedPixel = channels(pixel);
+      channels(applyDarkModeFilter(result)).forEach((value, i) => {
+        expect(Math.abs(value - expectedPixel[i])).toBeLessThanOrEqual(2);
+      });
+    },
+  );
+
+  it("returns an invalid colour unchanged", () => {
+    expect(revertDarkModeFilter("not-a-color")).toBe("not-a-color");
   });
 });
 

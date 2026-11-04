@@ -1,0 +1,442 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript strict, ESM; Prettier 2.6 via @excalidraw/prettier-config (2-space indent, double quotes, trailing commas, 80-col wrap); eslint runs prettier as a rule, so formatting is a lint error.",
+      "Import groups separated by one blank line, in this order: external (react) / @excalidraw/* values / @excalidraw/* type imports / parent and sibling relative values / scss / relative types; type-only imports use a separate `import type` line (eslint import/order and consistent-type-imports, --max-warnings=0).",
+      "Across packages import through the @excalidraw/<pkg> alias (e.g. `@excalidraw/common`); inside a package use relative paths. Never import from the @excalidraw/excalidraw barrel inside packages/excalidraw source.",
+      "Exported helpers are `export const name = (...) => {...}` arrow functions; module-private helpers are plain `const`. Section dividers in colors.ts are `// ---...` comment lines.",
+      "Tests run on Vitest 3 with globals (describe/it/expect/vi, no imports for them), jsdom and vitest-canvas-mock (canvas pixels are not real). Assertions use expect(...).toBe / toMatch / toBeLessThanOrEqual; no new snapshots.",
+      "Integration tests render the full editor with `await render(<Excalidraw ... />)` from ./test-utils and read editor state through `const { h } = window;` (`h.state`, `h.app`).",
+      "Colour strings produced by code are lowercase `#rrggbb` built with `rgbToHex`; alpha is dropped where the eyedropper is concerned.",
+      "No new dependency; colour parsing uses tinycolor2 (already imported in colors.ts).",
+      "Do not change `applyDarkModeFilter`, `cssInvert` or `cssHueRotate` in colors.ts, and do not change or remove any existing test."
+    ],
+    "decisions": [
+      {
+        "topic": "Name and signature of the inverse helper",
+        "choice": "`export const revertDarkModeFilter = (color: string, candidates: readonly string[] = []): string` in packages/common/src/colors.ts, reached through the existing `export * from \"./colors\"` of @excalidraw/common.",
+        "rejected": [
+          "invertDarkModeFilter (confusable with the 93% css invert step)",
+          "a candidates-only lookup with no numeric fallback"
+        ],
+        "reason": "Reads as the opposite of applyDarkModeFilter, and FR-2 requires the numeric fallback for colours outside every candidate list."
+      },
+      {
+        "topic": "Candidate order and precedence",
+        "choice": "Caller candidates are tried first, in the order given, then the module's default candidates; the first candidate whose filtered colour matches wins.",
+        "rejected": [
+          "defaults first"
+        ],
+        "reason": "The filter is lossy, so two colours can share one on-screen pixel; the colours actually present in the scene are the better guess."
+      },
+      {
+        "topic": "Shape of the returned colour",
+        "choice": "Always a lowercase 6-digit `#rrggbb` (rgbToHex of the RGB channels), both for a candidate match and for the numeric fallback; an invalid input colour is returned unchanged.",
+        "rejected": [
+          "returning the candidate string verbatim",
+          "keeping the candidate's alpha"
+        ],
+        "reason": "The eyedropper has always emitted 6-digit hex with no alpha, and palette colours are already lowercase 6-digit hex so they round-trip exactly."
+      },
+      {
+        "topic": "Numeric inverse",
+        "choice": "Apply the private cssHueRotate(r, g, b, 180 as Degrees) again (the 180 degree hue-rotate matrix is its own inverse), then invert the 93% css invert per channel with `(v - 255 * p) / (1 - 2 * p)` where p = 0.93, then Math.round(clamp(x, 0, 255)) and rgbToHex.",
+        "rejected": [
+          "cssInvert(…, 93) a second time (not the inverse of a partial invert)",
+          "an iterative search over the 16M colour space"
+        ],
+        "reason": "Exact algebraic inverse of the two steps up to their rounding and clamping, constant cost per pixel."
+      },
+      {
+        "topic": "Where the scene candidates are built",
+        "choice": "Inside EyeDropper.tsx getCurrentColor, only when the theme is dark: appState.viewBackgroundColor first, then every element's strokeColor and backgroundColor from useExcalidrawElements(), deduplicated with a Set, read at event time through the existing useStable object.",
+        "rejected": [
+          "a useMemo in the component body",
+          "a new exported helper module"
+        ],
+        "reason": "Keeps the change inside getCurrentColor and the stable props, adds no file, and costs nothing in light theme (FR-5)."
+      },
+      {
+        "topic": "How the reproducing test injects the pixel",
+        "choice": "After the eyedropper is open, `vi.spyOn(h.app.canvas.getContext(\"2d\")!, \"getImageData\").mockReturnValue({ data: new Uint8ClampedArray([r, g, b, 255]) } as unknown as ImageData)`; vitest-canvas-mock returns the same context object for every getContext(\"2d\") call on a canvas, so EyeDropper's ctx is the spied one.",
+        "rejected": [
+          "spying on CanvasRenderingContext2D.prototype (the mock binds methods per instance at construction)"
+        ],
+        "reason": "Targets exactly the context EyeDropper reads, with no global side effect on other tests."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 120
+      },
+      {
+        "id": "vitest",
+        "run": "yarn vitest run --watch=false {path}",
+        "timeout_s": 400
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "test-all",
+        "run": "yarn test:typecheck && yarn test:code && yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Reproduces the bug: in dark theme the eyedropper must store the colour that was rendered, not its dark-mode on-screen pixel, recovering off-palette scene colours through the scene candidates (FR-4); light theme keeps the raw pixel.",
+      "rules": [
+        "1. Add `import { applyDarkModeFilter, COLOR_PALETTE, THEME } from \"@excalidraw/common\";` as its own import group (blank line before and after) right after the react import, and `import { API } from \"./helpers/api\";` as the first line of the relative group, before the ./helpers/ui import.",
+        "2. After the existing imports add a blank line and `const { h } = window;`.",
+        "3. Append a new `describe(\"eye dropper in dark theme\", () => { ... })` after the existing describe; do not touch the existing case.",
+        "4. Inside it define `const pickPixel = async (pixel: string) => { ... }`: Keyboard.keyPress(\"i\"); await waitFor until `.excalidraw-eye-dropper-backdrop` exists in GlobalTestState.renderResult.container; spy as in the decision with r, g, b = parseInt(pixel.slice(1, 3), 16), parseInt(pixel.slice(3, 5), 16), parseInt(pixel.slice(5, 7), 16); fireEvent.pointerUp(backdrop, { clientX: 10, clientY: 10 }); then spy.mockRestore().",
+        "5. Every case renders `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} theme={...} />` (plus initialData where stated) and asserts on `h.state.currentItemBackgroundColor` (the `i` eyedropper with nothing selected stores the picked colour there); its default is `transparent`, so no case can pass by accident.",
+        "6. Compute every expected and stubbed colour with applyDarkModeFilter at test time; hard-code no filtered hex.",
+        "7. The scene colours are exactly \"#ff00ff\" (element backgroundColor) and \"#00ffff\" (viewBackgroundColor): neither is in COLOR_PALETTE or any default pick list, and the numeric inverse misses them by 50 and 72 per channel, so only the scene candidates of FR-4 recover them. Never swap them for palette colours or mid-tones."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import React from \"react\";",
+          "rule": "Rule 1: the @excalidraw/common import group."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 5,
+          "to": 5,
+          "first_line": "import { Keyboard } from \"./helpers/ui\";",
+          "rule": "Rule 1: `import { API } from \"./helpers/api\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6,
+          "first_line": "import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";",
+          "rule": "Rule 2: blank line, then `const { h } = window;`."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 50,
+          "to": 50,
+          "first_line": "});",
+          "rule": "Rules 3-7: blank line, then the new describe block with pickPixel and the four cases."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+        "reason": "Existing eyedropper case: render, Keyboard.keyPress(\"i\"), waitFor on the preview, fireEvent on window and the backdrop."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/App.tsx",
+          "lines": [
+            2963,
+            3005
+          ],
+          "reason": "openEyeDropper's onSelect: with no selection it writes currentItemBackgroundColor for the `i` (background) eyedropper."
+        },
+        {
+          "path": "packages/excalidraw/tests/excalidraw.test.tsx",
+          "lines": [
+            1,
+            20
+          ],
+          "reason": "How tests import THEME and use `const { h } = window;`."
+        },
+        {
+          "path": "packages/excalidraw/tests/shortcuts.test.tsx",
+          "lines": [
+            1,
+            20
+          ],
+          "reason": "How tests import API and pass `initialData={{ elements: [API.createElement(...)] }}`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-4",
+        "AC-1",
+        "AC-2",
+        "AC-5"
+      ],
+      "tests": [
+        {
+          "name": "dark theme: stores the palette colour an element was drawn with, not its on-screen colour",
+          "given": "theme={THEME.DARK}; pickPixel(applyDarkModeFilter(COLOR_PALETTE.red[4]))",
+          "expect": "h.state.currentItemBackgroundColor toBe COLOR_PALETTE.red[4] (\"#e03131\")"
+        },
+        {
+          "name": "dark theme: stores an off-palette element colour from the scene, not its numeric inverse",
+          "given": "theme={THEME.DARK} and initialData={{ elements: [API.createElement({ type: \"rectangle\", backgroundColor: \"#ff00ff\", fillStyle: \"solid\" })] }}; pickPixel(applyDarkModeFilter(\"#ff00ff\"))",
+          "expect": "h.state.currentItemBackgroundColor toBe \"#ff00ff\" (without scene candidates the inverse gives about #d832d8)"
+        },
+        {
+          "name": "dark theme: stores the canvas background colour from the scene, not its on-screen colour",
+          "given": "theme={THEME.DARK} and initialData={{ appState: { viewBackgroundColor: \"#00ffff\" } }}; pickPixel(applyDarkModeFilter(\"#00ffff\"))",
+          "expect": "h.state.currentItemBackgroundColor toBe \"#00ffff\" (the numeric inverse alone misses by up to 72 per channel)"
+        },
+        {
+          "name": "light theme: stores the raw pixel unchanged",
+          "given": "theme={THEME.LIGHT}; pickPixel(applyDarkModeFilter(COLOR_PALETTE.red[4]))",
+          "expect": "h.state.currentItemBackgroundColor toBe applyDarkModeFilter(COLOR_PALETTE.red[4])"
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "vitest"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/common/src/colors.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Unit tests for revertDarkModeFilter: palette round-trip, candidate matching, alpha/case handling and the numeric fallback for mid-tones (saturated colours off every candidate list are lossy through the fallback, so they are recovered only as candidates and are never asserted on the fallback).",
+      "rules": [
+        "1. The @excalidraw/common import adds DEFAULT_CANVAS_BACKGROUND_PICKS and revertDarkModeFilter to the existing names, keeping one name per line in the existing order style.",
+        "2. Append `describe(\"revertDarkModeFilter\", () => { ... })` between the applyDarkModeFilter describe and the rgbToHex describe; do not touch existing cases.",
+        "3. The palette list for the round-trip case is COLOR_PALETTE.black, COLOR_PALETTE.white and every shade of every array-valued COLOR_PALETTE entry (Object.values filtered with Array.isArray, flattened); `transparent` is excluded.",
+        "4. Use it.each over the palette list and over DEFAULT_CANVAS_BACKGROUND_PICKS so a failure names the colour.",
+        "5. The numeric-fallback case is an it.each over the mid-tones \"#123456\", \"#abcdef\" and \"#7a6b5c\" only (none is a default candidate); it compares channels by parsing the hex pairs with parseInt(…, 16) and asserts Math.abs(difference) toBeLessThanOrEqual(2) for each of r, g, b. Do not add saturated inputs (e.g. #ff00ff misses by 50 per channel): the fallback is lossy for them by design."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 5,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Rule 1: import applyDarkModeFilter, COLOR_PALETTE, DEFAULT_CANVAS_BACKGROUND_PICKS, revertDarkModeFilter, rgbToHex."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 216,
+          "to": 216,
+          "first_line": "});",
+          "rule": "Rules 2-5: blank line, then the new describe block."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.test.ts",
+        "lines": [
+          101,
+          172
+        ],
+        "reason": "it.each over palette shades and the describe nesting style."
+      },
+      "uses": [
+        {
+          "path": "packages/common/src/colors.ts",
+          "lines": [
+            147,
+            227
+          ],
+          "reason": "COLOR_PALETTE and DEFAULT_CANVAS_BACKGROUND_PICKS shapes."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "AC-3",
+        "AC-4"
+      ],
+      "tests": [
+        {
+          "name": "round-trips every default palette colour",
+          "given": "each opaque palette colour X (rule 3)",
+          "expect": "revertDarkModeFilter(applyDarkModeFilter(X)) toBe X"
+        },
+        {
+          "name": "round-trips every default canvas background pick",
+          "given": "each X of DEFAULT_CANVAS_BACKGROUND_PICKS",
+          "expect": "revertDarkModeFilter(applyDarkModeFilter(X)) toBe X"
+        },
+        {
+          "name": "returns an exact caller candidate",
+          "given": "revertDarkModeFilter(applyDarkModeFilter(\"#123456\"), [\"#123456\"])",
+          "expect": "toBe \"#123456\""
+        },
+        {
+          "name": "ignores the pixel's alpha and letter case",
+          "given": "revertDarkModeFilter(\"#D3D3D3FF\")",
+          "expect": "toBe COLOR_PALETTE.black (\"#1e1e1e\")"
+        },
+        {
+          "name": "never matches a transparent candidate",
+          "given": "revertDarkModeFilter(\"#ededed\", [\"transparent\"])",
+          "expect": "toBe \"#000000\""
+        },
+        {
+          "name": "numerically inverts a mid-tone pixel that matches no candidate (%s)",
+          "given": "X each of \"#123456\", \"#abcdef\", \"#7a6b5c\"; result = revertDarkModeFilter(applyDarkModeFilter(X))",
+          "expect": "result toMatch /^#[0-9a-f]{6}$/; each channel of result is within 2 of X's; each channel of applyDarkModeFilter(result) is within 2 of the pixel's (AC-4)"
+        },
+        {
+          "name": "returns an invalid colour unchanged",
+          "given": "revertDarkModeFilter(\"not-a-color\")",
+          "expect": "toBe \"not-a-color\""
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "vitest"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/common/src/colors.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds revertDarkModeFilter, which maps a dark-mode on-screen colour back to the colour rendered to produce it: exact match against candidate colours first, numeric inverse of the filter otherwise.",
+      "rules": [
+        "1. Insert after isOpaqueColor a new section (divider comment `// dark mode color reversal` framed by `// ---` lines like the other sections) holding a private const and the exported function; every constant it reads is declared above it, so no temporal-dead-zone access at module load.",
+        "2. Private `const DARK_MODE_DEFAULT_CANDIDATES: readonly string[] = Array.from(new Set([...]))` of COLOR_PALETTE.black, COLOR_PALETTE.white, every shade of every array-valued COLOR_PALETTE entry, and every entry of DEFAULT_ELEMENT_STROKE_PICKS, DEFAULT_ELEMENT_BACKGROUND_PICKS, BUCKET_FILL_BACKGROUND_PICKS and DEFAULT_CANVAS_BACKGROUND_PICKS.",
+        "3. revertDarkModeFilter: parse `color` with tinycolor; if not isValid() return `color` unchanged.",
+        "4. target = rgbToHex(r, g, b) of the parsed colour (alpha dropped, lowercase 6-digit).",
+        "5. For each candidate of `candidates` then DARK_MODE_DEFAULT_CANDIDATES: skip it when tinycolor says it is invalid or its alpha is 0; if applyDarkModeFilter(candidate).slice(0, 7) === target, return rgbToHex of the candidate's r, g, b.",
+        "6. Otherwise the numeric inverse of the decision: rotated = cssHueRotate(r, g, b, 180 as Degrees); each channel v becomes Math.round(clamp((v - 255 * p) / (1 - 2 * p), 0, 255)) with p = 0.93; return rgbToHex of the three.",
+        "7. Pure: no module state is written except what applyDarkModeFilter's own cache already does; no new import is needed (tinycolor, clamp, Degrees and cssHueRotate are already in the file).",
+        "8. A one-paragraph JSDoc above the function states the candidate order, the 6-digit return shape and that the numeric fallback is lossy: near-exact for mid-tones, but off by up to ~170 per channel for saturated colours (the 93% invert clamps them), which only an exact candidate recovers."
+      ],
+      "exports": [
+        {
+          "name": "revertDarkModeFilter",
+          "kind": "const arrow function",
+          "params": [
+            {
+              "name": "color",
+              "type": "string"
+            },
+            {
+              "name": "candidates",
+              "type": "readonly string[] (default [])"
+            }
+          ],
+          "returns": "string"
+        }
+      ],
+      "import_line": "import { revertDarkModeFilter } from \"@excalidraw/common\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 333,
+          "to": 333,
+          "first_line": "};",
+          "rule": "Rules 1-8: blank line, the new section divider, DARK_MODE_DEFAULT_CANDIDATES and revertDarkModeFilter."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          83,
+          114
+        ],
+        "reason": "applyDarkModeFilter: tinycolor parsing, the two filter steps and rgbToHex output."
+      },
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "AC-3",
+        "AC-4",
+        "NFR-1",
+        "NFR-2"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/excalidraw/components/EyeDropper.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "getCurrentColor resolves the sampled pixel through revertDarkModeFilter with the scene's colours when the theme is dark, so preview, onChange and onSelect all get the rendered colour; light theme is unchanged.",
+      "rules": [
+        "1. The @excalidraw/common import becomes `import { EVENT, KEYS, THEME, revertDarkModeFilter, rgbToHex } from \"@excalidraw/common\";` (prettier wraps it).",
+        "2. useStable additionally receives `elements`, `theme: appState.theme` and `viewBackgroundColor: appState.viewBackgroundColor`, so getCurrentColor reads current values at event time without new effect dependencies.",
+        "3. getCurrentColor keeps the getImageData call unchanged and builds `const color = rgbToHex(pixel[0], pixel[1], pixel[2]);`.",
+        "4. If stableProps.theme !== THEME.DARK, return color (exactly today's result).",
+        "5. Otherwise build a Set<string> of stableProps.viewBackgroundColor, then each element's strokeColor and backgroundColor from stableProps.elements, and return revertDarkModeFilter(color, Array.from(set)).",
+        "6. Leave the effect's dependency array and every other line as they are."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 4,
+          "to": 4,
+          "first_line": "import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 59,
+          "to": 65,
+          "first_line": "const stableProps = useStable({",
+          "last_line": "});",
+          "rule": "Rule 2: the same keys plus elements, theme and viewBackgroundColor."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 80,
+          "to": 95,
+          "first_line": "const getCurrentColor = ({",
+          "last_line": "};",
+          "rule": "Rules 3-5: same signature and getImageData call, then the theme branch."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "reason": "The file being edited: its import grouping, useStable usage and listener style."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/hooks/useStable.ts",
+          "reason": "useStable copies new keys onto one stable object each render."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "AC-1",
+        "AC-2",
+        "AC-5",
+        "AC-6",
+        "NFR-3",
+        "NFR-4"
+      ],
+      "checks": [
+        "lint"
+      ]
+    }
+  ]
+}

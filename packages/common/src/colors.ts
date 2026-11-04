@@ -333,6 +333,66 @@ export const isOpaqueColor = (color: string) => {
 };
 
 // -----------------------------------------------------------------------------
+// dark mode color reversal
+// -----------------------------------------------------------------------------
+
+const DARK_MODE_DEFAULT_CANDIDATES: readonly string[] = Array.from(
+  new Set([
+    COLOR_PALETTE.black,
+    COLOR_PALETTE.white,
+    ...Object.values(COLOR_PALETTE).flatMap((shades) =>
+      typeof shades === "string" ? [] : [...shades],
+    ),
+    ...DEFAULT_ELEMENT_STROKE_PICKS,
+    ...DEFAULT_ELEMENT_BACKGROUND_PICKS,
+    ...BUCKET_FILL_BACKGROUND_PICKS,
+    ...DEFAULT_CANVAS_BACKGROUND_PICKS,
+  ]),
+);
+
+/**
+ * Maps a dark-mode on-screen color back to the color that was rendered to
+ * produce it. Caller `candidates` are tried first, in order, then the default
+ * palette candidates; the first one whose dark-mode filtered color matches
+ * wins. The result is always a lowercase 6-digit `#rrggbb` (alpha dropped) and
+ * an invalid input is returned unchanged. When no candidate matches, the
+ * filter is inverted numerically, which is lossy: near-exact for mid-tones,
+ * but off by up to ~170 per channel for saturated colors (the 93% invert
+ * clamps them), which only an exact candidate recovers.
+ */
+export const revertDarkModeFilter = (
+  color: string,
+  candidates: readonly string[] = [],
+): string => {
+  const tc = tinycolor(color);
+  if (!tc.isValid()) {
+    return color;
+  }
+
+  const { r, g, b } = tc.toRgb();
+  const target = rgbToHex(r, g, b);
+
+  for (const candidate of [...candidates, ...DARK_MODE_DEFAULT_CANDIDATES]) {
+    const candidateTc = tinycolor(candidate);
+    if (!candidateTc.isValid() || candidateTc.getAlpha() === 0) {
+      continue;
+    }
+    if (applyDarkModeFilter(candidate).slice(0, 7) === target) {
+      const rgb = candidateTc.toRgb();
+      return rgbToHex(rgb.r, rgb.g, rgb.b);
+    }
+  }
+
+  // the 180 degree hue-rotate is its own inverse, then undo the 93% invert
+  const rotated = cssHueRotate(r, g, b, 180 as Degrees);
+  const p = 0.93;
+  const revert = (v: number) =>
+    Math.round(clamp((v - 255 * p) / (1 - 2 * p), 0, 255));
+
+  return rgbToHex(revert(rotated.r), revert(rotated.g), revert(rotated.b));
+};
+
+// -----------------------------------------------------------------------------
 // color contract helpers
 // -----------------------------------------------------------------------------
 
