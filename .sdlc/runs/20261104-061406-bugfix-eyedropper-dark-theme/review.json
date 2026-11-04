@@ -1,0 +1,27 @@
+{
+  "module": "eyedropper-dark-theme (packages/common colors + packages/excalidraw EyeDropper)",
+  "mode": "brownfield",
+  "intent": "bugfix",
+  "verdict": "approved",
+  "tool_calls": 6,
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/EyeDropper.tsx",
+      "line": 105,
+      "issue": "In dark theme getPickedColor reverts every sampled pixel, but renderElement.ts does not pass raster image elements through applyDarkModeFilter (only SVG images are inverted, and with a different filter). Picking a colour from a PNG/JPEG image in dark theme will therefore return a wrongly inverted colour. This is outside the accepted change_plan (it does not mention images), so it is advisory, not a regression in the targeted shape fix. Confidence: medium.",
+      "fix": "Optional follow-up: skip the revert when the pointer is over a non-SVG image element (e.g. via app.getElementAtPosition), or record this as a known limitation in the plan/issue."
+    }
+  ],
+  "passing_checks": [
+    "Correctness vs change_plan: revertDarkModeFilter matches the closed-form inverse (2L - I hue-rotate, (v - 255p)/(1 - 2p) invert, single clamp+round, rgbToHex with alpha); no cache; forward path, cssInvert, cssHueRotate and DARK_MODE_COLORS_CACHE untouched.",
+    "EyeDropper: only onChange and onSelect go through getPickedColor; preview swatch keeps the raw sample; appState.theme added to effect deps; all three entry points (picker, i hotkey, bucket fill) share this choke point.",
+    "Type safety: no any; one `as unknown as ImageData` in a test stub, which is justified.",
+    "Error handling: pure arithmetic, nothing swallowed.",
+    "Authz / PII: not applicable (client-side colour util).",
+    "DRY: the expectHexWithin helper is duplicated across two test files by explicit plan decision (no shared test util across packages); acceptable.",
+    "Tests: dark-theme case covers both the onChange (move) and onSelect (release) paths plus preview-unchanged; light-theme case pins exact passthrough; colors.test covers unclamped round-trip and alpha 6/8-char handling; existing cases and snapshots untouched.",
+    "Env fixture check skipped (intent=bugfix). No sensitive files (manifests, .env.example, CLAUDE.md, settings) touched."
+  ],
+  "refinement_packets": []
+}

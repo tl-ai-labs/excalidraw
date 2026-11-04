@@ -1,0 +1,419 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript strict; Prettier 2.6 via @excalidraw/prettier-config (80 columns, double quotes, trailing commas, semicolons); eslint runs with --max-warnings=0.",
+      "Import order (eslint import/order): external packages, then @excalidraw/* packages, then a blank line, then type-only imports (`import type`) in their own group, then parent/sibling relative imports; type imports use `import type`, never inline `type` specifiers.",
+      "Inside an import's braces keep the existing case-insensitive alphabetical order (e.g. `EVENT, KEYS, revertDarkModeFilter, rgbToHex, THEME`).",
+      "Tests run under vitest 3 with globals (describe/it/expect/vi are global, never imported); assertions use expect(...).toBe / toBeLessThanOrEqual; editor tests render <Excalidraw /> with ./test-utils `render` and read state through `const { h } = window;`.",
+      "Every colour helper in packages/common/src/colors.ts returns lowercase hex built with rgbToHex (6 chars when opaque, 8 chars with alpha otherwise).",
+      "Do not touch applyDarkModeFilter, cssInvert, cssHueRotate or DARK_MODE_COLORS_CACHE: the dark-mode render path stays byte-identical.",
+      "Never run or require `yarn test:update`; no snapshot file changes."
+    ],
+    "decisions": [
+      {
+        "topic": "Name and signature of the inverse",
+        "choice": "export const revertDarkModeFilter = (color: string): string in packages/common/src/colors.ts, placed directly after applyDarkModeFilter, re-exported through the existing `export * from \"./colors\"` in @excalidraw/common.",
+        "rejected": [
+          "a `revert` flag on applyDarkModeFilter",
+          "a new module file"
+        ],
+        "reason": "A separate pure function keeps the forward path and its cache untouched and matches the requirements' suggested name."
+      },
+      {
+        "topic": "Inverse math",
+        "choice": "Undo hue-rotate(180deg) with the same matrix (it equals 2L - I where L is the luminance projection with weights 0.213/0.715/0.072 summing to 1, so it is its own inverse; sin(180deg) terms are ~1e-16), computed unrounded as y = 0.213r + 0.715g + 0.072b and v = 2y - channel; then undo invert(93%) per channel as x = (237.15 - v) / 0.86; clamp x to [0,255] and round once at the end.",
+        "rejected": [
+          "calling cssHueRotate(…, 180) again (it rounds and clamps mid-way, which pushes worst-case error past ±2)",
+          "a numeric 3x3 matrix inversion"
+        ],
+        "reason": "Closed form is exact for the unclamped case, single final rounding keeps the round-trip error within ±2 per channel (worst case ~1.83 before rounding)."
+      },
+      {
+        "topic": "Inverse caching",
+        "choice": "No cache for revertDarkModeFilter; never read or write DARK_MODE_COLORS_CACHE from it.",
+        "rejected": [
+          "sharing DARK_MODE_COLORS_CACHE",
+          "a second Map cache"
+        ],
+        "reason": "The function is a handful of arithmetic ops per pointer move; the shared cache maps light->dark and must not be polluted with dark->light entries."
+      },
+      {
+        "topic": "Where the eyedropper maps the colour back",
+        "choice": "EyeDropper.tsx keeps getCurrentColor returning the raw sampled hex (used for the preview swatch) and adds a local getPickedColor(color) inside the same useEffect that returns revertDarkModeFilter(color) when appState.theme === THEME.DARK, else color; only the onChange and onSelect arguments go through getPickedColor; appState.theme is added to the effect's dependency array.",
+        "rejected": [
+          "mapping inside getCurrentColor (would change the preview swatch, violating FR-3)",
+          "mapping in LayerUI/App callbacks (outside the allowlist and duplicated across three call paths)"
+        ],
+        "reason": "One choke point covers the stroke/background picker, the `i` hotkey and the bucket-fill temporary eyedropper, while the preview keeps showing what is under the cursor."
+      },
+      {
+        "topic": "How tests simulate a dark-rendered pixel",
+        "choice": "Render <Excalidraw theme={THEME.DARK} … /> (or theme light), open the background eyedropper with Keyboard.keyPress(\"i\"), stub `vi.spyOn(h.app.canvas.getContext(\"2d\")!, \"getImageData\").mockReturnValue({ data: new Uint8ClampedArray([r, g, b, 255]) } as ImageData)` with the channels of applyDarkModeFilter(\"#1971c2\"), then fire pointerDown and pointerUp on the `.excalidraw-eye-dropper-backdrop` element and assert on h.state.currentItemBackgroundColor.",
+        "rejected": [
+          "asserting on a selected element's backgroundColor (needs element setup with no extra coverage)",
+          "hardcoding the dark pixel (#56a2e8)"
+        ],
+        "reason": "vitest-canvas-mock caches one 2D context per canvas, so the stub is the same ctx EyeDropper reads; with no selection App's onSelect writes currentItemBackgroundColor."
+      },
+      {
+        "topic": "Tolerance comparison in tests",
+        "choice": "Each test file defines a local helper that parses #rrggbb[aa] with parseInt(hex.slice(i, i + 2), 16) and asserts Math.abs(actual - expected) <= 2 for each of r, g, b.",
+        "rejected": [
+          "importing tinycolor2 in tests",
+          "exact string equality for dark-theme results"
+        ],
+        "reason": "The round-trip of #1971c2 yields #1971c3, so exact equality is wrong by design; a tiny local parser needs no new import."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "prettier",
+        "run": "node_modules/.bin/prettier --check {path}",
+        "fix": "node_modules/.bin/prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "eslint",
+        "run": "node_modules/.bin/eslint --max-warnings=0 {path}",
+        "fix": "node_modules/.bin/eslint --max-warnings=0 --fix {path}",
+        "timeout_s": 120
+      },
+      {
+        "id": "vitest",
+        "run": "yarn test:app --watch=false {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "affected-tests",
+        "run": "yarn test:app --watch=false eyeDropper bucketFill colorPicker colors.test"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Reproduces the bug: in dark theme the eyedropper writes the on-screen dark-rendered colour instead of the element's real colour; also pins light-theme behaviour.",
+      "rules": [
+        "1. Add `import { applyDarkModeFilter, THEME } from \"@excalidraw/common\";` as its own line after the react import, separated by a blank line (external group, @excalidraw after).",
+        "2. After the imports add `const { h } = window;` and a local helper `expectHexWithin(actual: string, expected: string, tolerance = 2)` that parses r, g, b with parseInt(hex.slice(i, i + 2), 16) for i = 1, 3, 5 and asserts Math.abs(actual - expected) <= tolerance per channel with expect(...).toBeLessThanOrEqual.",
+        "3. Add a local helper `hexToPixel(hex: string)` returning `new Uint8ClampedArray([r, g, b, 255])` parsed the same way, and a helper `openEyeDropperWithPixel(pixel: Uint8ClampedArray)` that presses `i` via Keyboard.keyPress, awaits waitFor until `.excalidraw-eye-dropper-preview` exists, then calls `vi.spyOn(h.app.canvas.getContext(\"2d\")!, \"getImageData\").mockReturnValue({ data: pixel } as unknown as ImageData)` and returns `{ preview, backdrop }` (backdrop is `.excalidraw-eye-dropper-backdrop` queried from GlobalTestState.renderResult.container).",
+        "4. The real colour under test is `#1971c2` (COLOR_PALETTE.blue[4]); the dark pixel is `hexToPixel(applyDarkModeFilter(\"#1971c2\"))`, never a hardcoded hex.",
+        "5. Dark-theme case renders `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} theme={THEME.DARK} />`; it fires `fireEvent.pointerDown(backdrop)`, then `fireEvent.pointerMove(window, { clientX: 10, clientY: 10 })` and checks h.state.currentItemBackgroundColor (onChange path), then `fireEvent.pointerUp(backdrop, { clientX: 10, clientY: 10 })` and checks it again (onSelect path), both with expectHexWithin against `#1971c2`.",
+        "6. In the dark-theme case, after the pointerMove, assert the preview still shows the raw dark pixel: `expect([applyDarkModeFilter(\"#1971c2\"), \"rgb(r, g, b)\" of that pixel]).toContain(preview.style.background)` (jsdom may normalise hex to rgb()).",
+        "7. Light-theme case renders without the theme prop, stubs the pixel of `#1971c2` itself, fires pointerDown + pointerUp on the backdrop and asserts `h.state.currentItemBackgroundColor` toBe exactly `#1971c2`.",
+        "8. Keep the existing `keeps the color preview within the editor container` case byte-identical; new cases go inside the same `describe(\"eye dropper\")` block after it."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 1,
+          "to": 1,
+          "first_line": "import React from \"react\";",
+          "rule": "Rule 1: blank line then the @excalidraw/common import of applyDarkModeFilter and THEME."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 6,
+          "to": 6,
+          "first_line": "import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";",
+          "rule": "Rules 2-3: blank line, `const { h } = window;`, then the expectHexWithin, hexToPixel and openEyeDropperWithPixel helpers."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 49,
+          "to": 49,
+          "first_line": "});",
+          "rule": "Rules 4-7: the two new it() cases, each preceded by a blank line, inside the describe block."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/bucketFill.test.tsx",
+        "lines": [
+          1,
+          40
+        ],
+        "reason": "Import grouping for @excalidraw/common plus test-utils, and the `const { h } = window;` idiom."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/EyeDropper.tsx",
+          "lines": [
+            69,
+            218
+          ],
+          "reason": "Which events the eyedropper listens to (pointerdown/up on the backdrop, pointermove on window) and how it reads the pixel."
+        },
+        {
+          "path": "packages/excalidraw/components/LayerUI.tsx",
+          "lines": [
+            510,
+            560
+          ],
+          "reason": "onChange with no selection writes currentItemBackgroundColor for colorPickerType elementBackground."
+        },
+        {
+          "path": "packages/excalidraw/components/App.tsx",
+          "lines": [
+            2963,
+            3005
+          ],
+          "reason": "openEyeDropper onSelect with no selection and altKey false writes currentItemBackgroundColor for the `i` hotkey."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "AC-1",
+        "AC-2"
+      ],
+      "tests": [
+        {
+          "name": "picks the real element colour in dark theme",
+          "given": "theme dark, background eyedropper open, getImageData stubbed to the dark-rendered pixel of #1971c2, pointer held then moved then released",
+          "expect": "currentItemBackgroundColor is within 2 per channel of #1971c2 after the move and after the release, and the preview background is the raw dark pixel"
+        },
+        {
+          "name": "picks the sampled colour unchanged in light theme",
+          "given": "light theme, background eyedropper open, getImageData stubbed to the pixel of #1971c2, pointer pressed and released",
+          "expect": "currentItemBackgroundColor is exactly #1971c2"
+        }
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ],
+      "red_checks": [
+        "vitest"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/common/src/colors.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Round-trip tests for revertDarkModeFilter: inverse(applyDarkModeFilter(c)) is within 2 per channel of c for unclamped palette colours, with alpha preserved.",
+      "rules": [
+        "1. Add revertDarkModeFilter to the existing @excalidraw/common import, keeping the order applyDarkModeFilter, COLOR_PALETTE, revertDarkModeFilter, rgbToHex.",
+        "2. New top-level `describe(\"revertDarkModeFilter\", ...)` placed after the applyDarkModeFilter describe and before the rgbToHex describe, separated by blank lines.",
+        "3. Inside it define a local `expectHexWithin(actual: string, expected: string, tolerance = 2)` parsing r, g, b with parseInt(hex.slice(i, i + 2), 16) for i = 1, 3, 5 and asserting each absolute difference toBeLessThanOrEqual(tolerance).",
+        "4. The round-trip set is exactly these colours whose forward transform does not clamp: #1971c2, #2f9e44, #868e96, #ffffff, #000000, COLOR_PALETTE.black (#1e1e1e), #9c36b5, #a5d8ff, #343a40; run them with it.each.",
+        "5. Do not include colours that clamp in the forward transform (e.g. #e03131, #f08c00, #ffec99) and do not touch any existing case or the snapshot."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 5,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Rule 1: same multi-line import with revertDarkModeFilter added between COLOR_PALETTE and rgbToHex."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 216,
+          "to": 216,
+          "first_line": "});",
+          "rule": "Rules 2-5: blank line then the new describe(\"revertDarkModeFilter\") block with its cases."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.test.ts",
+        "lines": [
+          13,
+          99
+        ],
+        "reason": "Nested describe/it layout and it.each usage of the existing applyDarkModeFilter tests."
+      },
+      "depends_on": [],
+      "covers": [
+        "AC-3"
+      ],
+      "tests": [
+        {
+          "name": "round-trips palette colour %s within tolerance",
+          "given": "each colour of the unclamped round-trip set",
+          "expect": "revertDarkModeFilter(applyDarkModeFilter(c)) is a 6-char lowercase hex within 2 per channel of c"
+        },
+        {
+          "name": "maps the dark-rendered #1971c2 back to the original",
+          "given": "revertDarkModeFilter(\"#56a2e8\")",
+          "expect": "within 2 per channel of #1971c2"
+        },
+        {
+          "name": "omits alpha for full opacity",
+          "given": "revertDarkModeFilter(applyDarkModeFilter(\"#1971c2ff\"))",
+          "expect": "matches /^#[0-9a-f]{6}$/"
+        },
+        {
+          "name": "preserves 50% opacity",
+          "given": "revertDarkModeFilter(applyDarkModeFilter(\"#1971c280\"))",
+          "expect": "has 8 hex chars, ends with \"80\" and its rgb part is within 2 per channel of #1971c2"
+        },
+        {
+          "name": "preserves 0% opacity",
+          "given": "revertDarkModeFilter(\"#ededed00\")",
+          "expect": "ends with \"00\""
+        }
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ],
+      "red_checks": [
+        "vitest"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/common/src/colors.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds revertDarkModeFilter, the inverse of applyDarkModeFilter (invert(93%) then hue-rotate(180deg)), returning hex with alpha handled the same way.",
+      "rules": [
+        "1. Insert the function directly after applyDarkModeFilter with a one-line JSDoc: maps a dark-mode rendered colour back to its original colour (inverse of applyDarkModeFilter, lossy where the forward transform clamps).",
+        "2. Parse with `const tc = tinycolor(color);`, `const alpha = tc.getAlpha();`, `const { r, g, b } = tc.toRgb();`.",
+        "3. Undo hue-rotate(180deg) unrounded: `const luma = 0.213 * r + 0.715 * g + 0.072 * b;` and per channel `v = 2 * luma - channel` (the CSS 180deg hue-rotate matrix equals 2L - I, its own inverse).",
+        "4. Undo invert(93%) per channel: `x = (255 * 0.93 - v) / (1 - 2 * 0.93)` written with a named const `DARK_MODE_INVERT_PERCENT = 93` used as p = DARK_MODE_INVERT_PERCENT / 100 so the formula reads (v - 255 * p) / (1 - 2 * p).",
+        "5. Round once at the end: `Math.round(clamp(x, 0, 255))` per channel; return `rgbToHex(r, g, b, alpha)` so full opacity yields 6 chars and other alpha yields 8.",
+        "6. Pure function: no cache, never touch DARK_MODE_COLORS_CACHE, cssInvert, cssHueRotate or applyDarkModeFilter (the literal 93 in applyDarkModeFilter stays as is)."
+      ],
+      "exports": [
+        {
+          "name": "revertDarkModeFilter",
+          "kind": "const arrow function",
+          "params": [
+            {
+              "name": "color",
+              "type": "string"
+            }
+          ],
+          "returns": "string"
+        }
+      ],
+      "import_line": "import { revertDarkModeFilter } from \"@excalidraw/common\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 114,
+          "to": 114,
+          "first_line": "};",
+          "rule": "Rules 1-6: blank line, then the DARK_MODE_INVERT_PERCENT const (non-exported) and the exported revertDarkModeFilter."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          59,
+          114
+        ],
+        "reason": "Shape of cssInvert and applyDarkModeFilter: tinycolor parse, per-channel clamp/round, rgbToHex with alpha."
+      },
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "NFR-1",
+        "NFR-3"
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/excalidraw/components/EyeDropper.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "In dark theme the colour handed to onChange and onSelect is revertDarkModeFilter of the sampled pixel; the preview swatch keeps the raw sampled colour; light theme unchanged.",
+      "rules": [
+        "1. Extend the @excalidraw/common import to `EVENT, KEYS, revertDarkModeFilter, rgbToHex, THEME` (Prettier wraps it to multiple lines).",
+        "2. Right after getCurrentColor, inside the same useEffect, add `const getPickedColor = (color: string) => appState.theme === THEME.DARK ? revertDarkModeFilter(color) : color;` with a short comment that the canvas renders through the dark-mode filter so the sampled pixel must be mapped back.",
+        "3. In mouseMoveListener pass `getPickedColor(currentColor)` to stableProps.onChange; leave `colorPreviewDiv.style.background = currentColor;` unchanged.",
+        "4. In pointerUpListener call `onSelect(getPickedColor(getCurrentColor(event)), event);`.",
+        "5. Add `appState.theme` to the useEffect dependency array after `appState.offsetTop`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 4,
+          "to": 4,
+          "first_line": "import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 95,
+          "to": 95,
+          "first_line": "};",
+          "rule": "Rule 2: blank line then getPickedColor."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 124,
+          "to": 124,
+          "first_line": "currentColor,",
+          "rule": "Rule 3: `getPickedColor(currentColor),`."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 161,
+          "to": 161,
+          "first_line": "onSelect(getCurrentColor(event), event);",
+          "rule": "Rule 4."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 217,
+          "to": 217,
+          "first_line": "appState.offsetTop,",
+          "rule": "Rule 5: `appState.theme,`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "lines": [
+          69,
+          162
+        ],
+        "reason": "Local arrow helpers defined inside the effect and how the sampled colour flows to onChange/onSelect."
+      },
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "NFR-2",
+        "AC-4",
+        "AC-5"
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ]
+    }
+  ]
+}
