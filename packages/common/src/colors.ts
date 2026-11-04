@@ -113,6 +113,28 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   return result;
 };
 
+const DARK_MODE_INVERT_PERCENT = 93;
+
+/** Maps a dark-mode rendered colour back to its original colour (inverse of applyDarkModeFilter, lossy where the forward transform clamps). */
+export const revertDarkModeFilter = (color: string): string => {
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+  const { r, g, b } = tc.toRgb();
+
+  // undo hue-rotate(180deg): its matrix equals 2L - I, its own inverse
+  const luma = 0.213 * r + 0.715 * g + 0.072 * b;
+
+  // undo invert(p): v = x * (1 - p) + (255 - x) * p => x = (v - 255p) / (1 - 2p)
+  const p = DARK_MODE_INVERT_PERCENT / 100;
+  const revertChannel = (channel: number): number => {
+    const v = 2 * luma - channel;
+    const x = (v - 255 * p) / (1 - 2 * p);
+    return Math.round(clamp(x, 0, 255));
+  };
+
+  return rgbToHex(revertChannel(r), revertChannel(g), revertChannel(b), alpha);
+};
+
 // ---------------------------------------------------------------------------
 // Color palette
 // ---------------------------------------------------------------------------

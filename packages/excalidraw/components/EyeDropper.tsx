@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  EVENT,
+  KEYS,
+  revertDarkModeFilter,
+  rgbToHex,
+  THEME,
+} from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -94,6 +100,11 @@ export const EyeDropper: React.FC<{
       return rgbToHex(pixel[0], pixel[1], pixel[2]);
     };
 
+    // in dark theme the canvas renders through the dark-mode filter, so the
+    // sampled pixel must be mapped back to the original colour
+    const getPickedColor = (color: string) =>
+      appState.theme === THEME.DARK ? revertDarkModeFilter(color) : color;
+
     const mouseMoveListener = ({
       clientX,
       clientY,
@@ -121,7 +132,7 @@ export const EyeDropper: React.FC<{
       if (isHoldingPointerDown) {
         stableProps.onChange(
           colorPickerType,
-          currentColor,
+          getPickedColor(currentColor),
           stableProps.selectedElements,
           { altKey },
         );
@@ -158,7 +169,7 @@ export const EyeDropper: React.FC<{
       event.stopImmediatePropagation();
       event.preventDefault();
 
-      onSelect(getCurrentColor(event), event);
+      onSelect(getPickedColor(getCurrentColor(event)), event);
     };
 
     const keyDownListener = (event: KeyboardEvent) => {
@@ -215,6 +226,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  revertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -211,6 +212,57 @@ describe("applyDarkModeFilter", () => {
       const result1 = applyDarkModeFilter("#ff0000");
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
+    });
+  });
+});
+
+describe("revertDarkModeFilter", () => {
+  const expectHexWithin = (actual: string, expected: string, tolerance = 2) => {
+    for (const i of [1, 3, 5]) {
+      const a = parseInt(actual.slice(i, i + 2), 16);
+      const e = parseInt(expected.slice(i, i + 2), 16);
+      expect(Math.abs(a - e)).toBeLessThanOrEqual(tolerance);
+    }
+  };
+
+  describe("round-trip", () => {
+    it.each([
+      "#1971c2",
+      "#2f9e44",
+      "#868e96",
+      "#ffffff",
+      "#000000",
+      COLOR_PALETTE.black,
+      "#9c36b5",
+      "#a5d8ff",
+      "#343a40",
+    ])("round-trips palette colour %s within tolerance", (color) => {
+      const result = revertDarkModeFilter(applyDarkModeFilter(color));
+      expect(result).toMatch(/^#[0-9a-f]{6}$/);
+      expectHexWithin(result, color);
+    });
+
+    it("maps the dark-rendered #1971c2 back to the original", () => {
+      expectHexWithin(revertDarkModeFilter("#56a2e8"), "#1971c2");
+    });
+  });
+
+  describe("alpha preservation", () => {
+    it("omits alpha for full opacity", () => {
+      const result = revertDarkModeFilter(applyDarkModeFilter("#1971c2ff"));
+      expect(result).toMatch(/^#[0-9a-f]{6}$/);
+    });
+
+    it("preserves 50% opacity", () => {
+      const result = revertDarkModeFilter(applyDarkModeFilter("#1971c280"));
+      expect(result).toMatch(/^#[0-9a-f]{8}$/);
+      expect(result.slice(-2)).toBe("80");
+      expectHexWithin(result.slice(0, 7), "#1971c2");
+    });
+
+    it("preserves 0% opacity", () => {
+      const result = revertDarkModeFilter("#ededed00");
+      expect(result.slice(-2)).toBe("00");
     });
   });
 });
