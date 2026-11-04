@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-211345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn -s vitest run packages/excalidraw/tests/arrowheadSize.test.tsx: 3 failed | 8 passed. All three are undo assertions where undo did not revert the change under test:\n- 'arrowhead size > picking a size updates the arrow and undo restores the previous size': AssertionError: expected 'large' to be 'small' at arrowheadSize.test.tsx:152 (expect(getElement(arrow.id).arrowheadSize).toBe(\"small\") after Keyboard.undo()).\n- 'arrowhead size > picking a size on an arrow without one and undoing leaves it unset': AssertionError: expected 'small' to be undefined at :164.\n- 'arrowhead size > paste styles from an arrow without arrowheadSize clears a large target': AssertionError: expected undefined to be 'large' at :220.\nCause: the setScene helper (lines ~67-73) calls API.updateScene({ elements, captureUpdate: CaptureUpdateAction.EVENTUALLY }). EVENTUALLY does not update the store snapshot (packages/element/src/store.ts l.332, l.368-370), so the scene setup is folded into the next IMMEDIATELY increment (the action under test) and Keyboard.undo() reverts the elements' creation instead of the size change. Fix: in setScene use CaptureUpdateAction.NEVER (updates the snapshot without recording history), keeping the comment's intent ('captured into the store snapshot so undo only reverts the change under test'). Do not change the source files or the assertions' expected values; keep every other test as it is. An earlier attempt also failed the compact/mobile popover cases with 'ReferenceError: ResizeObserver is not defined' (radix use-size); the current file passes those, keep that as is.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-211345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-211345-feature-extend-arrowhead-size/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 400,
+      "max_retries": 2
+    }
+  }
+]

@@ -1,5 +1,7 @@
 import rough from "roughjs/bin/rough";
 import {
+  ARROWHEAD_SIZE_SCALE,
+  DEFAULT_ARROWHEAD_SIZE,
   arrayToMap,
   type Bounds,
   invariant,
@@ -58,6 +60,7 @@ import type { Drawable, Op } from "roughjs/bin/core";
 import type { Point as RoughPoint } from "roughjs/bin/geometry";
 import type {
   Arrowhead,
+  ArrowheadSize,
   CardinalityArrowhead,
   ElementsMap,
   ElementsMapOrArray,
@@ -744,6 +747,22 @@ export const getArrowheadSize = (arrowhead: Arrowhead): number => {
   }
 };
 
+/** @returns whether value is a known arrowhead size */
+export const isArrowheadSize = (value: unknown): value is ArrowheadSize =>
+  typeof value === "string" &&
+  Object.prototype.hasOwnProperty.call(ARROWHEAD_SIZE_SCALE, value);
+
+/** @returns multiplier on the base arrowhead size, 1 when absent or invalid */
+export const getArrowheadSizeScale = (
+  element: Pick<ExcalidrawLinearElement, "arrowheadSize">,
+): number => {
+  const { arrowheadSize } = element;
+  if (arrowheadSize !== undefined && isArrowheadSize(arrowheadSize)) {
+    return ARROWHEAD_SIZE_SCALE[arrowheadSize];
+  }
+  return ARROWHEAD_SIZE_SCALE[DEFAULT_ARROWHEAD_SIZE];
+};
+
 const ARROW_ARROWHEAD_ANGLE = 20;
 // scaled down `arrow` arrowheads open up to this angle so that they don't
 // collapse into the line, reaching it at ARROW_ARROWHEAD_WIDEST_SIZE
@@ -934,7 +953,10 @@ const getArrowheadSizeBeyondLastSegment = (
     return isCurved
       ? 0
       : getArrowheadSize(arrowhead) *
-          getCardinalityMarkerScale(marker, corner, element.strokeWidth);
+          Math.min(
+            getArrowheadSizeScale(element),
+            getCardinalityMarkerScale(marker, corner, element.strokeWidth),
+          );
   }
 
   // circles have no direction, the previous segment can run into them
@@ -966,7 +988,8 @@ const getArrowheadSizeBeyondLastSegment = (
     case "arrow": {
       // only grow as much as legibility needs, a full-size arrowhead past
       // a sharp turn looks like an outline triangle
-      const legibleSize = getArrowheadSize(arrowhead) / 2;
+      const scale = getArrowheadSizeScale(element);
+      const legibleSize = (getArrowheadSize(arrowhead) * scale) / 2;
       // keep the open sides' strokes off the previous segment's. Smaller
       // arrowheads are wider, so check the angles at both ends of the range.
       return Math.min(
@@ -974,7 +997,7 @@ const getArrowheadSizeBeyondLastSegment = (
         maxSize,
         getSidesClearSize(
           corner,
-          getArrowheadAngle(arrowhead, legibleSize),
+          getArrowheadAngle(arrowhead, legibleSize / scale),
           element.strokeWidth,
         ),
         getSidesClearSize(
@@ -1055,7 +1078,8 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const scale = getArrowheadSizeScale(element);
+  const size = getArrowheadSize(arrowhead) * scale;
 
   let length = 0;
 
@@ -1099,7 +1123,7 @@ export const getArrowheadPoints = (
     return [tx, ty, diameter];
   }
 
-  const angle = getArrowheadAngle(arrowhead, minSize);
+  const angle = getArrowheadAngle(arrowhead, minSize / scale);
 
   if (
     arrowhead === "cardinality_many" ||
@@ -1245,6 +1269,27 @@ const getLinearElementRotatedBounds = (
       coordsWithBoundText[2],
       coordsWithBoundText[3],
     ];
+  }
+  // heads above the default size overrun the shaft-only bounds and the export
+  // padding, so they join the bounds; default and smaller heads keep today's
+  if (
+    isArrowElement(element) &&
+    (element.startArrowhead || element.endArrowhead) &&
+    getArrowheadSizeScale(element) > 1
+  ) {
+    const shapes = ShapeCache.generateElementShape(element, null);
+    for (let i = 1; i < shapes.length; i++) {
+      const headBounds = getMinMaxXYFromCurvePathOps(
+        getCurvePathOps(shapes[i]),
+        transformXY,
+      );
+      coords = [
+        Math.min(coords[0], headBounds[0]),
+        Math.min(coords[1], headBounds[1]),
+        Math.max(coords[2], headBounds[2]),
+        Math.max(coords[3], headBounds[3]),
+      ];
+    }
   }
   return coords;
 };

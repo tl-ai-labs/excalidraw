@@ -16,6 +16,7 @@ import {
   getArrowheadAngle,
   getArrowheadPoints,
   getArrowheadSize,
+  getArrowheadSizeScale,
   getElementAbsoluteCoords,
   getElementBounds,
 } from "../src/bounds";
@@ -374,5 +375,99 @@ describe("getArrowheadPoints()", () => {
     expect(
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
+  });
+});
+
+describe("arrowhead size", () => {
+  const createArrow = (
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"],
+    length = 200,
+  ) =>
+    API.createElement({
+      type: "arrow",
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(length, 0)],
+      endArrowhead: "arrow",
+      roughness: 0,
+      arrowheadSize,
+    });
+
+  const getHeadPoints = (arrow: ReturnType<typeof createArrow>) =>
+    getArrowheadPoints(
+      arrow,
+      ShapeCache.generateElementShape(arrow, null),
+      "end",
+      "arrow",
+    )!;
+
+  const getHeadWidth = ([, , x1, y1, x2, y2]: readonly number[]) =>
+    pointDistance(pointFrom(x1, y1), pointFrom(x2, y2));
+
+  const getHeadLength = ([tipX, tipY, x1, y1, x2, y2]: readonly number[]) =>
+    pointDistance(
+      pointFrom(tipX, tipY),
+      pointFrom((x1 + x2) / 2, (y1 + y2) / 2),
+    );
+
+  it("scales arrowhead points with arrowheadSize", () => {
+    const small = getHeadWidth(getHeadPoints(createArrow("small")));
+    const absent = getHeadWidth(getHeadPoints(createArrow()));
+    const large = getHeadWidth(getHeadPoints(createArrow("large")));
+
+    expect(large).toBeGreaterThan(absent);
+    expect(absent).toBeGreaterThan(small);
+    expect(large).toBeCloseTo(absent * 1.5);
+    expect(small).toBeCloseTo(absent * 0.5);
+  });
+
+  it("draws medium heads exactly like heads without arrowheadSize", () => {
+    expect(getHeadPoints(createArrow("medium"))).toEqual(
+      getHeadPoints(createArrow()),
+    );
+  });
+
+  it("still caps a large head on a short last segment", () => {
+    const large = getHeadLength(getHeadPoints(createArrow("large", 10)));
+    const absent = getHeadLength(getHeadPoints(createArrow(undefined, 10)));
+
+    expect(large).toBeLessThanOrEqual(5);
+    expect(large).toBeCloseTo(absent);
+  });
+
+  it("maps arrowhead sizes to their scale and treats absent or unknown values as 1", () => {
+    expect(getArrowheadSizeScale({ arrowheadSize: "small" })).toBe(0.5);
+    expect(getArrowheadSizeScale({ arrowheadSize: "medium" })).toBe(1);
+    expect(getArrowheadSizeScale({ arrowheadSize: "large" })).toBe(1.5);
+    expect(getArrowheadSizeScale({})).toBe(1);
+    expect(
+      getArrowheadSizeScale({
+        arrowheadSize: "huge",
+      } as unknown as ExcalidrawLinearElement),
+    ).toBe(1);
+  });
+
+  it("takes large heads into element bounds and keeps other sizes shaft-only", () => {
+    const getBounds = (size?: ExcalidrawLinearElement["arrowheadSize"]) => {
+      const arrow = createArrow(size);
+      return getElementBounds(arrow, arrayToMap([arrow]));
+    };
+    const absent = getBounds();
+    const medium = getBounds("medium");
+    const small = getBounds("small");
+    const large = getBounds("large");
+    const largeHead = getHeadPoints(createArrow("large"));
+
+    expect(medium).toEqual(absent);
+    expect(small).toEqual(absent);
+    expect(absent[1]).toBeCloseTo(0);
+    expect(absent[3]).toBeCloseTo(0);
+    // the bounds reach the side ends of the head, not past them
+    expect(large[1]).toBeLessThan(absent[1]);
+    expect(large[3]).toBeGreaterThan(absent[3]);
+    expect(large[1]).toBeLessThanOrEqual(
+      Math.min(largeHead[3], largeHead[5]) + 1e-9,
+    );
+    expect(large[3]).toBeGreaterThanOrEqual(
+      Math.max(largeHead[3], largeHead[5]) - 1e-9,
+    );
   });
 });

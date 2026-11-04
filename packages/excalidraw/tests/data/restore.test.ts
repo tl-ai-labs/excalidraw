@@ -520,6 +520,44 @@ describe("restoreElements", () => {
     expect(variable.strokeOptions?.streamline).toBe(0.8);
   });
 
+  it("should restore arrowheadSize on lines and arrows, dropping absent and invalid values", () => {
+    const arrowElement = API.createElement({ type: "arrow" });
+    const lineElement = API.createElement({ type: "line" });
+
+    const [absent, small, bogusString, bogusNumber, explicitUndefined, line] =
+      restore.restoreElements(
+        [
+          { ...arrowElement, id: "absent" },
+          { ...arrowElement, id: "small", arrowheadSize: "small" },
+          { ...arrowElement, id: "bogusString", arrowheadSize: "huge" },
+          { ...arrowElement, id: "bogusNumber", arrowheadSize: 42 },
+          { ...arrowElement, id: "undef", arrowheadSize: undefined },
+          { ...lineElement, id: "line", arrowheadSize: "large" },
+        ] as any,
+        null,
+      ) as ExcalidrawLinearElement[];
+
+    expect(small.arrowheadSize).toBe("small");
+    expect(line.arrowheadSize).toBe("large");
+    expect(absent).not.toHaveProperty("arrowheadSize");
+    expect(bogusString).not.toHaveProperty("arrowheadSize");
+    expect(bogusNumber).not.toHaveProperty("arrowheadSize");
+    expect(explicitUndefined).not.toHaveProperty("arrowheadSize");
+  });
+
+  it("should serialize an old arrow without adding arrowheadSize", () => {
+    const arrowElement = API.createElement({ type: "arrow", id: "old-arrow" });
+
+    const restored = restore.restoreElements([arrowElement] as any, null);
+    const exported: ImportedDataState = JSON.parse(
+      serializeAsJSON(restored, getDefaultAppState(), {}, "local"),
+    );
+    const serialized = exported.elements?.[0] as ExcalidrawLinearElement;
+
+    expect(serialized).not.toHaveProperty("arrowheadSize");
+    expect(serialized.endArrowhead).toBe(arrowElement.endArrowhead);
+  });
+
   it("should restore line and draw elements correctly", () => {
     const lineElement = API.createElement({ type: "line", id: "id-line01" });
 

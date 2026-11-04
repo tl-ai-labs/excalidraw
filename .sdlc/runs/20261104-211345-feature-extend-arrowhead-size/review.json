@@ -1,0 +1,34 @@
+{
+  "module": "arrowhead-size (feature-extend, 19 touched files)",
+  "verdict": "approved",
+  "tool_calls": 10,
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "line": 30,
+      "issue": "makeArrow takes Partial<ExcalidrawArrowElement>, spreads it as `overrides as any`, and casts the result `as unknown as ExcalidrawArrowElement`. That turns off type checking for every override, even though API.createElement now accepts arrowheadSize, startArrowhead and endArrowhead directly.",
+      "fix": "Type overrides as `{ arrowheadSize?: ArrowheadSize; startArrowhead?: Arrowhead | null; endArrowhead?: Arrowhead | null }`. Spread it without `as any` and drop the `as unknown` double cast."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "issue": "No test covers the elbow-arrow paths the change touches. Nothing checks actionChangeArrowheadSize's updateElbowArrowRoute branch or the scaled head room in elbowArrow.ts getSimpleRoute. The clampLabelPositionOffEnds head term in transform.ts and the new Math.min(scale, cardinalityScale) cardinality branch in bounds.ts are also untested. All four ship with no check.",
+      "fix": "Add one jsdom case. Select an elbowed arrow (API.createElement({ type: 'arrow', elbowed: true, ... })), click arrowheadSize-large, and expect arrowheadSize to be 'large' with the points still valid (re-routed, version bumped). Optionally add a bounds.test.ts case checking that a large cardinality marker on a short multi-segment arrow is no bigger than the unscaled one."
+    }
+  ],
+  "passing_checks": [
+    "correctness vs change_plan: U01-U19 match their rules and sites; medium or absent gives scale 1, so geometry, bounds, padding and serialization are unchanged",
+    "getArrowheadPoints / getArrowheadSizeBeyondLastSegment: angle input divided by scale keeps the default opening angle; fitting still caps scaled heads; cardinality offsets are minSize multipliers, so composite markers scale together",
+    "large-head bounds: generateElementShape(element, null) does not recurse into bounds, uses the same transformXY as the shaft, and only runs for scale > 1",
+    "elbowArrow: getSimpleRoute receives the arrow element (it carries arrowheadSize); the getElbowArrowData literals only feed ElbowArrowData, not getSimpleRoute's arrow",
+    "restore: restoreElement copies with element = { ...element } before the switch, so the delete does not change caller input",
+    "paste styles: the forced copy plus delete bumps the version and serializes without the key; a target without the key is untouched",
+    "type safety: no new `any` in source; isArrowheadSize is the single validity guard",
+    "i18n: four en.json keys only, no literal JSX text",
+    "sensitive files: none touched (no manifest, .env, CLAUDE.md, settings)",
+    "env fixtures: N/A (no validating config module in this library monorepo)",
+    "authz / PII: N/A (client-side drawing library)"
+  ],
+  "refinement_packets": []
+}

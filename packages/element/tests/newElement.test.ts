@@ -2,7 +2,11 @@ import * as common from "@excalidraw/common";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 
-import { newElement, newLinearElement } from "../src/newElement";
+import {
+  newArrowElement,
+  newElement,
+  newLinearElement,
+} from "../src/newElement";
 import { mutateElement, newElementWith } from "../src/mutateElement";
 
 describe("element creation time", () => {
@@ -47,6 +51,43 @@ describe("element creation time", () => {
       const converted = newLinearElement({ ...original, type: "line" });
 
       expect(converted).toMatchObject({ id: original.id, created });
+    },
+  );
+});
+
+describe("arrowheadSize on new linear elements", () => {
+  it("newLinearElement leaves out arrowheadSize unless given", () => {
+    const without = newLinearElement({ type: "line", x: 0, y: 0 });
+    expect(without).not.toHaveProperty("arrowheadSize");
+
+    const withSize = newLinearElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      arrowheadSize: "small",
+    });
+    expect(withSize.arrowheadSize).toBe("small");
+  });
+
+  it.each([false, true])(
+    "newArrowElement leaves out arrowheadSize unless given (elbowed: %s)",
+    (elbowed) => {
+      const without = newArrowElement({
+        type: "arrow",
+        x: 0,
+        y: 0,
+        elbowed,
+      });
+      expect(without).not.toHaveProperty("arrowheadSize");
+
+      const withSize = newArrowElement({
+        type: "arrow",
+        x: 0,
+        y: 0,
+        elbowed,
+        arrowheadSize: "large",
+      });
+      expect(withSize.arrowheadSize).toBe("large");
     },
   );
 });
