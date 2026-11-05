@@ -58,6 +58,7 @@ import type { Drawable, Op } from "roughjs/bin/core";
 import type { Point as RoughPoint } from "roughjs/bin/geometry";
 import type {
   Arrowhead,
+  ArrowheadSize,
   CardinalityArrowhead,
   ElementsMap,
   ElementsMapOrArray,
@@ -723,6 +724,27 @@ export const CARDINALITY_INNER_BAR_OFFSET = -0.5;
 export const CARDINALITY_ZERO_CIRCLE_OFFSET = 1.5;
 export const CARDINALITY_ZERO_CIRCLE_SCALE = 0.8;
 
+/** default arrowhead size preset, drawn at today's size */
+export const DEFAULT_ARROWHEAD_SIZE: ArrowheadSize = "medium";
+
+/** scale applied to arrowhead geometry for each size preset */
+export const ARROWHEAD_SIZE_SCALES: Readonly<Record<ArrowheadSize, number>> = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+};
+
+/** whether the value is a known arrowhead size preset */
+export const isArrowheadSize = (value: unknown): value is ArrowheadSize =>
+  typeof value === "string" &&
+  Object.prototype.hasOwnProperty.call(ARROWHEAD_SIZE_SCALES, value);
+
+/** @returns scale for the preset, exactly 1 for absent or unknown values */
+export const getArrowheadSizeScale = (
+  arrowheadSize: ArrowheadSize | null | undefined,
+): number =>
+  isArrowheadSize(arrowheadSize) ? ARROWHEAD_SIZE_SCALES[arrowheadSize] : 1;
+
 /** @returns number in pixels */
 export const getArrowheadSize = (arrowhead: Arrowhead): number => {
   switch (arrowhead) {
@@ -1055,7 +1077,8 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const scale = getArrowheadSizeScale(element.arrowheadSize);
+  const size = getArrowheadSize(arrowhead) * scale;
 
   let length = 0;
 
@@ -1099,7 +1122,7 @@ export const getArrowheadPoints = (
     return [tx, ty, diameter];
   }
 
-  const angle = getArrowheadAngle(arrowhead, minSize);
+  const angle = getArrowheadAngle(arrowhead, minSize / scale);
 
   if (
     arrowhead === "cardinality_many" ||

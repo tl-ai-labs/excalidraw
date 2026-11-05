@@ -199,6 +199,7 @@ export class AppDrawShape {
       height: line.height,
       startArrowhead: null,
       endArrowhead: app.state.currentItemEndArrowhead,
+      arrowheadSize: app.state.currentItemArrowheadSize,
       points: line.points,
       groupIds: line.groupIds,
       frameId: line.frameId,

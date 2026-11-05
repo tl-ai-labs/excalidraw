@@ -1,0 +1,46 @@
+{
+  "module": "arrowhead-size (feature-extend, brownfield)",
+  "verdict": "needs_changes",
+  "tool_calls": 8,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/element/src/bounds.ts",
+      "line": 547,
+      "issue": "isArrowheadSize uses `value in ARROWHEAD_SIZE_SCALES`, and `in` walks the prototype chain. So isArrowheadSize(\"toString\"), (\"constructor\") and (\"__proto__\") all return true (checked in node). A file with arrowheadSize: \"toString\" passes restore (dropInvalidArrowheadSize keeps it, and restoreAppState accepts it for currentItemArrowheadSize). getArrowheadSizeScale then returns a function, so getArrowheadPoints multiplies by it and gets NaN head geometry. The change plan prescribed this expression, but it is still a validation hole on untrusted input.",
+      "fix": "Use an own-key check: `typeof value === \"string\" && Object.prototype.hasOwnProperty.call(ARROWHEAD_SIZE_SCALES, value)`. Add a restore.test case that drops arrowheadSize \"toString\" and a getArrowheadSizeScale(\"toString\" as ArrowheadSize) === 1 case in bounds.test.ts."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/elbowArrow.ts",
+      "line": 1494,
+      "issue": "The diff works around ElbowArrowState having no arrowheadSize. It uses `(\"arrowheadSize\" in arrow ? arrow.arrowheadSize : undefined) as Parameters<typeof getArrowheadSizeScale>[0]`, a cast that hides an `unknown` from type checking, and repeats that expression for the start and end legs. The plan asked for plain `getArrowheadSizeScale(arrow.arrowheadSize)`. Every caller of getElbowArrowRoute already passes the full arrow element.",
+      "fix": "Add `arrowheadSize?: ArrowheadSize;` to the ElbowArrowState type (import type ArrowheadSize from ./types). Then compute `const arrowheadScale = getArrowheadSizeScale(arrow.arrowheadSize);` once and multiply both getArrowheadSize(...) calls by it, with no cast."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/CHANGELOG.md",
+      "line": 19,
+      "issue": "The entry says currentItemArrowheadSize \"sets the size for newly drawn arrows and lines\". Per the plan (U08 rule 1) only newArrowElement gets the option, so lines drawn with the line tool never pick it up.",
+      "fix": "Change the wording to \"sets the size for newly drawn arrows\"."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/scene/export.test.ts",
+      "line": 1436,
+      "issue": "The new describe block writes the preset union `\"small\" | \"medium\" | \"large\"` inline twice instead of using the exported ArrowheadSize type. It also casts elements to `NonDeletedExcalidrawElement & { arrowheadSize?: string }`, which loosens the type to string.",
+      "fix": "Add `import type { ArrowheadSize } from \"@excalidraw/element/types\";` (next to the existing element type import) and use ArrowheadSize in createArrow, getHeadPath and the byId cast."
+    }
+  ],
+  "passing_checks": [
+    "Correctness against change_plan.md: U01-U24 implemented as specified, except the elbowArrow cast noted above",
+    "Default/absent produces scale literal 1; creators omit the key for medium; snapshot diff limited to appState currentItemArrowheadSize",
+    "Restore: never adds the key, drops invalid (modulo prototype-key hole), appState normalised",
+    "Action: newElementWith per linear element, sets currentItem default, CaptureUpdateAction.IMMEDIATELY; panel wired in Actions.tsx and compact popover",
+    "Sensitive files: .gitignore adds only `.sdlc/`; en.json adds only the four planned keys; no manifest touched",
+    "Authz / PII: not applicable (client-side editor feature, no routes or personal data)",
+    "Env fixtures: not applicable (no validating config module in this stack)",
+    "Tests: scale mapping, medium==absent equality, scaled lengths, short-segment clamp, shape regeneration, restore keep/drop/absent, appState fallback, SVG export size ordering, panel and action behaviour"
+  ],
+  "refinement_packets": []
+}

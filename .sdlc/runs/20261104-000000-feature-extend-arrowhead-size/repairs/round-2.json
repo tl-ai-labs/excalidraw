@@ -1,0 +1,182 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-000000-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/bounds.ts",
+    "instruction": "Fix `packages/element/src/bounds.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 547): isArrowheadSize uses `value in ARROWHEAD_SIZE_SCALES`, and `in` walks the prototype chain. So isArrowheadSize(\"toString\"), (\"constructor\") and (\"__proto__\") all return true (checked in node). A file with arrowheadSize: \"toString\" passes restore (dropInvalidArrowheadSize keeps it, and restoreAppState accepts it for currentItemArrowheadSize). getArrowheadSizeScale then returns a function, so getArrowheadPoints multiplies by it and gets NaN head geometry. The change plan prescribed this expression, but it is still a validation hole on untrusted input. — fix: Use an own-key check: `typeof value === \"string\" && Object.prototype.hasOwnProperty.call(ARROWHEAD_SIZE_SCALES, value)`. Add a restore.test case that drops arrowheadSize \"toString\" and a getArrowheadSizeScale(\"toString\" as ArrowheadSize) === 1 case in bounds.test.ts.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/bounds.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/bounds.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/bounds.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "./node_modules/.bin/eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-000000-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/elbowArrow.ts",
+    "instruction": "Fix `packages/element/src/elbowArrow.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 1494): The diff works around ElbowArrowState having no arrowheadSize. It uses `(\"arrowheadSize\" in arrow ? arrow.arrowheadSize : undefined) as Parameters<typeof getArrowheadSizeScale>[0]`, a cast that hides an `unknown` from type checking, and repeats that expression for the start and end legs. The plan asked for plain `getArrowheadSizeScale(arrow.arrowheadSize)`. Every caller of getElbowArrowRoute already passes the full arrow element. — fix: Add `arrowheadSize?: ArrowheadSize;` to the ElbowArrowState type (import type ArrowheadSize from ./types). Then compute `const arrowheadScale = getArrowheadSizeScale(arrow.arrowheadSize);` once and multiply both getArrowheadSize(...) calls by it, with no cast.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/elbowArrow.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/elbowArrow.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/elbowArrow.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "./node_modules/.bin/eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-000000-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "instruction": "Fix `packages/excalidraw/CHANGELOG.md` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 19): The entry says currentItemArrowheadSize \"sets the size for newly drawn arrows and lines\". Per the plan (U08 rule 1) only newArrowElement gets the option, so lines drawn with the line tool never pick it up. — fix: Change the wording to \"sets the size for newly drawn arrows\".\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/U23.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "./node_modules/.bin/prettier --check '{path}'",
+          "fix": "./node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261104-000000-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/scene/export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 1436): The new describe block writes the preset union `\"small\" | \"medium\" | \"large\"` inline twice instead of using the exported ArrowheadSize type. It also casts elements to `NonDeletedExcalidrawElement & { arrowheadSize?: string }`, which loosens the type to string. — fix: Add `import type { ArrowheadSize } from \"@excalidraw/element/types\";` (next to the existing element type import) and use ArrowheadSize in createArrow, getHeadPath and the byId cast.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261104-000000-feature-extend-arrowhead-size/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "./node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "./node_modules/.bin/eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "./node_modules/.bin/vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

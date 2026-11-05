@@ -8,12 +8,16 @@ import {
 
 import { pointFrom } from "@excalidraw/math";
 
+import React from "react";
+import { act, fireEvent } from "@testing-library/react";
+
 import type {
   ExcalidrawTextElement,
   FractionalIndex,
   NonDeleted,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
+import type { ArrowheadSize } from "@excalidraw/element/types";
 
 import type { LocalPoint } from "@excalidraw/math";
 
@@ -29,6 +33,10 @@ import {
   textFixture,
 } from "../fixtures/elementFixture";
 import { API } from "../helpers/api";
+import { Excalidraw } from "../../index";
+import { restoreElements } from "../../data/restore";
+import { actionChangeArrowheadSize } from "../../actions/actionProperties";
+import { render, unmountComponent } from "../test-utils";
 
 import type { ExportSceneData } from "../../scene/export";
 
@@ -1095,6 +1103,143 @@ describe("exporting frames", () => {
 
       expect(svg.getAttribute("width")).toBe(frame1.width.toString());
       expect(svg.getAttribute("height")).toBe(frame1.height.toString());
+    });
+  });
+});
+
+describe("arrowhead size", () => {
+  const createArrow = (arrowheadSize?: ArrowheadSize) =>
+    API.createElement({
+      type: "arrow",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 0,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      endArrowhead: "triangle",
+      ...(arrowheadSize ? { arrowheadSize } : {}),
+    });
+
+  const getHeadPath = async (
+    arrowheadSize?: ArrowheadSize,
+  ): Promise<string> => {
+    const elements = restoreElements([createArrow(arrowheadSize)], null);
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: elements as NonDeletedExcalidrawElement[],
+        appState: {},
+        files: null,
+      },
+      config: { canvasBackgroundColor: false },
+    });
+    const group = svg.querySelector(`[data-id="${elements[0].id}"]`);
+    const paths = Array.from((group ?? svg).querySelectorAll("path"));
+    expect(paths.length).toBeGreaterThan(1);
+    return paths[paths.length - 1].getAttribute("d") ?? "";
+  };
+
+  const getPathWidth = (d: string) => {
+    const numbers = (d.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) ?? []).map(Number);
+    const xs = numbers.filter((_, index) => index % 2 === 0);
+    return Math.max(...xs) - Math.min(...xs);
+  };
+
+  it("exports a smaller arrowhead for the small preset and a bigger one for large", async () => {
+    const small = getPathWidth(await getHeadPath("small"));
+    const medium = getPathWidth(await getHeadPath());
+    const large = getPathWidth(await getHeadPath("large"));
+
+    expect(small).toBeLessThan(medium);
+    expect(medium).toBeLessThan(large);
+  });
+
+  it("exports an arrow without the preset like a medium one", async () => {
+    const absent = await getHeadPath();
+    const medium = await getHeadPath("medium");
+
+    expect(absent).toBe(medium);
+  });
+
+  describe("in the editor", () => {
+    beforeEach(async () => {
+      await render(React.createElement(Excalidraw));
+    });
+
+    afterEach(() => {
+      unmountComponent();
+    });
+
+    it("shows the arrowhead size control when an arrow is selected", () => {
+      const arrow = createArrow();
+      API.setElements([arrow]);
+      API.setSelectedElements([arrow]);
+
+      const small = document.querySelector(
+        "[data-testid='arrowheadSize-small']",
+      );
+      const medium = document.querySelector(
+        "[data-testid='arrowheadSize-medium']",
+      );
+      const large = document.querySelector(
+        "[data-testid='arrowheadSize-large']",
+      );
+
+      expect(small).not.toBeNull();
+      expect(medium).not.toBeNull();
+      expect(large).not.toBeNull();
+      expect((medium as HTMLInputElement).checked).toBe(true);
+    });
+
+    it("changing the size updates selected arrows and lines and the current-item default", () => {
+      const arrow = createArrow();
+      const line = API.createElement({
+        type: "line",
+        width: 100,
+        height: 0,
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)],
+      });
+      const rectangle = API.createElement({ type: "rectangle" });
+      API.setElements([arrow, line, rectangle]);
+      API.setSelectedElements([arrow, line, rectangle]);
+
+      const small = document.querySelector(
+        "[data-testid='arrowheadSize-small']",
+      );
+      expect(small).not.toBeNull();
+      fireEvent.click(small!);
+
+      const { h } = window;
+      const byId = (id: string) =>
+        h.elements.find((element) => element.id === id) as
+          | (NonDeletedExcalidrawElement & { arrowheadSize?: ArrowheadSize })
+          | undefined;
+
+      expect(byId(arrow.id)?.arrowheadSize).toBe("small");
+      expect(byId(line.id)?.arrowheadSize).toBe("small");
+      expect(byId(rectangle.id)?.arrowheadSize).toBe(undefined);
+      expect(h.state.currentItemArrowheadSize).toBe("small");
+    });
+
+    it("the action sets the default when nothing is selected", () => {
+      const arrow = createArrow();
+      API.setElements([arrow]);
+      API.setSelectedElements([]);
+
+      const { h } = window;
+      const before = h.elements;
+
+      act(() => {
+        h.app.actionManager.executeAction(
+          actionChangeArrowheadSize,
+          "ui",
+          "large",
+        );
+      });
+
+      expect(h.state.currentItemArrowheadSize).toBe("large");
+      expect(h.elements).toEqual(before);
+      expect(h.elements[0]).toBe(before[0]);
     });
   });
 });

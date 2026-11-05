@@ -11,11 +11,13 @@ import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import type { LocalPoint } from "@excalidraw/math";
 
 import {
+  ARROWHEAD_SIZE_SCALES,
   CARDINALITY_ONE_OR_MANY_BAR_OFFSET,
   elementsOverlappingBBox,
   getArrowheadAngle,
   getArrowheadPoints,
   getArrowheadSize,
+  getArrowheadSizeScale,
   getElementAbsoluteCoords,
   getElementBounds,
 } from "../src/bounds";
@@ -23,6 +25,7 @@ import { ShapeCache } from "../src/shape";
 
 import type {
   Arrowhead,
+  ArrowheadSize,
   ExcalidrawElement,
   ExcalidrawLinearElement,
 } from "../src/types";
@@ -239,17 +242,20 @@ describe("getArrowheadPoints()", () => {
       roundness = null,
       part = endArrowhead,
       offsetMultiplier,
+      arrowheadSize,
     }: {
       roundness?: ExcalidrawLinearElement["roundness"];
       /** the part of a composite marker to get */
       part?: Arrowhead;
       offsetMultiplier?: number;
+      arrowheadSize?: ArrowheadSize;
     } = {},
   ) => {
     const arrow = API.createElement({
       type: "arrow",
       points: [prevSegment[0], prevSegment[1], tip],
       endArrowhead,
+      arrowheadSize,
       roundness,
       roughness: 0,
       strokeWidth: 2,
@@ -374,5 +380,93 @@ describe("getArrowheadPoints()", () => {
     expect(
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
+  });
+
+  describe("arrowhead size", () => {
+    const getLongArrowheadPoints = (
+      endArrowhead: Arrowhead,
+      arrowheadSize?: ArrowheadSize,
+    ) => {
+      const arrow = API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead,
+        arrowheadSize,
+        roughness: 0,
+        strokeWidth: 2,
+      });
+
+      return getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        endArrowhead,
+      )!;
+    };
+
+    const getHeadLength = (points: number[]) => {
+      const [tipX, tipY, x1, y1, x2, y2] = points;
+      return pointDistance(
+        pointFrom(tipX, tipY),
+        pointFrom((x1 + x2) / 2, (y1 + y2) / 2),
+      );
+    };
+
+    it("maps presets to their scales, absent and medium to exactly 1", () => {
+      expect(getArrowheadSizeScale(undefined)).toBe(1);
+      expect(getArrowheadSizeScale(null)).toBe(1);
+      expect(getArrowheadSizeScale("medium")).toBe(1);
+      expect(getArrowheadSizeScale("small")).toBe(ARROWHEAD_SIZE_SCALES.small);
+      expect(ARROWHEAD_SIZE_SCALES.small).toBeLessThan(1);
+      expect(getArrowheadSizeScale("large")).toBe(ARROWHEAD_SIZE_SCALES.large);
+      expect(ARROWHEAD_SIZE_SCALES.large).toBeGreaterThan(1);
+      expect(getArrowheadSizeScale("huge" as ArrowheadSize)).toBe(1);
+    });
+
+    it("draws a medium arrowhead exactly like one without a size", () => {
+      expect(getLongArrowheadPoints("triangle", "medium")).toEqual(
+        getLongArrowheadPoints("triangle"),
+      );
+    });
+
+    it("scales the arrowhead of a long arrow by its size preset", () => {
+      const small = getHeadLength(getLongArrowheadPoints("arrow", "small"));
+      const medium = getHeadLength(getLongArrowheadPoints("arrow"));
+      const large = getHeadLength(getLongArrowheadPoints("arrow", "large"));
+      // side points lie at the head size along the opening angle
+      const fullLength =
+        getArrowheadSize("arrow") *
+        Math.cos(degreesToRadians(getArrowheadAngle("arrow")));
+
+      expect(medium).toBeCloseTo(fullLength);
+      expect(small).toBeCloseTo(fullLength * 0.5);
+      expect(large).toBeCloseTo(fullLength * 1.5);
+      expect(small).toBeLessThan(medium);
+      expect(medium).toBeLessThan(large);
+    });
+
+    it("never fits an arrowhead on a short last segment beyond its scaled size", () => {
+      const smallTriangle = getHeadLength(
+        getEndArrowheadPoints("triangle", { arrowheadSize: "small" }),
+      );
+      const defaultTriangle = getHeadLength(getEndArrowheadPoints("triangle"));
+
+      expect(smallTriangle).toBeLessThanOrEqual(
+        getArrowheadSize("triangle") * 0.5,
+      );
+      expect(smallTriangle).toBeLessThanOrEqual(defaultTriangle);
+
+      const strokeWidth = 2;
+      const [, , smallDiameter] = getEndArrowheadPoints("circle", {
+        arrowheadSize: "small",
+      });
+      const [, , defaultDiameter] = getEndArrowheadPoints("circle");
+      const smallCircle = smallDiameter - strokeWidth + 2;
+
+      expect(smallCircle).toBeLessThanOrEqual(getArrowheadSize("circle") * 0.5);
+      expect(smallCircle).toBeLessThanOrEqual(
+        defaultDiameter - strokeWidth + 2,
+      );
+    });
   });
 });

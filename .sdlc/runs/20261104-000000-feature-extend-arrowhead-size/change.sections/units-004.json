@@ -1,0 +1,226 @@
+[
+  {
+    "id": "U19",
+    "path": "packages/element/tests/bounds.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds cases showing arrowhead points follow the size preset and stay within the scaled size under short-segment fitting.",
+    "rules": [
+      "1. Extend the local getEndArrowheadPoints helper's options with `arrowheadSize?: ArrowheadSize` and pass it to API.createElement; existing calls stay unchanged.",
+      "2. Add a nested `describe(\"arrowhead size\", ...)` at the end of the getArrowheadPoints() describe, building long straight arrows (points (0,0) -> (200,0)) with API.createElement for the full-size cases, and reusing getEndArrowheadPoints for the short-segment cases.",
+      "3. Measure a head's length as the distance from the tip (first point pair) to the midpoint of the two side points, as the existing cases do."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 13,
+        "to": 21,
+        "first_line": "import {",
+        "last_line": "} from \"../src/bounds\";",
+        "rule": "Also import `ARROWHEAD_SIZE_SCALES` and `getArrowheadSizeScale` from ../src/bounds (alphabetical with the rest)."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 24,
+        "to": 28,
+        "first_line": "import type {",
+        "last_line": "} from \"../src/types\";",
+        "rule": "Add `ArrowheadSize,` after `Arrowhead,` in this type import."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 236,
+        "to": 256,
+        "first_line": "const getEndArrowheadPoints = (",
+        "last_line": "});",
+        "rule": "Add the arrowheadSize option of rule 1 to the destructured options, their type, and the API.createElement call."
+      },
+      {
+        "id": "S4",
+        "at": "insert_after",
+        "from": 377,
+        "to": 377,
+        "first_line": "});",
+        "rule": "Insert the nested describe of rule 2 with the cases listed in tests, preceded by a blank line."
+      }
+    ],
+    "tests": [
+      { "name": "maps presets to their scales, absent and medium to exactly 1", "given": "getArrowheadSizeScale with undefined, null, \"medium\", \"small\", \"large\" and an invalid string cast to ArrowheadSize", "expect": "1, 1, 1, ARROWHEAD_SIZE_SCALES.small (< 1), ARROWHEAD_SIZE_SCALES.large (> 1), 1" },
+      { "name": "draws a medium arrowhead exactly like one without a size", "given": "two long arrows with endArrowhead \"triangle\", one without arrowheadSize and one with \"medium\"", "expect": "getArrowheadPoints returns equal arrays (toEqual)" },
+      { "name": "scales the arrowhead of a long arrow by its size preset", "given": "long arrows with endArrowhead \"arrow\" at small, default and large", "expect": "head lengths are getArrowheadSize(\"arrow\") times 0.5, 1 and 1.5 (toBeCloseTo), so small < default < large" },
+      { "name": "never fits an arrowhead on a short last segment beyond its scaled size", "given": "getEndArrowheadPoints(\"triangle\") and getEndArrowheadPoints(\"circle\") with arrowheadSize \"small\" and without", "expect": "the small head length (triangle) and diameter minus strokeWidth plus 2 (circle) are at most getArrowheadSize(type) * 0.5 and at most the default-size result" }
+    ],
+    "style_from": { "path": "packages/element/tests/bounds.test.ts", "lines": [226, 300], "reason": "existing getArrowheadPoints() cases and helper" },
+    "depends_on": ["U02", "U18"],
+    "covers": ["AC-3", "FR-5", "FR-6", "FR-19"],
+    "checks": ["eslint", "vitest"]
+  },
+  {
+    "id": "U20",
+    "path": "packages/element/tests/shape.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds cases showing the generated rough.js shape follows the arrowhead size and is regenerated after a size change.",
+    "rules": [
+      "1. Add `import { newElementWith } from \"../src/mutateElement\";` before the ../src/shape import.",
+      "2. Compare the head drawable (`ShapeCache.generateElementShape(arrow, null)[1]`) by the extents of its bcurveTo/lineTo op points along the arrow (x for a horizontal arrow)."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 6,
+        "to": 6,
+        "first_line": "import {",
+        "rule": "Insert the mutateElement import of rule 1."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 35,
+        "to": 35,
+        "first_line": "});",
+        "rule": "Insert a blank line and `describe(\"arrowhead size\", ...)` with the cases listed in tests."
+      }
+    ],
+    "tests": [
+      { "name": "draws a smaller arrowhead shape for the small preset", "given": "two horizontal arrows (0,0)->(100,0) with endArrowhead \"triangle\", roughness 0, one with arrowheadSize \"small\"", "expect": "the small head's x extent is smaller than the default head's" },
+      { "name": "regenerates the shape when the size changes", "given": "an arrow whose shape was generated, then `newElementWith(arrow, { arrowheadSize: \"large\" })`", "expect": "generateElementShape on the new element returns a different head drawable whose x extent is larger than the cached one's" }
+    ],
+    "style_from": { "path": "packages/element/tests/shape.test.ts", "lines": [1, 35], "reason": "arrowhead shapes describe block" },
+    "depends_on": ["U02", "U18"],
+    "covers": ["FR-7", "FR-19"],
+    "checks": ["eslint", "vitest"]
+  },
+  {
+    "id": "U21",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds restore cases for arrowheadSize on elements and currentItemArrowheadSize on appState.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 581,
+        "to": 581,
+        "first_line": "});",
+        "rule": "Insert a blank line and the restoreElements cases (first three of tests) after the crowfoot normalization case."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 1282,
+        "to": 1282,
+        "first_line": "});",
+        "rule": "Insert a blank line and the restoreAppState case (last of tests) after the openSidebar case, inside describe(\"restoreAppState\")."
+      }
+    ],
+    "tests": [
+      { "name": "should restore an old arrow without arrowheadSize unchanged", "given": "API.createElement arrow and line without arrowheadSize, restored with restore.restoreElements", "expect": "neither restored element has an `arrowheadSize` property (not.toHaveProperty)" },
+      { "name": "should keep a valid arrowheadSize on restore", "given": "an arrow with arrowheadSize \"small\" and a line with \"large\"", "expect": "restored arrowheadSize values are \"small\" and \"large\"" },
+      { "name": "should drop an invalid arrowheadSize on restore", "given": "`{ ...arrow, arrowheadSize: \"huge\" } as any` and `{ ...arrow, arrowheadSize: 3 } as any`", "expect": "restored elements have no `arrowheadSize` property" },
+      { "name": "should restore currentItemArrowheadSize, falling back to medium", "given": "restoreAppState with { currentItemArrowheadSize: \"large\" }, with {} and with { currentItemArrowheadSize: \"huge\" } as any, local null", "expect": "\"large\", \"medium\", \"medium\"" }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/data/restore.test.ts", "lines": [563, 599], "reason": "restore cases for arrowheads and stripped linear props" },
+    "depends_on": ["U12", "U18"],
+    "covers": ["AC-2", "FR-14", "FR-15", "FR-19"],
+    "checks": ["eslint", "vitest"]
+  },
+  {
+    "id": "U22",
+    "path": "packages/excalidraw/tests/scene/export.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Adds an `arrowhead size` describe: SVG export of restored arrows shows the preset's head size, and the panel control and changeArrowheadSize action update selected arrows and the current-item default.",
+    "rules": [
+      "1. Imports to add: `import React from \"react\";` and `import { act, fireEvent } from \"@testing-library/react\";` with the external imports; `import { Excalidraw } from \"../../index\";`, `import { restoreElements } from \"../../data/restore\";`, `import { actionChangeArrowheadSize } from \"../../actions/actionProperties\";` and `import { render, unmountComponent } from \"../test-utils\";` with the relative imports.",
+      "2. SVG cases: build arrows (0,0)->(200,0) with endArrowhead \"triangle\" via API.createElement (arrowheadSize set or not), pass them through restoreElements(elements, null), export with `exportScene({ type: \"svg\", data: { elements, appState: {}, files: null } })`, and compare the head path's bounding width computed from the numbers in its `d` attribute (the head is the last `path` in the arrow's `g`).",
+      "3. Panel/action cases: `await render(React.createElement(Excalidraw))`, add elements with API.setElements, select with API.setSelectedElements, read state from `window.h`, click controls with fireEvent on `document.querySelector(\"[data-testid='arrowheadSize-small']\")`; unmountComponent in afterEach of this describe only."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 9,
+        "to": 9,
+        "first_line": "import { pointFrom } from \"@excalidraw/math\";",
+        "rule": "Add the external imports of rule 1 (react, @testing-library/react) in the order ESLint's import/order wants."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 31,
+        "to": 31,
+        "first_line": "import { API } from \"../helpers/api\";",
+        "rule": "Add the relative imports of rule 1."
+      },
+      {
+        "id": "S3",
+        "at": "insert_after",
+        "from": 1100,
+        "to": 1100,
+        "first_line": "});",
+        "rule": "Append a blank line and `describe(\"arrowhead size\", ...)` with the cases listed in tests."
+      }
+    ],
+    "tests": [
+      { "name": "exports a smaller arrowhead for the small preset and a bigger one for large", "given": "three restored arrows identical but for arrowheadSize small / absent / large, each exported to SVG alone", "expect": "head path widths satisfy small < default < large" },
+      { "name": "exports an arrow without the preset like a medium one", "given": "a restored arrow without arrowheadSize and one with \"medium\", same seed", "expect": "the head path `d` attributes are equal" },
+      { "name": "shows the arrowhead size control when an arrow is selected", "given": "the editor rendered with an arrow selected", "expect": "elements with testIds arrowheadSize-small, -medium and -large exist and arrowheadSize-medium is checked" },
+      { "name": "changing the size updates selected arrows and lines and the current-item default", "given": "an arrow, a line and a rectangle selected, then clicking arrowheadSize-small", "expect": "arrow and line have arrowheadSize \"small\", the rectangle has no arrowheadSize, and h.state.currentItemArrowheadSize is \"small\"" },
+      { "name": "the action sets the default when nothing is selected", "given": "no selection, API.executeAction is not used; `act(() => h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", \"large\"))`", "expect": "h.state.currentItemArrowheadSize is \"large\" and no element changed" }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/scene/export.test.ts", "lines": [424, 472], "reason": "export background cases: scene builders, exportScene to SVG, querying the SVG" },
+    "uses": [
+      { "path": "packages/element/tests/binding.test.tsx", "lines": [45, 60], "reason": "how tests render the editor and read window.h" },
+      { "path": "packages/excalidraw/tests/helpers/api.ts", "lines": [79, 100], "reason": "API.setAppState / setElements / setSelectedElements signatures" }
+    ],
+    "depends_on": ["U12", "U15", "U16", "U18"],
+    "covers": ["AC-1", "AC-4", "AC-6", "NFR-3", "FR-9", "FR-10", "FR-19"],
+    "checks": ["eslint", "vitest"]
+  },
+  {
+    "id": "U23",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Adds an Unreleased entry for the per-element arrowhead size.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 15,
+        "to": 15,
+        "first_line": "",
+        "rule": "Insert `### Arrowhead size (2026-11-04) [#6712](https://github.com/excalidraw/excalidraw/issues/6712)`, a blank line, two to four lines describing the optional `arrowheadSize` (\"small\" | \"medium\" | \"large\", absent = medium = unchanged), `appState.currentItemArrowheadSize`, the `changeArrowheadSize` action and the `getArrowheadSizeScale` helper, then a blank line."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-20"],
+    "checks": ["prettier"]
+  },
+  {
+    "id": "U24",
+    "path": ".gitignore",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Ignores the pipeline's .sdlc/ run folder.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 29,
+        "to": 29,
+        "first_line": ".claude",
+        "rule": "Append the line `.sdlc/`; the file keeps its trailing newline and nothing else changes."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-20"],
+    "checks": []
+  }
+]
