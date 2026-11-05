@@ -1,0 +1,66 @@
+[
+  {
+    "id": "tp_debug_r9_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U25: add the WYSIWYG text-range tests. EXACT EDIT CONTRACT (all three earlier attempts failed only because a search text was not in the file): answer with exactly ONE edit. Its `search` is exactly the file's last three lines, which occur once: `    });\\n  });\\n});\\n` (4 spaces + `});`, newline, 2 spaces + `});`, newline, `});`, newline). Its `replace` is `    });\\n` + a new block `\\n  describe(\"text range styles\", () => {\\n ... \\n  });\\n` + `  });\\n});\\n` -- i.e. the new describe goes after the first `    });` and before `  });\\n});`, so it sits inside the outer describe(\"textWysiwyg\"). NO OTHER EDIT and NO NEW IMPORT: use only names the file already has in scope: h (const { h } = window), mouse (new Pointer(\"mouse\")), API, Keyboard, UI, getTextEditor, updateTextEditor, act, fireEvent, waitFor, render, Excalidraw, KEYS, FONT_FAMILY, ExcalidrawTextElement, ExcalidrawTextElementWithContainer. Reach actions WITHOUT importing them: `const run = (name: \"changeStrokeColor\" | \"changeTextHighlight\", color: string) => act(() => { h.app.actionManager.executeAction(h.app.actionManager.actions[name], \"ui\", { color }); });` (manager.tsx: actions is Record<ActionName, Action>; executeAction(action, source, value); stickyNotes.test.tsx:289 uses this form). Patterns to copy (from this file): beforeEach `await render(<Excalidraw handleKeyboardGlobally={true} />); API.setElements([]);`; create text `UI.clickTool(\"text\"); mouse.clickAt(400, 400); const editor = await getTextEditor(); updateTextEditor(editor, \"Bid request timeout 120ms\");`; select `editor.setSelectionRange(20, 25);`; read `const text = () => h.elements.find((el) => el.type === \"text\" && !el.isDeleted) as ExcalidrawTextElement;`; commit `Keyboard.exitTextEditor(editor);`; undo/redo `Keyboard.undo(); Keyboard.redo();`; font size `fireEvent.keyDown(editor, { key: KEYS.CHEVRON_RIGHT, ctrlKey: true, shiftKey: true });`; rectangle label `const rect = UI.createElement(\"rectangle\", { x: 10, y: 20, width: 300, height: 100 }); Keyboard.keyPress(KEYS.ENTER); const editor = await getTextEditor();` (bound text = element with containerId === rect.id); sticky note `UI.clickTool(\"stickynote\"); mouse.clickAt(400, 400);` then double-click its centre `mouse.doubleClickAt(note.x + note.width / 2, note.y + note.height / 2); const editor = await getTextEditor();` (note = h.elements.find(el => el.type === \"stickynote\")); re-enter edit on a free text: `mouse.doubleClickAt(t.x + 2, t.y + 2); const editor2 = await getTextEditor();`; preview layer `document.querySelector(\".excalidraw-wysiwyg-preview\")!.querySelectorAll(\"span\")`. Popovers: the colour trigger renders aria-label={label} (Stroke/Background/Highlight) and data-openpopup={type}; open with a ResizeObserver stub then `fireEvent.click(document.querySelector('[aria-label=\"Highlight\"]')!)` (same as togglePopover in ../tests/test-utils, which is not imported). Colours are stored as canonical lowercase hex. Cases, one `it` each, expected offsets computed from the strings, no it.skip/it.todo, no weakened assertions: A1 select 20..25 ('120ms'), run('changeStrokeColor','#e03131') -> text().textStyles toEqual [{start:20,end:25,color:'#e03131'}] and text().strokeColor unchanged from before; A2 same with run('changeTextHighlight','#ffec99') -> [{start:20,end:25,highlight:'#ffec99'}]; A3 editor.setSelectionRange(3,3) then run('changeStrokeColor','#e03131') -> strokeColor '#e03131' and textStyles undefined; A4 after A1, updateTextEditor(editor,'XBid request timeout 120ms') -> [{start:21,end:26,color:'#e03131'}], then updateTextEditor(editor,'XBid request timeout 12a0ms') -> [{start:21,end:27,color:'#e03131'}]; A5 after A1, Ctrl+Shift+> -> fontSize changed and textStyles still [{start:20,end:25,color:'#e03131'}]; A6 rectangle label 'Hello world', select 0..5, run stroke -> bound text textStyles [{start:0,end:5,color:'#e03131'}]; A7 sticky note: type 'Hello world', select 0..5, run stroke -> label textStyles [{start:0,end:5,color:'#e03131'}] and note.strokeColor unchanged; then open Highlight trigger -> h.state.openPopup === 'textHighlight' and the Background trigger's aria-expanded is not 'true'; A8 after A1 + exitTextEditor, Keyboard.undo() -> textStyles undefined, Keyboard.redo() -> [{start:20,end:25,color:'#e03131'}]; A9 after A1 and run('changeTextHighlight','#ffec99') on the same selection, exitTextEditor, re-enter edit -> a preview span with textContent '120ms' has non-empty style.color and style.backgroundColor.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/queries/dom.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/manager.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

@@ -1,0 +1,286 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/element/src/textStyles.ts",
+    "instruction": "Fix `packages/element/src/textStyles.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 security fixes (two Medium findings). (1) SVG paint injection: sanitizeStyleColor and sanitizeStyleHighlight (lines ~34-63) keep any non-empty string, so untrusted values such as url(#x) or url(https://example.com/a) reach <tspan fill>/<rect fill> in SVG export. Keep a value only when ALL hold: typeof value === 'string'; trimmed.length <= 64; colorToHex(trimmed) !== null; !isTransparent(trimmed). Import colorToHex and isTransparent from \"@excalidraw/common\" (both exported from packages/common/src/colors.ts:380 and :389; @excalidraw/common re-exports ./colors). Keep returning the trimmed original string (not the hex) and keep sanitizeStyleColor's existing rule that a colour equal to baseStrokeColor is cleared. (2) CPU DoS: add `export const MAX_TEXT_RANGES = 2000;` and in normalizeTextRanges process at most MAX_TEXT_RANGES input entries (ignore entries beyond it, before any per-entry work); keep buildNormalizedRanges' boundary loop as is (the cap bounds it to <= 4000 boundaries x 2000 entries) -- do NOT rewrite it as a sweep. In getUniformTextRangeStyle clamp maxEnd to the queried end `e` (Math.min(r.end, e)) so a huge r.end cannot inflate work. Also re-export MAX_TEXT_RANGES wherever textStyles' other exports are re-exported only if packages/element/src/index.ts uses `export *` from ./textStyles (it is allowlisted, but do not edit it unless needed).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textStyles.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textStyles.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyles.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/element/tests/textStyles.test.ts",
+    "instruction": "Fix `packages/element/tests/textStyles.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add tests for the Gate 3 security fixes in packages/element/src/textStyles.ts (keep every existing test unchanged): (a) normalizeTextRanges drops ranges whose color or highlight is url(#x), url(https://example.com/a), a 65-character string (e.g. '#' + 'a'.repeat(64)), or rgba(0,0,0,0), and keeps #e03131, red and rgb(1,2,3) (assert the exact normalized output, e.g. a range with only an invalid color and a valid highlight keeps only the highlight; a range with only invalid styles is dropped; normalizeTextRanges returns undefined when nothing is left). (b) DoS bound: build 50,000 overlapping ranges over a 100-char text (e.g. {start: i % 50, end: 50 + (i % 50), color: i % 2 ? '#e03131' : '#1971c2'}), call normalizeTextRanges, assert it completes in under 1000 ms (performance.now()), returns a defined array, and that the result equals normalizeTextRanges(sameInput.slice(0, MAX_TEXT_RANGES), ...) -- i.e. entries beyond MAX_TEXT_RANGES are ignored. Import MAX_TEXT_RANGES from the same module path the file already imports textStyles functions from.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textStyles.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textStyles.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/textStyles.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/tests/data/restore.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/restore.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add one test (keep existing tests unchanged): restoreElements([textElementJSON], null) where the text element's textStyles contains a malformed colour -- e.g. [{start: 0, end: 5, color: 'url(#x)', highlight: '#ffec99'}, {start: 6, end: 11, color: 'url(https://example.com/a)'}] on originalText 'Hello world' -- yields textStyles [{start: 0, end: 5, highlight: '#ffec99'}] (the url() colours are stripped; the second range, left with no style, is dropped). Build the element the way the file's existing textStyles test does (API.createElement / newTextElement then spread into plain JSON). Put it in a describe block about text elements, not 'restoreLibraryItems creation timestamps'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/reconcile.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. AC-5 remote path is untested: the existing test 'preserves textStyles on the winning text element during reconcileElements' (line ~387) builds objects by hand and never runs restoreElements -- keep it unchanged and ADD two tests in the same describe: (1) Remote round-trip: create a text element with textStyles through the normal factory (newTextElement from @excalidraw/element with text 'Bid request timeout 120ms' and textStyles [{start: 20, end: 25, color: '#e03131', highlight: '#ffec99'}]); serialise it as a peer would (JSON.parse(JSON.stringify(el))) with a higher version; run restoreElements([remoteJSON], null) from '../../data/restore' and then reconcileElements(localElements, restoredRemote as RemoteExcalidrawElement[], appState); assert the winner is the remote element and its textStyles equal the original ranges and index its own originalText (originalText.slice(20, 25) === '120ms'). (2) Concurrent edit: local and remote edit the same element -- local: originalText 'Hello world' with [{start:0,end:5,color:'#e03131'}] at version 5; remote: originalText 'Hi there world' with [{start:9,end:14,highlight:'#ffec99'}] at version 6 -- restore the remote JSON then reconcile; assert exactly one element with that id, it is the remote (higher version) as a whole (originalText 'Hi there world', version 6), its textStyles are the remote ranges, and every range satisfies 0 <= start < end <= originalText.length with originalText.slice(9,14) === 'world'. Use the file's existing appState/sync helpers (syncInvalidIndices, cloneJSON) as its other tests do; give elements fractional indices the way the file does.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/reconcile.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U23.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/newElement.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U25 never applied; earlier drafts failed because they did not drive the editor the way this file's tests do (the user verified the editor keeps ranges in the real app: these were TEST bugs; do not assume product changes). Last failure output: (a) 'while editing a sticky-note label, opening the highlight picker does not open the background picker': AssertionError: expected 0 to be greater than or equal to 3 -- the trigger query matched nothing; (b) 'shifts and extends styled ranges...': expected undefined to deeply equal [{start: 6, end: 11, color: '#e03131'}] -- the range was never applied because the selection/action was not driven correctly; (c) another attempt got [{start:14,end:20}] vs expected [{start:10,end:20}] -- wrong hand-computed expectation. Add ONE new `describe(\"text range styles\", ...)` block inserted immediately BEFORE the final `});` line of the file (line 3597), plus imports added as NEW lines next to the existing ones (never modify line 50 `import { actionBindText } from \"../actions\";` -- add `import { actionChangeStrokeColor, actionChangeTextHighlight } from \"../actions/actionProperties\";` as a separate new line after it). Use ONLY these existing patterns from this file/repo: beforeEach `await render(<Excalidraw handleKeyboardGlobally={true} />); API.setElements([]);` (as in describe('history') line ~3556); create text: `UI.clickTool(\"text\"); mouse.clickAt(400, 400); const editor = await getTextEditor(); updateTextEditor(editor, \"Bid request timeout 120ms\");` (updateTextEditor = fireEvent.change + fireEvent.input, from ../tests/queries/dom); select with `editor.setSelectionRange(20, 25)` or `editor.selectionStart = 20; editor.selectionEnd = 25;`; apply colour with `act(() => { h.app.actionManager.executeAction(actionChangeStrokeColor, \"ui\", { color: \"#e03131\" }); })` and highlight with `act(() => { h.app.actionManager.executeAction(actionChangeTextHighlight, \"ui\", { color: \"#ffec99\" }); })` (stickyNotes.test.tsx:289 uses this executeAction(action, \"ui\", value) form); read `h.elements.find(el => el.type === \"text\") as ExcalidrawTextElement`; commit with `Keyboard.exitTextEditor(editor)`; undo/redo with `Keyboard.undo()` / `Keyboard.redo()`; font size with `fireEvent.keyDown(editor, { key: KEYS.CHEVRON_RIGHT, ctrlKey: true, shiftKey: true })` (line ~957); rectangle label: `const rect = UI.createElement(\"rectangle\", { x: 10, y: 20, width: 200, height: 75 }); Keyboard.keyPress(KEYS.ENTER); const editor = await getTextEditor();` (line ~2163) then the bound text is the element with containerId === rect.id; re-enter edit: `mouse.doubleClickOn(textElement)` or select it and `Keyboard.keyPress(KEYS.ENTER)`, then `await getTextEditor()`; preview layer: `document.querySelector(\".excalidraw-wysiwyg-preview\")` and its `span` children's textContent and style.color / style.backgroundColor. Colour-picker triggers: the trigger renders `aria-label={label}` and `data-openpopup={type}` (ColorPicker.tsx:315,322); labels are t('labels.stroke')='Stroke', t('labels.background')='Background', t('labels.highlight')='Highlight'; existing tests open them with `togglePopover(\"Stroke\")` / `togglePopover(\"Background\")` from ../tests/test-utils (it installs a ResizeObserver stub and clicks the [aria-label] trigger) -- use `togglePopover(\"Highlight\")` and `document.querySelector('[aria-label=\"Background\"]')`; do NOT guess class names. Sticky note: build it as stickyNotes.test.tsx's createNote does (API.createElement type 'stickynote' with a bound text label, API.setElements([note, label])), then `mouse.doubleClickAt(note.x + note.width / 2, note.y + note.height / 2); await getTextEditor();`. Required `it` cases (one `it` each, compute every expected offset from the strings, never weaken assertions, no it.skip/it.todo): A1 select '120ms' (20..25) in 'Bid request timeout 120ms', stroke colour -> textStyles exactly [{start:20,end:25,color:'#e03131'}] and strokeColor unchanged; A2 same with highlight -> [{start:20,end:25,highlight:'#ffec99'}]; A3 collapsed caret (setSelectionRange(3,3)) stroke pick recolours the whole element (strokeColor === '#e03131', textStyles undefined); A4 after A1, typing before the range (updateTextEditor(editor, 'XBid request timeout 120ms')) shifts it to 21..26, and typing inside it ('XBid request timeout 12a0ms') extends it to 21..27; A5 after A1, Ctrl+Shift+> font size change keeps textStyles equal; A6 rectangle label: style 'Hello' 0..5 in label 'Hello world' -> the bound text element (containerId === rect.id) has [{start:0,end:5,color:'#e03131'}]; A7 sticky-note label: substring colour changes label textStyles and leaves note strokeColor unchanged, AND popup isolation: togglePopover('Highlight') -> h.state.openPopup === 'textHighlight' and document.querySelectorAll('[data-openpopup][aria-expanded=\"true\"]').length === 1 (or only the Highlight trigger has aria-expanded true); A8 after A1 and exitTextEditor, Keyboard.undo() restores the pre-colour state (textStyles undefined) and Keyboard.redo() restores [{start:20,end:25,color:'#e03131'}]; A9 after A1 + A2-style highlight, exitTextEditor, re-enter edit mode -> .excalidraw-wysiwyg-preview contains a span whose textContent is '120ms' with style.color and style.backgroundColor set (compare via toBeTruthy or the exact rgb() string jsdom yields). If you cannot make one case pass, write the others; never weaken an assertion.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/queries/dom.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/stickyNotes.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

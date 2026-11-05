@@ -6,6 +6,7 @@ import {
   BUCKET_FILL_BACKGROUND_PICKS,
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
+  DEFAULT_ELEMENT_BACKGROUND_PICKS,
   ARROW_TYPE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -32,6 +33,11 @@ import {
   getNonDeletedElements,
   isNonDeletedElement,
   syncStickyNoteInk,
+} from "@excalidraw/element";
+import {
+  applyTextRangeStyle,
+  getUniformTextRangeStyle,
+  normalizeTextRanges,
 } from "@excalidraw/element";
 
 import {
@@ -369,7 +375,7 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,33 +383,121 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+
+    const editingTextElement = appState.editingTextElement;
+    const selection = app?.text?.getTextWysiwygSelection?.();
+    const foundEditingEl = editingTextElement
+      ? elements.find((el) => el.id === editingTextElement.id)
+      : undefined;
+    const editingEl =
+      foundEditingEl && isTextElement(foundEditingEl) ? foundEditingEl : null;
+    if (
+      editingEl &&
+      selection &&
+      selection.start < selection.end &&
+      (selection.start > 0 || selection.end < editingEl.originalText.length)
+    ) {
+      let updatedEditingElement: ExcalidrawTextElement | null = null;
+      const nextElements = elements.map((el) => {
+        if (el.id === editingEl.id && isTextElement(el)) {
+          const nextTextStyles = applyTextRangeStyle(
+            el.textStyles,
+            el.originalText.length,
+            selection,
+            { color },
+            el.strokeColor,
+          );
+          const nextEl = newElementWith(el, { textStyles: nextTextStyles });
+          updatedEditingElement = nextEl;
+          return nextEl;
+        }
+        return el;
+      });
+      return {
+        elements: nextElements,
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+          editingTextElement:
+            updatedEditingElement ?? appState.editingTextElement,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
     const elementsMap = arrayToMap(elements);
+    const isFullTextSelection =
+      !!editingEl &&
+      !!selection &&
+      selection.start < selection.end &&
+      selection.start <= 0 &&
+      selection.end >= editingEl.originalText.length;
+
+    const nextElements = syncStickyNoteInk(
+      changeProperty(
+        elements,
+        appState,
+        (el) => {
+          if (!hasStrokeColor(el.type)) {
+            return el;
+          }
+          const colorUpdate = getColorUpdate(
+            el,
+            "strokeColor",
+            color,
+            elementsMap,
+          );
+          if (isTextElement(el) && el.textStyles?.length) {
+            const nextStrokeColor =
+              "strokeColor" in colorUpdate
+                ? colorUpdate.strokeColor
+                : el.strokeColor;
+            const nextTextStyles =
+              editingEl && el.id === editingEl.id && isFullTextSelection
+                ? applyTextRangeStyle(
+                    el.textStyles,
+                    el.originalText.length,
+                    { start: 0, end: el.originalText.length },
+                    { color: nextStrokeColor },
+                    nextStrokeColor,
+                  )
+                : normalizeTextRanges(
+                    el.textStyles,
+                    el.originalText.length,
+                    nextStrokeColor,
+                  );
+            return newElementWith(el, {
+              ...colorUpdate,
+              textStyles: nextTextStyles,
+            });
+          }
+          return newElementWith(el, colorUpdate);
+        },
+        true,
+      ),
+      elementsMap,
+    );
+    const updatedEditingElement = editingEl
+      ? nextElements.find(
+          (el): el is ExcalidrawTextElement =>
+            el.id === editingEl.id && isTextElement(el),
+        )
+      : undefined;
 
     return {
       // a note and its label share one ink: coloring the label while editing
       // it (no selection) colors the note too — the footer paints with it
-      elements: syncStickyNoteInk(
-        changeProperty(
-          elements,
-          appState,
-          (el) =>
-            hasStrokeColor(el.type)
-              ? newElementWith(
-                  el,
-                  getColorUpdate(el, "strokeColor", color, elementsMap),
-                )
-              : el,
-          true,
-        ),
-        elementsMap,
-      ),
+      elements: nextElements,
       appState: {
         ...appState,
         ...appStateUpdates,
         ...getColorTargetAppStateUpdates(target, color),
+        ...(updatedEditingElement
+          ? { editingTextElement: updatedEditingElement }
+          : null),
       },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
@@ -415,6 +509,38 @@ export const actionChangeStrokeColor = register<
     const label =
       target.kind === "sticky" ? t("labels.textColor") : t("labels.stroke");
 
+    const editingTextElement = appState.editingTextElement;
+    const selection = app?.text?.getTextWysiwygSelection?.();
+    const editingEl =
+      editingTextElement &&
+      elements.find(
+        (el): el is ExcalidrawTextElement =>
+          el.id === editingTextElement.id && isTextElement(el),
+      );
+    const color =
+      editingEl && selection && selection.start < selection.end
+        ? getUniformTextRangeStyle(
+            editingEl.textStyles,
+            selection.start,
+            selection.end,
+            "color",
+          ) ?? editingEl.strokeColor
+        : getFormValue(
+            elements,
+            app,
+            (element) => element.strokeColor,
+            true,
+            (hasSelection) => (!hasSelection ? target.currentValue : null),
+          );
+
+    const pickerAppState = useMemo(
+      () =>
+        appState.openPopup === "textHighlight"
+          ? { ...appState, openPopup: "canvasBackground" as const }
+          : appState,
+      [appState],
+    );
+
     return (
       <>
         {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
@@ -425,16 +551,117 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
-            elements,
-            app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={color}
           onChange={(color) => updateData({ color })}
           elements={elements}
-          appState={appState}
+          appState={pickerAppState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+export const actionChangeTextHighlight = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextHighlight",
+  label: "labels.highlight",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const { color, ...rawAppStateUpdates } = value ?? {};
+    const appStateUpdates: Partial<AppState> = { ...rawAppStateUpdates };
+    if (appStateUpdates.openPopup === "elementBackground") {
+      appStateUpdates.openPopup = "textHighlight";
+    }
+    if (color === undefined) {
+      return {
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+
+    const editingTextElement = appState.editingTextElement;
+    const selection = app?.text?.getTextWysiwygSelection?.();
+    if (editingTextElement && selection && selection.start < selection.end) {
+      let updatedEditingElement: ExcalidrawTextElement | null = null;
+      const nextElements = elements.map((el) => {
+        if (el.id === editingTextElement.id && isTextElement(el)) {
+          const nextTextStyles = applyTextRangeStyle(
+            el.textStyles,
+            el.originalText.length,
+            selection,
+            { highlight: color },
+            el.strokeColor,
+          );
+          const nextEl = newElementWith(el, { textStyles: nextTextStyles });
+          updatedEditingElement = nextEl;
+          return nextEl;
+        }
+        return el;
+      });
+      return {
+        elements: nextElements,
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+          editingTextElement:
+            updatedEditingElement ?? appState.editingTextElement,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
+    return {
+      elements,
+      appState: { ...appState, ...appStateUpdates },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+    const editingTextElement = appState.editingTextElement;
+    const selection = app?.text?.getTextWysiwygSelection?.();
+    const editingEl =
+      editingTextElement &&
+      elements.find(
+        (el): el is ExcalidrawTextElement =>
+          el.id === editingTextElement.id && isTextElement(el),
+      );
+    const color =
+      editingEl && selection && selection.start < selection.end
+        ? getUniformTextRangeStyle(
+            editingEl.textStyles,
+            selection.start,
+            selection.end,
+            "highlight",
+          ) ?? "transparent"
+        : "transparent";
+
+    const pickerAppState = useMemo(
+      () =>
+        appState.openPopup === "textHighlight"
+          ? { ...appState, openPopup: "elementBackground" as const }
+          : appState.openPopup === "elementBackground"
+          ? { ...appState, openPopup: "canvasBackground" as const }
+          : appState,
+      [appState],
+    );
+
+    return (
+      <>
+        {stylesPanelMode === "full" && (
+          <h3 aria-hidden="true">{t("labels.highlight")}</h3>
+        )}
+        <ColorPicker
+          topPicks={DEFAULT_ELEMENT_BACKGROUND_PICKS}
+          palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+          type="elementBackground"
+          label={t("labels.highlight")}
+          color={color}
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={pickerAppState}
           updateData={updateData}
         />
       </>
@@ -550,7 +777,11 @@ export const actionChangeBackgroundColor = register<
           )}
           onChange={(color) => updateData({ color })}
           elements={elements}
-          appState={appState}
+          appState={
+            appState.openPopup === "textHighlight"
+              ? { ...appState, openPopup: "canvasBackground" }
+              : appState
+          }
           updateData={updateData}
         />
       </>

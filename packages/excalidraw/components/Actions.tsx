@@ -163,6 +163,9 @@ export const SelectedShapeActions = ({
       {predicates.backgroundColor && (
         <div>{renderAction("changeBackgroundColor")}</div>
       )}
+      {Boolean(appState.editingTextElement) && (
+        <div>{renderAction("changeTextHighlight")}</div>
+      )}
       {predicates.fill && renderAction("changeFillStyle")}
 
       {predicates.strokeWidth && renderAction("changeStrokeWidth")}
@@ -643,6 +646,11 @@ export const CompactShapeActions = ({
           )}
         </div>
       )}
+      {Boolean(appState.editingTextElement) && (
+        <div className="compact-action-item">
+          {renderAction("changeTextHighlight")}
+        </div>
+      )}
 
       {/* Freedraw pressure: standalone button cycling the variability mode */}
       {predicates.freedrawMode && (
@@ -799,6 +807,11 @@ export const MobileShapeActions = ({
                 ? "changeBucketFillBackgroundColor"
                 : "changeBackgroundColor",
             )}
+          </div>
+        )}
+        {Boolean(appState.editingTextElement) && (
+          <div className="compact-action-item">
+            {renderAction("changeTextHighlight")}
           </div>
         )}
         <CombinedShapeProperties

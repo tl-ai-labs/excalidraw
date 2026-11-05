@@ -1,0 +1,25 @@
+# Security Review — pass2
+
+## Summary
+All blocking security findings from the previous review passes are now closed. In `packages/element/src/textStyles.ts`, `sanitizeStyleColor` and `sanitizeStyleHighlight` now validate that inputs are strings of `<= 64` characters after trimming, non-transparent (`!isTransparent(trimmed)`), and valid colors (`colorToHex(trimmed) !== null`), and return the canonical `#rrggbb` / `#rrggbbaa` hex string from `colorToHex` (never the raw input string). Every rendering and preview path—including `projectTextRangesOntoLines` in `staticSvgScene.ts` and `renderElement.ts`, `splitTextIntoStyledSegments` in `textWysiwyg.tsx`, `applyTextRangeStyle` in `actionProperties.tsx`, `newTextElement`, and `restoreElement`—passes `textStyles` through `normalizeTextRanges` before emitting colors into SVG `fill` attributes, canvas `fillStyle`, or DOM `style` properties, even if `textStyles` is supplied directly via `updateScene`. In addition, `normalizeTextRanges`, `getUniformTextRangeStyle`, `shiftTextRangesAtOffset` (and `shiftTextRanges`), and `splitTextIntoStyledSegments` all bound their input to `MAX_TEXT_RANGES = 2000` before any per-entry work, closing the algorithmic DoS vector. Regression tests in `packages/element/tests/textStyles.test.ts`, `packages/excalidraw/tests/data/restore.test.ts`, `packages/excalidraw/tests/data/reconcile.test.ts`, `packages/excalidraw/tests/scene/export.test.ts`, and `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` cover these cases.
+
+## Findings
+| Severity | Category | Location | Issue | Recommendation |
+|---|---|---|---|---|
+| None | — | — | Both previously reported Medium findings (`sanitizeStyleColor` / `sanitizeStyleHighlight` canonical hex validation and `MAX_TEXT_RANGES` pre-iteration capping across all `textStyles` entry points) are resolved. | None. |
+
+## Noted (pre-existing, out of scope)
+- `packages/excalidraw/components/ColorPicker/ColorPicker.tsx:216-235,260-265,434-441` and `packages/excalidraw/components/LayerUI.tsx:528-558` (interacting with `packages/excalidraw/actions/actionProperties.tsx:536-542,641-666,780-784`): Because `ColorPickerType` and `isColorPickerPopup` in `ColorPicker.tsx` only include `"elementStroke" | "elementBackground" | "canvasBackground"`, `actionChangeTextHighlight` uses `type="elementBackground"` and `actionProperties.tsx` aliases `openPopup: "textHighlight" -> "canvasBackground"` so top-pick follow-focus (`ColorPicker.tsx:434-441`) works. Consequently, activating the EyeDropper from the Highlight popup sets `eyeDropperState.colorPickerType = "elementBackground"`, causing `LayerUI.tsx:528-558` to live-preview hovered colors by mutating `backgroundColor` on selected targets (e.g., overwriting a sticky note's fill while editing its label). Fix outside frozen scope by adding `"textHighlight"` to `ColorPickerType` / `isColorPickerPopup` in `ColorPicker.tsx` (and `colorPickerUtils.ts`), removing the `openPopup` aliasing in `actionProperties.tsx`, and skipping element `backgroundColor` preview mutation for `"textHighlight"` in `LayerUI.tsx`.
+
+## Passing checks
+- **Canonical hex color sanitization (`packages/element/src/textStyles.ts:36-72`)**: `sanitizeStyleColor` and `sanitizeStyleHighlight` enforce `trimmed.length <= 64`, `!isTransparent(trimmed)`, and `colorToHex(trimmed) !== null`, returning only canonical lowercase `#rrggbb` / `#rrggbbaa` values and stripping `url(...)`, quotes, or markup before SVG, canvas, or DOM emission.
+- **Bounded range processing across all entry points (`packages/element/src/textStyles.ts:34,197,259,314,372,531,1005`)**: `MAX_TEXT_RANGES = 2000` is enforced before any per-entry iteration in `normalizeTextRanges`, `applyTextRangeStyle`, `getUniformTextRangeStyle`, `shiftTextRangesAtOffset`, `shiftTextRanges`, `splitTextIntoStyledSegments`, and `projectTextRangesOntoLines`, including when `textStyles` is set via `updateScene`.
+- **WYSIWYG DOM XSS prevention (`packages/excalidraw/wysiwyg/textWysiwyg.tsx:548-581`)**: Preview overlay builds `<span>` elements via `createElement("span")`, assigns text via `textContent`, and applies canonicalized hex colors from `splitTextIntoStyledSegments` to `span.style.color` / `span.style.backgroundColor`.
+- **SVG & Canvas rendering safety (`packages/excalidraw/renderer/staticSvgScene.ts:818-884`, `packages/element/src/renderElement.ts:710-758`)**: Both normalize ranges via `projectTextRangesOntoLines`, emit canonical hex strings (or `applyDarkModeFilter` hex output) into `<rect fill>`, `<tspan fill>`, and `context.fillStyle`, and assign text via `tspan.textContent`.
+- **Bidi run ordering (`packages/element/src/textStyles.ts:605-921`)**: Neutral resolution between opposite-direction runs, European digits in RTL contexts, and LTR-RTL-LTR level reversals follow UAX#9 L2.
+- **Secrets & config / Dependency risk / PII / Authn & authz / Audit log / Surface & headers**: Pass / unchanged / n/a.
+
+## Required fixes before sign-off
+- None. All blocking findings are resolved.
+
+Tool calls: 37

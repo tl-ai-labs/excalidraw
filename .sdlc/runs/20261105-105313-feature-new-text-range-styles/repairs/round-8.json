@@ -1,0 +1,110 @@
+[
+  {
+    "id": "tp_debug_r8_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/element/tests/textStyles.test.ts",
+    "instruction": "Fix `packages/element/tests/textStyles.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. packages/element/src/textStyles.ts now returns the canonical colorToHex form (lowercase #rrggbb) from its colour sanitizers and caps getUniformTextRangeStyle, shiftTextRangesAtOffset and splitTextIntoStyledSegments at MAX_TEXT_RANGES. (1) Existing test 'rejects unsafe, overlong, or transparent colors and keeps valid CSS colors' fails: AssertionError at textStyles.test.ts:93 -- expected value still has raw `color: \"red\"` and `color: \"rgb(1,2,3)\"`; change ONLY those two expected values to `color: \"#ff0000\"` and `color: \"#010203\"` (inputs unchanged; every other assertion unchanged). (2) Add a test: normalizeTextRanges([{start:0,end:4,color:\"url(#x) rgb(1,2,3)\"},{start:4,end:8,highlight:'rgb(1,2,3)\" onload=\"x'}], 10, \"#1e1e1e\") equals [{start:0,end:4,color:\"#010203\"},{start:4,end:8,highlight:\"#010203\"}]. (3) Add a test: with a 50,000-entry overlapping input (e.g. Array.from({length:50000},(_,i)=>({start:i%50,end:50+(i%50),color:i%2?\"#e03131\":\"#1971c2\"}))) on a 100-char text, each of getUniformTextRangeStyle(input, 0, 100, \"color\"), shiftTextRangesAtOffset(input, 10, 0, 5) and splitTextIntoStyledSegments(<its real signature: read textStyles.ts>) completes in under 1000 ms (performance.now()) and returns the same result as calling it on input.slice(0, MAX_TEXT_RANGES). Read textStyles.ts for each function's exact signature; import any new names from the module path the file already imports from.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textStyles.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textStyles.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/textStyles.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r8_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/tests/scene/export.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/scene/export.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add one test (keep every existing test unchanged): export a text element whose textStyles are given unsafe colours -- build it with the same factory the file's existing textStyles SVG test uses, text 'Hello world', textStyles [{start:0,end:5,color:\"url(#x) rgb(1,2,3)\",highlight:'rgb(255,0,0)\" onload=\"x'},{start:6,end:11,color:\"#e03131\"}] -- through the same exportToSvg call the file's existing styled-text test uses; then collect every `fill` attribute in the SVG (Array.from(svg.querySelectorAll(\"[fill]\")).map(el => el.getAttribute(\"fill\")!)) and assert none contains \"url(\" or a double or single quote, and that the styled tspans' fills are canonical hex (\"#010203\" and \"#e03131\") and the highlight rect fill is \"#ff0000\". Light theme (no dark-mode filter).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/scene/export.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

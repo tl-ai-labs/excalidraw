@@ -11,6 +11,7 @@ export {
   actionChangeStrokeColor,
   actionChangeBackgroundColor,
   actionChangeBucketFillBackgroundColor,
+  actionChangeTextHighlight,
   actionChangeStrokeWidth,
   actionChangeFillStyle,
   actionChangeSloppiness,

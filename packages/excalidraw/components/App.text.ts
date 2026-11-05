@@ -1,4 +1,4 @@
-import { flushSync } from "react-dom";
+import { flushSync, unstable_batchedUpdates } from "react-dom";
 
 import {
   DEFAULT_VERTICAL_ALIGN,
@@ -40,6 +40,8 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  normalizeTextRanges,
+  shiftTextRanges,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -84,6 +86,12 @@ export class AppText {
   constructor(private app: App, private dependencies: AppTextDependencies) {}
 
   public textWysiwygSubmitHandler: ReturnType<typeof textWysiwyg> | null = null;
+  public textWysiwygSelectionGetter:
+    | (() => { start: number; end: number } | null)
+    | null = null;
+
+  public getTextWysiwygSelection = (): { start: number; end: number } | null =>
+    this.textWysiwygSelectionGetter?.() ?? null;
   private getTextCreationGridPoint = (x: number, y: number) => {
     const effectiveGridSize = this.app.getEffectiveGridSize();
 
@@ -184,13 +192,32 @@ export class AppText {
   ) {
     const elementsMap = this.app.scene.getElementsMapIncludingDeleted();
 
-    const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
+    const updateElement = (
+      nextOriginalText: string,
+      isDeleted: boolean,
+      nextTextStyles?: ExcalidrawTextElement["textStyles"],
+    ) => {
       const latestTextElement =
         this.app.scene.getElement<ExcalidrawTextElement>(element.id);
 
       if (!latestTextElement || !isTextElement(latestTextElement)) {
         return;
       }
+
+      const resolvedTextStyles =
+        nextTextStyles !== undefined
+          ? normalizeTextRanges(
+              nextTextStyles,
+              nextOriginalText.length,
+              latestTextElement.strokeColor,
+            )
+          : nextOriginalText !== latestTextElement.originalText
+          ? shiftTextRanges(
+              latestTextElement.textStyles,
+              latestTextElement.originalText,
+              nextOriginalText,
+            )
+          : latestTextElement.textStyles;
 
       const container = getContainerElement(latestTextElement, elementsMap);
       const stickyContainer =
@@ -222,6 +249,7 @@ export class AppText {
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              textStyles: resolvedTextStyles,
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
@@ -293,77 +321,82 @@ export class AppText {
           viewportY - this.app.state.offsetTop,
         ];
       },
-      onChange: withBatchedUpdates((nextOriginalText) => {
-        updateElement(nextOriginalText, false);
-        if (isNonDeletedElement(element)) {
-          updateBoundElements(element, this.app.scene, {
-            renderEnvironment: this.app.renderEnvironment,
-          });
-        }
-      }),
-      onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
-        this.textWysiwygSubmitHandler = null;
-
-        const isDeleted = !nextOriginalText.trim();
-        updateElement(nextOriginalText, isDeleted);
-
-        // keyboard-submit keeps focus on the edited object. For bound text, keep
-        // the container selected even if the text becomes empty and is deleted.
-        // The autoshape tool stays active through the editing session and never
-        // selects anything — don't fight the finalize action's selection reset.
-        const elementIdToSelect =
-          viaKeyboard &&
-          !this.app.isToolLocked() &&
-          this.app.state.activeTool.type !== "autoshape"
-            ? element.containerId || (!isDeleted ? element.id : null)
-            : null;
-
-        if (elementIdToSelect) {
-          // needed to ensure state is updated before "finalize" action
-          // that's invoked on keyboard-submit as well
-          // TODO either move this into finalize as well, or handle all state
-          // updates in one place, skipping finalize action
-          flushSync(() => {
-            this.app.setState((prevState) => ({
-              selectedElementIds: makeNextSelectedElementIds(
-                {
-                  ...prevState.selectedElementIds,
-                  [elementIdToSelect]: true,
-                },
-                prevState,
-              ),
-            }));
-          });
-        }
-
-        if (isDeleted) {
-          fixBindingsAfterDeletion(this.app.scene.getNonDeletedElements(), [
-            element,
-          ]);
-        }
-
-        if (!isDeleted || isExistingElement) {
-          this.app.store.scheduleCapture();
-        }
-
-        flushSync(() => {
-          this.app.setState({
-            newElement: null,
-            editingTextElement: null,
-          });
+      onChange: (nextOriginalText, nextTextStyles) => {
+        unstable_batchedUpdates(() => {
+          updateElement(nextOriginalText, false, nextTextStyles);
+          if (isNonDeletedElement(element)) {
+            updateBoundElements(element, this.app.scene, {
+              renderEnvironment: this.app.renderEnvironment,
+            });
+          }
         });
+      },
+      onSubmit: withBatchedUpdates(
+        ({ viaKeyboard, nextOriginalText, nextTextStyles }) => {
+          this.textWysiwygSubmitHandler = null;
+          this.textWysiwygSelectionGetter = null;
 
-        // tools that survive the submit (locked, or autoshape's
-        // double-click-to-type flow) need their cursor back
-        if (
-          this.app.isToolLocked() ||
-          this.app.state.activeTool.type === "autoshape"
-        ) {
-          this.app.cursor.applyForTool();
-        }
+          const isDeleted = !nextOriginalText.trim();
+          updateElement(nextOriginalText, isDeleted, nextTextStyles);
 
-        this.app.focusContainer();
-      }),
+          // keyboard-submit keeps focus on the edited object. For bound text, keep
+          // the container selected even if the text becomes empty and is deleted.
+          // The autoshape tool stays active through the editing session and never
+          // selects anything — don't fight the finalize action's selection reset.
+          const elementIdToSelect =
+            viaKeyboard &&
+            !this.app.isToolLocked() &&
+            this.app.state.activeTool.type !== "autoshape"
+              ? element.containerId || (!isDeleted ? element.id : null)
+              : null;
+
+          if (elementIdToSelect) {
+            // needed to ensure state is updated before "finalize" action
+            // that's invoked on keyboard-submit as well
+            // TODO either move this into finalize as well, or handle all state
+            // updates in one place, skipping finalize action
+            flushSync(() => {
+              this.app.setState((prevState) => ({
+                selectedElementIds: makeNextSelectedElementIds(
+                  {
+                    ...prevState.selectedElementIds,
+                    [elementIdToSelect]: true,
+                  },
+                  prevState,
+                ),
+              }));
+            });
+          }
+
+          if (isDeleted) {
+            fixBindingsAfterDeletion(this.app.scene.getNonDeletedElements(), [
+              element,
+            ]);
+          }
+
+          if (!isDeleted || isExistingElement) {
+            this.app.store.scheduleCapture();
+          }
+
+          flushSync(() => {
+            this.app.setState({
+              newElement: null,
+              editingTextElement: null,
+            });
+          });
+
+          // tools that survive the submit (locked, or autoshape's
+          // double-click-to-type flow) need their cursor back
+          if (
+            this.app.isToolLocked() ||
+            this.app.state.activeTool.type === "autoshape"
+          ) {
+            this.app.cursor.applyForTool();
+          }
+
+          this.app.focusContainer();
+        },
+      ),
       element,
       excalidrawContainer: this.dependencies.getContainer(),
       app: this.app,

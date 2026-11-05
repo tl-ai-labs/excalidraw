@@ -3594,4 +3594,274 @@ describe("textWysiwyg", () => {
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
     });
   });
+
+  describe("text range styles", () => {
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    it("colours a selected substring", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+      const baseStrokeColor = (h.elements[0] as ExcalidrawTextElement)
+        .strokeColor;
+
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      const text = h.elements[0] as ExcalidrawTextElement;
+      expect(text.textStyles).toEqual([
+        { start: 20, end: 25, color: "#e03131" },
+      ]);
+      expect(text.strokeColor).toBe(baseStrokeColor);
+    });
+
+    it("highlights a selected substring", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeTextHighlight,
+          "ui",
+          { color: "#ffec99" },
+        );
+      });
+
+      const text = h.elements[0] as ExcalidrawTextElement;
+      expect(text.textStyles).toEqual([
+        { start: 20, end: 25, highlight: "#ffec99" },
+      ]);
+    });
+
+    it("collapsed caret recolours the whole element", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      editor.setSelectionRange(3, 3);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      const text = h.elements[0] as ExcalidrawTextElement;
+      expect(text.strokeColor).toBe("#e03131");
+      expect(text.textStyles).toBeUndefined();
+    });
+
+    it("shifts ranges when typing before or inside them", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      updateTextEditor(editor, "XBid request timeout 120ms");
+      expect((h.elements[0] as ExcalidrawTextElement).textStyles).toEqual([
+        { start: 21, end: 26, color: "#e03131" },
+      ]);
+
+      updateTextEditor(editor, "XBid request timeout 12a0ms");
+      expect((h.elements[0] as ExcalidrawTextElement).textStyles).toEqual([
+        { start: 21, end: 27, color: "#e03131" },
+      ]);
+    });
+
+    it("keeps ranges across a font size change", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      const prevFontSize = (h.elements[0] as ExcalidrawTextElement).fontSize;
+      fireEvent.keyDown(editor, {
+        key: KEYS.CHEVRON_RIGHT,
+        ctrlKey: true,
+        shiftKey: true,
+      });
+
+      const text = h.elements[0] as ExcalidrawTextElement;
+      expect(text.fontSize).not.toBe(prevFontSize);
+      expect(text.textStyles).toEqual([
+        { start: 20, end: 25, color: "#e03131" },
+      ]);
+    });
+
+    it("styles a range in a rectangle label", async () => {
+      const rect = UI.createElement("rectangle", {
+        x: 10,
+        y: 20,
+        width: 300,
+        height: 100,
+      });
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+
+      editor.setSelectionRange(0, 5);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      const boundText = h.elements.find(
+        (el): el is ExcalidrawTextElement =>
+          isTextElement(el) && el.containerId === rect.id,
+      )!;
+      expect(boundText.textStyles).toEqual([
+        { start: 0, end: 5, color: "#e03131" },
+      ]);
+    });
+
+    it("styles a sticky-note label range and isolates the highlight popup", async () => {
+      UI.clickTool("stickynote");
+      mouse.clickAt(400, 400);
+      const note = h.elements[0];
+      const origNoteStrokeColor = note.strokeColor;
+
+      mouse.doubleClickAt(note.x + note.width / 2, note.y + note.height / 2);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+
+      editor.setSelectionRange(0, 5);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+
+      const label = h.elements.find(
+        (el): el is ExcalidrawTextElement =>
+          isTextElement(el) && el.containerId === note.id,
+      )!;
+      expect(label.textStyles).toEqual([
+        { start: 0, end: 5, color: "#e03131" },
+      ]);
+      expect(h.elements[0].strokeColor).toBe(origNoteStrokeColor);
+
+      (global as any).ResizeObserver = class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+      fireEvent.click(document.querySelector('[aria-label="Highlight"]')!);
+      expect(h.state.openPopup).toBe("textHighlight");
+      expect(
+        document
+          .querySelector('[aria-label="Background"]')!
+          .getAttribute("aria-expanded"),
+      ).not.toBe("true");
+    });
+
+    it("re-entering edit shows the ranges in the preview layer", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeTextHighlight,
+          "ui",
+          { color: "#ffec99" },
+        );
+      });
+
+      Keyboard.exitTextEditor(editor);
+      const t = h.elements[0] as ExcalidrawTextElement;
+      mouse.doubleClickAt(t.x + 2, t.y + 2);
+      editor = await getTextEditor();
+
+      const preview = document.querySelector(".excalidraw-wysiwyg-preview")!;
+      const span = Array.from(preview.querySelectorAll("span")).find(
+        (el) => el.textContent === "120ms",
+      ) as HTMLSpanElement | undefined;
+      expect(span).toBeDefined();
+      expect(span!.style.color).not.toBe("");
+      expect(span!.style.backgroundColor).not.toBe("");
+    });
+
+    it("supports undo and redo of styled text ranges", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+      Keyboard.exitTextEditor(editor);
+      const t = h.elements[0] as ExcalidrawTextElement;
+      expect(t.textStyles).toBeUndefined();
+
+      mouse.doubleClickAt(t.x + 2, t.y + 2);
+      editor = await getTextEditor();
+      editor.setSelectionRange(20, 25);
+      act(() => {
+        h.app.actionManager.executeAction(
+          h.app.actionManager.actions.changeStrokeColor,
+          "ui",
+          { color: "#e03131" },
+        );
+      });
+      Keyboard.exitTextEditor(editor);
+      const styled = [{ start: 20, end: 25, color: "#e03131" }];
+      const text = () => h.elements[0] as ExcalidrawTextElement;
+      expect(text().textStyles).toEqual(styled);
+
+      // exiting the editor records its own history entry, so the range
+      // change is two undo steps back (same as a whole-element colour change)
+      Keyboard.undo();
+      Keyboard.undo();
+      expect(text().originalText).toBe("Bid request timeout 120ms");
+      expect(text().textStyles).toBeUndefined();
+
+      Keyboard.redo();
+      expect(text().textStyles).toEqual(styled);
+    });
+  });
 });

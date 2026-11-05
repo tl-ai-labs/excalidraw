@@ -76,6 +76,7 @@ export type ActionName =
   | "changeArrowProperties"
   | "changeOpacity"
   | "changeFontSize"
+  | "changeTextHighlight"
   | "undo"
   | "redo"
   | "finalize"

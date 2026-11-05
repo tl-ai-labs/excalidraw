@@ -79,6 +79,7 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import { normalizeTextRanges } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -574,6 +575,14 @@ export const restoreElement = (
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
+      const originalText = element.originalText || text;
+      const normalizedTextStyles = normalizeTextRanges(
+        element.textStyles,
+        originalText.length,
+        element.strokeColor || DEFAULT_ELEMENT_PROPS.strokeColor,
+      );
+      delete (element as any).textStyles;
+
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
@@ -581,7 +590,7 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -592,6 +601,7 @@ export const restoreElement = (
         baseFontSize: isFiniteNumber(element.baseFontSize)
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
+        ...(normalizedTextStyles ? { textStyles: normalizedTextStyles } : {}),
       });
 
       // if empty text, mark as deleted. We keep in array
@@ -599,6 +609,7 @@ export const restoreElement = (
       if (opts?.deleteInvisibleElements && !text && !element.isDeleted) {
         // TODO: we should not do this since it breaks sync / versioning when we exchange / apply just deltas and restore the elements (deletion isn't recorded)
         element = { ...element, originalText: text, isDeleted: true };
+        delete (element as any).textStyles;
         element = bumpVersion(element);
       }
 

@@ -288,6 +288,113 @@ describe("restoreElements", () => {
     expect(restoredText.baseFontSize).toBe(STICKY_NOTE_MAX_FONT_SIZE);
   });
 
+  it("omits textStyles on legacy unstyled text elements and normalizes malformed ranges on restore", () => {
+    const unstyled = API.createElement({
+      type: "text",
+      text: "Hello world",
+    });
+
+    const restoredUnstyled = restore.restoreElements(
+      [unstyled],
+      null,
+    )[0] as ExcalidrawTextElement;
+    expect("textStyles" in restoredUnstyled).toBe(false);
+    expect(restoredUnstyled.textStyles).toBeUndefined();
+
+    const styled = {
+      ...API.createElement({
+        type: "text",
+        text: "Hello world",
+      }),
+      textStyles: [
+        { start: 0, end: 5, color: "#e03131" },
+        { start: 6, end: 11, highlight: "#ffec99" },
+      ],
+    };
+
+    const exported: ImportedDataState = JSON.parse(
+      serializeAsJSON([styled], getDefaultAppState(), {}, "local"),
+    );
+    const restoredRoundTrip = restore.restoreElements(
+      exported.elements,
+      null,
+    )[0] as ExcalidrawTextElement;
+    expect(restoredRoundTrip.textStyles).toEqual([
+      { start: 0, end: 5, color: "#e03131" },
+      { start: 6, end: 11, highlight: "#ffec99" },
+    ]);
+
+    const malformed: any = {
+      ...API.createElement({
+        type: "text",
+        text: "Hello world",
+        strokeColor: "#1e1e1e",
+      }),
+      textStyles: [
+        null,
+        "invalid",
+        { start: "a", end: 3, color: "#e03131" },
+        { start: 5, end: 2, color: "#e03131" },
+        { start: 3, end: 3, color: "#e03131" },
+        { start: -5, end: 5, color: "#e03131", extraKey: "ignored" },
+        { start: 4, end: 8, highlight: "#ffec99" },
+        { start: 8, end: 50, highlight: "#ffec99", color: "#1e1e1e" },
+      ],
+    };
+
+    const restoredMalformed = restore.restoreElements(
+      [malformed],
+      null,
+    )[0] as ExcalidrawTextElement;
+    expect(restoredMalformed.textStyles).toEqual([
+      { start: 0, end: 4, color: "#e03131" },
+      { start: 4, end: 5, color: "#e03131", highlight: "#ffec99" },
+      { start: 5, end: 11, highlight: "#ffec99" },
+    ]);
+
+    const allInvalid: any = {
+      ...API.createElement({
+        type: "text",
+        text: "Hello world",
+        strokeColor: "#1e1e1e",
+      }),
+      textStyles: [
+        { start: 5, end: 2, color: "#e03131" },
+        { start: 0, end: 5, color: "transparent" },
+        { start: 0, end: 5, color: "#1e1e1e" },
+      ],
+    };
+
+    const restoredAllInvalid = restore.restoreElements(
+      [allInvalid],
+      null,
+    )[0] as ExcalidrawTextElement;
+    expect("textStyles" in restoredAllInvalid).toBe(false);
+    expect(restoredAllInvalid.textStyles).toBeUndefined();
+  });
+
+  it("strips malformed url() colors in textStyles on restore", () => {
+    const textElementJSON: any = {
+      ...API.createElement({
+        type: "text",
+        text: "Hello world",
+      }),
+      textStyles: [
+        { start: 0, end: 5, color: "url(#x)", highlight: "#ffec99" },
+        { start: 6, end: 11, color: "url(https://example.com/a)" },
+      ],
+    };
+
+    const restored = restore.restoreElements(
+      [textElementJSON],
+      null,
+    )[0] as ExcalidrawTextElement;
+
+    expect(restored.textStyles).toEqual([
+      { start: 0, end: 5, highlight: "#ffec99" },
+    ]);
+  });
+
   it("should clear a font ceiling on text that is not bound to a sticky note", () => {
     // generic binding repair (duplication, history) can detach a label without
     // touching its ceiling; restore reconciles it against the container

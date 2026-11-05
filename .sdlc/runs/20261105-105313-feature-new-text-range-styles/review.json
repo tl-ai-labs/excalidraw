@@ -1,0 +1,43 @@
+{
+  "module": "text-range-styles",
+  "verdict": "needs_changes",
+  "tool_calls": 41,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "line": 3597,
+      "issue": "Unit U25 was never applied (the file is unchanged from git_head_before), leaving all planned WYSIWYG integration tests for textStyles absent, including substring stroke/highlight styling and live .excalidraw-wysiwyg-preview span rendering, clearing range colour/highlight, collapsed-caret vs substring sticky-note ink isolation, sticky-note highlight popup isolation (openPopup === \"textHighlight\"), range shifting on typing and Tab/Shift+Tab indent/outdent, container resize/unwrapping, and undo/redo.",
+      "fix": "Import actionChangeStrokeColor and actionChangeTextHighlight from ../actions and add the planned describe(\"text range styles\", ...) integration test suite in packages/excalidraw/wysiwyg/textWysiwyg.test.tsx covering all U25 scenarios."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/src/textStyles.ts",
+      "line": 592,
+      "issue": "RE_LTR_STRONG_OR_DIGIT classifies European digits 0-9 as strong \"L\" instead of weak European Numbers (\"EN\"). On an LTR-base line (baseDirection === \"ltr\") containing an RTL span with European digits (e.g. \"Item: مرحبا 123 عالم\"), resolveLineCharDirections and getLineTextRuns assign \"123\" and its adjacent spaces direction \"ltr\" at level 0 instead of resolving the spaces to \"rtl\" (level 1, per UAX#9 W2/N1) and the digits to level 2 (per UAX#9 I1/I2), splitting the RTL run in two so \"مرحبا\" and \"عالم\" fail to reverse visually around \"123\".",
+      "fix": "Treat ASCII digits [0-9] as weak \"EN\" in resolveLineCharDirections/getLineTextRuns: when the preceding strong character is \"R\", treat \"EN\" as \"R\" for adjacent neutral resolution (so spaces between \"R\" and \"EN\" get level 1 \"rtl\") while assigning the \"EN\" run direction \"ltr\" at embedding level 2, and split logical runs when either direction or level changes."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/tests/textStyles.test.ts",
+      "line": 325,
+      "issue": "getLineTextRuns bidi tests only cover pure-RTL Arabic and an LTR-first line ending in an RTL span with Arabic-Indic digits (\"Price: ١٢٠ درهم\"), without testing European digits (0-9) inside RTL runs, neutrals between runs of opposite direction, or a line that starts and ends with LTR around an RTL span.",
+      "fix": "Extend the getLineTextRuns / projectTextRangesOntoLines test in packages/element/tests/textStyles.test.ts to assert visual run ordering for neutrals between opposite-direction runs, European digits (0-9) embedded inside RTL runs on both LTR-base and RTL-base lines, and an LTR-RTL-LTR line (e.g. \"Hello مرحبا بالعالم World\")."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 397,
+      "issue": "In actionChangeStrokeColor, the whole-text-selection guard (selection.start > 0 || selection.end < editingEl.originalText.length) routes full-text selections to the whole-element strokeColor branch, but that branch only updates el.strokeColor without clearing per-range color overrides in el.textStyles (or stripping redundant range colors matching the new strokeColor), without updating appState.editingTextElement, and PanelComponent also skips getUniformTextRangeStyle when the full text is selected.",
+      "fix": "When actionChangeStrokeColor.perform runs the whole-element branch on a text element with textStyles, clear range color across [0, el.originalText.length] (preserving highlight) if editingEl has a full-text selection [0, el.originalText.length] and otherwise normalize el.textStyles against the new strokeColor, update appState.editingTextElement when editingEl is mutated, and remove the (selection.start > 0 || selection.end < editingEl.originalText.length) restriction from PanelComponent's getUniformTextRangeStyle lookup."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/LayerUI.tsx",
+      "line": 528,
+      "issue": "Because actionChangeTextHighlight renders ColorPicker with type=\"elementBackground\" (the only background ColorPickerType accepted by ColorPicker.tsx:215-234), starting the eyedropper from the highlight picker sets eyeDropperState.colorPickerType = \"elementBackground\", causing LayerUI.tsx:528-558 to preview pointer-dragged colors as backgroundColor on selected targets (such as a sticky note's fill while editing its label) before onSelect commits the text highlight.",
+      "fix": "Out of scope for the frozen allowlist (ColorPicker.tsx and LayerUI.tsx are not in the change plan); in a follow-up touching ColorPicker/LayerUI, thread a distinct eyedropper preview mode or skip element background preview when appState.openPopup === \"textHighlight\"."
+    }
+  ],
+  "refinement_packets": []
+}

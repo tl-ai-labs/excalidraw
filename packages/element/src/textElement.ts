@@ -90,6 +90,9 @@ export const redrawTextBoundingBox = (
         ? 0
         : container.angle
       : textElement.angle) as Radians,
+    ...(textElement.textStyles !== undefined
+      ? { textStyles: textElement.textStyles }
+      : {}),
   };
 
   boundTextUpdates.text = textElement.text;
