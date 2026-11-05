@@ -59,6 +59,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { projectTextRangesOntoLines } from "./textStyles";
 import {
   isTextElement,
   isLinearElement,
@@ -703,12 +704,71 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          if (element.textStyles?.length) {
+            const isDark = renderConfig.theme === THEME.DARK;
+            const defaultFillStyle = applyDarkModeFilter(
+              element.strokeColor,
+              isDark,
             );
+            const wrappedLines = projectTextRangesOntoLines(
+              element.originalText,
+              element.textStyles,
+              {
+                font: getFontString(element),
+                wrappedText: element.text,
+                elementWidth: element.width,
+                textAlign: element.textAlign,
+                baseDirection: rtl ? "rtl" : "ltr",
+                renderEnvironment: getRenderEnvironment(
+                  renderConfig.renderEnvironment,
+                ),
+              },
+            );
+
+            for (let index = 0; index < wrappedLines.length; index++) {
+              const { runs } = wrappedLines[index];
+              const lineTopY = index * lineHeightPx;
+              for (const run of runs) {
+                if (run.highlight && run.width > 0) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.highlight,
+                    isDark,
+                  );
+                  context.fillRect(run.x, lineTopY, run.width, lineHeightPx);
+                }
+              }
+            }
+
+            const prevTextAlign = context.textAlign;
+            context.textAlign = "left";
+            for (let index = 0; index < wrappedLines.length; index++) {
+              const { runs } = wrappedLines[index];
+              const baselineY = index * lineHeightPx + verticalOffset;
+              for (const run of runs) {
+                if (!run.text) {
+                  continue;
+                }
+                if (typeof context.canvas.setAttribute === "function") {
+                  context.canvas.setAttribute("dir", run.direction);
+                }
+                context.fillStyle = run.color
+                  ? applyDarkModeFilter(run.color, isDark)
+                  : defaultFillStyle;
+                context.fillText(run.text, run.x, baselineY);
+              }
+            }
+            if (typeof context.canvas.setAttribute === "function") {
+              context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
+            }
+            context.textAlign = prevTextAlign;
+          } else {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {

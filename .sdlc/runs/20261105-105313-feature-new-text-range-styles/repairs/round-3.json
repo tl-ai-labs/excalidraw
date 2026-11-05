@@ -1,0 +1,46 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (exit 2): packages/excalidraw/actions/actionProperties.tsx(391,21): error TS2677: A type predicate's type must be assignable to its parameter's type; (398,57): error TS2339: Property 'originalText' does not exist on type 'OrderedExcalidrawElement'. In actionChangeStrokeColor.perform, `elements.find((el): el is ExcalidrawTextElement => el.id === editingTextElement.id && isTextElement(el))` declares a predicate type that is not assignable to the element type of `elements` (readonly OrderedExcalidrawElement[]), so editingEl is not narrowed. Find the element without a custom predicate and narrow it with isTextElement afterwards, e.g. `const found = editingTextElement ? elements.find((el) => el.id === editingTextElement.id) : undefined; const editingEl = found && isTextElement(found) ? found : null;`, or use the predicate type `el is OrderedExcalidrawElement & ExcalidrawTextElement`. Keep the branch condition (non-empty selection not covering the whole originalText) unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U14.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

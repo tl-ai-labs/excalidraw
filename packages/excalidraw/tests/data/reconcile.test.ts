@@ -1,13 +1,15 @@
-import { syncInvalidIndices } from "@excalidraw/element";
+import { newTextElement, syncInvalidIndices } from "@excalidraw/element";
 
 import { randomInteger, cloneJSON } from "@excalidraw/common";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawTextElement,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
 import { reconcileElements } from "../../data/reconcile";
+import { restoreElements } from "../../data/restore";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
 
@@ -382,5 +384,145 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+
+  it("preserves textStyles on the winning text element during reconcileElements", () => {
+    const localStyles = [{ start: 0, end: 5, color: "#e03131" }];
+    const remoteStyles = [
+      { start: 0, end: 5, color: "#e03131" },
+      { start: 6, end: 11, highlight: "#ffec99" },
+    ];
+
+    const localElement = {
+      id: "text-1",
+      type: "text",
+      text: "Hello world",
+      originalText: "Hello world",
+      textStyles: localStyles,
+      version: 1,
+      versionNonce: 100,
+      index: "a0",
+    } as unknown as OrderedExcalidrawElement;
+
+    const remoteElement = {
+      id: "text-1",
+      type: "text",
+      text: "Hello world",
+      originalText: "Hello world",
+      textStyles: remoteStyles,
+      version: 2,
+      versionNonce: 200,
+      index: "a0",
+    } as unknown as RemoteExcalidrawElement;
+
+    const reconciledRemoteWins = reconcileElements(
+      [localElement],
+      [remoteElement],
+      {} as AppState,
+    );
+
+    expect(reconciledRemoteWins).toHaveLength(1);
+    expect((reconciledRemoteWins[0] as any).textStyles).toEqual(remoteStyles);
+
+    const localTieWinner = {
+      ...localElement,
+      version: 2,
+      versionNonce: 50,
+    } as unknown as OrderedExcalidrawElement;
+
+    const reconciledLocalWins = reconcileElements(
+      [localTieWinner],
+      [remoteElement],
+      {} as AppState,
+    );
+
+    expect(reconciledLocalWins).toHaveLength(1);
+    expect((reconciledLocalWins[0] as any).textStyles).toEqual(localStyles);
+  });
+
+  it("round-trips remote text element with textStyles through restoreElements and reconcileElements", () => {
+    const ranges = [
+      { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+    ];
+    const [baseEl] = syncInvalidIndices([
+      newTextElement({
+        x: 0,
+        y: 0,
+        text: "Bid request timeout 120ms",
+        textStyles: ranges,
+      }),
+    ]);
+
+    const localElements = cloneJSON([baseEl]);
+    const remoteJSON = JSON.parse(
+      JSON.stringify({
+        ...baseEl,
+        version: baseEl.version + 1,
+        versionNonce: randomInteger(),
+      }),
+    );
+
+    const restoredRemote = restoreElements([remoteJSON], null);
+    const reconciled = reconcileElements(
+      localElements,
+      restoredRemote as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+
+    expect(reconciled).toHaveLength(1);
+    const winner = reconciled[0] as ExcalidrawTextElement;
+    expect(winner.version).toBe(remoteJSON.version);
+    expect(winner.textStyles).toEqual(ranges);
+    expect(winner.originalText.slice(20, 25)).toBe("120ms");
+  });
+
+  it("reconciles concurrent edits on the same text element with restoreElements without corrupting textStyles", () => {
+    const localRanges = [{ start: 0, end: 5, color: "#e03131" }];
+    const remoteRanges = [{ start: 9, end: 14, highlight: "#ffec99" }];
+
+    const [localEl] = syncInvalidIndices([
+      {
+        ...newTextElement({
+          x: 0,
+          y: 0,
+          text: "Hello world",
+          originalText: "Hello world",
+          textStyles: localRanges,
+        }),
+        version: 5,
+        versionNonce: 100,
+      },
+    ]);
+
+    const remoteJSON = JSON.parse(
+      JSON.stringify({
+        ...localEl,
+        text: "Hi there world",
+        originalText: "Hi there world",
+        textStyles: remoteRanges,
+        version: 6,
+        versionNonce: 200,
+      }),
+    );
+
+    const restoredRemote = restoreElements([remoteJSON], null);
+    const reconciled = reconcileElements(
+      cloneJSON([localEl]),
+      restoredRemote as RemoteExcalidrawElement[],
+      {} as AppState,
+    );
+
+    const matching = reconciled.filter((el) => el.id === localEl.id);
+    expect(matching).toHaveLength(1);
+    const winner = matching[0] as ExcalidrawTextElement;
+    expect(winner.originalText).toBe("Hi there world");
+    expect(winner.version).toBe(6);
+    expect(winner.textStyles).toEqual(remoteRanges);
+    for (const range of winner.textStyles!) {
+      expect(range.start).toBeGreaterThanOrEqual(0);
+      expect(range.end).toBeGreaterThan(range.start);
+      expect(range.end).toBeLessThanOrEqual(winner.originalText.length);
+    }
+    expect(winner.originalText.slice(9, 14)).toBe("world");
   });
 });

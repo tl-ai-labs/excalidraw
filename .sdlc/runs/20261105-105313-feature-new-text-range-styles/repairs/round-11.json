@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tp_debug_r11_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U25, final: land the passing cases WITHOUT A8. In an earlier answer to this task (same single edit, same patterns) every case passed except the undo/redo case A8, which is now LEFT OUT. Last run also failed on cases that were never asked for ('preserves originalText range offsets when wrapping and unwrapping text': Error: There is no \"e\" handle for this selection) and on A7 ('ReferenceError: ResizeObserver is not defined'). Write EXACTLY these eight `it` blocks and nothing else, inside ONE edit: search = the file's last three lines `    });\\n  });\\n});\\n`, replace = `    });\\n` + `\\n  describe(\"text range styles\", () => {` + beforeEach `await render(<Excalidraw handleKeyboardGlobally={true} />); API.setElements([]);` + the eight its + `\\n  });\\n` + `  });\\n});\\n`. No other edit, no new import; actions via `act(() => { h.app.actionManager.executeAction(h.app.actionManager.actions[name], \"ui\", { color }); })`. The its: A1 'colours a selected substring' (text 'Bid request timeout 120ms' via UI.clickTool(\"text\"); mouse.clickAt(400, 400); getTextEditor(); updateTextEditor; setSelectionRange(20, 25); changeStrokeColor '#e03131' -> textStyles [{start:20,end:25,color:'#e03131'}], strokeColor unchanged); A2 'highlights a selected substring' (changeTextHighlight '#ffec99' -> [{start:20,end:25,highlight:'#ffec99'}]); A3 'collapsed caret recolours the whole element' (setSelectionRange(3,3) -> strokeColor '#e03131', textStyles undefined); A4 'shifts ranges when typing before or inside them' (after A1: updateTextEditor 'XBid request timeout 120ms' -> [{21,26}], then 'XBid request timeout 12a0ms' -> [{21,27}], color '#e03131'); A5 'keeps ranges across a font size change' (after A1: fireEvent.keyDown(editor, { key: KEYS.CHEVRON_RIGHT, ctrlKey: true, shiftKey: true }) -> fontSize changed, textStyles unchanged); A6 'styles a range in a rectangle label' (UI.createElement(\"rectangle\", { x: 10, y: 20, width: 300, height: 100 }); Keyboard.keyPress(KEYS.ENTER); editor; 'Hello world'; 0..5 stroke -> bound text (containerId === rect.id) [{0,5,'#e03131'}]); A7 'styles a sticky-note label range and isolates the highlight popup' (UI.clickTool(\"stickynote\"); mouse.clickAt(400, 400); double-click the note centre; editor; 'Hello world'; 0..5 stroke -> label [{0,5,'#e03131'}] and note strokeColor unchanged; then FIRST install the stub `(global as any).ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };` (as togglePopover in ../tests/test-utils does) and fireEvent.click(document.querySelector('[aria-label=\"Highlight\"]')!) -> h.state.openPopup === 'textHighlight' and document.querySelector('[aria-label=\"Background\"]')!.getAttribute('aria-expanded') !== 'true'); A9 're-entering edit shows the ranges in the preview layer' (after A1 + changeTextHighlight '#ffec99' on the same selection, Keyboard.exitTextEditor(editor), mouse.doubleClickAt(t.x + 2, t.y + 2), getTextEditor() -> a span in .excalidraw-wysiwyg-preview with textContent '120ms' has non-empty style.color and style.backgroundColor). Never weaken an assertion, never it.skip/it.todo, add no other case.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/queries/dom.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

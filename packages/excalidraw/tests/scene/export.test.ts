@@ -1097,4 +1097,282 @@ describe("exporting frames", () => {
       expect(svg.getAttribute("height")).toBe(frame1.height.toString());
     });
   });
+
+  describe("export styled text ranges", () => {
+    it("exports SVG and canvas with highlight <rect> and coloured <tspan> runs in light and dark mode", async () => {
+      // "Hello world\nSecond line"
+      // "Hello" [0, 5] color: "#e03131"
+      // "world" [6, 11] highlight: "#fff3bf", color: "#1971c2"
+      // "line" [19, 23] highlight: "#b2f2bb"
+      const textElement = {
+        ...API.createElement({
+          type: "text",
+          text: "Hello world\nSecond line",
+          strokeColor: "#1e1e1e",
+        }),
+        textStyles: [
+          { start: 0, end: 5, color: "#e03131" },
+          { start: 6, end: 11, color: "#1971c2", highlight: "#fff3bf" },
+          { start: 19, end: 23, highlight: "#b2f2bb" },
+        ],
+      } as NonDeleted<ExcalidrawTextElement>;
+
+      const svgLight = await exportScene({
+        type: "svg",
+        data: {
+          elements: [textElement],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: { canvasBackgroundColor: false },
+      });
+
+      const groupLight = svgLight.querySelector("g");
+      expect(groupLight).not.toBeNull();
+      const childrenLight = Array.from(groupLight!.children);
+      // Line 1 has 1 highlight rect ("world") before its <text>, line 2 has 1 highlight rect ("line") before its <text>
+      expect(childrenLight.map((el) => el.tagName)).toEqual([
+        "rect",
+        "text",
+        "rect",
+        "text",
+      ]);
+
+      const [rect1Light, text1Light, rect2Light, text2Light] = childrenLight;
+      expect(rect1Light.getAttribute("fill")).toBe("#fff3bf");
+      // "Hello " is 6 chars * 10px = 60, "world" is 5 chars * 10px = 50
+      expect(Number(rect1Light.getAttribute("x"))).toBe(60);
+      expect(Number(rect1Light.getAttribute("width"))).toBe(50);
+
+      const tspans1Light = Array.from(text1Light.querySelectorAll("tspan"));
+      expect(tspans1Light.map((t) => t.textContent)).toEqual([
+        "Hello",
+        " ",
+        "world",
+      ]);
+      expect(tspans1Light[0].getAttribute("fill")).toBe("#e03131");
+      expect(tspans1Light[1].getAttribute("fill")).toBeNull();
+      expect(tspans1Light[2].getAttribute("fill")).toBe("#1971c2");
+
+      expect(rect2Light.getAttribute("fill")).toBe("#b2f2bb");
+      // "Second " is 7 chars * 10px = 70, "line" is 4 chars * 10px = 40
+      expect(Number(rect2Light.getAttribute("x"))).toBe(70);
+      expect(Number(rect2Light.getAttribute("width"))).toBe(40);
+
+      const tspans2Light = Array.from(text2Light.querySelectorAll("tspan"));
+      expect(tspans2Light.map((t) => t.textContent)).toEqual([
+        "Second ",
+        "line",
+      ]);
+      expect(tspans2Light[0].getAttribute("fill")).toBeNull();
+      expect(tspans2Light[1].getAttribute("fill")).toBeNull();
+
+      // Dark mode export applies dark mode filter to highlight rects and tspan fills
+      const svgDark = await exportScene({
+        type: "svg",
+        data: {
+          elements: [textElement],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: {
+          canvasBackgroundColor: false,
+          theme: THEME.DARK,
+        },
+      });
+
+      const rectsDark = Array.from(svgDark.querySelectorAll("g rect"));
+      expect(rectsDark).toHaveLength(2);
+      expect(rectsDark[0].getAttribute("fill")).toBe(
+        applyDarkModeFilter("#fff3bf", true),
+      );
+      expect(rectsDark[1].getAttribute("fill")).toBe(
+        applyDarkModeFilter("#b2f2bb", true),
+      );
+
+      const tspans1Dark = Array.from(
+        svgDark.querySelectorAll("g text:first-of-type tspan"),
+      );
+      expect(tspans1Dark[0].getAttribute("fill")).toBe(
+        applyDarkModeFilter("#e03131", true),
+      );
+      expect(tspans1Dark[2].getAttribute("fill")).toBe(
+        applyDarkModeFilter("#1971c2", true),
+      );
+
+      // Canvas export draws highlight fillRects and run fillTexts
+      const canvasDark = await exportScene({
+        type: "canvas",
+        data: {
+          elements: [textElement],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: {
+          canvasBackgroundColor: false,
+          theme: THEME.DARK,
+        },
+      });
+      const events = (canvasDark.getContext("2d") as any).__getEvents();
+      const fillStyles = events
+        .filter((e: any) => e.type === "fillStyle")
+        .map((e: any) => e.props.value);
+      expect(fillStyles).toContain(applyDarkModeFilter("#fff3bf", true));
+      expect(fillStyles).toContain(applyDarkModeFilter("#e03131", true));
+      expect(fillStyles).toContain(applyDarkModeFilter("#1971c2", true));
+    });
+
+    it("positions SVG highlight rects accurately on RTL and LTR-first mixed-direction lines", async () => {
+      // Pure RTL: "مرحبا بالعالم" (13 chars -> 130px)
+      // "مرحبا" [0, 5] (50px), " " [5, 6] (10px), "بالعالم" [6, 13] (70px)
+      // Visual order in RTL: "بالعالم" on left (width 70), " " (width 10), "مرحبا" on right (width 50)
+      const rtlText = "مرحبا بالعالم";
+      const elementWidth = 200;
+
+      for (const textAlign of ["left", "center", "right"] as const) {
+        const rtlElement = {
+          ...API.createElement({
+            type: "text",
+            text: rtlText,
+            width: elementWidth,
+            textAlign,
+          }),
+          width: elementWidth,
+          textStyles: [
+            { start: 0, end: 5, highlight: "#fff3bf" },
+            { start: 6, end: 13, highlight: "#ffc9c9" },
+          ],
+        } as NonDeleted<ExcalidrawTextElement>;
+
+        const svg = await exportScene({
+          type: "svg",
+          data: {
+            elements: [rtlElement],
+            appState: { viewBackgroundColor: "#ffffff" },
+            files: null,
+          },
+          config: { canvasBackgroundColor: false },
+        });
+
+        const lineWidth = 130;
+        const expectedLineLeft =
+          textAlign === "center"
+            ? (elementWidth - lineWidth) / 2
+            : textAlign === "right"
+            ? elementWidth - lineWidth
+            : 0;
+
+        const rects = Array.from(svg.querySelectorAll("g rect"));
+        expect(rects).toHaveLength(2);
+        // Logical order of runs is preserved: first rect is "مرحبا" (visual right: expectedLineLeft + 70 + 10)
+        // second rect is "بالعالم" (visual left: expectedLineLeft + 0)
+        expect(Number(rects[0].getAttribute("x"))).toBe(expectedLineLeft + 80);
+        expect(Number(rects[0].getAttribute("width"))).toBe(50);
+        expect(Number(rects[1].getAttribute("x"))).toBe(expectedLineLeft);
+        expect(Number(rects[1].getAttribute("width"))).toBe(70);
+      }
+
+      // LTR-first mixed-direction text: "Price: ١٢٠ درهم" (15 chars -> 150px)
+      // "Price: " [0, 7] is LTR (70px)
+      // "١٢٠ درهم" [7, 15] is RTL (80px): "١٢٠" [7, 10] (30px), " " [10, 11] (10px), "درهم" [11, 15] (40px)
+      // Under LTR base direction (level 0), the RTL sequence [7, 15] is at level 1 and reverses visually:
+      // Visual order: "Price: " (x: lineLeft + 0, w: 70), then "درهم" (x: lineLeft + 70, w: 40), " " (x: lineLeft + 110, w: 10), "١٢٠" (x: lineLeft + 120, w: 30)
+      const mixedText = "Price: ١٢٠ درهم";
+      for (const textAlign of ["left", "center", "right"] as const) {
+        const mixedElement = {
+          ...API.createElement({
+            type: "text",
+            text: mixedText,
+            width: elementWidth,
+            textAlign,
+          }),
+          width: elementWidth,
+          textStyles: [
+            { start: 0, end: 6, highlight: "#a5d8ff" }, // "Price:" (60px)
+            { start: 7, end: 10, highlight: "#fff3bf" }, // "١٢٠" (30px)
+            { start: 11, end: 15, highlight: "#b2f2bb" }, // "درهم" (40px)
+          ],
+        } as NonDeleted<ExcalidrawTextElement>;
+
+        const svg = await exportScene({
+          type: "svg",
+          data: {
+            elements: [mixedElement],
+            appState: { viewBackgroundColor: "#ffffff" },
+            files: null,
+          },
+          config: { canvasBackgroundColor: false },
+        });
+
+        const lineWidth = 150;
+        const expectedLineLeft =
+          textAlign === "center"
+            ? (elementWidth - lineWidth) / 2
+            : textAlign === "right"
+            ? elementWidth - lineWidth
+            : 0;
+
+        const rects = Array.from(svg.querySelectorAll("g rect"));
+        expect(rects).toHaveLength(3);
+        // Logical run 0: "Price:" at visual left
+        expect(Number(rects[0].getAttribute("x"))).toBe(expectedLineLeft);
+        expect(Number(rects[0].getAttribute("width"))).toBe(60);
+        // Logical run 1: "١٢٠" at visual right of the RTL sequence (70 + 40 + 10 = 120)
+        expect(Number(rects[1].getAttribute("x"))).toBe(expectedLineLeft + 120);
+        expect(Number(rects[1].getAttribute("width"))).toBe(30);
+        // Logical run 2: "درهم" at visual start of the RTL sequence (70)
+        expect(Number(rects[2].getAttribute("x"))).toBe(expectedLineLeft + 70);
+        expect(Number(rects[2].getAttribute("width"))).toBe(40);
+      }
+    });
+
+    it("sanitizes unsafe textStyles colors and highlights to canonical hex in SVG export", async () => {
+      const textElement = {
+        ...API.createElement({
+          type: "text",
+          text: "Hello world",
+          strokeColor: "#1e1e1e",
+        }),
+        textStyles: [
+          {
+            start: 0,
+            end: 5,
+            color: "url(#x) rgb(1,2,3)",
+            highlight: 'rgb(255,0,0)" onload="x',
+          },
+          { start: 6, end: 11, color: "#e03131" },
+        ],
+      } as NonDeleted<ExcalidrawTextElement>;
+
+      const svg = await exportScene({
+        type: "svg",
+        data: {
+          elements: [textElement],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: { canvasBackgroundColor: false },
+      });
+
+      const fills = Array.from(svg.querySelectorAll("[fill]")).map(
+        (el) => el.getAttribute("fill")!,
+      );
+      for (const fill of fills) {
+        expect(fill).not.toContain("url(");
+        expect(fill).not.toContain('"');
+        expect(fill).not.toContain("'");
+      }
+
+      const tspans = Array.from(svg.querySelectorAll("g text tspan"));
+      expect(tspans.map((t) => t.getAttribute("fill"))).toEqual([
+        "#010203",
+        null,
+        "#e03131",
+      ]);
+
+      const highlightRect = svg.querySelector("g rect");
+      expect(highlightRect).not.toBeNull();
+      expect(highlightRect?.getAttribute("fill")).toBe("#ff0000");
+    });
+  });
 });

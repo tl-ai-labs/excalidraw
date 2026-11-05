@@ -1,0 +1,10 @@
+Changes asked for this step:
+
+Re-review the new diff after the second Gate 3 fix round and rewrite security_review.md (findings only, each with its file).
+What changed since your last review:
+- packages/element/src/textStyles.ts: sanitizeStyleColor and sanitizeStyleHighlight now RETURN the canonical colorToHex(trimmed) (lowercase #rrggbb / #rrggbbaa), never the raw string; checks kept (string, <= 64 chars after trim, colorToHex !== null, !isTransparent); the clear-when-equal-to-stroke rule compares colorToHex(trimmed) === colorToHex(baseStrokeColor) with a null guard. getUniformTextRangeStyle, shiftTextRangesAtOffset and splitTextIntoStyledSegments now slice their input to MAX_TEXT_RANGES (2000) before any per-entry work, as normalizeTextRanges does.
+- Tests: textStyles.test.ts ("url(#x) rgb(1,2,3)" and 'rgb(1,2,3)" onload="x' normalise to #010203; 50,000-entry inputs bounded for the three functions; two expectations changed red -> #ff0000 and rgb(1,2,3) -> #010203); export.test.ts (no fill attribute in a styled SVG export contains url( or a quote; fills are canonical hex); textWysiwyg.test.tsx gained 8 editor tests (U25, all but undo/redo).
+Suite summary (already run; do not re-run): yarn test:typecheck pass; yarn test:code pass; yarn test:app --watch=false 150 files / 2661 passed / 47 skipped / 0 failed; prettier on touched files clean.
+Confirm whether each of your two Medium findings is now closed; check any other path that writes a colour into an SVG attribute, canvas fillStyle or preview style without going through the sanitizers (e.g. textStyles set via updateScene, applyTextRangeStyle from the actions, dark-mode filtering), and any remaining uncapped iteration over textStyles. Keep the out-of-scope eyedropper note.
+
+Edit the pieces you handed in and hand each changed one in again.

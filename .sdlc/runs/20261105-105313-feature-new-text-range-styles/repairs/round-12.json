@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r12_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add the A8 undo/redo test VERBATIM and change nothing else. Answer with exactly ONE edit: `search` = the file's last three lines, which occur exactly once: \"    });\\n  });\\n});\\n\" (4 spaces + `});`, 2 spaces + `});`, `});`, trailing newline). `replace` = \"    });\\n\" + \"\\n\" + the test below (indented as shown, 4 spaces before `it(`) + \"  });\\n});\\n\". No other edit, no new import, no change to the test text (do not weaken, rename, or reorder any assertion). The test:\n\n    it(\"supports undo and redo of styled text ranges\", async () => {\n      UI.clickTool(\"text\");\n      mouse.clickAt(400, 400);\n      let editor = await getTextEditor();\n      updateTextEditor(editor, \"Bid request timeout 120ms\");\n      Keyboard.exitTextEditor(editor);\n      const t = h.elements[0] as ExcalidrawTextElement;\n      expect(t.textStyles).toBeUndefined();\n\n      mouse.doubleClickAt(t.x + 2, t.y + 2);\n      editor = await getTextEditor();\n      editor.setSelectionRange(20, 25);\n      act(() => {\n        h.app.actionManager.executeAction(\n          h.app.actionManager.actions.changeStrokeColor,\n          \"ui\",\n          { color: \"#e03131\" },\n        );\n      });\n      Keyboard.exitTextEditor(editor);\n      const styled = [{ start: 20, end: 25, color: \"#e03131\" }];\n      const text = () => h.elements[0] as ExcalidrawTextElement;\n      expect(text().textStyles).toEqual(styled);\n\n      // exiting the editor records its own history entry, so the range\n      // change is two undo steps back (same as a whole-element colour change)\n      Keyboard.undo();\n      Keyboard.undo();\n      expect(text().originalText).toBe(\"Bid request timeout 120ms\");\n      expect(text().textStyles).toBeUndefined();\n\n      Keyboard.redo();\n      expect(text().textStyles).toEqual(styled);\n    });\n\nThe person verified this behaviour (two undos after an editor exit) with a scratch test; it is a test-only change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

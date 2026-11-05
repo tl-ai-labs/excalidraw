@@ -6,6 +6,7 @@ import {
   getContainerElement,
   redrawTextBoundingBox,
 } from "./textElement";
+import { shiftTextRanges } from "./textStyles";
 import { isBoundToContainer, isTextElement } from "./typeChecks";
 
 import type { RenderEnvironment } from "./renderEnvironment";
@@ -202,6 +203,8 @@ export type ListMarkerAdvance = {
   contentStart: number;
   /** the label's container before the label (may have) grown it */
   prevContainerSize: { width: number; height: number } | null;
+  prevTextStyles?: ExcalidrawTextElement["textStyles"];
+  nextTextStyles?: ExcalidrawTextElement["textStyles"];
 };
 
 const setText = (
@@ -210,14 +213,19 @@ const setText = (
   originalText: string,
   scene: Scene,
   renderEnvironment: RenderEnvironment | undefined,
+  textStyles?: ExcalidrawTextElement["textStyles"],
 ) => {
   if (container) {
-    scene.mutateElement(element, { originalText });
+    scene.mutateElement(element, {
+      originalText,
+      ...(textStyles !== undefined ? { textStyles } : {}),
+    });
     // re-wraps the label, and grows the container if need be
     redrawTextBoundingBox(element, container, scene, renderEnvironment);
   } else {
     scene.mutateElement(element, {
       originalText,
+      ...(textStyles !== undefined ? { textStyles } : {}),
       // re-wraps the text, and keeps it anchored as per its alignment
       ...refreshTextDimensions(
         element,
@@ -316,6 +324,14 @@ export const advanceDuplicatedListMarkers = (
         continue;
       }
 
+      const nextTextStyles = element.textStyles?.length
+        ? shiftTextRanges(
+            element.textStyles,
+            element.originalText,
+            nextOriginalText,
+          )
+        : undefined;
+
       advances.push({
         elementId: element.id,
         prevOriginalText: element.originalText,
@@ -327,9 +343,18 @@ export const advanceDuplicatedListMarkers = (
         prevContainerSize: container
           ? { width: container.width, height: container.height }
           : null,
+        prevTextStyles: element.textStyles,
+        nextTextStyles,
       });
 
-      setText(element, container, nextOriginalText, scene, renderEnvironment);
+      setText(
+        element,
+        container,
+        nextOriginalText,
+        scene,
+        renderEnvironment,
+        nextTextStyles,
+      );
     }
   }
 
@@ -368,6 +393,7 @@ export const applyListMarkerAdvances = (
         : advance.nextOriginalText,
       scene,
       renderEnvironment,
+      direction === "prev" ? advance.prevTextStyles : advance.nextTextStyles,
     );
   }
 };

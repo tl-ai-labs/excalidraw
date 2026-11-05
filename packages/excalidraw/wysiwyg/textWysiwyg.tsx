@@ -42,6 +42,11 @@ import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
 import {
+  shiftTextRanges,
+  shiftTextRangesAtOffset,
+  splitTextIntoStyledSegments,
+} from "@excalidraw/element";
+import {
   isArrowElement,
   isBoundToContainer,
   isStickyNoteElement,
@@ -265,8 +270,15 @@ export const textWysiwyg = ({
    * Note: `text`, which can be wrapped and therefore different from `originalText`,
    *       is derived from `originalText`
    */
-  onChange?: (nextOriginalText: string) => void;
-  onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;
+  onChange?: (
+    nextOriginalText: string,
+    nextTextStyles?: ExcalidrawTextElement["textStyles"],
+  ) => void;
+  onSubmit: (data: {
+    viaKeyboard: boolean;
+    nextOriginalText: string;
+    nextTextStyles?: ExcalidrawTextElement["textStyles"];
+  }) => void;
   getViewportCoords: (x: number, y: number) => [number, number];
   element: ExcalidrawTextElement;
   canvas: HTMLCanvasElement;
@@ -479,6 +491,11 @@ export const textWysiwyg = ({
         editable.style.wordBreak = "break-word";
       }
 
+      const baseStrokeColor = applyDarkModeFilter(
+        updatedTextElement.strokeColor,
+        appState.theme === THEME.DARK,
+      );
+      const hasRangeStyles = !!updatedTextElement.textStyles?.length;
       Object.assign(editable.style, {
         font,
         // must be defined *after* font ¯\_(ツ)_/¯
@@ -500,12 +517,68 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color: applyDarkModeFilter(
-          updatedTextElement.strokeColor,
-          appState.theme === THEME.DARK,
-        ),
+        color: baseStrokeColor,
+        caretColor: hasRangeStyles ? baseStrokeColor : "",
+        webkitTextFillColor: hasRangeStyles ? "transparent" : "",
         opacity: updatedTextElement.opacity / 100,
       });
+      Object.assign(preview.style, {
+        font,
+        lineHeight: updatedTextElement.lineHeight,
+        width: `${width}px`,
+        height: `${height}px`,
+        left: `${viewportX - editorBoxLeft}px`,
+        top: `${viewportY}px`,
+        transformOrigin: `${updatedTextElement.width / 2}px ${
+          updatedTextElement.height / 2
+        }px`,
+        transform: getTransform(
+          updatedTextElement.width,
+          updatedTextElement.height,
+          angle,
+          appState,
+        ),
+        textAlign,
+        verticalAlign,
+        color: baseStrokeColor,
+        opacity: updatedTextElement.opacity / 100,
+        whiteSpace: editable.style.whiteSpace,
+        wordBreak: editable.style.wordBreak,
+      });
+      if (hasRangeStyles) {
+        const segments = splitTextIntoStyledSegments(
+          editable.value,
+          updatedTextElement.textStyles,
+        );
+        const nodes: HTMLElement[] = [];
+        for (const seg of segments) {
+          const span = ownerDocument.createElement("span");
+          span.textContent = seg.text;
+          if (seg.color) {
+            span.style.color = applyDarkModeFilter(
+              seg.color,
+              appState.theme === THEME.DARK,
+            );
+          }
+          if (seg.highlight) {
+            span.style.backgroundColor = applyDarkModeFilter(
+              seg.highlight,
+              appState.theme === THEME.DARK,
+            );
+            span.style.borderRadius = "2px";
+          }
+          nodes.push(span);
+        }
+        // Preserve trailing empty line height in mirror div like textarea does
+        if (editable.value.endsWith("\n")) {
+          const br = ownerDocument.createElement("span");
+          br.textContent = "\n";
+          nodes.push(br);
+        }
+        preview.replaceChildren(...nodes);
+      } else {
+        preview.replaceChildren();
+      }
       currentTextLayout = {
         angle: angle as Radians,
         font,
@@ -524,6 +597,7 @@ export const textWysiwyg = ({
       // hence updating font family explicitly for test environment
       if (isTestEnv()) {
         editable.style.fontFamily = getFontFamilyString(updatedTextElement);
+        preview.style.fontFamily = getFontFamilyString(updatedTextElement);
       }
 
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
@@ -531,6 +605,7 @@ export const textWysiwyg = ({
   };
 
   const editable = ownerDocument.createElement("textarea");
+  const preview = ownerDocument.createElement("div");
 
   editable.dir = "auto";
   editable.tabIndex = 0;
@@ -539,6 +614,11 @@ export const textWysiwyg = ({
   editable.wrap = "off";
   editable.classList.add("excalidraw-wysiwyg");
 
+  preview.dir = "auto";
+  preview.dataset.type = "wysiwyg-preview";
+  preview.classList.add("excalidraw-wysiwyg-preview");
+  preview.setAttribute("aria-hidden", "true");
+
   let whiteSpace = "pre";
   let wordBreak = "normal";
 
@@ -546,7 +626,7 @@ export const textWysiwyg = ({
     whiteSpace = "pre-wrap";
     wordBreak = "break-word";
   }
-  Object.assign(editable.style, {
+  const sharedEditorStyles = {
     position: "absolute",
     display: "inline-block",
     minHeight: "1em",
@@ -565,8 +645,63 @@ export const textWysiwyg = ({
     whiteSpace,
     overflowWrap: "break-word",
     boxSizing: "content-box",
+  };
+  Object.assign(editable.style, sharedEditorStyles);
+  Object.assign(preview.style, {
+    ...sharedEditorStyles,
+    pointerEvents: "none",
+    userSelect: "none",
   });
   editable.value = element.originalText;
+  let prevOriginalText = normalizeText(element.originalText);
+  let pendingShiftedTextStyles: ExcalidrawTextElement["textStyles"] | null =
+    null;
+  let savedSelectionOnMenuPress: { start: number; end: number } | null = null;
+  const nativeSetSelectionRange = editable.setSelectionRange.bind(editable);
+  editable.setSelectionRange = (
+    start: number | null,
+    end: number | null,
+    direction?: "forward" | "backward" | "none",
+  ) => {
+    nativeSetSelectionRange(start, end, direction);
+    savedSelectionOnMenuPress = null;
+  };
+  editable.addEventListener("input", () => {
+    savedSelectionOnMenuPress = null;
+  });
+  editable.addEventListener("keydown", () => {
+    savedSelectionOnMenuPress = null;
+  });
+  editable.addEventListener("pointerdown", () => {
+    savedSelectionOnMenuPress = null;
+  });
+  app.text.textWysiwygSelectionGetter = () => {
+    if (isDestroyed) {
+      return null;
+    }
+    const start = Math.min(editable.selectionStart, editable.selectionEnd);
+    const end = Math.max(editable.selectionStart, editable.selectionEnd);
+    if (start < end) {
+      return { start, end };
+    }
+    if (
+      savedSelectionOnMenuPress &&
+      savedSelectionOnMenuPress.start < savedSelectionOnMenuPress.end &&
+      ownerDocument.activeElement !== editable
+    ) {
+      return {
+        start: Math.max(
+          0,
+          Math.min(editable.value.length, savedSelectionOnMenuPress.start),
+        ),
+        end: Math.max(
+          0,
+          Math.min(editable.value.length, savedSelectionOnMenuPress.end),
+        ),
+      };
+    }
+    return { start, end };
+  };
   updateWysiwygStyle();
 
   const getCaretIndexFromInitialSceneCoords = () => {
@@ -860,7 +995,21 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      onChange(editable.value);
+      const latestElement = app.scene.getElement<
+        NonDeleted<ExcalidrawTextElement>
+      >(element.id);
+      const nextTextStyles =
+        pendingShiftedTextStyles !== null
+          ? pendingShiftedTextStyles
+          : shiftTextRanges(
+              latestElement?.textStyles,
+              prevOriginalText,
+              editable.value,
+            );
+      pendingShiftedTextStyles = null;
+      prevOriginalText = editable.value;
+      onChange(editable.value, nextTextStyles);
+      updateWysiwygStyle();
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -928,6 +1077,10 @@ export const textWysiwyg = ({
   const indent = () => {
     const { selectionStart, selectionEnd } = editable;
     const linesStartIndices = getSelectedLinesStartIndices();
+    const latestElement = app.scene.getElement<
+      NonDeleted<ExcalidrawTextElement>
+    >(element.id);
+    let currentStyles = latestElement?.textStyles;
 
     let value = editable.value;
     linesStartIndices.forEach((startIndex: number) => {
@@ -935,8 +1088,16 @@ export const textWysiwyg = ({
       const endValue = value.slice(startIndex);
 
       value = `${startValue}${TAB}${endValue}`;
+      currentStyles = shiftTextRangesAtOffset(
+        currentStyles,
+        startIndex,
+        0,
+        TAB_SIZE,
+        value.length,
+      );
     });
 
+    pendingShiftedTextStyles = currentStyles;
     editable.value = value;
 
     editable.selectionStart = selectionStart + TAB_SIZE;
@@ -947,6 +1108,10 @@ export const textWysiwyg = ({
     const { selectionStart, selectionEnd } = editable;
     const linesStartIndices = getSelectedLinesStartIndices();
     const removedTabs: number[] = [];
+    const latestElement = app.scene.getElement<
+      NonDeleted<ExcalidrawTextElement>
+    >(element.id);
+    let currentStyles = latestElement?.textStyles;
 
     let value = editable.value;
     linesStartIndices.forEach((startIndex) => {
@@ -960,10 +1125,18 @@ export const textWysiwyg = ({
 
         // Delete a tab from the line
         value = `${startValue}${endValue}`;
+        currentStyles = shiftTextRangesAtOffset(
+          currentStyles,
+          startIndex,
+          tabMatch[0].length,
+          0,
+          value.length,
+        );
         removedTabs.push(startIndex);
       }
     });
 
+    pendingShiftedTextStyles = currentStyles;
     editable.value = value;
 
     if (removedTabs.length) {
@@ -1082,13 +1255,22 @@ export const textWysiwyg = ({
       );
     }
 
+    const normalizedNextText = normalizeText(editable.value);
+    const nextTextStyles = shiftTextRanges(
+      updateElement.textStyles,
+      prevOriginalText,
+      normalizedNextText,
+    );
+
     onSubmit({
       viaKeyboard: submittedViaKeyboard,
       nextOriginalText: editable.value,
+      nextTextStyles,
     });
   };
 
   const cleanup = () => {
+    app.text.textWysiwygSelectionGetter = null;
     // remove events to ensure they don't late-fire
     editable.onblur = null;
     editable.oninput = null;
@@ -1113,6 +1295,7 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
 
+    preview.remove();
     editable.remove();
   };
 
@@ -1161,6 +1344,11 @@ export const textWysiwyg = ({
   };
 
   const temporarilyDisableSubmit = () => {
+    const start = Math.min(editable.selectionStart, editable.selectionEnd);
+    const end = Math.max(editable.selectionStart, editable.selectionEnd);
+    if (start < end) {
+      savedSelectionOnMenuPress = { start, end };
+    }
     editable.onblur = null;
     ownerWindow.addEventListener("pointerup", bindBlurEvent);
     // handle edge-case where pointerup doesn't fire e.g. due to user
@@ -1250,12 +1438,27 @@ export const textWysiwyg = ({
 
   // handle updates of textElement properties of editing element
   const unbindUpdate = app.scene.onUpdate(() => {
+    const latestElement = app.scene.getElement<
+      NonDeleted<ExcalidrawTextElement>
+    >(element.id);
+    if (latestElement) {
+      prevOriginalText = normalizeText(latestElement.originalText);
+    }
     updateWysiwygStyle();
     const isPopupOpened = !!ownerDocument.activeElement?.closest(
       ".properties-content",
     );
     if (!isPopupOpened) {
       editable.focus({ preventScroll: true });
+      if (
+        savedSelectionOnMenuPress &&
+        savedSelectionOnMenuPress.start < savedSelectionOnMenuPress.end
+      ) {
+        nativeSetSelectionRange(
+          savedSelectionOnMenuPress.start,
+          savedSelectionOnMenuPress.end,
+        );
+      }
     }
   });
 
@@ -1327,6 +1530,7 @@ export const textWysiwyg = ({
     });
   });
   ownerWindow.addEventListener("beforeunload", handleSubmit);
+  editorBox!.appendChild(preview);
   editorBox!.appendChild(editable);
 
   return handleSubmit;

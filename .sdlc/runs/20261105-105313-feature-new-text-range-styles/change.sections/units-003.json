@@ -1,0 +1,357 @@
+[
+  {
+    "id": "U19",
+    "path": "packages/element/tests/textStyles.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit-test normalizeTextRanges, applyTextRangeStyle, getUniformTextRangeStyle, shiftTextRanges, shiftTextRangesAtOffset, splitTextIntoStyledSegments, getLineTextRuns, and projectTextRangesOntoLines.",
+    "rules": [
+      "1. Import normalizeTextRanges, applyTextRangeStyle, getUniformTextRangeStyle, shiftTextRanges, shiftTextRangesAtOffset, splitTextIntoStyledSegments, getLineTextRuns, and projectTextRangesOntoLines from ../src/textStyles.",
+      "2. Test normalization of out-of-bounds, negative, reversed, non-finite, empty, transparent, baseStrokeColor-matching, overlapping, and adjacent identical ranges, plus UTF-16 astral emoji surrogate pair offsets.",
+      "3. Test applyTextRangeStyle independent colour and highlight application, partial overlap splitting, clearing via \"transparent\", null, or baseStrokeColor, and getUniformTextRangeStyle.",
+      "4. Test shiftTextRanges and shiftTextRangesAtOffset for insertions before, strictly inside, at range.start, at range.end (extending range.end), and after ranges, as well as deletions and replacements.",
+      "5. Test getLineTextRuns and projectTextRangesOntoLines for pure-LTR lines (!hasRTLChars) and RTL/mixed-bidi lines (hasRTLChars, including LTR-first lines containing Arabic script and Arabic-Indic digits) across left, center, and right alignments."
+    ],
+    "exports": [],
+    "import_line": "",
+    "style_from": {
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "lines": [1, 60],
+      "reason": "Match @excalidraw/element Vitest unit test structure and FontString setup."
+    },
+    "depends_on": ["U01", "U02", "U03"],
+    "covers": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-14", "FR-17", "NFR-2", "NFR-3", "NFR-5", "AC-1", "AC-2", "AC-6"],
+    "tests": [
+      {
+        "name": "normalizes, clamps, merges adjacent, and resolves overlapping ranges",
+        "given": "Unsorted, out-of-bounds, empty, transparent, baseStrokeColor-matching, and overlapping TextRangeStyle entries",
+        "expect": "Returns sorted non-overlapping merged ranges or undefined when all ranges are cleared"
+      },
+      {
+        "name": "applies and clears colour and highlight independently across overlapping spans",
+        "given": "An existing coloured range [0, 10] and a highlight applied to [3, 7] followed by clearing colour on [2, 5]",
+        "expect": "Preserves highlight on [3, 7] while removing colour on [2, 5] and merging adjacent identical spans"
+      },
+      {
+        "name": "shifts ranges across insertions, deletions, replacements, and range-end boundary typing",
+        "given": "A styled range [2, 7] in originalText with insertions at 0, 2, 4, 7, and 9, plus deletions and replacements",
+        "expect": "Typing at offset 7 extends the range end to 7 + k while typing at offset 2 shifts both start and end by +k"
+      },
+      {
+        "name": "preserves UTF-16 code-unit offsets around astral-plane emoji surrogate pairs",
+        "given": "Text containing 😀 (2 UTF-16 code units) before and inside styled ranges",
+        "expect": "Range offsets and shifted spans align with string.slice UTF-16 indices without splitting surrogate pairs"
+      },
+      {
+        "name": "computes accurate x and width for pure-LTR, pure-RTL, and LTR-first mixed-bidi lines",
+        "given": "Visual lines with !hasRTLChars(line.text), pure Arabic RTL text, and LTR-first mixed text \"Price: ١٢٠ درهم\" across left, center, and right alignments",
+        "expect": "Pure-LTR lines use left-prefix widths and hasRTLChars lines order bidi runs visually with non-zero widths summing to lineWidth"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U20",
+    "path": "packages/element/tests/textWrapping.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Test projecting originalText styled ranges across soft-wrapped and hard-wrapped visual lines from getWrappedTextLines.",
+    "rules": [
+      "1. Import projectTextRangesOntoLines from ../src/textStyles.",
+      "2. Add a describe block testing that ranges spanning soft word wraps, char-broken long tokens, and hard newlines project onto each WrappedTextLine with exact line-local start/end slices and run widths."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 5,
+        "to": 5,
+        "first_line": "} from \"../src/textWrapping\";",
+        "rule": "Import projectTextRangesOntoLines from ../src/textStyles."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 703,
+        "to": 703,
+        "first_line": "});",
+        "rule": "Add tests for projecting styled ranges across soft-wrapped and hard-wrapped lines."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "lines": [1, 60],
+      "reason": "Match existing wrapText and getWrappedTextLines test conventions."
+    },
+    "depends_on": ["U01", "U02", "U03"],
+    "covers": ["FR-5", "AC-4"],
+    "tests": [
+      {
+        "name": "projects a styled range spanning soft-wrapped and hard-wrapped lines onto per-line runs",
+        "given": "A text string wrapped across multiple visual lines with a styled range crossing soft-wrap whitespace and hard newlines",
+        "expect": "Each visual line receives runs whose text matches the styled characters on that line and whose offsets remain unchanged in originalText when re-wrapped at a new maxWidth"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U21",
+    "path": "packages/element/tests/textElement.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Test textStyles preservation across redrawTextBoundingBox, list-marker advancement/undo, and canvas drawElementOnCanvas rendering.",
+    "rules": [
+      "1. Import advanceDuplicatedListMarkers, applyListMarkerAdvances, drawElementOnCanvas, newElementWith, and Scene from ../src.",
+      "2. Add tests verifying that redrawTextBoundingBox preserves textStyles, advanceDuplicatedListMarkers shifts textStyles when a marker grows (e.g. \"9. item\" -> \"10. item\") and applyListMarkerAdvances(\"prev\") restores original textStyles, and drawElementOnCanvas calls fillRect for highlights and fillText per run for styled text while keeping single fillText per line for unstyled text."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 13,
+        "to": 13,
+        "first_line": "import { detectLineHeight, getLineHeightInPx } from \"../src/textMeasurements\";",
+        "rule": "Import advanceDuplicatedListMarkers, applyListMarkerAdvances, drawElementOnCanvas, newElementWith, redrawTextBoundingBox, and Scene."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 379,
+        "to": 379,
+        "first_line": "});",
+        "rule": "Add tests for redrawTextBoundingBox, list-marker range shifting, and drawElementOnCanvas with textStyles."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/tests/textElement.test.ts",
+      "lines": [1, 60],
+      "reason": "Match element creation and assertion style in textElement.test.ts."
+    },
+    "depends_on": ["U01", "U02", "U03", "U04", "U05", "U06", "U07"],
+    "covers": ["FR-6", "FR-8", "FR-14", "NFR-4", "AC-3", "AC-5"],
+    "tests": [
+      {
+        "name": "shifts textStyles when list marker changes length on duplication and restores on prev",
+        "given": "A list item text element \"9. hello\" with textStyles on \"hello\" ([3, 8]) duplicated via advanceDuplicatedListMarkers to \"10. hello\"",
+        "expect": "The duplicated element's textStyles shifts to [4, 9] and applyListMarkerAdvances with \"prev\" restores [3, 8]"
+      },
+      {
+        "name": "draws highlight fillRect and per-run fillText on canvas when textStyles is present",
+        "given": "A text element with color and highlight ranges rendered via drawElementOnCanvas in light and dark themes",
+        "expect": "Context fillRect is called for highlight spans before fillText for glyph runs with dark-mode-filtered colours"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U22",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Test restoreElements normalization, clamping, and absent-when-empty handling of textStyles on text elements.",
+    "rules": [
+      "1. Add a describe block in restore.test.ts testing that unstyled text elements restored via restoreElements have no textStyles property, valid textStyles survive round-trip JSON serialization and restoreElements, and malformed/out-of-bounds/empty/overlapping textStyles are clamped, sanitized, and merged (or omitted if all entries are invalid)."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 1659,
+        "to": 1659,
+        "first_line": "});",
+        "rule": "Add tests for textStyles normalization and backward-compatibility in restoreElements."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/data/restore.test.ts",
+      "lines": [1615, 1659],
+      "reason": "Match restore.restoreElements and API.createElement test patterns."
+    },
+    "depends_on": ["U01", "U02", "U03", "U04", "U17"],
+    "covers": ["FR-2", "FR-7", "NFR-1", "NFR-3", "AC-5"],
+    "tests": [
+      {
+        "name": "omits textStyles on legacy unstyled text elements and normalizes malformed ranges on restore",
+        "given": "Unstyled text elements and text elements with out-of-bounds, reversed, overlapping, and unknown-key textStyles passed to restore.restoreElements",
+        "expect": "Unstyled elements do not have a textStyles key, and styled elements have clamped, merged, sanitized textStyles"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U23",
+    "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Test that reconcileElements preserves textStyles on winning local or remote text elements during collaboration.",
+    "rules": [
+      "1. Add a test in reconcile.test.ts verifying that when a remote or local text element with textStyles has a higher version (or wins versionNonce tie-breaking), reconcileElements preserves its textStyles array intact."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 386,
+        "to": 386,
+        "first_line": "});",
+        "rule": "Add test verifying reconcileElements preserves textStyles on winning text element versions."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "lines": [340, 386],
+      "reason": "Match reconcileElements test helper and assertion style."
+    },
+    "depends_on": ["U01"],
+    "covers": ["FR-7", "AC-5"],
+    "tests": [
+      {
+        "name": "preserves textStyles on the winning text element during reconcileElements",
+        "given": "Local and remote text elements with different versions and textStyles arrays passed to reconcileElements",
+        "expect": "The reconciled scene retains the winning element's textStyles intact"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U24",
+    "path": "packages/excalidraw/tests/scene/export.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Test SVG and canvas export of text elements with per-range colour and highlight across LTR, wrapped, dark-mode, and RTL/mixed-bidi lines.",
+    "rules": [
+      "1. Add tests in export.test.ts verifying that exportScene({ type: \"svg\" }) emits <rect> highlight elements before <text> and <tspan> runs with fill colours (including dark-mode filter when config.theme === THEME.DARK), and positions highlight <rect> elements accurately on pure-LTR, pure-RTL, and LTR-first mixed-direction lines across left, center, and right alignments."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 1100,
+        "to": 1100,
+        "first_line": "});",
+        "rule": "Add SVG and canvas export tests for styled text ranges in light/dark themes and LTR/RTL/mixed-bidi alignments."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/scene/export.test.ts",
+      "lines": [1040, 1100],
+      "reason": "Match exportScene({ type: \"svg\" }) and exportScene({ type: \"canvas\" }) test style."
+    },
+    "depends_on": ["U01", "U02", "U03", "U04", "U07", "U18"],
+    "covers": ["FR-8", "FR-15", "FR-17", "NFR-2", "NFR-4", "AC-5", "AC-6"],
+    "tests": [
+      {
+        "name": "exports SVG with highlight <rect> and coloured <tspan> runs in light and dark mode",
+        "given": "A text element with colour and highlight ranges exported via exportScene({ type: \"svg\" }) in light and dark themes",
+        "expect": "SVG contains <rect> elements for highlights before <text> and <tspan> elements with corresponding fill attributes"
+      },
+      {
+        "name": "positions SVG highlight rects accurately on RTL and LTR-first mixed-direction lines",
+        "given": "A text element with pure-RTL Arabic and LTR-first mixed-direction text \"Price: ١٢٠ درهم\" and highlighted ranges across left, center, and right alignments",
+        "expect": "Exported SVG highlight <rect> x and width match the visual bidi run positions"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U25",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Integration-test WYSIWYG substring colour and highlight application, live preview mirror rendering, collapsed-caret fallback, sticky-note ink and popup isolation, range shifting on typing/paste/indent, container resize/unwrap, and undo/redo.",
+    "rules": [
+      "1. Import actionChangeStrokeColor and actionChangeTextHighlight from ../actions.",
+      "2. Add a describe(\"text range styles\", ...) block testing: (a) selecting a substring in the active textarea and applying Stroke colour and Highlight colour updates element.textStyles and renders live styled <span> runs in .excalidraw-wysiwyg-preview while keeping element.strokeColor unchanged; (b) clearing a range highlight with \"transparent\" and clearing a range colour by picking element.strokeColor; (c) changing Stroke colour with a collapsed caret updates element.strokeColor (and sticky-note ink for sticky notes) without adding textStyles, whereas colouring a selected substring in a sticky note only updates the label's textStyles and leaves sticky-note strokeColor untouched; (d) while editing a sticky-note label, clicking the highlight picker trigger sets h.state.openPopup to \"textHighlight\" and opens only the highlight picker popover without opening the sticky-note background picker (asserting h.state.openPopup === \"textHighlight\" and that only one picker popover is rendered in the DOM); (e) typing before, inside, at the end of, and after a styled range, plus Tab/Shift+Tab indent/outdent, shifts or extends textStyles accurately; (f) unwrapping/resizing a wrapped text preserves originalText range offsets; and (g) undo/redo restores prior textStyles and text."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 50,
+        "to": 50,
+        "first_line": "import { actionBindText } from \"../actions\";",
+        "rule": "Import actionChangeStrokeColor and actionChangeTextHighlight from ../actions."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 3597,
+        "to": 3597,
+        "first_line": "});",
+        "rule": "Add integration tests for WYSIWYG range styling, live preview, sticky-note ink and highlight popup isolation, typing/indent range shifting, and undo/redo."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "lines": [3385, 3597],
+      "reason": "Match Excalidraw render, getTextEditor, updateTextEditor, and Keyboard.undo/redo test patterns."
+    },
+    "depends_on": ["U01", "U02", "U03", "U04", "U05", "U08", "U09", "U10", "U11", "U12", "U13", "U14", "U15", "U16"],
+    "covers": ["FR-4", "FR-6", "FR-9", "FR-10", "FR-11", "FR-12", "FR-13", "FR-16", "NFR-5", "AC-1", "AC-2", "AC-3", "AC-4"],
+    "tests": [
+      {
+        "name": "applies colour and highlight to selected substring with live preview and preserves element.strokeColor",
+        "given": "An open WYSIWYG editor on \"Hello world\" with selection [6, 11] where stroke colour and highlight colour actions are executed",
+        "expect": "element.textStyles has color and highlight on [6, 11], element.strokeColor is unchanged, and .excalidraw-wysiwyg-preview contains styled spans"
+      },
+      {
+        "name": "keeps collapsed-caret stroke colour behaviour and isolates sticky-note ink from substring colouring",
+        "given": "A sticky note label being edited with a selected substring [0, 4] vs a collapsed caret [2, 2]",
+        "expect": "Substring colour only updates label textStyles without changing sticky-note strokeColor, while collapsed-caret stroke colour updates both label and sticky-note strokeColor"
+      },
+      {
+        "name": "while editing a sticky-note label, opening the highlight picker does not open the background picker",
+        "given": "A sticky-note label being edited where both the sticky-note background picker and text highlight picker are shown and the highlight picker trigger is clicked",
+        "expect": "h.state.openPopup is \"textHighlight\" and only one picker popover is rendered"
+      },
+      {
+        "name": "shifts and extends styled ranges on typing, deletion, and Tab/Shift+Tab indent/outdent, and supports undo/redo",
+        "given": "An open WYSIWYG editor with a styled range edited by typing before, at the end of, and inside the range, indenting/outdenting, submitting, and pressing undo/redo",
+        "expect": "Ranges shift and extend accurately during editing and revert/reapply on undo and redo"
+      }
+    ],
+    "checks": ["eslint", "prettier", "vitest"]
+  },
+  {
+    "id": "U26",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Document per-range text colour and highlight support under Unreleased in CHANGELOG.md.",
+    "rules": [
+      "1. Add a concise subsection under ## Unreleased in packages/excalidraw/CHANGELOG.md describing per-character-range text colour and background highlight support (textStyles on ExcalidrawTextElement, live WYSIWYG preview, changeTextHighlight action, and canvas/SVG export support)."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 14,
+        "to": 14,
+        "first_line": "## Unreleased",
+        "rule": "Document styled character ranges (textStyles) and text highlight picker under ## Unreleased."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "lines": [14, 65],
+      "reason": "Match Unreleased feature section heading and bullet style in CHANGELOG.md."
+    },
+    "depends_on": ["U01", "U14", "U15"],
+    "covers": ["FR-1", "FR-12"],
+    "checks": ["prettier"]
+  }
+]

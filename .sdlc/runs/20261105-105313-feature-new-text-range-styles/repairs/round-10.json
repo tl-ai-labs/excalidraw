@@ -1,0 +1,66 @@
+[
+  {
+    "id": "tp_debug_r10_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105313-feature-new-text-range-styles",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U25 retry. Your previous answer to this same task applied cleanly and every case passed EXCEPT A8 'supports undo and redo of styled text ranges': AssertionError at :3804 `Keyboard.undo(); expect(text().textStyles).toBeUndefined();` -- expected undefined, received [{color:'#e03131',end:25,start:20}]. Repeat the same answer (same single edit: search = the file's last three lines `    });\\n  });\\n});\\n`, replace = `    });\\n` + new `describe(\"text range styles\", ...)` block + `  });\\n});\\n`; no other edit, no new import; actions via h.app.actionManager.executeAction(h.app.actionManager.actions[name], \"ui\", { color })) with A1-A7 and A9 unchanged, and rewrite A8 so the styling is its own history step: create the text 'Bid request timeout 120ms' with UI.clickTool(\"text\"); mouse.clickAt(400, 400); getTextEditor(); updateTextEditor(...); Keyboard.exitTextEditor(editor) (commits plain text); then re-enter edit (mouse.doubleClickAt(t.x + 2, t.y + 2); const editor2 = await getTextEditor()), editor2.setSelectionRange(20, 25), run changeStrokeColor '#e03131', Keyboard.exitTextEditor(editor2); assert textStyles [{start:20,end:25,color:'#e03131'}]; Keyboard.undo() -> the text element still exists with originalText 'Bid request timeout 120ms' and textStyles undefined; Keyboard.redo() -> textStyles [{start:20,end:25,color:'#e03131'}]. Do not weaken any assertion. If, on a retry, A8 still fails with the same assertion, drop the whole A8 `it` (do not weaken or skip it) so the other cases are kept.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105313-feature-new-text-range-styles/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/queries/dom.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/manager.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

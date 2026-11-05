@@ -3,6 +3,7 @@ import {
   parseTokens,
   wrapText,
 } from "../src/textWrapping";
+import { projectTextRangesOntoLines } from "../src/textStyles";
 
 import type { FontString } from "../src/types";
 
@@ -698,6 +699,151 @@ describe("Test wrapText", () => {
       expect(tokens).toContain("ヨ");
       expect(tokens).toContain("〰");
       expect(tokens).toContain("＃");
+    });
+  });
+
+  describe("projectTextRangesOntoLines with wrapping", () => {
+    it("projects a styled range spanning soft-wrapped and hard-wrapped lines onto per-line runs", () => {
+      const originalText = "Hello World\nExcalidraw";
+      const ranges = [
+        { start: 3, end: 17, color: "#e03131", highlight: "#fff3bf" },
+      ];
+
+      const projectedNarrow = projectTextRangesOntoLines(originalText, ranges, {
+        font,
+        maxWidth: 60,
+        elementWidth: 60,
+        textAlign: "left",
+        baseDirection: "ltr",
+      });
+
+      expect(projectedNarrow.map((p) => p.line)).toEqual([
+        { text: "Hello", start: 0, end: 5 },
+        { text: "World", start: 6, end: 11 },
+        { text: "Excali", start: 12, end: 18 },
+        { text: "draw", start: 18, end: 22 },
+      ]);
+
+      expect(projectedNarrow[0].runs).toEqual([
+        {
+          text: "Hel",
+          start: 0,
+          end: 3,
+          x: 0,
+          width: 30,
+          direction: "ltr",
+        },
+        {
+          text: "lo",
+          start: 3,
+          end: 5,
+          color: "#e03131",
+          highlight: "#fff3bf",
+          x: 30,
+          width: 20,
+          direction: "ltr",
+        },
+      ]);
+
+      expect(projectedNarrow[1].runs).toEqual([
+        {
+          text: "World",
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlight: "#fff3bf",
+          x: 0,
+          width: 50,
+          direction: "ltr",
+        },
+      ]);
+
+      expect(projectedNarrow[2].runs).toEqual([
+        {
+          text: "Excal",
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlight: "#fff3bf",
+          x: 0,
+          width: 50,
+          direction: "ltr",
+        },
+        {
+          text: "i",
+          start: 5,
+          end: 6,
+          x: 50,
+          width: 10,
+          direction: "ltr",
+        },
+      ]);
+
+      expect(projectedNarrow[3].runs).toEqual([
+        {
+          text: "draw",
+          start: 0,
+          end: 4,
+          x: 0,
+          width: 40,
+          direction: "ltr",
+        },
+      ]);
+
+      const projectedWide = projectTextRangesOntoLines(originalText, ranges, {
+        font,
+        maxWidth: 120,
+        elementWidth: 120,
+        textAlign: "left",
+        baseDirection: "ltr",
+      });
+
+      expect(projectedWide.map((p) => p.line)).toEqual([
+        { text: "Hello World", start: 0, end: 11 },
+        { text: "Excalidraw", start: 12, end: 22 },
+      ]);
+
+      expect(projectedWide[0].runs).toEqual([
+        {
+          text: "Hel",
+          start: 0,
+          end: 3,
+          x: 0,
+          width: 30,
+          direction: "ltr",
+        },
+        {
+          text: "lo World",
+          start: 3,
+          end: 11,
+          color: "#e03131",
+          highlight: "#fff3bf",
+          x: 30,
+          width: 80,
+          direction: "ltr",
+        },
+      ]);
+
+      expect(projectedWide[1].runs).toEqual([
+        {
+          text: "Excal",
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlight: "#fff3bf",
+          x: 0,
+          width: 50,
+          direction: "ltr",
+        },
+        {
+          text: "idraw",
+          start: 5,
+          end: 10,
+          x: 50,
+          width: 50,
+          direction: "ltr",
+        },
+      ]);
     });
   });
 });

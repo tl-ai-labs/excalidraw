@@ -1,0 +1,13 @@
+Changes asked for this step:
+
+Gate 2 revise (from the user): U14/U16: ColorPicker opens on appState.openPopup === type (ColorPicker.tsx:452) and AppState['openPopup'] is a closed union (types.ts:480), so 'isolated local popup state' cannot be built inside the frozen scope, and a highlight picker with type='elementBackground' opens together with the sticky-note background picker shown while editing a label (shapeActionPredicates.ts:71-77). Re-plan so only one picker ever uses a given popup id, using only allowlisted files, and add a jsdom test that opening the highlight picker while editing a sticky-note label does not open the background picker.
+
+Code references to verify in the files:
+- packages/excalidraw/components/ColorPicker/ColorPicker.tsx:452 — Popover open={appState.openPopup === type}; lines 261-265 isColorPickerPopup accepts only elementStroke | elementBackground | canvasBackground; lines 435-441 the trigger sets updateData({ openPopup: type }). ColorPicker.tsx is NOT on the allowlist.
+- packages/excalidraw/components/ColorPicker/colorPickerUtils.ts:104 — ColorPickerType union (canvasBackground | elementBackground | elementStroke). NOT on the allowlist.
+- packages/excalidraw/types.ts:480-489 — AppState["openPopup"] union. On the allowlist (U11), but a new id there alone does not make ColorPicker accept it, since ColorPicker.tsx and colorPickerUtils.ts are not allowlisted.
+- packages/excalidraw/components/shapeActionPredicates.ts:64-79 — canChangeBackgroundColor stays true while editing a sticky-note label, so the elementBackground picker is shown alongside any highlight picker there. shapeActionPredicates.ts is NOT on the allowlist; Actions.tsx (U16) is.
+
+Constraints: the write contract is frozen at its 32 allowlisted files and cannot be widened in this run; every unit must stay inside it. State the new popup-id approach as a decision (replacing the "isolated local popup state" wording), so that no two pickers rendered at the same time ever share a popup id (e.g. Actions.tsx withholding the elementBackground picker while the highlight picker is shown, or the highlight picker owning a distinct id that the allowlisted files can make work — whichever is buildable inside the allowlist; show it is). Update U14 and U16 (and U11 only if needed) accordingly, and add to U25 (packages/excalidraw/wysiwyg/textWysiwyg.test.tsx) a jsdom test: while editing a sticky-note label, opening the highlight picker does not open the background picker (assert openPopup and that only one picker popover is rendered). Keep every other unit and decision unchanged unless the fix requires it.
+
+Edit the pieces you handed in and hand each changed one in again.

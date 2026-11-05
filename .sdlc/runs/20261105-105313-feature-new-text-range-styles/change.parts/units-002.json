@@ -1,0 +1,734 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add English locale label for the text highlight colour picker.",
+      "rules": [
+        "1. Add \"highlight\": \"Highlight\" under \"labels\" after \"fontFamily\": \"Font family\"."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 78,
+          "to": 78,
+          "first_line": "\"fontFamily\": \"Font family\",",
+          "rule": "Add \"highlight\": \"Highlight\" entry in labels."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/locales/en.json",
+        "lines": [
+          70,
+          90
+        ],
+        "reason": "Match existing JSON key naming and formatting in locales/en.json."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/excalidraw/css/styles.scss",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Style the WYSIWYG live preview mirror container inside .excalidraw-textEditorContainer.",
+      "rules": [
+        "1. Inside .excalidraw-textEditorContainer, keep > textarea { pointer-events: auto; } and add > .excalidraw-wysiwyg-preview { pointer-events: none; user-select: none; }."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 146,
+          "to": 148,
+          "first_line": "> textarea {",
+          "last_line": "}",
+          "rule": "Add .excalidraw-wysiwyg-preview styling alongside > textarea inside .excalidraw-textEditorContainer."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/css/styles.scss",
+        "lines": [
+          134,
+          150
+        ],
+        "reason": "Match SCSS nesting and properties in .excalidraw-textEditorContainer."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-10"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add \"changeTextHighlight\" to the ActionName union type.",
+      "rules": [
+        "1. Add | \"changeTextHighlight\" to ActionName right after | \"changeFontSize\"."
+      ],
+      "exports": [
+        {
+          "name": "ActionName",
+          "kind": "type",
+          "params": [],
+          "returns": "string"
+        }
+      ],
+      "import_line": "import type { ActionName } from \"../actions/types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 78,
+          "to": 78,
+          "first_line": "| \"changeFontSize\"",
+          "rule": "Add | \"changeTextHighlight\" to ActionName union."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/types.ts",
+        "lines": [
+          65,
+          105
+        ],
+        "reason": "Match ActionName union member formatting."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add \"textHighlight\" to AppState[\"openPopup\"] and expose app.text on AppClassProperties.",
+      "rules": [
+        "1. Add | \"textHighlight\" to AppState[\"openPopup\"] after | \"elementStroke\" so the text highlight picker owns a distinct popup id in AppState.",
+        "2. Add text: App[\"text\"]; to AppClassProperties after textTool: App[\"textTool\"];."
+      ],
+      "exports": [
+        {
+          "name": "AppState",
+          "kind": "type",
+          "params": [],
+          "returns": "object"
+        },
+        {
+          "name": "AppClassProperties",
+          "kind": "type",
+          "params": [],
+          "returns": "object"
+        }
+      ],
+      "import_line": "import type { AppClassProperties, AppState } from \"../types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 483,
+          "to": 483,
+          "first_line": "| \"elementStroke\"",
+          "rule": "Add | \"textHighlight\" to AppState[\"openPopup\"] union."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 1248,
+          "to": 1248,
+          "first_line": "textTool: App[\"textTool\"];",
+          "rule": "Add text: App[\"text\"]; to AppClassProperties."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/types.ts",
+        "lines": [
+          478,
+          492
+        ],
+        "reason": "Match AppState[\"openPopup\"] union formatting and AppClassProperties property declarations."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-9",
+        "FR-12",
+        "FR-13"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render a synchronized live preview mirror for styled text ranges, expose the active textarea selection across toolbar interactions, and shift range offsets on edits, paste, and indent/outdent.",
+      "rules": [
+        "1. Import shiftTextRanges, shiftTextRangesAtOffset, and splitTextIntoStyledSegments from @excalidraw/element.",
+        "2. Extend onChange to (nextOriginalText: string, nextTextStyles?: ExcalidrawTextElement[\"textStyles\"]) => void and onSubmit to (data: { viaKeyboard: boolean; nextOriginalText: string; nextTextStyles?: ExcalidrawTextElement[\"textStyles\"] }) => void.",
+        "3. Create a mirror preview div (className \"excalidraw-wysiwyg-preview\", dataset.type = \"wysiwyg-preview\", dir = \"auto\") appended to editorBox before editable and removed in cleanup().",
+        "4. In updateWysiwygStyle(), sync preview.style layout/typography/transform properties with editable.style; when updatedTextElement.textStyles?.length is non-empty, set editable.style.webkitTextFillColor = \"transparent\" and editable.style.caretColor = applyDarkModeFilter(updatedTextElement.strokeColor, appState.theme === THEME.DARK) while keeping editable.style.color set to the dark-mode-filtered strokeColor, and populate preview with <span> children for each segment from splitTextIntoStyledSegments(editable.value, updatedTextElement.textStyles) styled with dark-mode-filtered color and backgroundColor (and trailing newline preservation); when updatedTextElement.textStyles is empty or undefined, clear preview children and set editable.style.webkitTextFillColor = \"\".",
+        "5. Track prevOriginalText initialized to normalizeText(element.originalText) and pendingShiftedTextStyles; in indent() and outdent(), shift latest element textStyles at each modified line start index using shiftTextRangesAtOffset and store in pendingShiftedTextStyles; in editable.oninput, compute nextTextStyles from pendingShiftedTextStyles or shiftTextRanges(latestElement?.textStyles, prevOriginalText, editable.value), update prevOriginalText = editable.value, pass (editable.value, nextTextStyles) to onChange, and call updateWysiwygStyle().",
+        "6. Track savedSelectionOnMenuPress when temporarilyDisableSubmit() runs on properties/shape-actions pointerdown; wrap editable.setSelectionRange and input/keydown/pointerdown on editable to clear savedSelectionOnMenuPress when selection changes directly; register app.text.textWysiwygSelectionGetter to return the current [start, end] selection (using savedSelectionOnMenuPress if editable lost focus to the properties UI and selection collapsed) and clear it in cleanup(); in app.scene.onUpdate, sync prevOriginalText and restore savedSelectionOnMenuPress on editable if non-empty."
+      ],
+      "exports": [],
+      "import_line": "import { textWysiwyg } from \"../wysiwyg/textWysiwyg\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43,
+          "first_line": "import { getWrappedTextLines } from \"@excalidraw/element\";",
+          "rule": "Import shiftTextRanges, shiftTextRangesAtOffset, and splitTextIntoStyledSegments from @excalidraw/element."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 268,
+          "to": 269,
+          "first_line": "onChange?: (nextOriginalText: string) => void;",
+          "last_line": "onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;",
+          "rule": "Add optional nextTextStyles parameter to onChange and onSubmit callbacks."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 482,
+          "to": 570,
+          "first_line": "Object.assign(editable.style, {",
+          "last_line": "updateWysiwygStyle();",
+          "rule": "Create preview div and selection/range state, sync preview styles and styled span runs in updateWysiwygStyle(), and register app.text.textWysiwygSelectionGetter."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 853,
+          "to": 868,
+          "first_line": "editable.oninput = () => {",
+          "last_line": "}",
+          "rule": "Compute shifted textStyles in editable.oninput, pass to onChange, and refresh preview."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 928,
+          "to": 988,
+          "first_line": "const indent = () => {",
+          "last_line": "};",
+          "rule": "Shift textStyles per affected line in indent() and outdent() using shiftTextRangesAtOffset."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 1085,
+          "to": 1117,
+          "first_line": "onSubmit({",
+          "last_line": "};",
+          "rule": "Pass nextTextStyles to onSubmit and clean up preview element and textWysiwygSelectionGetter in cleanup()."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 1163,
+          "to": 1169,
+          "first_line": "const temporarilyDisableSubmit = () => {",
+          "last_line": "};",
+          "rule": "Snapshot current non-empty textarea selection into savedSelectionOnMenuPress when interacting with properties triggers or popovers."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 1252,
+          "to": 1260,
+          "first_line": "const unbindUpdate = app.scene.onUpdate(() => {",
+          "last_line": "});",
+          "rule": "Sync prevOriginalText from updated scene element and restore savedSelectionOnMenuPress on editable."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 1330,
+          "to": 1330,
+          "first_line": "editorBox!.appendChild(editable);",
+          "rule": "Append preview before editable inside editorBox."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "lines": [
+          470,
+          571
+        ],
+        "reason": "Match DOM element styling, dark-mode filter application, and listener cleanup in textWysiwyg."
+      },
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U09"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-9",
+        "FR-10",
+        "FR-11"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/components/App.text.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Expose getTextWysiwygSelection on AppText and persist shifted or updated textStyles when textWysiwyg updates or submits the edited text element.",
+      "rules": [
+        "1. Import normalizeTextRanges and shiftTextRanges from @excalidraw/element.",
+        "2. Add public textWysiwygSelectionGetter: (() => { start: number; end: number } | null) | null = null and public getTextWysiwygSelection = (): { start: number; end: number } | null => this.textWysiwygSelectionGetter?.() ?? null on AppText.",
+        "3. In handleTextWysiwyg's updateElement(nextOriginalText, isDeleted, nextTextStyles), resolve nextTextStyles (using normalizeTextRanges when provided, or shiftTextRanges(latestTextElement.textStyles, latestTextElement.originalText, nextOriginalText) when originalText changed, or latestTextElement.textStyles when unchanged) and pass textStyles: resolvedTextStyles into newElementWith(_element, ...).",
+        "4. Forward nextTextStyles from textWysiwyg onChange and onSubmit into updateElement, and clear this.textWysiwygSelectionGetter = null on submit."
+      ],
+      "exports": [
+        {
+          "name": "AppText",
+          "kind": "class",
+          "params": [],
+          "returns": "AppText"
+        }
+      ],
+      "import_line": "import { AppText } from \"./App.text\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "refreshTextDimensions,",
+          "rule": "Import normalizeTextRanges and shiftTextRanges from @excalidraw/element."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "public textWysiwygSubmitHandler: ReturnType<typeof textWysiwyg> | null = null;",
+          "rule": "Add textWysiwygSelectionGetter and getTextWysiwygSelection method on AppText."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 187,
+          "to": 240,
+          "first_line": "const updateElement = (nextOriginalText: string, isDeleted: boolean) => {",
+          "last_line": "]);",
+          "rule": "Accept optional nextTextStyles in updateElement, compute shifted or normalized textStyles, and pass textStyles to newElementWith."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 296,
+          "to": 308,
+          "first_line": "onChange: withBatchedUpdates((nextOriginalText) => {",
+          "last_line": "updateElement(nextOriginalText, isDeleted);",
+          "rule": "Pass nextTextStyles from onChange and onSubmit to updateElement and clear textWysiwygSelectionGetter on submit."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/App.text.ts",
+        "lines": [
+          185,
+          315
+        ],
+        "reason": "Match AppText scene replacement and callback batching patterns."
+      },
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U11",
+        "U12"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "FR-9",
+        "FR-11",
+        "FR-16"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Update actionChangeStrokeColor to style selected text substrings without mutating element.strokeColor or sticky-note ink, and register actionChangeTextHighlight owning the \"textHighlight\" openPopup id.",
+      "rules": [
+        "1. Import DEFAULT_ELEMENT_BACKGROUND_PICKS from @excalidraw/common and applyTextRangeStyle, getUniformTextRangeStyle from @excalidraw/element.",
+        "2. In actionChangeStrokeColor.perform(elements, appState, value, app), check if appState.editingTextElement is active and app?.text?.getTextWysiwygSelection() returns a selection with start < end; when true, update only the edited text element using applyTextRangeStyle(el.textStyles, el.originalText.length, selection, { color }, el.strokeColor), do not call syncStickyNoteInk, do not update el.strokeColor or currentItemStrokeColor, update editingTextElement in returned appState to the mutated element, and return CaptureUpdateAction.IMMEDIATELY; when false (no active text editor or collapsed caret start === end), execute the existing element/sticky-note strokeColor logic unchanged.",
+        "3. In actionChangeStrokeColor.PanelComponent, when appState.editingTextElement is active and selection has start < end, pass getUniformTextRangeStyle(editingEl.textStyles, selection.start, selection.end, \"color\") ?? editingEl.strokeColor as the ColorPicker color prop; also map appState.openPopup === \"textHighlight\" to \"canvasBackground\" on the appState prop passed to ColorPicker in both actionChangeStrokeColor.PanelComponent and actionChangeBackgroundColor.PanelComponent so top-pick popup switching recognizes an open highlight popup while keeping openPopup !== type.",
+        "4. Register and export actionChangeTextHighlight (name: \"changeTextHighlight\", label: \"labels.highlight\") whose perform maps appStateUpdates.openPopup === \"elementBackground\" (sent by ColorPicker's updateData({ openPopup: type })) to \"textHighlight\" in the returned appState, applies applyTextRangeStyle(el.textStyles, el.originalText.length, selection, { highlight: color }) when appState.editingTextElement is active and selection has start < end (with \"transparent\" clearing highlight and CaptureUpdateAction.IMMEDIATELY), and performs a safe no-op on elements when caret is collapsed.",
+        "5. In actionChangeTextHighlight.PanelComponent, render ColorPicker with DEFAULT_ELEMENT_BACKGROUND_PICKS, DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE, type=\"elementBackground\", label={t(\"labels.highlight\")}, and an appState prop that maps appState.openPopup === \"textHighlight\" to \"elementBackground\" and maps appState.openPopup === \"elementBackground\" to \"canvasBackground\" (so ColorPicker opens if and only if the real appState.openPopup is \"textHighlight\", and never opens when actionChangeBackgroundColor sets appState.openPopup to \"elementBackground\")."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeTextHighlight",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { actionChangeTextHighlight } from \"./actionProperties\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,",
+          "rule": "Import DEFAULT_ELEMENT_BACKGROUND_PICKS from @excalidraw/common."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 35,
+          "to": 35,
+          "first_line": "} from \"@excalidraw/element\";",
+          "rule": "Import applyTextRangeStyle and getUniformTextRangeStyle from @excalidraw/element."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 372,
+          "to": 443,
+          "first_line": "perform: (elements, appState, value) => {",
+          "last_line": "});",
+          "rule": "Branch actionChangeStrokeColor on non-empty WYSIWYG selection to apply range color without mutating element.strokeColor or sticky-note ink, and register actionChangeTextHighlight with \"textHighlight\" <-> \"elementBackground\" openPopup mapping."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 552,
+          "to": 554,
+          "first_line": "elements={elements}",
+          "last_line": "updateData={updateData}",
+          "rule": "Map appState.openPopup === \"textHighlight\" to \"canvasBackground\" on the appState prop passed to ColorPicker in actionChangeBackgroundColor.PanelComponent so top-pick popup switching works while keeping openPopup !== \"elementBackground\"."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [
+          366,
+          559
+        ],
+        "reason": "Match register() action structure and ColorPicker PanelComponent patterns."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/ColorPicker/ColorPicker.tsx",
+          "lines": [
+            430,
+            547
+          ],
+          "reason": "Verify ColorPicker open={appState.openPopup === type}, updateData({ openPopup: type }), and areColorPickerPropsEqual memo comparator."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U08",
+        "U10",
+        "U11",
+        "U12",
+        "U13"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-9",
+        "FR-12",
+        "FR-13",
+        "FR-16"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-export actionChangeTextHighlight from packages/excalidraw/actions/index.ts.",
+      "rules": [
+        "1. Add actionChangeTextHighlight to the export list from ./actionProperties."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeTextHighlight",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { actionChangeTextHighlight } from \"../actions\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13,
+          "first_line": "actionChangeBucketFillBackgroundColor,",
+          "rule": "Re-export actionChangeTextHighlight from ./actionProperties."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/index.ts",
+        "lines": [
+          10,
+          25
+        ],
+        "reason": "Match action barrel re-export list."
+      },
+      "depends_on": [
+        "U14"
+      ],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/components/Actions.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render changeTextHighlight in SelectedShapeActions, CompactShapeActions, and MobileShapeActions when editing a text element.",
+      "rules": [
+        "1. In SelectedShapeActions, render {Boolean(appState.editingTextElement) && <div>{renderAction(\"changeTextHighlight\")}</div>} after the backgroundColor action block (coexisting cleanly with changeBackgroundColor on sticky-note labels because changeTextHighlight owns the \"textHighlight\" openPopup id).",
+        "2. In CompactShapeActions and MobileShapeActions, render {Boolean(appState.editingTextElement) && <div className=\"compact-action-item\">{renderAction(\"changeTextHighlight\")}</div>} after the backgroundColor action block."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 165,
+          "to": 165,
+          "first_line": ")}",
+          "rule": "Render changeTextHighlight in SelectedShapeActions when appState.editingTextElement is non-null."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 645,
+          "to": 645,
+          "first_line": ")}",
+          "rule": "Render changeTextHighlight in CompactShapeActions when appState.editingTextElement is non-null."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 803,
+          "to": 803,
+          "first_line": ")}",
+          "rule": "Render changeTextHighlight in MobileShapeActions when appState.editingTextElement is non-null."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/Actions.tsx",
+        "lines": [
+          160,
+          175
+        ],
+        "reason": "Match conditional action rendering in desktop, compact, and mobile shape action panels."
+      },
+      "depends_on": [
+        "U10",
+        "U11",
+        "U14",
+        "U15"
+      ],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Normalize and sanitize textStyles on text elements during restoreElement, omitting the property when empty or invalid.",
+      "rules": [
+        "1. Import normalizeTextRanges from @excalidraw/element.",
+        "2. In restoreElement case \"text\", compute originalText = element.originalText || text and normalizedTextStyles = normalizeTextRanges(element.textStyles, originalText.length, element.strokeColor || DEFAULT_ELEMENT_PROPS.strokeColor); delete (element as any).textStyles before calling restoreElementWithProperties and spread ...(normalizedTextStyles ? { textStyles: normalizedTextStyles } : {}) into restoreElementWithProperties so invalid or empty textStyles are stripped and absent from the restored element, and delete (element as any).textStyles if opts?.deleteInvisibleElements marks an empty text deleted."
+      ],
+      "exports": [],
+      "import_line": "import { restoreElement, restoreElements } from \"../data/restore\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81,
+          "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";",
+          "rule": "Import normalizeTextRanges from @excalidraw/element."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 577,
+          "to": 605,
+          "first_line": "element = restoreElementWithProperties(element, {",
+          "last_line": "return element;",
+          "rule": "Normalize element.textStyles against originalText.length and element strokeColor, delete raw textStyles before spreading, and include textStyles only when non-empty."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/data/restore.ts",
+        "lines": [
+          554,
+          606
+        ],
+        "reason": "Match restoreElement case \"text\" property normalization and cleanup."
+      },
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-7",
+        "NFR-1",
+        "NFR-3"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render per-range SVG <rect> highlights and <tspan> coloured text runs in staticSvgScene.ts when textStyles is non-empty.",
+      "rules": [
+        "1. Import getFontString from @excalidraw/common and projectTextRangesOntoLines from @excalidraw/element.",
+        "2. In elementToSvg case \"text\", when !element.textStyles?.length, keep the existing per-line <text> loop unchanged so unstyled SVG output is byte-identical.",
+        "3. When element.textStyles?.length is non-empty, call projectTextRangesOntoLines(element.originalText, element.textStyles, { font: getFontString(element), wrappedText: element.text, elementWidth: element.width, textAlign: element.textAlign, baseDirection: direction }).",
+        "4. For each visual line i, first append <rect> elements in SVG_NS for each run with run.highlight && run.width > 0 (attributes x, y = i * lineHeightPx, width = run.width, height = lineHeightPx, fill = applyDarkModeFilter(run.highlight, renderConfig.theme === THEME.DARK)) before the line's <text> node; then create the line's <text> node with the same attributes as unstyled text and append <tspan> children for each run in logical order (setting fill = applyDarkModeFilter(run.color, renderConfig.theme === THEME.DARK) when run.color is defined)."
+      ],
+      "exports": [],
+      "import_line": "import { renderSceneToSvg } from \"../renderer/staticSvgScene\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "getFontFamilyString,",
+          "rule": "Import getFontString from @excalidraw/common."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+          "rule": "Import projectTextRangesOntoLines from @excalidraw/element."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 815,
+          "to": 834,
+          "first_line": "for (let i = 0; i < lines.length; i++) {",
+          "last_line": "}",
+          "rule": "When element.textStyles?.length is non-empty, emit highlight <rect> elements and <text> with per-run <tspan> children, otherwise keep the existing loop."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "lines": [
+          790,
+          845
+        ],
+        "reason": "Match SVG_NS element creation, attribute setting, and dark-mode filter handling."
+      },
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-15",
+        "FR-17",
+        "NFR-2",
+        "NFR-4"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/locales/en.json": "07a8de221b3bcc8fa3c7f2241ecc7acec0a95fec27f2599c776a2b83c6c06296",
+    "packages/excalidraw/css/styles.scss": "6b9e599e242f87ec217260b18592925042137b1a5dc18914b163ad2e06b06564",
+    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339",
+    "packages/excalidraw/types.ts": "da1df501290dab5f4a8c0d1b4729090f71dd6f7492b5742e8cc28c18e60f366d",
+    "packages/excalidraw/wysiwyg/textWysiwyg.tsx": "2103a65baf937d5b3ceb71e16791e16ede789d1377e804d706e8873b9b3e46c6",
+    "packages/excalidraw/components/App.text.ts": "5966da8ebbb773047222b5824f9e50389bdb9ba27172752b1061b29eb030dee8",
+    "packages/excalidraw/actions/actionProperties.tsx": "0fe8177b5fd59019728d562ade54dacf6573b118699a95d57fcb69be4deb6230",
+    "packages/excalidraw/components/ColorPicker/ColorPicker.tsx": "86ec65fa9771a9551e87c220aad6698591eaa96945f0064601a4722c74919be8",
+    "packages/excalidraw/actions/index.ts": "460b9cd44005a87c92d73ae1cfb77302bcf08f83b5ca677c55a7dbfbea16b724",
+    "packages/excalidraw/components/Actions.tsx": "7a174738df8cde4700f5729d7a6deca49ea17c9990913859d6de541372556f2c",
+    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f",
+    "packages/excalidraw/renderer/staticSvgScene.ts": "4b2a086d26cd48b70468d0272b397eda9167420011753ec760c052cae6fffafa"
+  }
+}
