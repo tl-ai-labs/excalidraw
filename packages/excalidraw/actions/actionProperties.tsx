@@ -7,6 +7,8 @@ import {
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
   ARROW_TYPE,
+  ARROWHEAD_SIZES,
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
   FONT_FAMILY,
@@ -23,6 +25,7 @@ import {
   reduceToCommonValue,
   invariant,
   FONT_SIZES,
+  type ArrowheadSize,
   type StrokeWidthKey,
 } from "@excalidraw/common";
 
@@ -2000,7 +2003,7 @@ export const actionChangeArrowhead = register<{
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
-  PanelComponent: ({ elements, appState, updateData, app }) => {
+  PanelComponent: ({ elements, appState, updateData, app, renderAction }) => {
     const isRTL = getLanguage().rtl;
     const startArrowheadOptions = useMemo(
       () => getArrowheadOptions(!isRTL),
@@ -2012,47 +2015,138 @@ export const actionChangeArrowhead = register<{
     );
 
     return (
-      <fieldset>
-        <legend>{t("labels.arrowheads")}</legend>
-        <div className="iconSelectList buttonList">
-          <IconPicker
-            visibleSections={startArrowheadOptions.visibleSections}
-            hiddenSections={startArrowheadOptions.hiddenSections}
-            label="arrowhead_start"
-            value={getFormValue<Arrowhead | null>(
-              elements,
-              app,
-              (element) =>
-                isLinearElement(element) && canHaveArrowheads(element.type)
-                  ? getArrowheadForPicker(element.startArrowhead)
-                  : appState.currentItemStartArrowhead,
-              true,
-              (hasSelection) =>
-                hasSelection ? null : appState.currentItemStartArrowhead,
-            )}
-            onChange={(value) => updateData({ position: "start", type: value })}
-          />
-          <IconPicker
-            visibleSections={endArrowheadOptions.visibleSections}
-            hiddenSections={endArrowheadOptions.hiddenSections}
-            label="arrowhead_end"
-            value={getFormValue<Arrowhead | null>(
-              elements,
-              app,
-              (element) =>
-                isLinearElement(element) && canHaveArrowheads(element.type)
-                  ? getArrowheadForPicker(element.endArrowhead)
-                  : appState.currentItemEndArrowhead,
-              true,
-              (hasSelection) =>
-                hasSelection ? null : appState.currentItemEndArrowhead,
-            )}
-            onChange={(value) => updateData({ position: "end", type: value })}
-          />
-        </div>
-      </fieldset>
+      <>
+        <fieldset>
+          <legend>{t("labels.arrowheads")}</legend>
+          <div className="iconSelectList buttonList">
+            <IconPicker
+              visibleSections={startArrowheadOptions.visibleSections}
+              hiddenSections={startArrowheadOptions.hiddenSections}
+              label="arrowhead_start"
+              value={getFormValue<Arrowhead | null>(
+                elements,
+                app,
+                (element) =>
+                  isLinearElement(element) && canHaveArrowheads(element.type)
+                    ? getArrowheadForPicker(element.startArrowhead)
+                    : appState.currentItemStartArrowhead,
+                true,
+                (hasSelection) =>
+                  hasSelection ? null : appState.currentItemStartArrowhead,
+              )}
+              onChange={(value) =>
+                updateData({ position: "start", type: value })
+              }
+            />
+            <IconPicker
+              visibleSections={endArrowheadOptions.visibleSections}
+              hiddenSections={endArrowheadOptions.hiddenSections}
+              label="arrowhead_end"
+              value={getFormValue<Arrowhead | null>(
+                elements,
+                app,
+                (element) =>
+                  isLinearElement(element) && canHaveArrowheads(element.type)
+                    ? getArrowheadForPicker(element.endArrowhead)
+                    : appState.currentItemEndArrowhead,
+                true,
+                (hasSelection) =>
+                  hasSelection ? null : appState.currentItemEndArrowhead,
+              )}
+              onChange={(value) => updateData({ position: "end", type: value })}
+            />
+          </div>
+        </fieldset>
+        {renderAction("changeArrowheadSize")}
+      </>
     );
   },
+});
+
+export const actionChangeArrowheadSize = register<ArrowheadSize>({
+  name: "changeArrowheadSize",
+  label: "labels.arrowheadSize",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    invariant(value, "actionChangeArrowheadSize: value must be defined");
+
+    return {
+      elements: changeProperty(elements, appState, (el) => {
+        if (isLinearElement(el) && canHaveArrowheads(el.type)) {
+          const element = newElementWith(el, {
+            arrowheadSize: value === DEFAULT_ARROWHEAD_SIZE ? undefined : value,
+          });
+          return isElbowArrow(element)
+            ? newElementWith(
+                element,
+                updateElbowArrowRoute(
+                  element,
+                  app.scene.getNonDeletedElementsMap(),
+                ),
+              )
+            : element;
+        }
+
+        return el;
+      }),
+      appState: {
+        ...appState,
+        currentItemArrowheadSize: value,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => (
+    <fieldset>
+      <legend>{t("labels.arrowheadSize")}</legend>
+      <div className="buttonList">
+        <RadioSelection<ArrowheadSize>
+          group="arrowhead-size"
+          options={[
+            {
+              value: ARROWHEAD_SIZES.sm,
+              text: t("labels.small"),
+              icon: FontSizeSmallIcon,
+              testId: "arrowheadSize-small",
+            },
+            {
+              value: ARROWHEAD_SIZES.md,
+              text: t("labels.medium"),
+              icon: FontSizeMediumIcon,
+              testId: "arrowheadSize-medium",
+            },
+            {
+              value: ARROWHEAD_SIZES.lg,
+              text: t("labels.large"),
+              icon: FontSizeLargeIcon,
+              testId: "arrowheadSize-large",
+            },
+            {
+              value: ARROWHEAD_SIZES.xl,
+              text: t("labels.veryLarge"),
+              icon: FontSizeExtraLargeIcon,
+              testId: "arrowheadSize-veryLarge",
+            },
+          ]}
+          value={getFormValue(
+            elements,
+            app,
+            (element) =>
+              isLinearElement(element) && canHaveArrowheads(element.type)
+                ? element.arrowheadSize ?? DEFAULT_ARROWHEAD_SIZE
+                : null,
+            (element) =>
+              isLinearElement(element) && canHaveArrowheads(element.type),
+            (hasSelection) =>
+              hasSelection
+                ? null
+                : appState.currentItemArrowheadSize || DEFAULT_ARROWHEAD_SIZE,
+          )}
+          onChange={(value) => updateData(value)}
+        />
+      </div>
+    </fieldset>
+  ),
 });
 
 export const actionChangeArrowProperties = register({

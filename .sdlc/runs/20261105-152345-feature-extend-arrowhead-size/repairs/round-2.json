@@ -1,0 +1,102 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. packages/excalidraw/tests/arrowheadSize.test.tsx fails 3 tests with `TestingLibraryElementError: Unable to find an element by: [data-testid=\"arrowheadSize-small\"]` (arrowheadSize.test.tsx:92, :115, :155). Cause: the desktop properties panel (packages/excalidraw/components/Actions.tsx:189, not editable in this run) renders `renderAction(\"changeArrowhead\")` directly; only the compact popover renders `changeArrowProperties`, so the new size control never appears where the arrowhead pickers show on desktop (AC-4: the control must show wherever the arrowhead pickers show). Fix in this file only: (1) change actionChangeArrowhead's PanelComponent signature to `({ elements, appState, updateData, app, renderAction })` and render `{renderAction(\"changeArrowheadSize\")}` right after its closing `</fieldset>` (wrap both in a React fragment `<>...</>` so the component returns one root); (2) remove the `{renderAction(\"changeArrowheadSize\")}` line from actionChangeArrowProperties' PanelComponent (it now comes with changeArrowhead, so the compact popover would otherwise show it twice). Keep everything else unchanged, including the RadioSelection testIds arrowheadSize-small/-medium/-large/-veryLarge.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Two failures in the test itself (the source behaves correctly): (1) `propagates currentItemArrowheadSize ...` -> `AssertionError: expected 1 to be 0.5` at arrowheadSize.test.tsx:185: `h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", ARROWHEAD_SIZES.sm)` is called outside React's act(), so h.state has not updated when it is read. Wrap the call: `act(() => { h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", ARROWHEAD_SIZES.sm); });` and import `act` from \"./test-utils\" (it is re-exported there, as other tests such as lasso.test.tsx use it); do the same for any other direct executeAction call in this file. (2) `restores an arrow with arrowheadSize 0.5 and exports a smaller SVG head path ...` -> `expected 11.75 to be close to 11.745000000000005, received difference is 0.0049999999999954525, but expected 0.0005` at arrowheadSize.test.tsx:341: SVG path coordinates are rounded to 2 decimals, so `toBeCloseTo(..., 3)` is too strict. Use precision 1 for the spanX and spanY toBeCloseTo checks (the toBeLessThan checks stay). The other three failing tests (`Unable to find ... arrowheadSize-small`) are fixed in actionProperties.tsx by the same round; do not change those tests' expectations. Keep the five tests and their intent.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

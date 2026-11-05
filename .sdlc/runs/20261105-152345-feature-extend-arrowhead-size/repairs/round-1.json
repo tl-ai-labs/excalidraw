@@ -1,0 +1,110 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Packet tp_codegen_U21 failed 3 times: 'the edits could not be applied: edit 1: its search text appears 0 times in the current text (it must appear exactly once)'. The site is unchanged on disk: lines 8651-8653 read exactly `              startArrowhead,` / `              endArrowhead,` / `              locked: false,` (14 spaces of indentation, inside the `newArrowElement({` call that starts at line 8634 in createGenericElement). `endArrowhead,` occurs exactly once in the file. Answer with ONE edit whose search is the two exact lines `              endArrowhead,\n              locked: false,` and whose replace is `              endArrowhead,\n              arrowheadSize: this.state.currentItemArrowheadSize,\n              locked: false,`. Copy the indentation exactly; change nothing else (the newLinearElement call at line 8661 stays as it is).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6025
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6026,
+          11494
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/tests/bounds.test.ts",
+    "instruction": "Fix `packages/element/tests/bounds.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Packet tp_tests_U24 failed verify 3 times; the file is back to its pre-run state (18 tests pass). Failures to avoid when adding the describe(\"arrowheadSize\") block: (1) vitest: `arrowheadSize > scales getArrowheadSize and getArrowheadPoints ...` -> `AssertionError: expected 30 to be 40` (bounds.test.ts:418) and `expected 7.5 to be 6` (bounds.test.ts:411). The test assumed wrong base sizes. The actual base sizes in packages/element/src/bounds.ts getArrowheadSize (lines 729-750) are: arrow 25, diamond/diamond_outline 12, cardinality_many/cardinality_one_or_many/cardinality_zero_or_many CROWFOOT_ARROWHEAD_SIZE = 15, cardinality_one/cardinality_exactly_one/cardinality_zero_or_one CARDINALITY_MARKER_SIZE = 20, every other (circle, circle_outline, triangle, bar, ...) 15; each multiplied by the size factor (sm 0.5, md 0.75, lg 1, xl 1.25). Derive expected values as base * factor, or better compare against getArrowheadSize(arrowhead) * factor instead of hard-coded numbers. (2) eslint --max-warnings=0: `526:34 warning 'x2' is assigned a value but never used @typescript-eslint/no-unused-vars` -- do not destructure bounds values you do not assert on (use `const [x1, y1, , y2] = ...` or assert on all four). Keep the existing 18 tests unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/bounds.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/bounds.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/bounds.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/bounds.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

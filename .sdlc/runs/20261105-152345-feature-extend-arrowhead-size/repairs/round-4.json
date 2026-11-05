@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. `yarn test:typecheck` (tsc) fails with exactly three errors, all in this file; fix the types only, behaviour stays: (1) `packages/excalidraw/tests/arrowheadSize.test.tsx(213,35): error TS2345: Argument of type 'NonDeleted<ExcalidrawGenericElement>' is not assignable to parameter of type 'NonDeleted<ExcalidrawFlowchartNodeElement>'.` API.createElement({ type: \"rectangle\" }) is typed as the generic element; cast at the call: `addNewNodes(rect as NonDeleted<ExcalidrawFlowchartNodeElement>, h.state, \"right\", h.app.scene, 1)`, adding `ExcalidrawFlowchartNodeElement` and `NonDeleted` to the existing `import type { ... } from \"@excalidraw/element/types\"` line. (2) and (3) `arrowheadSize.test.tsx(332,9)` and `(341,9): error TS2769: No overload matches this call. ... Type 'OrderedExcalidrawElement[]' is not assignable to type 'readonly NonDeletedExcalidrawElement[]' ... Property 'elbowed' is missing ...` exportScene's data.elements wants NonDeletedExcalidrawElement[], but restoreElements returns OrderedExcalidrawElement[]. Pass `elements: restoredSmall as readonly NonDeletedExcalidrawElement[]` and `elements: restoredDefault as readonly NonDeletedExcalidrawElement[]` (import type NonDeletedExcalidrawElement from \"@excalidraw/element/types\" on the same type import line). Make no other change; the five tests pass at runtime already.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

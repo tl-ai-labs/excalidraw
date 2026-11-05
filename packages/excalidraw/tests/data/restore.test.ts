@@ -2,7 +2,9 @@ import { pointFrom } from "@excalidraw/math";
 import { vi } from "vitest";
 
 import {
+  ARROWHEAD_SIZES,
   COLOR_PALETTE,
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_FONT_SIZE,
   DEFAULT_SIDEBAR,
   FONT_FAMILY,
@@ -578,6 +580,47 @@ describe("restoreElements", () => {
 
     expect(restoredArrow.startArrowhead).toBe("cardinality_one");
     expect(restoredArrow.endArrowhead).toBe("cardinality_one_or_many");
+  });
+
+  it("should omit default or invalid arrowheadSize and preserve valid non-default arrowheadSize on restore", () => {
+    const baseArrow = API.createElement({ type: "arrow" });
+    const [omitted, defaultSize, invalidSize, smallSize] =
+      restore.restoreElements(
+        [
+          baseArrow,
+          {
+            ...baseArrow,
+            id: "arrow-default",
+            arrowheadSize: DEFAULT_ARROWHEAD_SIZE,
+          },
+          { ...baseArrow, id: "arrow-invalid", arrowheadSize: 999 as any },
+          {
+            ...baseArrow,
+            id: "arrow-small",
+            arrowheadSize: ARROWHEAD_SIZES.sm,
+          },
+        ],
+        null,
+      ) as ExcalidrawLinearElement[];
+
+    expect("arrowheadSize" in omitted).toBe(false);
+    expect("arrowheadSize" in defaultSize).toBe(false);
+    expect("arrowheadSize" in invalidSize).toBe(false);
+    expect(smallSize.arrowheadSize).toBe(ARROWHEAD_SIZES.sm);
+
+    expect(restore.restoreAppState({}, null).currentItemArrowheadSize).toBe(
+      DEFAULT_ARROWHEAD_SIZE,
+    );
+    expect(
+      restore.restoreAppState({ currentItemArrowheadSize: 999 as any }, null)
+        .currentItemArrowheadSize,
+    ).toBe(DEFAULT_ARROWHEAD_SIZE);
+    expect(
+      restore.restoreAppState(
+        { currentItemArrowheadSize: ARROWHEAD_SIZES.xl },
+        null,
+      ).currentItemArrowheadSize,
+    ).toBe(ARROWHEAD_SIZES.xl);
   });
 
   it("should strip the leaked `moveMidPointsWithElement` prop from linear elements", () => {

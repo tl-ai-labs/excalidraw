@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ARROWHEAD_SIZE,
   getSizeFromPoints,
   randomInteger,
   getUpdatedTimestamp,
@@ -79,6 +80,16 @@ export const mutateElement = <TElement extends Mutable<ExcalidrawElement>>(
 
   for (const key in updates) {
     const value = (updates as any)[key];
+    if (
+      key === "arrowheadSize" &&
+      (value === undefined || value === DEFAULT_ARROWHEAD_SIZE)
+    ) {
+      if ("arrowheadSize" in element) {
+        delete (element as any).arrowheadSize;
+        didChange = true;
+      }
+      continue;
+    }
     if (typeof value !== "undefined") {
       if (
         (element as any)[key] === value &&
@@ -134,7 +145,8 @@ export const mutateElement = <TElement extends Mutable<ExcalidrawElement>>(
     typeof updates.height !== "undefined" ||
     typeof updates.width !== "undefined" ||
     typeof fileId != "undefined" ||
-    typeof points !== "undefined"
+    typeof points !== "undefined" ||
+    "arrowheadSize" in updates
   ) {
     ShapeCache.delete(element);
   }
@@ -155,6 +167,14 @@ export const newElementWith = <TElement extends ExcalidrawElement>(
   let didChange = false;
   for (const key in updates) {
     const value = (updates as any)[key];
+    if (key === "arrowheadSize") {
+      const nextArrowheadSize =
+        value === DEFAULT_ARROWHEAD_SIZE ? undefined : value;
+      if ((element as any).arrowheadSize !== nextArrowheadSize) {
+        didChange = true;
+      }
+      continue;
+    }
     if (typeof value !== "undefined") {
       if (
         (element as any)[key] === value &&
@@ -171,13 +191,23 @@ export const newElementWith = <TElement extends ExcalidrawElement>(
     return element;
   }
 
-  return {
+  const nextElement: any = {
     ...element,
     ...updates,
     version: updates.version ?? element.version + 1,
     versionNonce: updates.versionNonce ?? randomInteger(),
     updated: getUpdatedTimestamp(),
   };
+
+  if (
+    "arrowheadSize" in nextElement &&
+    (nextElement.arrowheadSize === undefined ||
+      nextElement.arrowheadSize === DEFAULT_ARROWHEAD_SIZE)
+  ) {
+    delete nextElement.arrowheadSize;
+  }
+
+  return nextElement;
 };
 
 /**

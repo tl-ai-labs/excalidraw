@@ -98,6 +98,7 @@ type ElbowArrowState = {
   endBinding: FixedPointBinding | null;
   startArrowhead: Arrowhead | null;
   endArrowhead: Arrowhead | null;
+  arrowheadSize?: ExcalidrawElbowArrowElement["arrowheadSize"];
 };
 
 type ElbowArrowData = {
@@ -1022,6 +1023,7 @@ export const updateElbowArrowPoints = (
       endBinding,
       startArrowhead: arrow.startArrowhead,
       endArrowhead: arrow.endArrowhead,
+      arrowheadSize: arrow.arrowheadSize,
       points: arrow.points,
     },
     elementsMap,
@@ -1180,6 +1182,7 @@ const getElbowArrowData = (
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    arrowheadSize?: ExcalidrawElbowArrowElement["arrowheadSize"];
     points: readonly LocalPoint[];
   },
   elementsMap: NonDeletedSceneElementsMap,
@@ -1490,12 +1493,16 @@ const getSimpleRoute = (
     firstLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.startArrowhead ? getArrowheadSize(arrow.startArrowhead) : 0,
+        arrow.startArrowhead
+          ? getArrowheadSize(arrow.startArrowhead, arrow.arrowheadSize)
+          : 0,
       ) ||
     lastLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.endArrowhead ? getArrowheadSize(arrow.endArrowhead) : 0,
+        arrow.endArrowhead
+          ? getArrowheadSize(arrow.endArrowhead, arrow.arrowheadSize)
+          : 0,
       )
   ) {
     return null;
