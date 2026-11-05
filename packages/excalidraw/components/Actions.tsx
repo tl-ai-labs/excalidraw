@@ -187,6 +187,7 @@ export const SelectedShapeActions = ({
 
       {predicates.verticalAlign && renderAction("changeVerticalAlign")}
       {predicates.arrowheads && <>{renderAction("changeArrowhead")}</>}
+      {predicates.arrowheadSize && <>{renderAction("changeArrowheadSize")}</>}
 
       {predicates.opacity && renderAction("changeOpacity")}
 
@@ -321,7 +322,7 @@ const CombinedArrowProperties = ({
   container: HTMLDivElement | null;
   app: AppClassProperties;
 }) => {
-  if (!predicates.arrowType) {
+  if (!predicates.arrowType && !predicates.arrowheadSize) {
     return null;
   }
 

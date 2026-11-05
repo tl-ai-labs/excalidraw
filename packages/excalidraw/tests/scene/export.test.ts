@@ -330,6 +330,95 @@ describe("exportToSvg", () => {
       label.height + BOUND_TEXT_PADDING * 2,
     );
   });
+
+  it("exports arrow and line arrowheads scaled by arrowheadSize", async () => {
+    for (const type of ["arrow", "line"] as const) {
+      const exported: Record<number, string> = {};
+
+      for (const arrowheadSize of [0.5, 1.5]) {
+        const element = API.createElement({
+          type,
+          width: 200,
+          height: 0,
+          points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+          endArrowhead: "arrow",
+          arrowheadSize,
+        });
+        expect(element.arrowheadSize).toBe(arrowheadSize);
+
+        const svgElement = await exportScene({
+          type: "svg",
+          data: {
+            elements: [element] as NonDeletedExcalidrawElement[],
+            appState: DEFAULT_APP_STATE,
+            files: null,
+          },
+          config: { canvasBackgroundColor: false },
+        });
+
+        // shaft plus at least one arrowhead path
+        expect(
+          svgElement.querySelectorAll(`[data-id="${element.id}"] path`).length,
+        ).toBeGreaterThan(1);
+        exported[arrowheadSize] = svgElement.querySelector(
+          `[data-id="${element.id}"]`,
+        )!.innerHTML;
+
+        const canvas = await exportScene({
+          type: "canvas",
+          data: {
+            elements: [element],
+            appState: DEFAULT_APP_STATE,
+            files: null,
+          },
+        });
+        const events = (canvas.getContext("2d") as any).__getEvents();
+        expect(
+          events.filter((event: any) => event.type === "stroke").length,
+        ).toBeGreaterThan(1);
+      }
+
+      expect(exported[0.5]).not.toEqual(exported[1.5]);
+    }
+  });
+
+  it("preserves arrowheadSize and scales label end clearance in convertToExcalidrawElements", async () => {
+    const { convertToExcalidrawElements } = await import("@excalidraw/element");
+
+    const [line] = convertToExcalidrawElements([
+      {
+        type: "line",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 0,
+        endArrowhead: "arrow",
+        arrowheadSize: 1.5,
+      },
+    ]);
+    expect((line as any).arrowheadSize).toBe(1.5);
+
+    const getTipGap = (arrowheadSize: number) => {
+      const elements = convertToExcalidrawElements([
+        {
+          type: "arrow",
+          x: 0,
+          y: 0,
+          width: 60,
+          height: 0,
+          endArrowhead: "arrow",
+          arrowheadSize,
+          label: { text: "a long arrow label" },
+        },
+      ]);
+      const arrow = elements.find((el) => el.type === "arrow") as any;
+      const text = elements.find((el) => el.type === "text")!;
+      expect(arrow.arrowheadSize).toBe(arrowheadSize);
+      return arrow.x + arrow.width - (text.x + text.width);
+    };
+
+    expect(getTipGap(1.5)).toBeGreaterThanOrEqual(getTipGap(0.5));
+  });
 });
 
 describe("exportToCanvas", () => {

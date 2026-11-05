@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 254): U21 tests for the arrowhead size properties panel control, mixed multi-selection state, undo/redo history, and arrow-to-arrow style copy/paste are missing from `packages/excalidraw/actions/actionProperties.test.tsx` (leaving AC-4, AC-5, and AC-8 untested) because calling `UI.createElement(\"arrow\")` with the default `size = 10` falls below `MINIMUM_ARROW_SIZE` and leaves `appState.multiElement` active, which blocks undo. — fix: Add the U21 test suite in `packages/excalidraw/actions/actionProperties.test.tsx` before line 254, using `UI.createElement(\"arrow\", { size: 100 })` so the arrow is finalized and recorded in history before calling `Keyboard.undo()` and `Keyboard.redo()`, and use `API.executeAction(actionCopyStyles)` / `API.executeAction(actionPasteStyles)` on arrows in `API.setElements` to verify copying and clearing `arrowheadSize`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

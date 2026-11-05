@@ -1031,6 +1031,31 @@ describe("restoreElements", () => {
     );
     expect(restoredElements[0].version).toBe(modified_rectangle_2.version + 1);
   });
+
+  it("should preserve valid positive arrowheadSize and strip invalid values on linear elements", () => {
+    for (const type of ["arrow", "line"] as const) {
+      for (const size of [0.5, 1, 1.5, 2.25]) {
+        const element = API.createElement({ type, arrowheadSize: size });
+        const [restored] = restore.restoreElements([element], null);
+
+        expect(restored).toHaveProperty("arrowheadSize", size);
+      }
+
+      const omitted = API.createElement({ type });
+      const [restoredOmitted] = restore.restoreElements([omitted], null);
+      expect("arrowheadSize" in restoredOmitted).toBe(false);
+
+      for (const invalid of [undefined, 0, -1, NaN, Infinity, "large", null]) {
+        const element = {
+          ...API.createElement({ type }),
+          arrowheadSize: invalid,
+        } as any;
+        const [restored] = restore.restoreElements([element], null);
+
+        expect("arrowheadSize" in restored).toBe(false);
+      }
+    }
+  });
 });
 
 describe("restoreAppState", () => {

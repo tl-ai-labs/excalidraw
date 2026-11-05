@@ -1788,7 +1788,20 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         delta.deleted.index !== delta.inserted.index;
     }
 
-    return newElementWith(element, directlyApplicablePartial, true);
+    const nextElement = newElementWith(
+      element,
+      directlyApplicablePartial,
+      true,
+    );
+
+    if (
+      "arrowheadSize" in directlyApplicablePartial &&
+      directlyApplicablePartial.arrowheadSize === undefined
+    ) {
+      delete (nextElement as Mutable<ExcalidrawLinearElement>).arrowheadSize;
+    }
+
+    return nextElement;
   }
 
   /**

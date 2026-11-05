@@ -1,0 +1,5 @@
+Changes asked for this step:
+
+Gate 3 revise: the diff has changed since your review, so review it again and rewrite security_review.md for the current diff. What changed: packages/excalidraw/actions/actionProperties.test.tsx now has the U21 tests (+3 tests: the arrowhead size control showing and hiding, preset clicks and mixed selection, undo/redo through the registered history actions, arrow-to-arrow paste styles including clearing the size). It is the only file that changed since your review; read it with `git diff <git_head_before> -- packages/excalidraw/actions/actionProperties.test.tsx`. Results (already run, do not re-run): `yarn test:typecheck && yarn test:code && yarn test:app --watch=false` exits 0: 149 files, 2646 passed / 47 skipped / 1 todo; no __snapshots__ file changed.
+
+Edit the pieces you handed in and hand each changed one in again.

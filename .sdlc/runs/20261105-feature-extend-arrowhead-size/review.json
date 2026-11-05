@@ -1,0 +1,15 @@
+{
+  "module": "excalidraw",
+  "verdict": "needs_changes",
+  "tool_calls": 23,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/actions/actionProperties.test.tsx",
+      "line": 254,
+      "issue": "U21 tests for the arrowhead size properties panel control, mixed multi-selection state, undo/redo history, and arrow-to-arrow style copy/paste are missing from `packages/excalidraw/actions/actionProperties.test.tsx` (leaving AC-4, AC-5, and AC-8 untested) because calling `UI.createElement(\"arrow\")` with the default `size = 10` falls below `MINIMUM_ARROW_SIZE` and leaves `appState.multiElement` active, which blocks undo.",
+      "fix": "Add the U21 test suite in `packages/excalidraw/actions/actionProperties.test.tsx` before line 254, using `UI.createElement(\"arrow\", { size: 100 })` so the arrow is finalized and recorded in history before calling `Keyboard.undo()` and `Keyboard.redo()`, and use `API.executeAction(actionCopyStyles)` / `API.executeAction(actionPasteStyles)` on arrows in `API.setElements` to verify copying and clearing `arrowheadSize`."
+    }
+  ],
+  "refinement_packets": []
+}

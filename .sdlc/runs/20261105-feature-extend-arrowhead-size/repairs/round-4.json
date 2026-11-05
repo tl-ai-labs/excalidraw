@@ -1,0 +1,138 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/delta.ts",
+    "instruction": "Fix `packages/element/src/delta.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false: 31 tests fail, all in packages/excalidraw/tests/history.test.tsx, every one a snapshot mismatch, e.g. `history > singleplayer undo/redo > should end up with no history entry after initializing scene > [end of test] element 1 1` mismatched: `-   \"customData\": undefined,` (the snapshot expects the own key `customData: undefined`; it is now gone). Snapshots are off-limits and must not change (NFR-2). Cause: the loop added at the end of ElementsDelta.applyDelta (after `const nextElement = newElementWith(element, directlyApplicablePartial, true);`) deletes EVERY key whose applied value is undefined, so it also strips keys like customData that elements legitimately carry as own `undefined` properties. Fix: delete only `arrowheadSize`, and only when the applied partial has the `arrowheadSize` key with value undefined (e.g. `if (\"arrowheadSize\" in directlyApplicablePartial && directlyApplicablePartial.arrowheadSize === undefined) { delete (nextElement as Mutable<ExcalidrawLinearElement>).arrowheadSize; }`); every other key is applied exactly as before the run. Also revert the round-1 change in applyLatestChanges' applyLatestChangesInternal back to `if (Delta.isInnerDifferent(latestDelta.deleted, latestDelta.inserted))` (the original line): the deleted and inserted partials there always share their key set, so the change is not needed. Undo of arrowheadSize must still clear the key: an arrow created without arrowheadSize, set to 1.5 by actionChangeArrowheadSize, then undone, has `\"arrowheadSize\" in element === false`; redo restores 1.5.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/mutateElement.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionStyles.ts",
+    "instruction": "Fix `packages/excalidraw/actions/actionStyles.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/actions/actionStyles.ts(203,26): error TS2704: The operand of a 'delete' operator cannot be a read-only property. (the line `delete newElement.arrowheadSize;` inside the arrow-to-arrow paste block). Keep the behaviour (when the source arrow has no arrowheadSize the pasted target ends with no arrowheadSize own key) but make it type-check, e.g. `delete (newElement as Mutable<typeof newElement>).arrowheadSize;` with `Mutable` imported as a type from @excalidraw/common (check how other files in packages/excalidraw import Mutable), or build the target without the key via object rest. No other change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionStyles.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionStyles.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/data/restore.ts(540,23): error TS2345: Argument of type 'T & Record<\"arrowheadSize\", unknown>' is not assignable to parameter of type 'ExcalidrawElement | null | undefined'. ... is missing the following properties from type ExcalidrawArrowElement: points, startBinding, endBinding, startArrowhead, endArrowhead. The site is `if (\"arrowheadSize\" in ret && (!isLinearElement(ret) || ...)) { delete (ret as any).arrowheadSize; }`: the `in` check narrows `ret` before it is passed to isLinearElement. Keep the behaviour (drop arrowheadSize unless the element is linear and the value is a finite number > 0) but make it type-check, e.g. test `isLinearElement(ret as ExcalidrawElement)` or read the value into a local first (`const arrowheadSize = (ret as { arrowheadSize?: unknown }).arrowheadSize;`) and test `arrowheadSize !== undefined` instead of the `in` narrowing. No other change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

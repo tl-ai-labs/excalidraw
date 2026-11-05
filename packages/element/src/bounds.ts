@@ -724,23 +724,26 @@ export const CARDINALITY_ZERO_CIRCLE_OFFSET = 1.5;
 export const CARDINALITY_ZERO_CIRCLE_SCALE = 0.8;
 
 /** @returns number in pixels */
-export const getArrowheadSize = (arrowhead: Arrowhead): number => {
+export const getArrowheadSize = (
+  arrowhead: Arrowhead,
+  arrowheadSize = 1,
+): number => {
   switch (arrowhead) {
     case "arrow":
-      return 25;
+      return 25 * arrowheadSize;
     case "diamond":
     case "diamond_outline":
-      return 12;
+      return 12 * arrowheadSize;
     case "cardinality_many":
     case "cardinality_one_or_many":
     case "cardinality_zero_or_many":
-      return CROWFOOT_ARROWHEAD_SIZE;
+      return CROWFOOT_ARROWHEAD_SIZE * arrowheadSize;
     case "cardinality_one":
     case "cardinality_exactly_one":
     case "cardinality_zero_or_one":
-      return CARDINALITY_MARKER_SIZE;
+      return CARDINALITY_MARKER_SIZE * arrowheadSize;
     default:
-      return 15;
+      return 15 * arrowheadSize;
   }
 };
 
@@ -754,18 +757,23 @@ const ARROW_ARROWHEAD_WIDEST_SIZE = 10;
 export const getArrowheadAngle = (
   arrowhead: Arrowhead,
   /** size the arrowhead is drawn at, if scaled down */
-  size = getArrowheadSize(arrowhead),
+  size?: number,
+  arrowheadSize = 1,
 ): Degrees => {
   switch (arrowhead) {
     case "bar":
       return 90 as Degrees;
     case "arrow": {
-      const fullSize = getArrowheadSize(arrowhead);
-      const shrinkage = clamp(
-        (fullSize - size) / (fullSize - ARROW_ARROWHEAD_WIDEST_SIZE),
-        0,
-        1,
-      );
+      const fullSize = getArrowheadSize(arrowhead, arrowheadSize);
+      const drawnSize = size ?? fullSize;
+      const shrinkage =
+        fullSize <= ARROW_ARROWHEAD_WIDEST_SIZE
+          ? 0
+          : clamp(
+              (fullSize - drawnSize) / (fullSize - ARROW_ARROWHEAD_WIDEST_SIZE),
+              0,
+              1,
+            );
       return (ARROW_ARROWHEAD_ANGLE +
         (ARROW_ARROWHEAD_WIDEST_ANGLE - ARROW_ARROWHEAD_ANGLE) *
           shrinkage) as Degrees;
@@ -862,13 +870,16 @@ const getCardinalityMarkerScale = (
   marker: CardinalityArrowhead,
   { length, turn }: ArrowheadCorner,
   strokeWidth: number,
+  arrowheadSize = 1,
 ) => {
   // scales at which each part reaches back from the tip at most to the corner
   const bar = (offset: number) => {
-    const angle = degreesToRadians(getArrowheadAngle("cardinality_one"));
+    const angle = degreesToRadians(
+      getArrowheadAngle("cardinality_one", undefined, arrowheadSize),
+    );
     return (
       length /
-      (getArrowheadSize("cardinality_one") *
+      (getArrowheadSize("cardinality_one", arrowheadSize) *
         (offset +
           Math.cos(angle) +
           // the bar's ends stay closer to the arrow than to the previous
@@ -876,13 +887,14 @@ const getCardinalityMarkerScale = (
           Math.sin(angle) * Math.tan(turn / 2)))
     );
   };
-  const crowsFoot = () => length / getArrowheadSize("cardinality_many");
+  const crowsFoot = () =>
+    length / getArrowheadSize("cardinality_many", arrowheadSize);
   // see generateArrowheadOutlineCircle() for the diameter
   const circle = () =>
     (length -
       ((strokeWidth - 2) * CARDINALITY_ZERO_CIRCLE_SCALE) / 2 -
       strokeWidth) /
-    (getArrowheadSize("circle_outline") *
+    (getArrowheadSize("circle_outline", arrowheadSize) *
       (CARDINALITY_ZERO_CIRCLE_OFFSET + CARDINALITY_ZERO_CIRCLE_SCALE / 2));
 
   switch (marker) {
@@ -933,8 +945,13 @@ const getArrowheadSizeBeyondLastSegment = (
   if (marker && isCardinalityArrowhead(marker)) {
     return isCurved
       ? 0
-      : getArrowheadSize(arrowhead) *
-          getCardinalityMarkerScale(marker, corner, element.strokeWidth);
+      : getArrowheadSize(arrowhead, element.arrowheadSize) *
+          getCardinalityMarkerScale(
+            marker,
+            corner,
+            element.strokeWidth,
+            element.arrowheadSize,
+          );
   }
 
   // circles have no direction, the previous segment can run into them
@@ -961,12 +978,17 @@ const getArrowheadSizeBeyondLastSegment = (
       // the triangle's base may sit on the previous segment
       return Math.min(
         maxSize,
-        getSidesClearSize(corner, getArrowheadAngle(arrowhead), 0),
+        getSidesClearSize(
+          corner,
+          getArrowheadAngle(arrowhead, undefined, element.arrowheadSize),
+          0,
+        ),
       );
     case "arrow": {
       // only grow as much as legibility needs, a full-size arrowhead past
       // a sharp turn looks like an outline triangle
-      const legibleSize = getArrowheadSize(arrowhead) / 2;
+      const legibleSize =
+        getArrowheadSize(arrowhead, element.arrowheadSize) / 2;
       // keep the open sides' strokes off the previous segment's. Smaller
       // arrowheads are wider, so check the angles at both ends of the range.
       return Math.min(
@@ -974,12 +996,12 @@ const getArrowheadSizeBeyondLastSegment = (
         maxSize,
         getSidesClearSize(
           corner,
-          getArrowheadAngle(arrowhead, legibleSize),
+          getArrowheadAngle(arrowhead, legibleSize, element.arrowheadSize),
           element.strokeWidth,
         ),
         getSidesClearSize(
           corner,
-          getArrowheadAngle(arrowhead, 0),
+          getArrowheadAngle(arrowhead, 0, element.arrowheadSize),
           element.strokeWidth,
         ),
       );
@@ -1055,7 +1077,7 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const size = getArrowheadSize(arrowhead, element.arrowheadSize);
 
   let length = 0;
 
@@ -1099,7 +1121,7 @@ export const getArrowheadPoints = (
     return [tx, ty, diameter];
   }
 
-  const angle = getArrowheadAngle(arrowhead, minSize);
+  const angle = getArrowheadAngle(arrowhead, minSize, element.arrowheadSize);
 
   if (
     arrowhead === "cardinality_many" ||

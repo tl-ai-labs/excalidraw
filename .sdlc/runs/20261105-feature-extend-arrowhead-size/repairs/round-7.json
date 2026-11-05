@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (the file's own vitest run passes; only tsc fails), 4 errors, the same at each site: packages/excalidraw/actions/actionProperties.test.tsx(384,32), (386,32), (393,32), (395,32): error TS2322: Type 'Readonly<{ id: string; x: number; ... }> & Readonly<...> & ...' is not assignable to type 'NonDeletedExcalidrawElement'. The sites are the `API.setSelectedElements([API.getElement(arrow)])`, `API.setSelectedElements([API.getElement(tgt)])` (twice) and `API.setSelectedElements([API.getElement(src2)])` calls in the arrowhead size paste-styles part: API.getElement returns the UI.createElement proxy type, while API.setSelectedElements takes NonDeletedExcalidrawElement[]. Fix by casting each argument element: `API.setSelectedElements([API.getElement(arrow) as NonDeletedExcalidrawElement]);`, with `NonDeletedExcalidrawElement` added to the existing `import type { ... } from \"@excalidraw/element/types\";` (or a new type import of it from there). Also make case (b) match AC-8 exactly: before pasting from src2 (which has no arrowheadSize), give the target arrowheadSize 0.5, not 1.5: select the target and run `act(() => { h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", 0.5); });`, assert it is 0.5, then select src2, copy styles, select the target, paste styles, and assert the target's arrowheadSize is undefined and `\"arrowheadSize\" in` the target is false. Change nothing else; every other assertion already passes. Do not use Keyboard.undo/redo (this file renders without handleKeyboardGlobally).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

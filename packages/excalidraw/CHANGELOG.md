@@ -197,6 +197,8 @@ The toolbar UI was rewritten from hidden radio/checkbox inputs to real `<button>
 
 ### Other Features
 
+- Linear elements (`arrow` and `line`) support a per-element `arrowheadSize` multiplier (optional, defaults to `1` when omitted). The properties panel offers Small (`0.5`), Medium (`1`) and Large (`1.5`) arrowhead size presets for arrows and lines with arrowheads.
+
 - Mermaid diagrams (in the TTD dialog and on paste) are converted with `@excalidraw/mermaid-to-excalidraw` v3, which lays them out with [Pele](https://pele.run) instead of Mermaid, no longer bundled. Layouts differ from before, and `swimlane-beta` diagrams are supported. [#12480](https://github.com/excalidraw/excalidraw/pull/12480)
 
 - `label.labelPosition` (0–1) of skeleton arrows places their label along the arrow, instead of halfway. [#12425](https://github.com/excalidraw/excalidraw/pull/12425)

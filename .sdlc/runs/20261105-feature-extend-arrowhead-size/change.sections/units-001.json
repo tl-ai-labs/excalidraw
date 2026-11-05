@@ -1,0 +1,381 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds optional `arrowheadSize?: number` multiplier property to `ExcalidrawLinearElement`.",
+    "rules": [
+      "1. Add `arrowheadSize?: number;` to `ExcalidrawLinearElement` after `endArrowhead: Arrowhead | null;`."
+    ],
+    "exports": [
+      {
+        "name": "ExcalidrawLinearElement",
+        "kind": "type",
+        "params": [],
+        "returns": "ExcalidrawLinearElement"
+      }
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 376,
+        "to": 376,
+        "first_line": "endArrowhead: Arrowhead | null;",
+        "rule": "Add `arrowheadSize?: number;` to `ExcalidrawLinearElement`."
+      }
+    ],
+    "depends_on": [],
+    "covers": [
+      "FR-1",
+      "NFR-2"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/bounds.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Scales base arrowhead sizes and angles by the element's `arrowheadSize ?? 1` multiplier while preserving short-segment fitting.",
+    "rules": [
+      "1. In `getArrowheadSize(arrowhead: Arrowhead, arrowheadSize = 1): number`, multiply the per-type base pixel size by `arrowheadSize`.",
+      "2. In `getArrowheadAngle(arrowhead: Arrowhead, size = getArrowheadSize(arrowhead, arrowheadSize), arrowheadSize = 1): Degrees`, compute `const fullSize = getArrowheadSize(arrowhead, arrowheadSize)` and guard `fullSize <= ARROW_ARROWHEAD_WIDEST_SIZE` so shrinkage is `0` when `size >= fullSize`.",
+      "3. In `getCardinalityMarkerScale`, accept `arrowheadSize = 1` and pass it to `getArrowheadAngle(\"cardinality_one\", undefined, arrowheadSize)`, `getArrowheadSize(\"cardinality_one\", arrowheadSize)`, `getArrowheadSize(\"cardinality_many\", arrowheadSize)`, and `getArrowheadSize(\"circle_outline\", arrowheadSize)`.",
+      "4. In `getArrowheadSizeBeyondLastSegment`, pass `element.arrowheadSize` to `getArrowheadSize`, `getCardinalityMarkerScale`, and `getArrowheadAngle`.",
+      "5. In `getArrowheadPoints`, pass `element.arrowheadSize` to `getArrowheadSize(arrowhead, element.arrowheadSize)` and `getArrowheadAngle(arrowhead, minSize, element.arrowheadSize)`."
+    ],
+    "exports": [
+      {
+        "name": "getArrowheadSize",
+        "kind": "function",
+        "params": [
+          {
+            "name": "arrowhead",
+            "type": "Arrowhead"
+          },
+          {
+            "name": "arrowheadSize",
+            "type": "number"
+          }
+        ],
+        "returns": "number"
+      },
+      {
+        "name": "getArrowheadAngle",
+        "kind": "function",
+        "params": [
+          {
+            "name": "arrowhead",
+            "type": "Arrowhead"
+          },
+          {
+            "name": "size",
+            "type": "number"
+          },
+          {
+            "name": "arrowheadSize",
+            "type": "number"
+          }
+        ],
+        "returns": "Degrees"
+      }
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 727,
+        "to": 745,
+        "first_line": "export const getArrowheadSize = (arrowhead: Arrowhead): number => {",
+        "last_line": "};",
+        "rule": "Accept optional `arrowheadSize = 1` parameter on `getArrowheadSize` and multiply the base size for each arrowhead type by `arrowheadSize`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 754,
+        "to": 776,
+        "first_line": "export const getArrowheadAngle = (",
+        "last_line": "};",
+        "rule": "Accept optional `arrowheadSize = 1` parameter on `getArrowheadAngle`, compute `fullSize = getArrowheadSize(arrowhead, arrowheadSize)`, and clamp shrinkage safely."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 861,
+        "to": 902,
+        "first_line": "const getCardinalityMarkerScale = (",
+        "last_line": "};",
+        "rule": "Accept optional `arrowheadSize = 1` parameter on `getCardinalityMarkerScale` and forward it to `getArrowheadAngle` and `getArrowheadSize`."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 933,
+        "to": 986,
+        "first_line": "if (marker && isCardinalityArrowhead(marker)) {",
+        "last_line": "}",
+        "rule": "Forward `element.arrowheadSize` to `getArrowheadSize`, `getCardinalityMarkerScale`, and `getArrowheadAngle` in `getArrowheadSizeBeyondLastSegment`."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 1058,
+        "to": 1058,
+        "first_line": "const size = getArrowheadSize(arrowhead);",
+        "rule": "Pass `element.arrowheadSize` to `getArrowheadSize(arrowhead, element.arrowheadSize)`."
+      },
+      {
+        "id": "S6",
+        "at": "replace",
+        "from": 1102,
+        "to": 1102,
+        "first_line": "const angle = getArrowheadAngle(arrowhead, minSize);",
+        "rule": "Pass `element.arrowheadSize` to `getArrowheadAngle(arrowhead, minSize, element.arrowheadSize)`."
+      }
+    ],
+    "depends_on": [
+      "U01"
+    ],
+    "covers": [
+      "FR-5",
+      "FR-6",
+      "NFR-1",
+      "NFR-2",
+      "NFR-3"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/shape.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Generates arrowhead RoughJS drawables for both `arrow` and `line` elements when `startArrowhead` or `endArrowhead` is non-null.",
+    "rules": [
+      "1. In `_generateElementShape` under `case \"line\": case \"arrow\":`, compute `const startArrowhead = element.startArrowhead ?? null;` and `const endArrowhead = element.endArrowhead === undefined ? (element.type === \"arrow\" ? \"arrow\" : null) : element.endArrowhead;`.",
+      "2. Push `getArrowheadShapes(element, shape, \"start\", startArrowhead, generator, options, canvasBackgroundColor, isDarkMode)` when `startArrowhead !== null`, and `getArrowheadShapes(element, shape, \"end\", endArrowhead, generator, options, canvasBackgroundColor, isDarkMode)` when `endArrowhead !== null`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 997,
+        "to": 1032,
+        "first_line": "// add lines only in arrow",
+        "last_line": "}",
+        "rule": "Generate arrowhead shapes for both `arrow` and `line` elements whenever `startArrowhead !== null` or `endArrowhead !== null` (defaulting `endArrowhead` to `\"arrow\"` only when `element.type === \"arrow\"` and `element.endArrowhead === undefined`)."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02"
+    ],
+    "covers": [
+      "FR-8",
+      "NFR-1",
+      "NFR-3"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/renderElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Exports `getCanvasPadding` and scales offscreen canvas padding for `arrow` and `line` elements with arrowheads by `Math.max(1, element.arrowheadSize ?? 1)`.",
+    "rules": [
+      "1. Export `getCanvasPadding = (element: ExcalidrawElement) => ...`.",
+      "2. In `getCanvasPadding`, handle both `case \"arrow\":` and `case \"line\":`: when `element.startArrowhead || element.endArrowhead` is truthy, return `40 * Math.max(1, element.arrowheadSize ?? 1)`; otherwise return `20`."
+    ],
+    "exports": [
+      {
+        "name": "getCanvasPadding",
+        "kind": "function",
+        "params": [
+          {
+            "name": "element",
+            "type": "ExcalidrawElement"
+          }
+        ],
+        "returns": "number"
+      }
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 106,
+        "to": 120,
+        "first_line": "const getCanvasPadding = (element: ExcalidrawElement) => {",
+        "last_line": "};",
+        "rule": "Export `getCanvasPadding`, handle both `case \"arrow\":` and `case \"line\":`, check `element.startArrowhead || element.endArrowhead`, and return `40 * Math.max(1, element.arrowheadSize ?? 1)`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U03"
+    ],
+    "covers": [
+      "FR-9",
+      "NFR-1"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Accepts `arrowheadSize` (and line arrowheads) in `newLinearElement` and `newArrowElement`, omitting `arrowheadSize` when `undefined`.",
+    "rules": [
+      "1. In `newLinearElement`, accept optional `startArrowhead?: Arrowhead | null`, `endArrowhead?: Arrowhead | null`, and `arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"]` in `opts`, set `startArrowhead: opts.startArrowhead || null` and `endArrowhead: opts.endArrowhead || null`, and spread `...(opts.arrowheadSize !== undefined && { arrowheadSize: opts.arrowheadSize })`.",
+      "2. In `newArrowElement`, accept optional `arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"]` in `opts` and spread `...(opts.arrowheadSize !== undefined && { arrowheadSize: opts.arrowheadSize })` in both the `opts.elbowed` and non-elbowed return objects."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 623,
+        "to": 690,
+        "first_line": "export const newLinearElement = (",
+        "last_line": "};",
+        "rule": "Accept `arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"]` (and `startArrowhead`/`endArrowhead` on `newLinearElement`) and include `arrowheadSize` on the returned element only when `opts.arrowheadSize !== undefined`."
+      }
+    ],
+    "depends_on": [
+      "U01"
+    ],
+    "covers": [
+      "FR-2",
+      "NFR-1",
+      "NFR-2"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U06",
+    "path": "packages/element/src/elbowArrow.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Uses the scaled arrowhead size (`arrow.arrowheadSize`) when checking simple elbow arrow route leg clearance.",
+    "rules": [
+      "1. Add `arrowheadSize?: number;` to `ElbowArrowState`.",
+      "2. In `getSimpleRoute`, pass `arrow.arrowheadSize` to `getArrowheadSize(arrow.startArrowhead, arrow.arrowheadSize)` and `getArrowheadSize(arrow.endArrowhead, arrow.arrowheadSize)`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 100,
+        "to": 100,
+        "first_line": "endArrowhead: Arrowhead | null;",
+        "rule": "Add `arrowheadSize?: number;` to `ElbowArrowState`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 1490,
+        "to": 1499,
+        "first_line": "firstLeg <=",
+        "last_line": ")",
+        "rule": "Pass `arrow.arrowheadSize` to `getArrowheadSize` for `arrow.startArrowhead` and `arrow.endArrowhead`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02"
+    ],
+    "covers": [
+      "FR-7",
+      "NFR-1",
+      "NFR-2"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U07",
+    "path": "packages/element/src/transform.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Clamps arrow label positions off ends using the scaled arrowhead size (`arrow.arrowheadSize`).",
+    "rules": [
+      "1. In `clampLabelPositionOffEnds`, pass `arrow.arrowheadSize` as the second argument to `getArrowheadSize(arrowhead, arrow.arrowheadSize)`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 662,
+        "to": 662,
+        "first_line": "(arrowhead ? getArrowheadSize(arrowhead) : 0)",
+        "rule": "Pass `arrow.arrowheadSize` to `getArrowheadSize(arrowhead, arrow.arrowheadSize)`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U05"
+    ],
+    "covers": [
+      "FR-3",
+      "NFR-1",
+      "NFR-2"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U08",
+    "path": "packages/element/src/delta.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Deletes properties set to `undefined` in `ElementsDelta.applyDelta` so undoing `arrowheadSize` back to `undefined` omits the key.",
+    "rules": [
+      "1. In `ElementsDelta.applyDelta`, after creating `const nextElement = newElementWith(element, directlyApplicablePartial, true)`, delete any property `key` from `nextElement` where `directlyApplicablePartial[key] === undefined`, then return `nextElement`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1791,
+        "to": 1791,
+        "first_line": "return newElementWith(element, directlyApplicablePartial, true);",
+        "rule": "Delete keys on the returned element where `directlyApplicablePartial[key] === undefined` so `arrowheadSize` is omitted when reverted to `undefined`."
+      }
+    ],
+    "depends_on": [
+      "U01"
+    ],
+    "covers": [
+      "FR-4",
+      "NFR-1"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  }
+]

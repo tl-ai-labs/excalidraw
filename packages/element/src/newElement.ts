@@ -625,6 +625,9 @@ export const newLinearElement = (
     type: ExcalidrawLinearElement["type"];
     points?: ExcalidrawLinearElement["points"];
     polygon?: ExcalidrawLineElement["polygon"];
+    startArrowhead?: Arrowhead | null;
+    endArrowhead?: Arrowhead | null;
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawLinearElement> => {
   const element = {
@@ -633,8 +636,11 @@ export const newLinearElement = (
 
     startBinding: null,
     endBinding: null,
-    startArrowhead: null,
-    endArrowhead: null,
+    startArrowhead: opts.startArrowhead || null,
+    endArrowhead: opts.endArrowhead || null,
+    ...(opts.arrowheadSize !== undefined && {
+      arrowheadSize: opts.arrowheadSize,
+    }),
   };
 
   if (isLineElement(element)) {
@@ -657,6 +663,7 @@ export const newArrowElement = <T extends boolean>(
     points?: ExcalidrawArrowElement["points"];
     elbowed?: T;
     fixedSegments?: ExcalidrawElbowArrowElement["fixedSegments"] | null;
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
   } & ElementConstructorOpts,
 ): T extends true
   ? NonDeleted<ExcalidrawElbowArrowElement>
@@ -669,6 +676,9 @@ export const newArrowElement = <T extends boolean>(
       endBinding: null,
       startArrowhead: opts.startArrowhead || null,
       endArrowhead: opts.endArrowhead || null,
+      ...(opts.arrowheadSize !== undefined && {
+        arrowheadSize: opts.arrowheadSize,
+      }),
       elbowed: true,
       fixedSegments: opts.fixedSegments || [],
       startIsSpecial: false,
@@ -683,6 +693,9 @@ export const newArrowElement = <T extends boolean>(
     endBinding: null,
     startArrowhead: opts.startArrowhead || null,
     endArrowhead: opts.endArrowhead || null,
+    ...(opts.arrowheadSize !== undefined && {
+      arrowheadSize: opts.arrowheadSize,
+    }),
     elbowed: false,
   } as T extends true
     ? NonDeleted<ExcalidrawElbowArrowElement>
