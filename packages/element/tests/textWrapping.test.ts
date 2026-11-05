@@ -3,6 +3,11 @@ import {
   parseTokens,
   wrapText,
 } from "../src/textWrapping";
+import {
+  getWrappedLineTextRuns,
+  getTextElementLineRuns,
+} from "../src/textStyleRanges";
+import { newTextElement } from "../src/newElement";
 
 import type { FontString } from "../src/types";
 
@@ -169,6 +174,67 @@ describe("Test wrapText", () => {
         end: 4,
       },
     ]);
+  });
+
+  it("should map textStyleRanges onto wrapped visual line runs across soft breaks and reflow", () => {
+    const text = "  Hello  World\nNext";
+    const bg = "#ffec99";
+    const ranges = [{ start: 5, end: 12, backgroundColor: bg }];
+
+    // narrow: soft break between "Hello" and "World" discards two spaces
+    const narrow = getWrappedTextLines(text, font, 90);
+    expect(narrow.map((l) => l.text)).toEqual(["  Hello", "World", "Next"]);
+    expect(getWrappedLineTextRuns(narrow[0], ranges)).toEqual([
+      { text: "  Hel", start: 0, end: 5 },
+      { text: "lo", start: 5, end: 7, backgroundColor: bg },
+    ]);
+    expect(getWrappedLineTextRuns(narrow[1], ranges)).toEqual([
+      { text: "Wor", start: 9, end: 12, backgroundColor: bg },
+      { text: "ld", start: 12, end: 14 },
+    ]);
+    // hard newline: untouched line is a single unstyled run
+    expect(getWrappedLineTextRuns(narrow[2], ranges)).toEqual([
+      { text: "Next", start: 15, end: 19 },
+    ]);
+
+    // wide: the same range stays bound to the same characters
+    const wide = getWrappedTextLines(text, font, 1000);
+    expect(wide.map((l) => l.text)).toEqual(["  Hello  World", "Next"]);
+    expect(getWrappedLineTextRuns(wide[0], ranges)).toEqual([
+      { text: "  Hel", start: 0, end: 5 },
+      { text: "lo  Wor", start: 5, end: 12, backgroundColor: bg },
+      { text: "ld", start: 12, end: 14 },
+    ]);
+
+    // element-level runs, separate ranges on "Hello" and "World"
+    const element = newTextElement({
+      x: 0,
+      y: 0,
+      text,
+      fontSize: 10,
+      fontFamily: 1,
+      textStyleRanges: [
+        { start: 2, end: 7, strokeColor: "#e03131" },
+        { start: 9, end: 14, backgroundColor: bg },
+      ],
+    });
+
+    const narrowRuns = getTextElementLineRuns(element, undefined, 90);
+    expect(narrowRuns.map((runs) => runs.map((r) => r.text))).toEqual([
+      ["  ", "Hello"],
+      ["World"],
+      ["Next"],
+    ]);
+    expect(narrowRuns[0][1].strokeColor).toBe("#e03131");
+    expect(narrowRuns[1][0].backgroundColor).toBe(bg);
+
+    const wideRuns = getTextElementLineRuns(element, undefined, 1000);
+    expect(wideRuns.map((runs) => runs.map((r) => r.text))).toEqual([
+      ["  ", "Hello", "  ", "World"],
+      ["Next"],
+    ]);
+    expect(wideRuns[0][1].strokeColor).toBe("#e03131");
+    expect(wideRuns[0][3].backgroundColor).toBe(bg);
   });
 
   describe("When text is CJK", () => {

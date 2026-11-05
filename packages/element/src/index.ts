@@ -100,6 +100,7 @@ export * from "./stickyNote";
 export * from "./textElement";
 export * from "./textMeasurements";
 export * from "./textWrapping";
+export * from "./textStyleRanges";
 export * from "./transform";
 export * from "./transformHandles";
 export * from "./typeChecks";

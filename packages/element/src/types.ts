@@ -250,6 +250,13 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+export type TextStyleRange = {
+  readonly start: number;
+  readonly end: number;
+  readonly strokeColor?: string;
+  readonly backgroundColor?: string;
+};
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -288,6 +295,7 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * so it survives midpoint insertion and other geometry changes.
      * */
     labelPosition?: number | null;
+    textStyleRanges?: readonly TextStyleRange[];
   }>;
 
 export type ExcalidrawBindableElement =

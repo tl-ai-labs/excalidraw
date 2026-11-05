@@ -58,7 +58,8 @@ import {
   getBoundTextMaxHeight,
   getBoundTextMaxWidth,
 } from "./textElement";
-import { getLineHeightInPx } from "./textMeasurements";
+import { getLineHeightInPx, getLineWidth } from "./textMeasurements";
+import { getTextElementLineRuns } from "./textStyleRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -703,12 +704,95 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          if (!element.textStyleRanges?.length) {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
+          } else {
+            const font = getFontString(element);
+            const lineRuns = getTextElementLineRuns(
+              element,
+              renderConfig.renderEnvironment,
+              undefined,
             );
+            const isDark = renderConfig.theme === THEME.DARK;
+
+            const placements = lineRuns.map((runs, index) => {
+              const lineText = lines[index] ?? "";
+              const lineWidth = getLineWidth(
+                lineText,
+                font,
+                renderConfig.renderEnvironment,
+              );
+              const lineStartX =
+                element.textAlign === "center"
+                  ? (element.width - lineWidth) / 2
+                  : element.textAlign === "right"
+                  ? element.width - lineWidth
+                  : 0;
+              let prefixText = "";
+              return runs.map((run) => {
+                const prefixWidth = getLineWidth(
+                  prefixText,
+                  font,
+                  renderConfig.renderEnvironment,
+                );
+                const runWidth = getLineWidth(
+                  run.text,
+                  font,
+                  renderConfig.renderEnvironment,
+                );
+                const runX = rtl
+                  ? lineStartX + (lineWidth - prefixWidth - runWidth)
+                  : lineStartX + prefixWidth;
+                prefixText += run.text;
+                return { run, runX, runWidth };
+              });
+            });
+
+            // Pass 1: background highlights
+            for (let index = 0; index < placements.length; index++) {
+              for (const { run, runX, runWidth } of placements[index]) {
+                if (
+                  run.text.length > 0 &&
+                  run.backgroundColor &&
+                  run.backgroundColor !== "transparent"
+                ) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.backgroundColor,
+                    isDark,
+                  );
+                  context.fillRect(
+                    runX,
+                    index * lineHeightPx,
+                    runWidth,
+                    lineHeightPx,
+                  );
+                }
+              }
+            }
+
+            // Pass 2: glyph ink
+            context.textAlign = rtl ? "right" : "left";
+            for (let index = 0; index < placements.length; index++) {
+              for (const { run, runX, runWidth } of placements[index]) {
+                if (run.text.length > 0) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.strokeColor ?? element.strokeColor,
+                    isDark,
+                  );
+                  context.fillText(
+                    run.text,
+                    rtl ? runX + runWidth : runX,
+                    index * lineHeightPx + verticalOffset,
+                  );
+                }
+              }
+            }
           }
         });
         if (shouldTemporarilyAttach) {

@@ -58,9 +58,12 @@ import {
   isElbowArrow,
   isLinearElement,
   isLineElement,
+  isStickyNoteBoundText,
   isStickyNoteElement,
   isTextElement,
   isUsingAdaptiveRadius,
+  applyTextStyleRange,
+  getSelectionTextStyle,
 } from "@excalidraw/element";
 
 import {
@@ -171,6 +174,7 @@ import {
 } from "../hooks/useTextEditorFocus";
 
 import { getShortcutKey } from "../shortcut";
+import { getActiveTextWysiwygSelection } from "../wysiwyg/textWysiwyg";
 
 import {
   getColorTargetAppStateUpdates,
@@ -382,6 +386,46 @@ export const actionChangeStrokeColor = register<
     const target = resolveColorTarget(appState, elements, "strokeColor");
     const elementsMap = arrayToMap(elements);
 
+    // inline range styling of the active substring selection while editing
+    if (appState.editingTextElement) {
+      const editingText =
+        elementsMap.get(appState.editingTextElement.id) ??
+        appState.editingTextElement;
+      if (isTextElement(editingText)) {
+        const selection = getActiveTextWysiwygSelection(editingText);
+        if (selection) {
+          const nextRanges = applyTextStyleRange(
+            editingText.textStyleRanges,
+            editingText.originalText.length,
+            selection,
+            { strokeColor: color },
+            editingText.strokeColor,
+          );
+          const nextElements = elements.map((el) =>
+            isTextElement(el) && el.id === editingText.id
+              ? newElementWith(el, { textStyleRanges: nextRanges }, true)
+              : el,
+          );
+          const updatedEditing = nextElements.find(
+            (el) => el.id === editingText.id,
+          );
+          const nextEditingTextElement =
+            updatedEditing && isTextElement(updatedEditing)
+              ? (updatedEditing as NonDeleted<ExcalidrawTextElement>)
+              : appState.editingTextElement;
+          return {
+            elements: nextElements,
+            appState: {
+              ...appState,
+              ...appStateUpdates,
+              editingTextElement: nextEditingTextElement,
+            },
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+          };
+        }
+      }
+    }
+
     return {
       // a note and its label share one ink: coloring the label while editing
       // it (no selection) colors the note too — the footer paints with it
@@ -408,12 +452,25 @@ export const actionChangeStrokeColor = register<
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
-  PanelComponent: ({ elements, appState, updateData, app }) => {
+  PanelComponent: ({ elements, appState, updateData, app, renderAction }) => {
     const { stylesPanelMode } = getStylesPanelInfo(app);
     const target = resolveColorTarget(appState, elements, "strokeColor");
     // a note has no stroke: its "stroke" is the ink of its text and footer
     const label =
       target.kind === "sticky" ? t("labels.textColor") : t("labels.stroke");
+    const editingText = appState.editingTextElement
+      ? app.scene.getElement<ExcalidrawTextElement>(
+          appState.editingTextElement.id,
+        ) ?? appState.editingTextElement
+      : null;
+    const selection =
+      editingText && isTextElement(editingText)
+        ? getActiveTextWysiwygSelection(editingText)
+        : null;
+    const showInlineHighlight =
+      !!editingText &&
+      isTextElement(editingText) &&
+      !isStickyNoteBoundText(editingText, app.scene.getNonDeletedElementsMap());
 
     return (
       <>
@@ -425,18 +482,24 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
-            elements,
-            app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={
+            selection && editingText && isTextElement(editingText)
+              ? getSelectionTextStyle(editingText, selection).strokeColor
+              : getFormValue(
+                  elements,
+                  app,
+                  (element) => element.strokeColor,
+                  true,
+                  (hasSelection) =>
+                    !hasSelection ? target.currentValue : null,
+                )
+          }
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}
           updateData={updateData}
         />
+        {showInlineHighlight && renderAction("changeBackgroundColor")}
       </>
     );
   },
@@ -458,6 +521,46 @@ export const actionChangeBackgroundColor = register<
     }
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     const elementsMap = arrayToMap(elements);
+
+    // inline range highlight of the active substring selection while editing
+    if (appState.editingTextElement) {
+      const editingTextForRange =
+        elementsMap.get(appState.editingTextElement.id) ??
+        appState.editingTextElement;
+      if (isTextElement(editingTextForRange)) {
+        const selection = getActiveTextWysiwygSelection(editingTextForRange);
+        if (selection) {
+          const nextRanges = applyTextStyleRange(
+            editingTextForRange.textStyleRanges,
+            editingTextForRange.originalText.length,
+            selection,
+            { backgroundColor: color },
+            editingTextForRange.strokeColor,
+          );
+          const rangedElements = elements.map((el) =>
+            isTextElement(el) && el.id === editingTextForRange.id
+              ? newElementWith(el, { textStyleRanges: nextRanges }, true)
+              : el,
+          );
+          const updatedEditing = rangedElements.find(
+            (el) => el.id === editingTextForRange.id,
+          );
+          const nextEditingTextElement =
+            updatedEditing && isTextElement(updatedEditing)
+              ? (updatedEditing as NonDeleted<ExcalidrawTextElement>)
+              : appState.editingTextElement;
+          return {
+            elements: rangedElements,
+            appState: {
+              ...appState,
+              ...appStateUpdates,
+              editingTextElement: nextEditingTextElement,
+            },
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+          };
+        }
+      }
+    }
 
     let nextElements;
 
@@ -526,6 +629,15 @@ export const actionChangeBackgroundColor = register<
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     // while editing a note's label the picker shows and sets the note's fill
     const elementsMap = app.scene.getNonDeletedElementsMap();
+    const editingText = appState.editingTextElement
+      ? app.scene.getElement<ExcalidrawTextElement>(
+          appState.editingTextElement.id,
+        ) ?? appState.editingTextElement
+      : null;
+    const selection =
+      editingText && isTextElement(editingText)
+        ? getActiveTextWysiwygSelection(editingText)
+        : null;
 
     return (
       <>
@@ -539,15 +651,23 @@ export const actionChangeBackgroundColor = register<
           excludedColors={target.excludedColors}
           type="elementBackground"
           label={t("labels.background")}
-          color={getFormValue(
-            elements,
-            app,
-            (element) =>
-              getColorTargetElement(element, "backgroundColor", elementsMap)
-                .backgroundColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={
+            selection && editingText && isTextElement(editingText)
+              ? getSelectionTextStyle(editingText, selection).backgroundColor
+              : getFormValue(
+                  elements,
+                  app,
+                  (element) =>
+                    getColorTargetElement(
+                      element,
+                      "backgroundColor",
+                      elementsMap,
+                    ).backgroundColor,
+                  true,
+                  (hasSelection) =>
+                    !hasSelection ? target.currentValue : null,
+                )
+          }
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

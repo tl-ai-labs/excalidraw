@@ -45,6 +45,7 @@ import {
 import { LinearElementEditor } from "./linearElementEditor";
 import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId, redrawTextBoundingBox } from "./textElement";
+import { areTextStyleRangesEqual } from "./textStyleRanges";
 import {
   hasBoundTextElement,
   isArrowElement,
@@ -1788,7 +1789,20 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         delta.deleted.index !== delta.inserted.index;
     }
 
-    return newElementWith(element, directlyApplicablePartial, true);
+    const nextElement = newElementWith(
+      element,
+      directlyApplicablePartial,
+      true,
+    );
+
+    if (isTextElement(nextElement)) {
+      (nextElement as Mutable<ExcalidrawTextElement>).textStyleRanges =
+        nextElement.textStyleRanges
+          ? nextElement.textStyleRanges.map((range) => ({ ...range }))
+          : [];
+    }
+
+    return nextElement;
   }
 
   /**
@@ -1877,6 +1891,11 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
           return !isShallowEqual(
             visibleBindings(before, previousElements),
             visibleBindings(after, nextElements),
+          );
+        case "textStyleRanges":
+          return !areTextStyleRangesEqual(
+            (before as ExcalidrawTextElement).textStyleRanges,
+            (after as ExcalidrawTextElement).textStyleRanges,
           );
         default:
           return true;
@@ -2212,6 +2231,17 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         // delete the points from delta if there is no difference, otherwise leave them as they were captured due to consistency
         Reflect.deleteProperty(deleted, "points");
         Reflect.deleteProperty(inserted, "points");
+      }
+
+      if (
+        ("textStyleRanges" in deleted || "textStyleRanges" in inserted) &&
+        areTextStyleRangesEqual(
+          (deleted as Partial<ExcalidrawTextElement>).textStyleRanges,
+          (inserted as Partial<ExcalidrawTextElement>).textStyleRanges,
+        )
+      ) {
+        Reflect.deleteProperty(deleted, "textStyleRanges");
+        Reflect.deleteProperty(inserted, "textStyleRanges");
       }
     } catch (e) {
       // if postprocessing fails, it does not make sense to bubble up, but let's make sure we know about it

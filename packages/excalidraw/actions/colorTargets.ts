@@ -24,6 +24,7 @@ import type { ColorPaletteCustom, ColorTuple } from "@excalidraw/common";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
 
 import { getSelectedElements } from "../scene";
+import { getActiveTextWysiwygSelection } from "../wysiwyg/textWysiwyg";
 
 import type { AppState } from "../types";
 
@@ -128,8 +129,18 @@ export const resolveColorTarget = (
     targets.push(editing);
   }
 
+  const hasInlineSelection =
+    !!appState.editingTextElement &&
+    !!getActiveTextWysiwygSelection(
+      editingText && isTextElement(editingText)
+        ? editingText
+        : appState.editingTextElement,
+    );
+
   let kind: ColorTargetKind;
-  if (!targets.length) {
+  if (hasInlineSelection && property === "backgroundColor") {
+    kind = "regular";
+  } else if (!targets.length) {
     kind = appState.activeTool.type === "stickynote" ? "sticky" : "regular";
   } else {
     const stickyCount = targets.filter((element) =>

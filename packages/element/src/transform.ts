@@ -131,6 +131,7 @@ export type ValidLinearElement = {
     verticalAlign?: VerticalAlign;
     /** where along an arrow's path (0-1) the label is centered */
     labelPosition?: ExcalidrawTextElement["labelPosition"];
+    textStyleRanges?: ExcalidrawTextElement["textStyleRanges"];
   } & FragmentConstructorOpts;
   end?:
     | (
@@ -228,6 +229,7 @@ export type ValidContainer =
         fontFamily?: FontFamilyValues;
         textAlign?: TextAlign;
         verticalAlign?: VerticalAlign;
+        textStyleRanges?: ExcalidrawTextElement["textStyleRanges"];
       } & FragmentConstructorOpts;
     } & ElementConstructorOpts;
 
@@ -290,7 +292,7 @@ const DEFAULT_DIMENSION = 100;
 const bindTextToContainer = (
   container: ExcalidrawElement,
   textProps: { text: string } & FragmentConstructorOpts &
-    Pick<Partial<ExcalidrawTextElement>, "labelPosition">,
+    Pick<Partial<ExcalidrawTextElement>, "labelPosition" | "textStyleRanges">,
   scene: Scene,
   renderEnvironment?: RenderEnvironment,
 ) => {

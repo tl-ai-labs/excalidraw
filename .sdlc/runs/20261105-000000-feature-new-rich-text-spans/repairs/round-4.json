@@ -1,0 +1,45 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-000000-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 51): yarn test:typecheck fails with TS2345 at line 51 because `overrides` in `createStyledText` is typed as `Partial<ExcalidrawTextElement>`, which includes readonly metadata fields (`id`, `version`, `versionNonce`, `updated`) that are not assignable to `ElementUpdate<NonDeleted<ExcalidrawTextElement>>` in `newElementWith`. — fix: Type `overrides` in `createStyledText` as `Omit<Partial<ExcalidrawTextElement>, \"id\" | \"version\" | \"versionNonce\" | \"updated\"> = {}` (or remove the unused `overrides` parameter) and remove the unnecessary `as any` casts on `mutateElement` and `reconcileElements`.\n2. major (line 78): `actionChangeStrokeColor` and `actionChangeBackgroundColor` are invoked with `{ currentItemStrokeColor }` / `{ currentItemBackgroundColor }` instead of `{ color }`, causing `perform` to return early without modifying `textStyleRanges` while the test only asserts `Array.isArray(current.textStyleRanges)`, and the `// undo/redo` block at line 227 never executes `Keyboard.undo()` or `Keyboard.redo()`. — fix: Pass `{ color: \"#e03131\" }` and `{ color: \"#ffec99\" }` (and test splitting, merging, and clearing via `\"transparent\"` and `#1e1e1e`) to `executeAction` with concrete `expect(current.textStyleRanges).toEqual(...)` assertions, and exercise `Keyboard.undo()` and `Keyboard.redo()` in the undo/redo test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-000000-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-000000-feature-new-rich-text-spans/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]
