@@ -229,11 +229,14 @@ export class API {
     endBinding?: T extends "arrow"
       ? ExcalidrawArrowElement["endBinding"] | ExcalidrawElbowArrowElement["endBinding"]
       : never;
-    startArrowhead?: T extends "arrow"
+    startArrowhead?: T extends "arrow" | "line"
       ? ExcalidrawArrowElement["startArrowhead"] | ExcalidrawElbowArrowElement["startArrowhead"]
       : never;
-    endArrowhead?: T extends "arrow"
+    endArrowhead?: T extends "arrow" | "line"
       ? ExcalidrawArrowElement["endArrowhead"] | ExcalidrawElbowArrowElement["endArrowhead"]
+      : never;
+    arrowheadSize?: T extends "arrow" | "line"
+      ? ExcalidrawLinearElement["arrowheadSize"]
       : never;
     elbowed?: boolean;
     fixedSegments?: FixedSegment[] | null;
@@ -374,6 +377,7 @@ export class API {
             pointFrom<LocalPoint>(100, 100),
           ],
           elbowed: rest.elbowed ?? false,
+          arrowheadSize: rest.arrowheadSize,
         });
         break;
       case "line":
@@ -387,6 +391,9 @@ export class API {
             pointFrom<LocalPoint>(100, 100),
           ],
           polygon: rest.polygon,
+          startArrowhead: rest.startArrowhead,
+          endArrowhead: rest.endArrowhead,
+          arrowheadSize: rest.arrowheadSize,
         });
         break;
       case "image":

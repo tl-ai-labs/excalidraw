@@ -374,6 +374,7 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    arrowheadSize?: number;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &

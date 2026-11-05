@@ -1,0 +1,66 @@
+{
+  "conventions": [
+    "Format all TypeScript, TSX, JSON, and Markdown files with Prettier (2-space indent, double quotes, trailing commas) and lint TS/TSX with ESLint.",
+    "Group imports with blank lines between external packages, @excalidraw/* workspace value imports, @excalidraw/* type-only imports, relative value imports, and relative type-only imports; use `import type` for type-only imports.",
+    "Omit `arrowheadSize` on newly created or restored linear elements when `arrowheadSize === undefined` so default element shapes and existing snapshots are unchanged.",
+    "Use Vitest (`describe`, `it`, `expect`) and `@testing-library/react` (`fireEvent`, `queryByTestId`) with `API` test helpers for unit and component tests.",
+    "Add English UI strings only to `packages/excalidraw/locales/en.json`; never edit other locale files."
+  ],
+  "decisions": [
+    {
+      "topic": "Arrowhead size multiplier representation and preset values",
+      "choice": "Optional `arrowheadSize?: number` on `ExcalidrawLinearElement` defaulting to `1` when omitted, with UI presets Small = `0.5`, Medium = `1`, Large = `1.5`",
+      "rejected": [
+        "String union ('small' | 'medium' | 'large') on the element",
+        "Global AppState currentItemArrowheadSize property"
+      ],
+      "reason": "A numeric multiplier supports arbitrary positive finite values in scene JSON and skeleton API while keeping presets simple and avoiding off-limits AppState changes."
+    },
+    {
+      "topic": "Arrowhead size radio option testIds and i18n label key",
+      "choice": "Use `data-testid` values `\"arrowhead-size-small\"`, `\"arrowhead-size-medium\"`, and `\"arrowhead-size-large\"` with group `\"arrowhead-size\"` and label key `\"labels.arrowheadSize\"`",
+      "rejected": [
+        "CamelCase testIds without hyphens",
+        "Unlabeled buttons without data-testid"
+      ],
+      "reason": "Matches FR-12 and provides deterministic selectors for properties panel tests."
+    },
+    {
+      "topic": "Clearing arrowheadSize on undo/redo and style paste",
+      "choice": "When applying a delta or pasting styles with `arrowheadSize: undefined`, pass `force = true` to `newElementWith` and `delete` the `arrowheadSize` property from the resulting element",
+      "rejected": [
+        "Calling `newElementWith(el, { arrowheadSize: undefined })` without `force` or leaving `arrowheadSize: undefined` as an own property"
+      ],
+      "reason": "`newElementWith` ignores `undefined` values unless `force = true`, and deleting the key restores the omitted-property state."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "prettier",
+      "run": "yarn prettier --check {path}",
+      "fix": "yarn prettier --write {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "vitest",
+      "run": "yarn vitest run {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "test",
+      "run": "yarn test:app"
+    }
+  ]
+}

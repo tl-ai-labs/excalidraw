@@ -375,4 +375,79 @@ describe("getArrowheadPoints()", () => {
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
   });
+
+  describe("arrowheadSize", () => {
+    const createLongArrow = (arrowheadSize: number | undefined) =>
+      API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead: "arrow",
+        roughness: 0,
+        strokeWidth: 2,
+        arrowheadSize,
+      });
+
+    const getWingDistance = (arrowheadSize: number | undefined) => {
+      const arrow = createLongArrow(arrowheadSize);
+      const [tipX, tipY, x1, y1] = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        "arrow",
+      )!;
+
+      return pointDistance(pointFrom(tipX, tipY), pointFrom(x1, y1));
+    };
+
+    it("scales arrowhead points with arrowheadSize on long segments", () => {
+      const medium = getWingDistance(1);
+
+      expect(getWingDistance(undefined)).toBeCloseTo(medium);
+      expect(getWingDistance(0.5)).toBeCloseTo(medium * 0.5);
+      expect(getWingDistance(1.5)).toBeCloseTo(medium * 1.5);
+      expect(getArrowheadSize("arrow", 0.5)).toBeCloseTo(
+        getArrowheadSize("arrow", 1) * 0.5,
+      );
+      expect(getArrowheadSize("arrow", 1.5)).toBeCloseTo(
+        getArrowheadSize("arrow", 1) * 1.5,
+      );
+    });
+
+    it("caps scaled arrowheads on a short last segment", () => {
+      const arrow = API.createElement({
+        type: "arrow",
+        points: [prevSegment[0], prevSegment[1], tip],
+        endArrowhead: "triangle",
+        roundness: { type: ROUNDNESS.PROPORTIONAL_RADIUS },
+        roughness: 0,
+        strokeWidth: 2,
+        arrowheadSize: 1.5,
+      });
+      const [, tipY, , y1, , y2] = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        "triangle",
+      )!;
+
+      expect(tipY - (y1 + y2) / 2).toBeLessThanOrEqual(lastSegmentLength / 2);
+    });
+
+    it("keeps getElementBounds of undefined and 1 identical", () => {
+      const defaultArrow = createLongArrow(undefined);
+      const mediumArrow = createLongArrow(1);
+      const defaultBounds = getElementBounds(
+        defaultArrow,
+        arrayToMap([defaultArrow]),
+      );
+      const mediumBounds = getElementBounds(
+        mediumArrow,
+        arrayToMap([mediumArrow]),
+      );
+
+      defaultBounds.forEach((value, index) => {
+        expect(value).toBeCloseTo(mediumBounds[index]);
+      });
+    });
+  });
 });

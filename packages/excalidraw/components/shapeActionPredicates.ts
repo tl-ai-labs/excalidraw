@@ -78,6 +78,14 @@ export const canChangeBackgroundColor = (
   );
 };
 
+export const CHANGE_ARROWHEAD_SIZE_TYPES = new Set<ElementOrToolType>([
+  "arrow",
+  "line",
+]);
+
+export const canChangeArrowheadSize = (type: ElementOrToolType) =>
+  CHANGE_ARROWHEAD_SIZE_TYPES.has(type);
+
 /**
  * Single source of truth for "which shape-action controls are relevant right
  * now". Each flag answers whether a given control should be shown, given the
@@ -146,6 +154,12 @@ export const getShapeActionPredicates = (
     roundness: forToolOrSelection(canChangeRoundness),
     arrowType: forToolOrSelection(toolIsArrow),
     arrowheads: forToolOrSelection(canHaveArrowheads),
+    arrowheadSize: targetElements.some(
+      (element) =>
+        isLinearElement(element) &&
+        canChangeArrowheadSize(element.type) &&
+        (Boolean(element.startArrowhead) || Boolean(element.endArrowhead)),
+    ),
 
     // text
     text: activeToolType === "text" || targetElements.some(isTextElement),

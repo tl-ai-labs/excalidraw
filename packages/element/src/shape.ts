@@ -994,41 +994,41 @@ const _generateElementShape = (
         shape = [generator.curve(points as unknown as RoughPoint[], options)];
       }
 
-      // add lines only in arrow
-      if (element.type === "arrow") {
-        const { startArrowhead = null, endArrowhead = "arrow" } = element;
+      // add arrowheads for arrows and lines
+      const startArrowhead = element.startArrowhead ?? null;
+      const endArrowhead =
+        element.endArrowhead === undefined
+          ? element.type === "arrow"
+            ? "arrow"
+            : null
+          : element.endArrowhead;
 
-        if (startArrowhead !== null) {
-          const shapes = getArrowheadShapes(
-            element,
-            shape,
-            "start",
-            startArrowhead,
-            generator,
-            options,
-            canvasBackgroundColor,
-            isDarkMode,
-          );
-          shape.push(...shapes);
-        }
+      if (startArrowhead !== null) {
+        const shapes = getArrowheadShapes(
+          element,
+          shape,
+          "start",
+          startArrowhead,
+          generator,
+          options,
+          canvasBackgroundColor,
+          isDarkMode,
+        );
+        shape.push(...shapes);
+      }
 
-        if (endArrowhead !== null) {
-          if (endArrowhead === undefined) {
-            // Hey, we have an old arrow here!
-          }
-
-          const shapes = getArrowheadShapes(
-            element,
-            shape,
-            "end",
-            endArrowhead,
-            generator,
-            options,
-            canvasBackgroundColor,
-            isDarkMode,
-          );
-          shape.push(...shapes);
-        }
+      if (endArrowhead !== null) {
+        const shapes = getArrowheadShapes(
+          element,
+          shape,
+          "end",
+          endArrowhead,
+          generator,
+          options,
+          canvasBackgroundColor,
+          isDarkMode,
+        );
+        shape.push(...shapes);
       }
       return shape;
     }

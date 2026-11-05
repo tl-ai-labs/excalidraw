@@ -535,6 +535,15 @@ const restoreElementWithProperties = <
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
 
+  if (
+    "arrowheadSize" in ret &&
+    (!isLinearElement(ret as ExcalidrawElement) ||
+      !isFiniteNumber((ret as any).arrowheadSize) ||
+      (ret as any).arrowheadSize <= 0)
+  ) {
+    delete (ret as any).arrowheadSize;
+  }
+
   return ret;
 };
 
@@ -653,6 +662,13 @@ export const restoreElement = (
         endBinding: null,
         startArrowhead,
         endArrowhead,
+        ...(isFiniteNumber(
+          (element as ExcalidrawLinearElement).arrowheadSize,
+        ) && (element as ExcalidrawLinearElement).arrowheadSize! > 0
+          ? {
+              arrowheadSize: (element as ExcalidrawLinearElement).arrowheadSize,
+            }
+          : {}),
         points,
         x,
         y,
@@ -705,6 +721,9 @@ export const restoreElement = (
         ),
         startArrowhead,
         endArrowhead,
+        ...(isFiniteNumber(element.arrowheadSize) && element.arrowheadSize > 0
+          ? { arrowheadSize: element.arrowheadSize }
+          : {}),
         points,
         x: x ?? 0,
         y: y ?? 0,

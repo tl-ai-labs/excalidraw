@@ -98,6 +98,7 @@ type ElbowArrowState = {
   endBinding: FixedPointBinding | null;
   startArrowhead: Arrowhead | null;
   endArrowhead: Arrowhead | null;
+  arrowheadSize?: number;
 };
 
 type ElbowArrowData = {
@@ -1490,12 +1491,16 @@ const getSimpleRoute = (
     firstLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.startArrowhead ? getArrowheadSize(arrow.startArrowhead) : 0,
+        arrow.startArrowhead
+          ? getArrowheadSize(arrow.startArrowhead, arrow.arrowheadSize)
+          : 0,
       ) ||
     lastLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.endArrowhead ? getArrowheadSize(arrow.endArrowhead) : 0,
+        arrow.endArrowhead
+          ? getArrowheadSize(arrow.endArrowhead, arrow.arrowheadSize)
+          : 0,
       )
   ) {
     return null;

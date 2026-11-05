@@ -1,0 +1,423 @@
+[
+  {
+    "id": "U16",
+    "path": "packages/excalidraw/tests/helpers/api.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Extends `API.createElement` to accept `arrowheadSize` (and `startArrowhead`/`endArrowhead` on `line` elements) in tests.",
+    "rules": [
+      "1. In `API.createElement` parameter types, allow `startArrowhead`, `endArrowhead`, and `arrowheadSize?: T extends \"arrow\" | \"line\" ? ExcalidrawLinearElement[\"arrowheadSize\"] : never;` for `\"arrow\" | \"line\"`.",
+      "2. Pass `arrowheadSize: rest.arrowheadSize` into `newArrowElement` and `newLinearElement`, and pass `startArrowhead: rest.startArrowhead` and `endArrowhead: rest.endArrowhead` into `newLinearElement`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 232,
+        "to": 237,
+        "first_line": "startArrowhead?: T extends \"arrow\"",
+        "last_line": ": never;",
+        "rule": "Allow `startArrowhead`, `endArrowhead`, and `arrowheadSize` on `T extends \"arrow\" | \"line\"`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 366,
+        "to": 391,
+        "first_line": "case \"arrow\":",
+        "last_line": "break;",
+        "rule": "Pass `arrowheadSize: rest.arrowheadSize` to `newArrowElement` and `newLinearElement`, and `startArrowhead`/`endArrowhead` to `newLinearElement`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U05"
+    ],
+    "covers": [
+      "FR-2"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  },
+  {
+    "id": "U17",
+    "path": "packages/element/tests/bounds.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Tests arrowhead size and angle scaling, short-segment fitting caps, and element bounds across `arrowheadSize` multipliers.",
+    "rules": [
+      "1. Test that `getArrowheadSize` and `getArrowheadPoints` scale proportionally for `arrowheadSize` values `0.5`, `1`, and `1.5` on long segments, and that `undefined` matches `1`.",
+      "2. Test that on a short last segment, `getArrowheadPoints` with `arrowheadSize: 1.5` remains capped by the short-segment fitting logic (`getArrowheadSizeBeyondLastSegment`).",
+      "3. Test `getElementBounds` across `arrowheadSize` (`0.5`, `1`, `1.5`) including elbow arrow routing and arrow bound-label clamping."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 378,
+        "to": 378,
+        "first_line": "});",
+        "rule": "Add tests for `getArrowheadSize`, `getArrowheadPoints`, and `getElementBounds` across `arrowheadSize` presets and short segments."
+      }
+    ],
+    "uses": [
+      {
+        "path": "packages/element/src/transform.ts",
+        "lines": [
+          641,
+          752
+        ],
+        "reason": "Use `convertToExcalidrawElements` to test elbow arrow routing and label clamping bounds with `arrowheadSize`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U05",
+      "U06",
+      "U07",
+      "U16"
+    ],
+    "covers": [
+      "FR-5",
+      "FR-6",
+      "FR-7",
+      "AC-3",
+      "NFR-3"
+    ],
+    "tests": [
+      {
+        "name": "scales arrowhead points with arrowheadSize on long segments",
+        "given": "arrows with a 200px segment and arrowheadSize undefined, 0.5, 1, and 1.5",
+        "expect": "getArrowheadPoints wing distance from the tip scales by 0.5x, 1x, and 1.5x and undefined equals 1"
+      },
+      {
+        "name": "caps scaled arrowheads on a short last segment",
+        "given": "an arrow with a 7px last segment and arrowheadSize 1.5",
+        "expect": "getArrowheadPoints caps the arrowhead size to the short-segment clearance limit"
+      },
+      {
+        "name": "scales getElementBounds when arrowheadSize changes elbow route or clamped label position",
+        "given": "arrows converted with arrowheadSize 0.5, 1, and 1.5",
+        "expect": "getElementBounds reflects the scaled arrowhead clearance while keeping default shaft bounds identical when undefined or 1"
+      }
+    ],
+    "checks": [
+      "eslint",
+      "prettier",
+      "vitest"
+    ]
+  },
+  {
+    "id": "U18",
+    "path": "packages/element/tests/shape.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Tests RoughJS arrowhead shape generation and `getCanvasPadding` for `arrow` and `line` elements across `arrowheadSize` multipliers.",
+    "rules": [
+      "1. Import `getCanvasPadding` from `../src/renderElement`.",
+      "2. Test that `ShapeCache.generateElementShape` generates arrowhead drawables for both `arrow` and `line` elements when `startArrowhead` or `endArrowhead` is non-null, and generates only 1 drawable (the shaft) for a `line` when both arrowheads are `null`.",
+      "3. Test that arrowhead drawable geometry scales proportionally with `arrowheadSize` (`0.5`, `1`, `1.5`) across arrowhead types.",
+      "4. Test `getCanvasPadding` directly: assert it returns `60` (`40 * 1.5`) for an `arrow` and for a `line` with `arrowheadSize: 1.5` and a head at `startArrowhead` or `endArrowhead`, returns `40` at default size (`undefined`, `1`, or `0.5`) when either `startArrowhead` or `endArrowhead` is set, and returns `20` when both `startArrowhead` and `endArrowhead` are `null`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 10,
+        "to": 10,
+        "first_line": "} from \"../src/shape\";",
+        "rule": "Import `getCanvasPadding` from `../src/renderElement`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 35,
+        "to": 35,
+        "first_line": "});",
+        "rule": "Add tests for `line` and `arrow` arrowhead drawables, `arrowheadSize` scaling in `ShapeCache.generateElementShape`, and `getCanvasPadding` return values (`60` at `arrowheadSize: 1.5` with start or end head, `40` at default/`0.5` with either head, and `20` with no heads)."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U03",
+      "U04",
+      "U05",
+      "U16"
+    ],
+    "covers": [
+      "FR-8",
+      "FR-9",
+      "AC-2",
+      "AC-6",
+      "NFR-3"
+    ],
+    "tests": [
+      {
+        "name": "generates arrowhead shapes for line elements with arrowheads and omits them when null",
+        "given": "a line element with startArrowhead/endArrowhead set vs both null",
+        "expect": "ShapeCache.generateElementShape includes arrowhead drawables when arrowheads are set and only 1 drawable when both are null"
+      },
+      {
+        "name": "scales arrowhead shape drawables with arrowheadSize",
+        "given": "arrow and line elements with arrowheadSize 0.5, 1, and 1.5",
+        "expect": "generated arrowhead drawable op coordinates scale proportionally with arrowheadSize"
+      },
+      {
+        "name": "scales getCanvasPadding for arrow and line elements with arrowheads",
+        "given": "arrow and line elements with startArrowhead or endArrowhead at arrowheadSize 1.5, default/1/0.5, and with both arrowheads null",
+        "expect": "getCanvasPadding returns 60 for arrowheadSize 1.5 with either head, 40 for default/1/0.5 with either head, and 20 when both heads are null"
+      }
+    ],
+    "checks": [
+      "eslint",
+      "prettier",
+      "vitest"
+    ]
+  },
+  {
+    "id": "U19",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Tests `restoreElements` preservation of valid `arrowheadSize` values and sanitization of invalid or omitted values.",
+    "rules": [
+      "1. Test that `restore.restoreElements` preserves valid positive finite `arrowheadSize` values (`0.5`, `1`, `1.5`, `2.25`) on both `arrow` and `line` elements.",
+      "2. Test that `restore.restoreElements` omits `arrowheadSize` (`!(\"arrowheadSize\" in restored)`) when `arrowheadSize` is omitted, `undefined`, `0`, `-1`, `NaN`, `Infinity`, `\"large\"`, or `null`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 1034,
+        "to": 1034,
+        "first_line": "});",
+        "rule": "Add unit test in `describe(\"restoreElements\")` for valid, omitted, and invalid `arrowheadSize` values on `arrow` and `line` elements."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U05",
+      "U10",
+      "U16"
+    ],
+    "covers": [
+      "FR-10",
+      "AC-1",
+      "NFR-1",
+      "NFR-4"
+    ],
+    "tests": [
+      {
+        "name": "should preserve valid positive arrowheadSize and strip invalid values on linear elements",
+        "given": "arrow and line elements with arrowheadSize set to 0.5, 1, 1.5, 2.25, undefined, 0, -1, NaN, Infinity, 'large', and null",
+        "expect": "restored elements preserve finite positive numbers and omit the arrowheadSize property for undefined and invalid inputs"
+      }
+    ],
+    "checks": [
+      "eslint",
+      "prettier",
+      "vitest"
+    ]
+  },
+  {
+    "id": "U20",
+    "path": "packages/excalidraw/tests/scene/export.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Tests SVG/canvas export of `arrow` and `line` elements with `arrowheadSize` and `convertToExcalidrawElements` skeleton support.",
+    "rules": [
+      "1. Test `exportScene` (`svg` and `canvas`) for `arrow` and `line` elements with `arrowheadSize: 1.5` and `0.5`, verifying that arrowhead paths are rendered for both `arrow` and `line` elements.",
+      "2. Test `convertToExcalidrawElements` with `arrowheadSize` on `arrow` and `line` skeletons (including an arrow with a bound label clamped off its arrowhead end)."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 333,
+        "to": 333,
+        "first_line": "});",
+        "rule": "Add export and `convertToExcalidrawElements` tests for `arrowheadSize` on `arrow` and `line` elements."
+      }
+    ],
+    "uses": [
+      {
+        "path": "packages/element/src/transform.ts",
+        "lines": [
+          680,
+          752
+        ],
+        "reason": "Import and call `convertToExcalidrawElements` from `@excalidraw/element` (or `../../index`) to verify skeleton `arrowheadSize` conversion."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U03",
+      "U05",
+      "U07",
+      "U16"
+    ],
+    "covers": [
+      "FR-3",
+      "FR-8",
+      "AC-7"
+    ],
+    "tests": [
+      {
+        "name": "exports arrow and line arrowheads scaled by arrowheadSize",
+        "given": "arrow and line elements with endArrowhead and arrowheadSize 0.5 vs 1.5 exported to SVG and canvas",
+        "expect": "SVG and canvas exports render the scaled arrowhead paths for both arrow and line elements"
+      },
+      {
+        "name": "preserves arrowheadSize and scales label end clearance in convertToExcalidrawElements",
+        "given": "arrow and line skeletons with arrowheadSize 1.5 and an arrow label near the tip",
+        "expect": "converted elements retain arrowheadSize 1.5 and clamp the label further from the tip than at arrowheadSize 0.5"
+      }
+    ],
+    "checks": [
+      "eslint",
+      "prettier",
+      "vitest"
+    ]
+  },
+  {
+    "id": "U21",
+    "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Tests the arrowhead size properties panel control, multi-selection state, undo/redo history, and arrow-to-arrow copy/paste styles.",
+    "rules": [
+      "1. Test that selecting an `arrow` with `endArrowhead: \"arrow\"` renders `arrowhead-size-medium` checked, while selecting an `arrow` or `line` with both `startArrowhead: null` and `endArrowhead: null` hides the arrowhead size buttons.",
+      "2. Test that selecting a `line` with `endArrowhead: \"triangle\"` renders the arrowhead size buttons and clicking `arrowhead-size-small` or `arrowhead-size-large` sets `arrowheadSize` to `0.5` or `1.5`.",
+      "3. Test that selecting two arrows with `arrowheadSize: 0.5` and `arrowheadSize: 1.5` leaves all three preset buttons unchecked, and clicking a preset updates both arrows.",
+      "4. Test undo and redo after changing `arrowheadSize` via `actionChangeArrowheadSize`, verifying `arrowheadSize` reverts to `undefined` on undo and restores to `1.5` on redo.",
+      "5. Test `actionCopyStyles` and `actionPasteStyles` between arrows: (a) copying styles from an arrow with `arrowheadSize: 1.5` and pasting onto another arrow sets the target arrow's `arrowheadSize` to `1.5`, and (b) copying styles from an arrow with `arrowheadSize === undefined` and pasting onto an arrow with `arrowheadSize: 1.5` clears the target arrow's `arrowheadSize` back to `undefined`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 254,
+        "to": 254,
+        "first_line": "});",
+        "rule": "Add tests for arrowhead size UI visibility, preset selection, mixed selection, undo/redo, and arrow-to-arrow copy/paste styles."
+      }
+    ],
+    "uses": [
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "lines": [
+          50,
+          225
+        ],
+        "reason": "Execute `actionCopyStyles` and `actionPasteStyles` via `h.app.actionManager.executeAction` to test arrow-to-arrow style copying."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U05",
+      "U08",
+      "U09",
+      "U11",
+      "U12",
+      "U13",
+      "U14",
+      "U15",
+      "U16"
+    ],
+    "covers": [
+      "FR-4",
+      "FR-11",
+      "FR-12",
+      "FR-13",
+      "FR-14",
+      "AC-4",
+      "AC-5",
+      "AC-8"
+    ],
+    "tests": [
+      {
+        "name": "shows arrowhead size presets only when selected linear element has an arrowhead",
+        "given": "an arrow with endArrowhead 'arrow', an arrow with no arrowheads, a line with no arrowheads, and a line with endArrowhead 'triangle'",
+        "expect": "arrowhead-size-medium is checked for the arrow and line with arrowheads and absent when both arrowheads are null"
+      },
+      {
+        "name": "updates arrowheadSize on click and handles mixed selection",
+        "given": "two selected arrows with arrowheadSize 0.5 and 1.5",
+        "expect": "no preset is checked initially, and clicking arrowhead-size-large sets arrowheadSize to 1.5 on both arrows"
+      },
+      {
+        "name": "undoes and redoes arrowheadSize changes and copies/pastes arrowheadSize styles between arrows",
+        "given": "an arrow whose arrowheadSize is changed to 1.5, undone, redone, and copied/pasted to another arrow (and from an arrow with undefined arrowheadSize onto an arrow with arrowheadSize 1.5)",
+        "expect": "undo reverts arrowheadSize to undefined, redo restores 1.5, and paste styles sets the target arrow's arrowheadSize to 1.5 or clears it back to undefined"
+      }
+    ],
+    "checks": [
+      "eslint",
+      "prettier",
+      "vitest"
+    ]
+  },
+  {
+    "id": "U22",
+    "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Documents `arrowheadSize` in the `convertToExcalidrawElements` arrow skeleton example.",
+    "rules": [
+      "1. Add `arrowheadSize: 1.5,` to the arrow object in the `With Addtional properties` code block under `### Lines and Arrows`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 176,
+        "to": 176,
+        "first_line": "endArrowhead: \"triangle\",",
+        "rule": "Insert `arrowheadSize: 1.5,` into the arrow skeleton example."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U05",
+      "U07"
+    ],
+    "covers": [
+      "FR-3"
+    ],
+    "checks": []
+  },
+  {
+    "id": "U23",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Adds an Unreleased feature entry for per-element `arrowheadSize` and properties panel arrowhead size presets.",
+    "rules": [
+      "1. Under `### Other Features` in `## Unreleased`, add a bullet documenting per-element `arrowheadSize` multiplier support on `arrow` and `line` elements and the Small (`0.5`), Medium (`1`), and Large (`1.5`) arrowhead size presets in the properties panel."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 198,
+        "to": 198,
+        "first_line": "### Other Features",
+        "rule": "Add a bullet point under `### Other Features` describing arrowhead size presets and `arrowheadSize` on linear elements."
+      }
+    ],
+    "depends_on": [
+      "U13"
+    ],
+    "covers": [
+      "FR-1",
+      "FR-12"
+    ],
+    "checks": [
+      "prettier"
+    ]
+  }
+]

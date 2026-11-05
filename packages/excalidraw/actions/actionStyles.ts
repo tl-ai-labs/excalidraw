@@ -38,6 +38,7 @@ import {
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
+import type { Mutable } from "@excalidraw/common/utility-types";
 import type { ExcalidrawTextElement } from "@excalidraw/element/types";
 
 import { paintIcon } from "../components/icons";
@@ -190,6 +191,20 @@ export const actionPasteStyles = register({
                 startArrowhead: elementStylesToCopyFrom.startArrowhead,
                 endArrowhead: elementStylesToCopyFrom.endArrowhead,
               });
+              if (
+                newElement.arrowheadSize !==
+                elementStylesToCopyFrom.arrowheadSize
+              ) {
+                newElement = newElementWith(
+                  newElement,
+                  { arrowheadSize: elementStylesToCopyFrom.arrowheadSize },
+                  true,
+                );
+                if (elementStylesToCopyFrom.arrowheadSize === undefined) {
+                  delete (newElement as Mutable<typeof newElement>)
+                    .arrowheadSize;
+                }
+              }
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(
                   newElement,

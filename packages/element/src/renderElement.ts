@@ -103,15 +103,16 @@ const isPendingImageElement = (
   isInitializedImageElement(element) &&
   !renderConfig.imageCache.has(element.fileId);
 
-const getCanvasPadding = (element: ExcalidrawElement) => {
+export const getCanvasPadding = (element: ExcalidrawElement) => {
   switch (element.type) {
     case "freedraw":
       return element.strokeWidth * 12;
     case "text":
       return element.fontSize / 2;
     case "arrow":
-      if (element.endArrowhead || element.endArrowhead) {
-        return 40;
+    case "line":
+      if (element.startArrowhead || element.endArrowhead) {
+        return 40 * Math.max(1, element.arrowheadSize ?? 1);
       }
       return 20;
     default:

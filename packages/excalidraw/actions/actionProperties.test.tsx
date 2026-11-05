@@ -1,4 +1,4 @@
-import { fireEvent, queryByTestId } from "@testing-library/react";
+import { act, fireEvent, queryByTestId } from "@testing-library/react";
 
 import {
   COLOR_PALETTE,
@@ -8,10 +8,20 @@ import {
   STROKE_WIDTH,
 } from "@excalidraw/common";
 
+import type {
+  ExcalidrawLinearElement,
+  NonDeletedExcalidrawElement,
+} from "@excalidraw/element/types";
+
 import { Excalidraw } from "../index";
 import { API } from "../tests/helpers/api";
 import { UI } from "../tests/helpers/ui";
 import { render } from "../tests/test-utils";
+
+import { actionChangeArrowheadSize } from "./actionProperties";
+import { actionCopyStyles, actionPasteStyles } from "./actionStyles";
+
+const { h } = window;
 
 describe("element locking", () => {
   beforeEach(async () => {
@@ -250,6 +260,164 @@ describe("element locking", () => {
       expect(queryByTestId(document.body, `font-family-code`)).toHaveClass(
         "active",
       );
+    });
+  });
+
+  describe("arrowhead size", () => {
+    it("shows arrowhead size presets only when selected linear element has an arrowhead", () => {
+      const arrowWithHead = API.createElement({
+        type: "arrow",
+        endArrowhead: "arrow",
+      });
+      const arrowWithoutHead = API.createElement({
+        type: "arrow",
+        startArrowhead: null,
+        endArrowhead: null,
+      });
+      const lineWithoutHead = API.createElement({
+        type: "line",
+        startArrowhead: null,
+        endArrowhead: null,
+      });
+      const lineWithHead = API.createElement({
+        type: "line",
+        endArrowhead: "triangle",
+      });
+
+      API.setElements([
+        arrowWithHead,
+        arrowWithoutHead,
+        lineWithoutHead,
+        lineWithHead,
+      ]);
+
+      API.setSelectedElements([arrowWithHead]);
+      expect("arrowheadSize" in API.getElement(arrowWithHead)).toBe(false);
+      expect(
+        queryByTestId(document.body, "arrowhead-size-medium"),
+      ).toBeChecked();
+
+      API.setSelectedElements([arrowWithoutHead]);
+      expect(queryByTestId(document.body, "arrowhead-size-medium")).toBe(null);
+
+      API.setSelectedElements([lineWithoutHead]);
+      expect(queryByTestId(document.body, "arrowhead-size-medium")).toBe(null);
+
+      API.setSelectedElements([lineWithHead]);
+      expect(
+        queryByTestId(document.body, "arrowhead-size-medium"),
+      ).toBeChecked();
+      fireEvent.click(queryByTestId(document.body, "arrowhead-size-small")!);
+      expect(
+        (API.getElement(lineWithHead) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(0.5);
+    });
+
+    it("updates arrowheadSize on click and handles mixed selection", () => {
+      const arrow1 = API.createElement({
+        type: "arrow",
+        endArrowhead: "arrow",
+        arrowheadSize: 0.5,
+      });
+      const arrow2 = API.createElement({
+        type: "arrow",
+        endArrowhead: "arrow",
+        arrowheadSize: 1.5,
+      });
+
+      API.setElements([arrow1, arrow2]);
+      API.setSelectedElements([arrow1, arrow2]);
+
+      expect(
+        queryByTestId(document.body, "arrowhead-size-small"),
+      ).not.toBeChecked();
+      expect(
+        queryByTestId(document.body, "arrowhead-size-medium"),
+      ).not.toBeChecked();
+      expect(
+        queryByTestId(document.body, "arrowhead-size-large"),
+      ).not.toBeChecked();
+
+      fireEvent.click(queryByTestId(document.body, "arrowhead-size-large")!);
+
+      expect(
+        (API.getElement(arrow1) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(1.5);
+      expect(
+        (API.getElement(arrow2) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(1.5);
+    });
+
+    it("undoes and redoes arrowheadSize changes and copies/pastes arrowheadSize styles between arrows", () => {
+      const arrow = UI.createElement("arrow", { x: 0, y: 0, size: 100 });
+      expect("arrowheadSize" in API.getElement(arrow)).toBe(false);
+      expect(
+        queryByTestId(document.body, "arrowhead-size-medium"),
+      ).toBeChecked();
+
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeArrowheadSize, "ui", 1.5);
+      });
+      expect(
+        (API.getElement(arrow) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(1.5);
+
+      act(() => {
+        h.app.actionManager.executeAction(
+          (h.app.actionManager as any).actions.undo,
+          "ui",
+        );
+      });
+      expect(
+        (API.getElement(arrow) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBeUndefined();
+      expect("arrowheadSize" in API.getElement(arrow)).toBe(false);
+
+      act(() => {
+        h.app.actionManager.executeAction(
+          (h.app.actionManager as any).actions.redo,
+          "ui",
+        );
+      });
+      expect(
+        (API.getElement(arrow) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(1.5);
+
+      const tgt = UI.createElement("arrow", { x: 0, y: 200, size: 100 });
+      API.setSelectedElements([
+        API.getElement(arrow) as NonDeletedExcalidrawElement,
+      ]);
+      API.executeAction(actionCopyStyles);
+      API.setSelectedElements([
+        API.getElement(tgt) as NonDeletedExcalidrawElement,
+      ]);
+      API.executeAction(actionPasteStyles);
+      expect(
+        (API.getElement(tgt) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(1.5);
+
+      const src2 = UI.createElement("arrow", { x: 0, y: 400, size: 100 });
+      API.setSelectedElements([
+        API.getElement(tgt) as NonDeletedExcalidrawElement,
+      ]);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeArrowheadSize, "ui", 0.5);
+      });
+      expect(
+        (API.getElement(tgt) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBe(0.5);
+      API.setSelectedElements([
+        API.getElement(src2) as NonDeletedExcalidrawElement,
+      ]);
+      API.executeAction(actionCopyStyles);
+      API.setSelectedElements([
+        API.getElement(tgt) as NonDeletedExcalidrawElement,
+      ]);
+      API.executeAction(actionPasteStyles);
+      expect(
+        (API.getElement(tgt) as ExcalidrawLinearElement).arrowheadSize,
+      ).toBeUndefined();
+      expect("arrowheadSize" in API.getElement(tgt)).toBe(false);
     });
   });
 });

@@ -1,0 +1,66 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U21 (briefs/U21.md: add the arrowhead size tests before the final `});`) failed its vitest check on every attempt, so the file is still as it was before the run: add U21's tests. Failing test, verbatim: \"element locking > arrowhead size > undoes and redoes arrowheadSize changes and copies/pastes arrowheadSize styles between arrows\" -> AssertionError: expected 1.5 to be undefined, at `Keyboard.undo(); expect(getDrawn().isDeleted).toBe(false); expect(getDrawn().arrowheadSize).toBeUndefined();`. ROOT CAUSE (reproduced by the orchestrator in a scratch test): the arrow was created with `UI.createElement(\"arrow\")` with no size, which leaves a 1-point arrow still being drawn (appState.multiElement and appState.newElement set). executeHistoryAction (actions/actionHistory.tsx:31-43) blocks undo/redo while multiElement/newElement are set, so undo does nothing. Pressing Escape instead deletes the 1-point arrow. The product code is correct: with `const arrow = UI.createElement(\"arrow\", { x: 0, y: 0, size: 100 });` (the arrow is finished and selected, multiElement/newElement null), then `act(() => { h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", 1.5); })`, then `Keyboard.undo()`, the arrow has arrowheadSize undefined, `\"arrowheadSize\" in arrow` false, isDeleted false; `Keyboard.redo()` restores 1.5. So: create every arrow in these tests with an explicit size (`UI.createElement(\"arrow\", { x, y, size: 100 })`, a different x/y per arrow), select the one to change (API.setSelectedElements) before each action, and do not call history/ElementsDelta internals or API.executeAction with a value (API.executeAction takes no value; use act(() => h.app.actionManager.executeAction(action, \"ui\", value))). Paste-styles part (AC-8), arrow to arrow only: (a) copy styles from an arrow with arrowheadSize 1.5, paste onto another arrow with none -> 1.5; (b) copy from an arrow with none, paste onto an arrow with 1.5 -> undefined. Copy/paste styles: select the source and run actionCopyStyles, select the target and run actionPasteStyles, each through h.app.actionManager.executeAction inside act.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionHistory.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

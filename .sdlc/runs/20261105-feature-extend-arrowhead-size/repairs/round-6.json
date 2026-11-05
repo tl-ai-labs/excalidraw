@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise, the person's words: \"U21 never landed: packages/excalidraw/actions/actionProperties.test.tsx is unchanged, so AC-4 (the size control showing and hiding, a click updating the selected elements, undo and redo), AC-8 (arrow-to-arrow paste styles, including clearing the size) and the panel part of AC-5 have no test.\" Add U21's tests (briefs/U21.md) as a new `describe(\"arrowhead size\", ...)` inside the existing `describe(\"element locking\", ...)`, before its final `});`, reusing the file's existing beforeEach (`await render(<Excalidraw />);`). Do not change existing tests.\n\nWHY EVERY EARLIER ATTEMPT FAILED (verified by the orchestrator in a scratch test with this file's exact render): (1) `UI.createElement(\"arrow\")` without a size leaves the arrow mid-draw (appState.multiElement/newElement set), which blocks undo. (2) This file renders `<Excalidraw />` WITHOUT handleKeyboardGlobally, so `Keyboard.undo()` / `Keyboard.redo()` do NOTHING here (the value stays 1.5). Do not use Keyboard.undo/redo. (3) `API.executeAction(actionChangeArrowheadSize)` passes no value and trips the action's invariant. (4) `actionUndo`/`actionRedo` are not exported (only createUndoAction); do not import them.\n\nVERIFIED WORKING SNIPPETS (every line passed in the scratch test under `render(<Excalidraw />)`). Add these imports: `import { act } from \"@testing-library/react\";` (merge into the existing @testing-library/react import), `import { actionChangeArrowheadSize } from \"./actionProperties\";`, `import { actionCopyStyles, actionPasteStyles } from \"./actionStyles\";`, and `const { h } = window;` at module level.\n- Finished, selected arrow: `const arrow = UI.createElement(\"arrow\", { x: 0, y: 0, size: 100 });` (use a different x/y for each further arrow; the newest one created is selected).\n- Control shown/hidden: `UI.createElement(\"line\", { x: 0, y: 0, size: 100 });` then `expect(queryByTestId(document.body, \"arrowhead-size-large\")).toBe(null);` (a line has no heads); after `UI.createElement(\"arrow\", { x: 0, y: 200, size: 100 });` expect it not null.\n- Click updates the selection: `fireEvent.click(queryByTestId(document.body, \"arrowhead-size-large\")!);` then `expect(API.getElement(arrow).arrowheadSize).toBe(1.5);`.\n- Change with a value, not via the button: `act(() => { h.app.actionManager.executeAction(actionChangeArrowheadSize, \"ui\", 1.5); });`.\n- Undo/redo: `act(() => { h.app.actionManager.executeAction((h.app.actionManager as any).actions.undo, \"ui\"); });` then `expect(API.getElement(arrow).arrowheadSize).toBeUndefined(); expect(\"arrowheadSize\" in API.getElement(arrow)).toBe(false);`; `act(() => { h.app.actionManager.executeAction((h.app.actionManager as any).actions.redo, \"ui\"); });` then expect 1.5.\n- Paste styles, arrow to arrow (AC-8). (a): `const src = UI.createElement(\"arrow\", { x: 0, y: 0, size: 100 });` then set 1.5 with the act/executeAction line, `const tgt = UI.createElement(\"arrow\", { x: 0, y: 200, size: 100 });`, `API.setSelectedElements([API.getElement(src)]); API.executeAction(actionCopyStyles); API.setSelectedElements([API.getElement(tgt)]); API.executeAction(actionPasteStyles);` then expect tgt 1.5. (b): `src2` with no size, then `tgt2` created and set to 0.5 with the action (tgt2 is selected), copy from src2, paste onto tgt2, then expect `API.getElement(tgt2).arrowheadSize` undefined and `\"arrowheadSize\" in API.getElement(tgt2)` false.\n- New elements have no key (AC-5 panel part): right after `UI.createElement(\"arrow\", { x: 0, y: 0, size: 100 })`, expect `\"arrowheadSize\" in API.getElement(arrow)` false and `queryByTestId(document.body, \"arrowhead-size-medium\")` checked (`toBeChecked()`).\nUse `API.getElement(x)` for fresh reads, cast to ExcalidrawLinearElement where TypeScript needs it (`import type { ExcalidrawLinearElement } from \"@excalidraw/element/types\";`), and keep eslint (--max-warnings=0) and prettier clean.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

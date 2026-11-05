@@ -1,0 +1,66 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.test.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U21 (see briefs/U21.md: add the arrowhead size tests before the final `});`) failed its vitest check on every attempt, so the file is still as it was before the run: add U21's tests. The failing test, verbatim from the last attempts: \"element locking > arrowhead size > undoes and redoes arrowheadSize changes and copies/pastes arrowheadSize styles between arrows\" -> AssertionError: expected 1.5 to be undefined // Object.is equality, at `fireEvent.keyDown(document, { key: \"z\", code: \"KeyZ\", ctrlKey: true }); expect(getArrow(arrow.id).arrowheadSize).toBe(undefined);` (an earlier attempt: `Keyboard.undo(); expect((h.elements[0] as any).arrowheadSize).toBeUndefined();`, same error; another attempt called ElementsDelta/History internals directly and threw `TypeError: prevElements.get is not a function` at delta.ts:1696: do not call history internals, use Keyboard.undo()/Keyboard.redo() or h.app.actionManager.executeAction(actionUndo/actionRedo)). delta.ts was already fixed in round 1 (applyDelta now deletes keys whose applied value is undefined, so undo can remove arrowheadSize). Likely cause in the test: the arrow is put in the scene without its own history entry (API.setElements / updateScene without CaptureUpdateAction.IMMEDIATELY), so the first IMMEDIATELY commit (the preset click) records the arrow's creation and its arrowheadSize change as ONE history entry, and undo deletes the whole arrow (isDeleted: true), which keeps arrowheadSize 1.5. Make the arrow's creation its own committed history entry before changing the size (draw it with the UI tool as other history tests do, or API.updateScene({ elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY })), assert `isDeleted` is false after the undo, then assert arrowheadSize undefined and `\"arrowheadSize\" in element` false, redo restores 1.5. Paste-styles part (AC-8): arrow to arrow only: (a) source 1.5 onto a target with none sets 1.5; (b) source with none onto a target with 1.5 clears to undefined.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": ".sdlc/runs/20261105-feature-extend-arrowhead-size/briefs/U21.md",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]
