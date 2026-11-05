@@ -580,6 +580,57 @@ describe("restoreElements", () => {
     expect(restoredArrow.endArrowhead).toBe("cardinality_one_or_many");
   });
 
+  it("should restore an old arrow without arrowheadSize unchanged", () => {
+    const arrowElement = API.createElement({ type: "arrow" });
+    const lineElement = API.createElement({ type: "line" });
+
+    const restoredElements = restore.restoreElements(
+      [arrowElement, lineElement],
+      null,
+    );
+
+    expect(restoredElements).toHaveLength(2);
+    for (const element of restoredElements) {
+      expect(element).not.toHaveProperty("arrowheadSize");
+    }
+  });
+
+  it("should keep a valid arrowheadSize on restore", () => {
+    const arrowElement = API.createElement({
+      type: "arrow",
+      arrowheadSize: "small",
+    });
+    const lineElement = API.createElement({
+      type: "line",
+      arrowheadSize: "large",
+    });
+
+    const restoredElements = restore.restoreElements(
+      [arrowElement, lineElement],
+      null,
+    ) as ExcalidrawLinearElement[];
+
+    expect(restoredElements[0].arrowheadSize).toBe("small");
+    expect(restoredElements[1].arrowheadSize).toBe("large");
+  });
+
+  it("should drop an invalid arrowheadSize on restore", () => {
+    const arrowElement = API.createElement({ type: "arrow" });
+
+    const restoredElements = restore.restoreElements(
+      [
+        { ...arrowElement, id: "huge", arrowheadSize: "huge" } as any,
+        { ...arrowElement, id: "number", arrowheadSize: 3 } as any,
+      ],
+      null,
+    );
+
+    expect(restoredElements).toHaveLength(2);
+    for (const element of restoredElements) {
+      expect(element).not.toHaveProperty("arrowheadSize");
+    }
+  });
+
   it("should strip the leaked `moveMidPointsWithElement` prop from linear elements", () => {
     const arrowElement = API.createElement({ type: "arrow" });
     const lineElement = API.createElement({ type: "line" });
@@ -1279,6 +1330,20 @@ describe("restoreAppState", () => {
         null,
       ).openSidebar,
     ).toEqual({ name: DEFAULT_SIDEBAR.name, tab: "ola" });
+  });
+
+  it("should restore currentItemArrowheadSize, falling back to medium", () => {
+    expect(
+      restore.restoreAppState({ currentItemArrowheadSize: "large" }, null)
+        .currentItemArrowheadSize,
+    ).toBe("large");
+    expect(restore.restoreAppState({}, null).currentItemArrowheadSize).toBe(
+      "medium",
+    );
+    expect(
+      restore.restoreAppState({ currentItemArrowheadSize: "huge" } as any, null)
+        .currentItemArrowheadSize,
+    ).toBe("medium");
   });
 });
 

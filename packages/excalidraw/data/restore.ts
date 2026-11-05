@@ -39,6 +39,7 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  isArrowheadSize,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -124,6 +125,17 @@ type RestoredAppState = Omit<
 >;
 
 const MAX_LINEAR_PX = 75_000;
+
+// Removes an arrowheadSize that is not a known preset; keeps valid ones.
+const dropInvalidArrowheadSize = <T extends ExcalidrawLinearElement>(
+  element: T,
+): T => {
+  if (!("arrowheadSize" in element) || isArrowheadSize(element.arrowheadSize)) {
+    return element;
+  }
+  const { arrowheadSize: _arrowheadSize, ...rest } = element;
+  return rest as unknown as T;
+};
 
 // Last resort fix for extremely large linear elements (lines / arrows), which
 // would otherwise freeze the editor while rendering — e.g. a dotted or dashed
@@ -666,7 +678,9 @@ export const restoreElement = (
         ...getSizeFromPoints(points),
       });
 
-      return handleOversizedLinearElements(restoredLine);
+      return handleOversizedLinearElements(
+        dropInvalidArrowheadSize(restoredLine),
+      );
     case "arrow": {
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
@@ -733,7 +747,9 @@ export const restoreElement = (
         ),
       };
 
-      return handleOversizedLinearElements(normalizedRestoredElement);
+      return handleOversizedLinearElements(
+        dropInvalidArrowheadSize(normalizedRestoredElement),
+      );
     }
 
     // generic elements
@@ -1381,6 +1397,11 @@ export const restoreAppState = (
     currentItemStickynoteBackgroundColor: normalizeStickyNoteBackgroundColor(
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
+    currentItemArrowheadSize: isArrowheadSize(
+      nextAppState.currentItemArrowheadSize,
+    )
+      ? nextAppState.currentItemArrowheadSize
+      : defaultAppState.currentItemArrowheadSize,
     editingFrame: null,
   };
 };

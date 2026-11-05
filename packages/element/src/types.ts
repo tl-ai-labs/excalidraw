@@ -366,6 +366,9 @@ export type Arrowhead =
 
 export type AnyArrowhead = Arrowhead | ArrowheadLegacy;
 
+/** preset scale of both arrowheads of a linear element; absent = "medium" */
+export type ArrowheadSize = "small" | "medium" | "large";
+
 export type ExcalidrawLinearElement = _ExcalidrawElementBase &
   Readonly<{
     type: "line" | "arrow";
@@ -374,6 +377,8 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    // absent means "medium" (today's arrowhead size)
+    arrowheadSize?: ArrowheadSize;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &
