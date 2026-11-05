@@ -5,7 +5,13 @@ import {
   pointDistance,
   pointFrom,
 } from "@excalidraw/math";
-import { arrayToMap, type Bounds, ROUNDNESS } from "@excalidraw/common";
+import {
+  ARROWHEAD_SIZES,
+  arrayToMap,
+  type Bounds,
+  DEFAULT_ARROWHEAD_SIZE,
+  ROUNDNESS,
+} from "@excalidraw/common";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 
 import type { LocalPoint } from "@excalidraw/math";
@@ -374,5 +380,178 @@ describe("getArrowheadPoints()", () => {
     expect(
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
+  });
+});
+
+describe("arrowheadSize", () => {
+  it("scales getArrowheadSize and getArrowheadPoints with arrowheadSize while keeping 20deg angle at every unshrunk size", () => {
+    const arrowheads: Arrowhead[] = [
+      "arrow",
+      "circle",
+      "diamond",
+      "cardinality_one_or_many",
+      "cardinality_one",
+    ];
+    const presets = [
+      ARROWHEAD_SIZES.sm,
+      ARROWHEAD_SIZES.md,
+      ARROWHEAD_SIZES.lg,
+      ARROWHEAD_SIZES.xl,
+    ] as const;
+
+    for (const arrowhead of arrowheads) {
+      const baseSize = getArrowheadSize(arrowhead);
+      expect(getArrowheadSize(arrowhead, DEFAULT_ARROWHEAD_SIZE)).toBe(
+        baseSize,
+      );
+      for (const size of presets) {
+        expect(getArrowheadSize(arrowhead, size)).toBeCloseTo(baseSize * size);
+      }
+    }
+
+    expect(getArrowheadSize("arrow")).toBe(25);
+    expect(getArrowheadSize("diamond")).toBe(12);
+    expect(getArrowheadSize("circle")).toBe(15);
+    expect(getArrowheadSize("cardinality_one_or_many")).toBe(15);
+    expect(getArrowheadSize("cardinality_one")).toBe(20);
+
+    for (const size of presets) {
+      expect(getArrowheadAngle("arrow", undefined, size)).toBe(20);
+      expect(
+        getArrowheadAngle("arrow", getArrowheadSize("arrow", size), size),
+      ).toBe(20);
+      expect(getArrowheadAngle("arrow", 10 * size, size)).toBe(30);
+    }
+
+    const makeArrowWithHead = (
+      endArrowhead: Arrowhead,
+      arrowheadSize?: typeof presets[number],
+    ) => {
+      const arrow = API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead,
+        arrowheadSize,
+        roughness: 0,
+        strokeWidth: 2,
+      });
+      return getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        endArrowhead,
+      )!;
+    };
+
+    for (const arrowhead of [
+      "arrow",
+      "circle",
+      "diamond",
+      "cardinality_one_or_many",
+    ] as const) {
+      const defaultPts = makeArrowWithHead(arrowhead);
+      const lgPts = makeArrowWithHead(arrowhead, ARROWHEAD_SIZES.lg);
+      expect(lgPts).toEqual(defaultPts);
+
+      for (const size of [
+        ARROWHEAD_SIZES.sm,
+        ARROWHEAD_SIZES.md,
+        ARROWHEAD_SIZES.xl,
+      ] as const) {
+        const pts = makeArrowWithHead(arrowhead, size);
+        if (arrowhead === "circle") {
+          expect(pts[2]).toBeCloseTo(getArrowheadSize("circle", size));
+        } else if (arrowhead === "diamond") {
+          const [tipX, tipY, , , backX, backY] = pts;
+          expect(
+            pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
+          ).toBeCloseTo(getArrowheadSize("diamond", size) * 2);
+        } else {
+          const [x0, y0, x1, y1] = pts;
+          expect(
+            pointDistance(pointFrom(x0, y0), pointFrom(x1, y1)),
+          ).toBeCloseTo(getArrowheadSize(arrowhead, size));
+        }
+      }
+    }
+  });
+
+  it("caps arrowhead size via short-segment fitting on a short last segment", () => {
+    const segmentLength = 10;
+    for (const arrowheadSize of [undefined, ARROWHEAD_SIZES.xl] as const) {
+      const arrow = API.createElement({
+        type: "arrow",
+        points: [
+          pointFrom<LocalPoint>(0, 0),
+          pointFrom<LocalPoint>(segmentLength, 0),
+        ],
+        endArrowhead: "arrow",
+        arrowheadSize,
+        roughness: 0,
+        strokeWidth: 2,
+      });
+      const [tipX, tipY, x1, y1, x2, y2] = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        "arrow",
+      )!;
+      const sideLength = pointDistance(
+        pointFrom(tipX, tipY),
+        pointFrom(x1, y1),
+      );
+      const baseSpread = pointDistance(pointFrom(x1, y1), pointFrom(x2, y2));
+      const expectedAngle = getArrowheadAngle(
+        "arrow",
+        segmentLength * 0.5,
+        arrowheadSize ?? DEFAULT_ARROWHEAD_SIZE,
+      );
+
+      expect(sideLength).toBeCloseTo(segmentLength * 0.5);
+      expect(expectedAngle).toBeGreaterThan(20);
+      expect(baseSpread).toBeCloseTo(
+        2 * sideLength * Math.sin(degreesToRadians(expectedAngle)),
+      );
+    }
+  });
+
+  it("gives larger getElementBounds for very large arrowheadSize and identical bounds for small, medium, and default", () => {
+    for (const endArrowhead of ["arrow", "circle"] as const) {
+      const makeArrow = (
+        arrowheadSize?: typeof ARROWHEAD_SIZES[keyof typeof ARROWHEAD_SIZES],
+      ) =>
+        API.createElement({
+          type: "arrow",
+          points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+          endArrowhead,
+          arrowheadSize,
+          roughness: 0,
+          strokeWidth: 2,
+        });
+
+      const defaultArrow = makeArrow();
+      const lgArrow = makeArrow(ARROWHEAD_SIZES.lg);
+      const smArrow = makeArrow(ARROWHEAD_SIZES.sm);
+      const mdArrow = makeArrow(ARROWHEAD_SIZES.md);
+      const xlArrow = makeArrow(ARROWHEAD_SIZES.xl);
+
+      const defaultBounds = getElementBounds(
+        defaultArrow,
+        arrayToMap([defaultArrow]),
+      );
+      const lgBounds = getElementBounds(lgArrow, arrayToMap([lgArrow]));
+      const smBounds = getElementBounds(smArrow, arrayToMap([smArrow]));
+      const mdBounds = getElementBounds(mdArrow, arrayToMap([mdArrow]));
+      const xlBounds = getElementBounds(xlArrow, arrayToMap([xlArrow]));
+
+      expect(lgBounds).toEqual(defaultBounds);
+      expect(smBounds).toEqual(defaultBounds);
+      expect(mdBounds).toEqual(defaultBounds);
+
+      const [, defaultY1, , defaultY2] = defaultBounds;
+      const [, xlY1, , xlY2] = xlBounds;
+      expect(xlY1).toBeLessThan(defaultY1);
+      expect(xlY2).toBeGreaterThan(defaultY2);
+    }
   });
 });

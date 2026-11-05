@@ -129,6 +129,24 @@ export const FONT_SIZES = {
   xl: 36,
 } as const;
 
+export const ARROWHEAD_SIZES = {
+  sm: 0.5,
+  md: 0.75,
+  lg: 1,
+  xl: 1.25,
+} as const;
+
+export type ArrowheadSize =
+  typeof ARROWHEAD_SIZES[keyof typeof ARROWHEAD_SIZES];
+
+export const DEFAULT_ARROWHEAD_SIZE: ArrowheadSize = ARROWHEAD_SIZES.lg;
+
+export const isValidArrowheadSize = (value: unknown): value is ArrowheadSize =>
+  value === ARROWHEAD_SIZES.sm ||
+  value === ARROWHEAD_SIZES.md ||
+  value === ARROWHEAD_SIZES.lg ||
+  value === ARROWHEAD_SIZES.xl;
+
 export const CJK_HAND_DRAWN_FALLBACK_FONT = "Xiaolai";
 export const WINDOWS_EMOJI_FALLBACK_FONT = "Segoe UI Emoji";
 

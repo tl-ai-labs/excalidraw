@@ -1,4 +1,5 @@
 import type {
+  ArrowheadSize,
   IMAGE_MIME_TYPES,
   UserIdleState,
   throttleRAF,
@@ -463,6 +464,7 @@ export interface AppState {
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;
   currentItemEndArrowhead: Arrowhead | null;
+  currentItemArrowheadSize: ArrowheadSize;
   currentHoveredFontFamily: FontFamilyValues | null;
   currentItemRoundness: StrokeRoundness;
   currentItemArrowType: "sharp" | "round" | "elbow";

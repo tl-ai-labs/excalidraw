@@ -9,6 +9,7 @@ import {
   colorToHex,
   COLOR_TOP_PICKS_SLOTS,
   type CombineBrandsIfNeeded,
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
   DEFAULT_STROKE_STREAMLINE,
@@ -33,6 +34,7 @@ import {
   STROKE_WIDTH_KEYS,
   type StrokeWidthKey,
   isTransparent,
+  isValidArrowheadSize,
   DEFAULT_ZOOM,
 } from "@excalidraw/common";
 import {
@@ -448,8 +450,11 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<
+    Omit<ExcalidrawElement, "customData" | "arrowheadSize">
+  > & {
     customData?: ExcalidrawElement["customData"];
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -457,7 +462,10 @@ const restoreElementWithProperties = <
     /** @deprecated `movePoints()` option wrongly persisted on linear elements */
     moveMidPointsWithElement?: boolean | null;
   },
-  K extends Pick<T, keyof Omit<Required<T>, keyof ExcalidrawElement>>,
+  K extends Pick<
+    T,
+    keyof Omit<Required<T>, keyof ExcalidrawElement | "arrowheadSize">
+  >,
 >(
   element: T,
   extra: Pick<
@@ -466,7 +474,9 @@ const restoreElementWithProperties = <
     // @ts-ignore TS complains here but type checks the call sites fine.
     keyof K
   > &
-    Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
+    Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">> & {
+      arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
+    },
 ): T => {
   const base: Pick<T, keyof ExcalidrawElement> = {
     type: extra.type || element.type,
@@ -534,6 +544,18 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+
+  const retElement = ret as unknown as ExcalidrawElement & {
+    arrowheadSize?: unknown;
+  };
+  if (
+    "arrowheadSize" in retElement &&
+    (!isLinearElement(retElement) ||
+      !isValidArrowheadSize(retElement.arrowheadSize) ||
+      retElement.arrowheadSize === DEFAULT_ARROWHEAD_SIZE)
+  ) {
+    delete retElement.arrowheadSize;
+  }
 
   return ret;
 };
@@ -1381,6 +1403,11 @@ export const restoreAppState = (
     currentItemStickynoteBackgroundColor: normalizeStickyNoteBackgroundColor(
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
+    currentItemArrowheadSize: isValidArrowheadSize(
+      nextAppState.currentItemArrowheadSize,
+    )
+      ? nextAppState.currentItemArrowheadSize
+      : defaultAppState.currentItemArrowheadSize,
     editingFrame: null,
   };
 };

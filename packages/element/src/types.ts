@@ -1,6 +1,7 @@
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
+  ArrowheadSize,
   FONT_FAMILY,
   ROUNDNESS,
   TEXT_ALIGN,
@@ -31,6 +32,8 @@ export type TextAlign = typeof TEXT_ALIGN[keyof typeof TEXT_ALIGN];
 type VerticalAlignKeys = keyof typeof VERTICAL_ALIGN;
 export type VerticalAlign = typeof VERTICAL_ALIGN[VerticalAlignKeys];
 export type FractionalIndex = string & { _brand: "franctionalIndex" };
+
+export type { ArrowheadSize };
 
 export type BoundElement = Readonly<{
   id: ExcalidrawLinearElement["id"];
@@ -374,6 +377,7 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    arrowheadSize?: ArrowheadSize;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &

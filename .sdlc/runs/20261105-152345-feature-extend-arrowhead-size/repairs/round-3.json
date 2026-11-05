@@ -1,0 +1,106 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails: `packages/excalidraw/data/restore.ts(550,23): error TS2345: Argument of type 'T' is not assignable to parameter of type 'ExcalidrawElement | null | undefined'.`, `(551,33): error TS2339: Property 'arrowheadSize' does not exist on type 'never'.`, `(552,11): error TS2339: Property 'arrowheadSize' does not exist on type 'never'.` The block at lines 547-555 in restoreElementWithProperties narrows the generic `ret` (type T) with isLinearElement. Keep the same behaviour (drop the key when the element is not linear, the value is not a valid ArrowheadSize, or it equals DEFAULT_ARROWHEAD_SIZE) without narrowing T: e.g. `const retElement = ret as unknown as ExcalidrawElement & { arrowheadSize?: unknown };` then `if (\"arrowheadSize\" in retElement && (!isLinearElement(retElement) || !isValidArrowheadSize(retElement.arrowheadSize) || retElement.arrowheadSize === DEFAULT_ARROWHEAD_SIZE)) { delete retElement.arrowheadSize; }`. Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261105-152345-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 3 of 5 tests fail and the file fails yarn test:typecheck. Fix the test only (the source behaves correctly; verified). (1) TS2305 at line 5: `Module '\"@excalidraw/element\"' has no exported member 'createFlowchart'.` The real API is `addNewNodes(startNode, appState, direction, scene, numberOfNodes)` from packages/element/src/flowchart.ts:272, exported from @excalidraw/element, returning `{ nodes, crossStart }` where nodes is [nextNode, bindingArrow, ...]. Use `const { nodes } = addNewNodes(rect, h.state, \"right\", h.app.scene, 1); const bindingArrow = nodes.find((n) => n.type === \"arrow\") as ExcalidrawArrowElement;` (put rect into the scene with API.setElements([rect]) first). (2) TS2554 at line 228: `Expected 4-5 arguments, but got 2.` convertToShape's signature (packages/element/src/convertToShape.ts:535) is `convertToShape(points: GlobalPoint[], appState: AppState, elementsMap: ElementsMap, previousElement: ExcalidrawElement | null, frames?)`. Pass the arrow gesture as GlobalPoint[] (pointFrom<GlobalPoint>(x, y), import type GlobalPoint from @excalidraw/math), `h.state`, `h.app.scene.getNonDeletedElementsMap()`, `null`; drop the freedraw element. (3) TS2769 at lines 324 and 328: exportScene's `data` needs `appState` and `files`; call it as in packages/excalidraw/tests/scene/export.test.ts:71-79: `exportScene({ type: \"svg\", data: { elements, appState: { viewBackgroundColor: \"#ffffff\" }, files: {} }, config: { canvasBackgroundColor: false } })`. (4) `restores the previous arrowheadSize after a single Keyboard.undo()` -> `expected 1.25 to be 0.5` at line 127: Keyboard.undo() fires keydown on document, which reaches the editor only when it is rendered with `handleKeyboardGlobally={true}` (as every test in history.test.tsx does). Render `<Excalidraw handleKeyboardGlobally={true} />` in every test of this file. (5) `propagates currentItemArrowheadSize ...` -> `expected 1 to be 0.5` at line 185: wrap each direct `h.app.actionManager.executeAction(...)` call (lines 180, 271, 274) in `act(() => { ... })`, importing `act` from \"./test-utils\" (it re-exports @testing-library/react). (6) `restores an arrow with arrowheadSize 0.5 and exports a smaller SVG head path` -> `expected 11.75 to be close to 11.745000000000005, received difference is 0.005, but expected 0.0005` at line 341: SVG coordinates are rounded to 2 decimals; use precision 1 in the spanX/spanY toBeCloseTo checks. Keep all five tests and their intent; keep the testIds arrowheadSize-small/-medium/-large/-veryLarge.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-152345-feature-extend-arrowhead-size/briefs/U26.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/flowchart.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/convertToShape.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

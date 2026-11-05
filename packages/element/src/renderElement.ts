@@ -12,6 +12,7 @@ import {
 
 import {
   BOUND_TEXT_PADDING,
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_REDUCED_GLOBAL_ALPHA,
   ELEMENT_READY_TO_ERASE_OPACITY,
   FRAME_STYLE,
@@ -110,8 +111,10 @@ const getCanvasPadding = (element: ExcalidrawElement) => {
     case "text":
       return element.fontSize / 2;
     case "arrow":
-      if (element.endArrowhead || element.endArrowhead) {
-        return 40;
+      if (element.startArrowhead || element.endArrowhead) {
+        return (
+          40 * Math.max(1, element.arrowheadSize ?? DEFAULT_ARROWHEAD_SIZE)
+        );
       }
       return 20;
     default:

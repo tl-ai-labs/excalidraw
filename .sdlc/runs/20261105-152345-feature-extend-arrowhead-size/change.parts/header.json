@@ -1,0 +1,80 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "Format with Prettier defaults (80 cols, 2-space indent, double quotes, trailing commas all, semicolons) and satisfy ESLint with --max-warnings=0.",
+      "Follow ESLint import/order: external packages first, then @excalidraw/* packages, then relative imports, with import type declarations separated by a blank line at the bottom of each group.",
+      "Do not access global window or document in editor runtime code; use app.ownerDocument / app.ownerWindow when DOM globals are needed.",
+      "Use Merge<Base, Overrides> from @excalidraw/common/utility-types instead of Omit<Base, ...> & Overrides when overriding fields on union or element types.",
+      "Add new UI translation strings only to packages/excalidraw/locales/en.json and reference them via t(\"labels.<key>\")."
+    ],
+    "decisions": [
+      {
+        "topic": "Arrowhead size constants and type",
+        "choice": "Export ARROWHEAD_SIZES = { sm: 0.5, md: 0.75, lg: 1, xl: 1.25 } as const, type ArrowheadSize = (typeof ARROWHEAD_SIZES)[keyof typeof ARROWHEAD_SIZES], DEFAULT_ARROWHEAD_SIZE: ArrowheadSize = ARROWHEAD_SIZES.lg, and isValidArrowheadSize(value: unknown): value is ArrowheadSize from packages/common/src/constants.ts, and re-export ArrowheadSize from packages/element/src/types.ts.",
+        "rejected": [
+          "Fixed pixel presets shared across all arrowhead types",
+          "String preset keys requiring a lookup table at every geometry call site"
+        ],
+        "reason": "Each arrowhead type has its own base pixel size (25, 12, 15, 20), so numeric scale multipliers (with lg = 1 as default) scale all arrowhead types proportionally while matching FONT_SIZES and RadioSelection ergonomics."
+      },
+      {
+        "topic": "Element property and default-key omission",
+        "choice": "Add optional arrowheadSize?: ArrowheadSize on ExcalidrawLinearElement; omit arrowheadSize whenever it is undefined, not a valid ArrowheadSize preset, or equal to DEFAULT_ARROWHEAD_SIZE (1) in newLinearElement, newArrowElement, restoreElementWithProperties, mutateElement, and newElementWith (deleting nextElement.arrowheadSize when undefined or DEFAULT_ARROWHEAD_SIZE).",
+        "rejected": [
+          "Always persisting arrowheadSize: 1 on every linear element",
+          "Leaving arrowheadSize: undefined as an own property when resetting to default"
+        ],
+        "reason": "Omitting the key at the default size preserves existing element snapshots and serialized scene shapes and ensures resetting or undoing back to default leaves no own key."
+      },
+      {
+        "topic": "Geometry scaling, angle widening, and linear element bounds",
+        "choice": "getArrowheadSize(arrowhead: Arrowhead, size: ArrowheadSize = DEFAULT_ARROWHEAD_SIZE) multiplies the per-type base pixel size by size; getArrowheadAngle(arrowhead: Arrowhead, size?: number, arrowheadSize: ArrowheadSize = DEFAULT_ARROWHEAD_SIZE) computes const resolvedSize = size ?? getArrowheadSize(arrowhead, arrowheadSize) in the body and measures widening from fullSize = getArrowheadSize(arrowhead, arrowheadSize) down to ARROW_ARROWHEAD_WIDEST_SIZE * arrowheadSize so arrowheads keep their 20deg angle at every size and only widen when short-segment fitting shrinks them, with every getArrowheadAngle caller passing element.arrowheadSize; getLinearElementRotatedBounds keeps today's line-only bounds for sizes at or below DEFAULT_ARROWHEAD_SIZE (sm, md, lg) and only for sizes above DEFAULT_ARROWHEAD_SIZE (xl) extends coords with getArrowheadPoints computed from the uncached [generateLinearElementShape(element)] curve (handling [cx, cy, diameter] for circle/circle_outline and point pairs for other arrowheads).",
+        "rejected": [
+          "Reading arrowhead shapes from ShapeCache in getLinearElementRotatedBounds or changing bounds for sm/md/default sizes",
+          "Widening arrow arrowhead angles against unscaled 25px/10px thresholds when a smaller preset size is selected"
+        ],
+        "reason": "Keeping line-only bounds at or below the default size preserves existing arrows and exports while computing xl arrowhead extents from the uncached curve avoids any ShapeCache dependency, and scaling the angle thresholds preserves the 20deg head shape across all preset sizes."
+      },
+      {
+        "topic": "AppState persistence and properties panel action",
+        "choice": "Add currentItemArrowheadSize: ArrowheadSize to AppState (defaulting to DEFAULT_ARROWHEAD_SIZE in getDefaultAppState, browser-persisted in APP_STATE_STORAGE_CONF, validated in restoreAppState) and register actionChangeArrowheadSize (name: \"changeArrowheadSize\", rendered inside actionChangeArrowProperties between changeArrowhead and changeArrowType, with RadioSelection testIds arrowheadSize-small, arrowheadSize-medium, arrowheadSize-large, arrowheadSize-veryLarge).",
+        "rejected": [
+          "Separate start and end arrowhead size controls",
+          "Top-level panel action outside actionChangeArrowProperties"
+        ],
+        "reason": "A single arrowheadSize scales both ends uniformly and sits alongside changeArrowhead and changeArrowType in the arrow properties section."
+      },
+      {
+        "topic": "Propagating currentItemArrowheadSize and updating snapshots",
+        "choice": "Pass currentItemArrowheadSize into newArrowElement in App.tsx, App.drawshape.ts, flowchart.ts, convertToShape.ts, ConvertElementTypePopup.tsx (sharpArrow, curvedArrow, elbowArrow), and API.createElement, copy/paste arrowheadSize in actionStyles.ts, and update only history.test.tsx.snap, regressionTests.test.tsx.snap, and contextmenu.test.tsx.snap via a targeted vitest -u tooling unit.",
+        "rejected": [
+          "Running yarn test:update across all snapshots",
+          "Preserving previous arrow size when converting between arrow types in ConvertElementTypePopup"
+        ],
+        "reason": "Gate 0 confirmed that all arrow creation and arrow-type conversion paths take the remembered size and only the three AppState snapshot files may be updated."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "yarn vitest run --watch=false {path}",
+        "timeout_s": 120
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "test",
+        "run": "yarn test:typecheck && yarn test:code && yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}
