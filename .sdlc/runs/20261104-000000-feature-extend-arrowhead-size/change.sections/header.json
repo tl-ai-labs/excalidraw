@@ -1,0 +1,107 @@
+{
+  "conventions": [
+    "TypeScript strict; no `any`, no new `@ts-ignore`; type-only imports use `import type` on their own line, as the surrounding file does.",
+    "Formatting is Prettier via @excalidraw/prettier-config (80 columns, double quotes, trailing commas, semicolons); for .ts/.tsx it is enforced through ESLint's prettier/prettier rule (the `eslint` check and its --fix), while the standalone `prettier` check judges only .json/.md files. ESLint also enforces import order (external packages, then @excalidraw/* aliases, then relative, then type imports).",
+    "Import across packages through the path aliases (`@excalidraw/element`, `@excalidraw/element/types`, `@excalidraw/common`, `@excalidraw/math`), never through relative paths that climb out of a package; inside packages/element/src import siblings relatively (`./bounds`, `./types`).",
+    "Prefer `Merge<Base, Overrides>` for type overrides (AGENTS.md); keep new element properties `Readonly` like their neighbours.",
+    "Tests run on Vitest with globals (`describe`, `it`, `expect` without import); build elements with `API.createElement` from `@excalidraw/excalidraw/tests/helpers/api`; assert with `expect(...).toBe/toEqual/toBeLessThan/toBeGreaterThan`; test names are lower-case sentences.",
+    "User-facing strings go through `t(\"labels.<key>\")`; new keys are added to packages/excalidraw/locales/en.json only, next to the existing arrowhead labels; no other locale file is touched.",
+    "Default (medium or absent) arrowhead size must produce exactly today's numbers: every scaled expression multiplies by `getArrowheadSizeScale(...)`, which returns the literal 1 for medium/absent, so no rounding drift reaches existing snapshots.",
+    "Do not change any existing function's behaviour beyond the arrowhead-size scaling; do not rename or reorder existing exports, element fields or appState keys."
+  ],
+  "decisions": [
+    {
+      "topic": "Preset type and its home",
+      "choice": "`export type ArrowheadSize = \"small\" | \"medium\" | \"large\";` in packages/element/src/types.ts directly after `AnyArrowhead`; `ExcalidrawLinearElement` gains `arrowheadSize?: ArrowheadSize;` (optional, inside its Readonly block, after `endArrowhead`). Imported as `import type { ArrowheadSize } from \"@excalidraw/element/types\";`.",
+      "rejected": ["separate startArrowheadSize/endArrowheadSize", "numeric scale stored on the element"],
+      "reason": "Gate 1 approved one preset for both heads, stored as string names; optional keeps old elements valid and additive for older clients."
+    },
+    {
+      "topic": "Scale helper and constants",
+      "choice": "packages/element/src/bounds.ts exports `DEFAULT_ARROWHEAD_SIZE: ArrowheadSize = \"medium\"`, `ARROWHEAD_SIZE_SCALES: Readonly<Record<ArrowheadSize, number>> = { small: 0.5, medium: 1, large: 1.5 }`, `isArrowheadSize(value: unknown): value is ArrowheadSize` and `getArrowheadSizeScale(arrowheadSize: ArrowheadSize | null | undefined): number` (returns 1 for null/undefined/unknown). All reach consumers through the existing `export * from \"./bounds\"` in packages/element/src/index.ts, imported from `@excalidraw/element`.",
+      "rejected": ["a new arrowheadSize.ts module", "constants in @excalidraw/common"],
+      "reason": "bounds.ts already owns getArrowheadSize and is re-exported, so no new file or index edit is needed."
+    },
+    {
+      "topic": "Where the scale is applied in geometry",
+      "choice": "Only `getArrowheadPoints` scales: `const scale = getArrowheadSizeScale(element.arrowheadSize); const size = getArrowheadSize(arrowhead) * scale;` and the angle becomes `getArrowheadAngle(arrowhead, minSize / scale)`. `getArrowheadSize`, `getArrowheadAngle`, `getArrowheadSizeBeyondLastSegment` and `getCardinalityMarkerScale` keep their signatures and bodies.",
+      "rejected": ["adding an element parameter to getArrowheadSize", "scaling inside getArrowheadSizeBeyondLastSegment"],
+      "reason": "The existing fitting already clamps to `size` (Math.min(size, ...)), so the fitted size never exceeds the scaled size and the fitting algorithm is untouched; dividing by scale keeps a small/large head the same shape as a default one."
+    },
+    {
+      "topic": "Default on creation",
+      "choice": "`newLinearElement` and `newArrowElement` accept `arrowheadSize?: ArrowheadSize | null` and add the key only when it is a non-medium preset (`...(opts.arrowheadSize && opts.arrowheadSize !== DEFAULT_ARROWHEAD_SIZE ? { arrowheadSize: opts.arrowheadSize } : {})`).",
+      "rejected": ["always writing arrowheadSize: \"medium\""],
+      "reason": "FR-3/NFR-1: default elements serialize byte-identically, so existing element snapshots do not change."
+    },
+    {
+      "topic": "What the action writes",
+      "choice": "`changeArrowheadSize` writes the chosen preset verbatim (including \"medium\") with `newElementWith` on every selected linear element (arrow or line), sets `appState.currentItemArrowheadSize`, and returns `captureUpdate: CaptureUpdateAction.IMMEDIATELY`. Its value is an `ArrowheadSize`.",
+      "rejected": ["deleting the key when medium is chosen"],
+      "reason": "newElementWith creates a new element object, so ShapeCache (a WeakMap keyed by element) regenerates; an explicit value round-trips through the generic delta like any other field."
+    },
+    {
+      "topic": "App state default and storage",
+      "choice": "`AppState.currentItemArrowheadSize: ArrowheadSize`, default `\"medium\"` in getDefaultAppState placed after `currentItemEndArrowhead`, storage `{ browser: true, export: false, server: false }`. restoreAppState replaces an invalid value with the default via `isArrowheadSize`.",
+      "reason": "Mirrors currentItemStartArrowhead (FR-13/FR-15)."
+    },
+    {
+      "topic": "Restore of elements",
+      "choice": "In restoreElement's line and arrow branches, pass `arrowheadSize` in the extra object only when `isArrowheadSize(element.arrowheadSize)`; when the stored value is invalid, delete it from the result; never add the key to an element that lacked it.",
+      "reason": "FR-14: old files restore unchanged; restoreElementWithProperties spreads the original element, so an invalid value must be removed explicitly."
+    },
+    {
+      "topic": "Panel control placement and labels",
+      "choice": "The control is the repo's `RadioSelection<ArrowheadSize>` (what this repo uses where the brief says ButtonIconSelect; no ButtonIconSelect component exists) with `group=\"arrowhead-size\"`, options small/medium/large reusing the already-imported `FontSizeSmallIcon` / `FontSizeMediumIcon` / `FontSizeLargeIcon` (S / M / L glyphs) and testIds `arrowheadSize-small`, `arrowheadSize-medium`, `arrowheadSize-large`. It renders wherever `renderAction(\"changeArrowhead\")` renders: right after it in Actions.tsx (same condition) and in actionChangeArrowProperties' PanelComponent (compact popover). en.json keys: `labels.arrowheadSize` = \"Arrowhead size\", `labels.arrowheadSize_small` = \"Small\", `labels.arrowheadSize_medium` = \"Medium\", `labels.arrowheadSize_large` = \"Large\".",
+      "rejected": ["new SVG icons in icons.tsx", "a dropdown or slider", "a new ButtonIconSelect component"],
+      "reason": "Smallest change that satisfies FR-10/FR-11; icons.tsx stays untouched and the S/M/L glyphs already exist."
+    },
+    {
+      "topic": "Files in scope that need no edit",
+      "choice": "No edit to delta.ts, reconcile.ts, shape.ts, renderElement.ts, index.ts, icons.tsx or ConvertElementTypePopup.tsx.",
+      "reason": "delta/reconcile apply element properties generically via newElementWith; shape.ts and the canvas path draw from getArrowheadPoints, which reads element.arrowheadSize, and ShapeCache is keyed by element object so any newElementWith update regenerates; the arrow canvas padding (40) already covers a large head; index.ts re-exports bounds.ts; ConvertElementTypePopup spreads the source element into newLinearElement/newArrowElement, so the size carries over through the new option."
+    },
+    {
+      "topic": "What 'bounds follow the size' means",
+      "choice": "Linear element bounds are computed from the shaft curve only (getLinearElementRotatedBounds uses the first drawable); arrowhead geometry lives in getArrowheadPoints in bounds.ts, so AC-3 is asserted on getArrowheadPoints extents in bounds.test.ts.",
+      "rejected": ["adding arrowhead extents to getElementBounds"],
+      "reason": "Adding heads to element bounds would change existing element bounds and snapshots, which NFR-1 forbids."
+    },
+    {
+      "topic": "Where the AC-4 panel/action test lives",
+      "choice": "In packages/excalidraw/tests/scene/export.test.ts, in a new `arrowhead size` describe block that also holds AC-1, rendering the editor with `React.createElement(Excalidraw)` (the file is .ts).",
+      "rejected": ["packages/excalidraw/actions/actionProperties.test.tsx"],
+      "reason": "The frozen allowlist holds only restore.test.ts, export.test.ts, bounds.test.ts and shape.test.ts as test files."
+    },
+    {
+      "topic": "Snapshot updates",
+      "choice": "No unit writes snapshots: the appState snapshots that gain `currentItemArrowheadSize: \"medium\"` live in packages/excalidraw/tests/__snapshots__/ (contextmenu, history, regressionTests .snap), which the frozen allowlist's `tests/**/__snapshots__/**` glob does not match per plan-lint. They are updated by the orchestrator or person with `yarn vitest run --update` on those three test files only; element snapshot entries must not change.",
+      "rejected": ["`yarn test:update` over the whole suite", "tooling units at those paths (refused: outside the allowlist)"],
+      "reason": "Limits rewrites to the appState snapshots the change is expected to touch, so an accidental element-snapshot drift still fails the project test run."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "./node_modules/.bin/eslint --max-warnings=0 {path}",
+      "fix": "./node_modules/.bin/eslint --max-warnings=0 --fix {path}",
+      "timeout_s": 120
+    },
+    {
+      "id": "prettier",
+      "run": "./node_modules/.bin/prettier --check {path}",
+      "fix": "./node_modules/.bin/prettier --write {path}",
+      "timeout_s": 30
+    },
+    {
+      "id": "vitest",
+      "run": "./node_modules/.bin/vitest run {path}",
+      "timeout_s": 300
+    }
+  ],
+  "project_checks": [
+    { "id": "typecheck", "run": "yarn test:typecheck" },
+    { "id": "code", "run": "yarn test:code" },
+    { "id": "test", "run": "yarn test:app --watch=false" }
+  ]
+}

@@ -1,0 +1,204 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the ArrowheadSize preset type and an optional arrowheadSize property on ExcalidrawLinearElement.",
+    "exports": [
+      { "name": "ArrowheadSize", "kind": "type", "params": [], "returns": "\"small\" | \"medium\" | \"large\"" }
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 367,
+        "to": 367,
+        "first_line": "export type AnyArrowhead = Arrowhead | ArrowheadLegacy;",
+        "rule": "Add a blank line, a one-line JSDoc (`/** preset scale of both arrowheads of a linear element; absent = \"medium\" */`) and `export type ArrowheadSize = \"small\" | \"medium\" | \"large\";`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 376,
+        "to": 376,
+        "first_line": "endArrowhead: Arrowhead | null;",
+        "rule": "Add `arrowheadSize?: ArrowheadSize;` inside the same Readonly block, preceded by a one-line comment that absent means medium (today's size)."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-1", "AC-5", "NFR-2", "NFR-5"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/bounds.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the arrowhead-size scale helpers and makes getArrowheadPoints draw at the scaled size, with the existing short-segment fitting clamped to that scaled size.",
+    "rules": [
+      "1. `getArrowheadSizeScale` returns `ARROWHEAD_SIZE_SCALES[arrowheadSize]` when `isArrowheadSize(arrowheadSize)` is true, else exactly 1.",
+      "2. `isArrowheadSize` is true only for the three string keys of ARROWHEAD_SIZE_SCALES (use `typeof value === \"string\" && value in ARROWHEAD_SIZE_SCALES`).",
+      "3. In getArrowheadPoints the base size becomes `getArrowheadSize(arrowhead) * scale` where `scale = getArrowheadSizeScale(element.arrowheadSize)`; the rest of the length/minSize fitting code stays as is, so `minSize` is still clamped by `Math.min(size, ...)` and never exceeds the scaled size.",
+      "4. The angle call becomes `getArrowheadAngle(arrowhead, minSize / scale)` so a scaled head keeps the same opening angle as an unscaled head fitted to the same proportion; with scale 1 this is identical to today.",
+      "5. Do not change getArrowheadSize, getArrowheadAngle, getArrowheadSizeBeyondLastSegment or getCardinalityMarkerScale."
+    ],
+    "exports": [
+      { "name": "DEFAULT_ARROWHEAD_SIZE", "kind": "const", "params": [], "returns": "ArrowheadSize" },
+      { "name": "ARROWHEAD_SIZE_SCALES", "kind": "const", "params": [], "returns": "Readonly<Record<ArrowheadSize, number>>" },
+      { "name": "isArrowheadSize", "kind": "function", "params": [{ "name": "value", "type": "unknown" }], "returns": "value is ArrowheadSize" },
+      { "name": "getArrowheadSizeScale", "kind": "function", "params": [{ "name": "arrowheadSize", "type": "ArrowheadSize | null | undefined" }], "returns": "number" }
+    ],
+    "import_line": "import { DEFAULT_ARROWHEAD_SIZE, ARROWHEAD_SIZE_SCALES, isArrowheadSize, getArrowheadSizeScale } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 60,
+        "to": 60,
+        "first_line": "Arrowhead,",
+        "rule": "Add `ArrowheadSize,` to the type import list from ./types."
+      },
+      {
+        "id": "S2",
+        "at": "insert_before",
+        "from": 726,
+        "to": 726,
+        "first_line": "/** @returns number in pixels */",
+        "rule": "Insert DEFAULT_ARROWHEAD_SIZE (\"medium\"), ARROWHEAD_SIZE_SCALES ({ small: 0.5, medium: 1, large: 1.5 }), isArrowheadSize and getArrowheadSizeScale, each with a one-line JSDoc, followed by a blank line."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 1058,
+        "to": 1058,
+        "first_line": "const size = getArrowheadSize(arrowhead);",
+        "rule": "Replace with `const scale = getArrowheadSizeScale(element.arrowheadSize);` and `const size = getArrowheadSize(arrowhead) * scale;` (rule 3)."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 1102,
+        "to": 1102,
+        "first_line": "const angle = getArrowheadAngle(arrowhead, minSize);",
+        "rule": "Replace with `const angle = getArrowheadAngle(arrowhead, minSize / scale);` (rule 4)."
+      }
+    ],
+    "uses": [
+      { "path": "packages/element/src/bounds.ts", "lines": [726, 790], "reason": "getArrowheadSize/getArrowheadAngle the helpers sit next to" }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-2", "FR-5", "FR-6", "FR-7", "NFR-4"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "newLinearElement and newArrowElement accept an optional arrowheadSize and store it only when it is a non-medium preset.",
+    "rules": [
+      "1. The option type is `arrowheadSize?: ArrowheadSize | null` on both creators.",
+      "2. Each returned object spreads `...(opts.arrowheadSize && opts.arrowheadSize !== DEFAULT_ARROWHEAD_SIZE ? { arrowheadSize: opts.arrowheadSize } : {})` after its arrowhead fields; medium, null or absent adds no key.",
+      "3. Both branches of newArrowElement (elbowed and not) apply rule 2; newLinearElement applies it to the base object so lines inherit it."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 22,
+        "to": 25,
+        "first_line": "import {",
+        "last_line": "} from \"./bounds\";",
+        "rule": "Add `DEFAULT_ARROWHEAD_SIZE,` to this import list from ./bounds (keep members in their current order, new one first)."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 48,
+        "to": 48,
+        "first_line": "Arrowhead,",
+        "rule": "Add `ArrowheadSize,` to the type import list from ./types."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 624,
+        "to": 638,
+        "first_line": "opts: {",
+        "last_line": "};",
+        "rule": "Add `arrowheadSize?: ArrowheadSize | null;` to the opts type after `polygon`, and the conditional spread of rule 2 after `endArrowhead: null,`."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 653,
+        "to": 686,
+        "first_line": "opts: {",
+        "last_line": "elbowed: false,",
+        "rule": "Add `arrowheadSize?: ArrowheadSize | null;` to the opts type after `endArrowhead`, and the conditional spread of rule 2 after `endArrowhead: opts.endArrowhead || null,` in both returned objects."
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-3", "NFR-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/elbowArrow.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The elbow-arrow leg check reserves the arrow's scaled arrowhead size instead of the unscaled one.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 55,
+        "to": 60,
+        "first_line": "import {",
+        "last_line": "} from \"./bounds\";",
+        "rule": "Add `getArrowheadSizeScale,` after `getArrowheadSize,` in this import list."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 1489,
+        "to": 1500,
+        "first_line": "if (",
+        "last_line": ") {",
+        "rule": "Multiply each `getArrowheadSize(arrow.startArrowhead)` / `getArrowheadSize(arrow.endArrowhead)` by `getArrowheadSizeScale(arrow.arrowheadSize)`; keep the rest of the condition unchanged."
+      }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["FR-8"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/transform.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The arrow-label margin keeps clear of the arrow's scaled arrowhead size.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 79,
+        "to": 79,
+        "first_line": "import { getArrowheadSize, getCommonBounds } from \"./bounds\";",
+        "rule": "Import `getArrowheadSize, getArrowheadSizeScale, getCommonBounds` from ./bounds (Prettier wraps as needed)."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 662,
+        "to": 662,
+        "first_line": "(arrowhead ? getArrowheadSize(arrowhead) : 0)",
+        "rule": "Use `(arrowhead ? getArrowheadSize(arrowhead) * getArrowheadSizeScale(arrow.arrowheadSize) : 0)`."
+      }
+    ],
+    "depends_on": ["U02"],
+    "covers": ["FR-8"],
+    "checks": ["eslint"]
+  }
+]
