@@ -113,6 +113,138 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   return result;
 };
 
+// Browser-only cache to avoid memory leaks on server
+const DARK_MODE_INVERSE_COLORS_CACHE: Map<string, string> | null =
+  typeof window !== "undefined" ? new Map() : null;
+
+let darkModePaletteInverseMap: Map<string, string> | null = null;
+
+// maps applyDarkModeFilter(c) -> c for every opaque palette color
+const getDarkModePaletteInverseMap = (): Map<string, string> => {
+  if (darkModePaletteInverseMap) {
+    return darkModePaletteInverseMap;
+  }
+
+  const map = new Map<string, string>();
+  const colors: string[] = [];
+
+  for (const value of Object.values(COLOR_PALETTE)) {
+    if (typeof value === "string") {
+      if (value !== COLOR_PALETTE.transparent) {
+        colors.push(value);
+      }
+    } else {
+      colors.push(...value);
+    }
+  }
+  colors.push(...DEFAULT_CANVAS_BACKGROUND_PICKS);
+
+  for (const c of colors) {
+    const key = applyDarkModeFilter(c, true);
+    if (!map.has(key)) {
+      map.set(key, c);
+    }
+  }
+
+  darkModePaletteInverseMap = map;
+  return map;
+};
+
+// offsets in [-2, 2]^3 ordered by increasing Manhattan distance
+const INVERSE_REFINEMENT_OFFSETS: [number, number, number][] = (() => {
+  const offsets: [number, number, number][] = [];
+  for (let dr = -2; dr <= 2; dr++) {
+    for (let dg = -2; dg <= 2; dg++) {
+      for (let db = -2; db <= 2; db++) {
+        offsets.push([dr, dg, db]);
+      }
+    }
+  }
+  return offsets.sort(
+    (a, b) =>
+      Math.abs(a[0]) +
+      Math.abs(a[1]) +
+      Math.abs(a[2]) -
+      (Math.abs(b[0]) + Math.abs(b[1]) + Math.abs(b[2])),
+  );
+})();
+
+/**
+ * Inverse of `applyDarkModeFilter`. Palette colors are recovered exactly,
+ * other colors are recovered algebraically and refined so that
+ * applyDarkModeFilter(invertDarkModeFilter(x)) === x.
+ */
+export const invertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const cached = DARK_MODE_INVERSE_COLORS_CACHE?.get(color);
+  if (cached) {
+    return cached;
+  }
+
+  if (
+    color === COLOR_PALETTE.transparent ||
+    color.toLowerCase() === applyDarkModeFilter(COLOR_PALETTE.transparent, true)
+  ) {
+    DARK_MODE_INVERSE_COLORS_CACHE?.set(color, COLOR_PALETTE.transparent);
+    return COLOR_PALETTE.transparent;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+  const rgb = tc.toRgb();
+  const opaqueHex = rgbToHex(rgb.r, rgb.g, rgb.b);
+
+  const paletteHex = getDarkModePaletteInverseMap().get(opaqueHex);
+  if (paletteHex) {
+    let paletteResult = paletteHex;
+    if (alpha < 1) {
+      const pRgb = tinycolor(paletteHex).toRgb();
+      paletteResult = rgbToHex(pRgb.r, pRgb.g, pRgb.b, alpha);
+    }
+    if (DARK_MODE_INVERSE_COLORS_CACHE) {
+      DARK_MODE_INVERSE_COLORS_CACHE.set(color, paletteResult);
+    }
+    return paletteResult;
+  }
+
+  const unrotated = cssHueRotate(rgb.r, rgb.g, rgb.b, 180 as Degrees);
+  const uninvertComponent = (v: number): number =>
+    Math.round(clamp((255 * 0.93 - v) / (2 * 0.93 - 1), 0, 255));
+
+  const baseR = uninvertComponent(unrotated.r);
+  const baseG = uninvertComponent(unrotated.g);
+  const baseB = uninvertComponent(unrotated.b);
+
+  let r = baseR;
+  let g = baseG;
+  let b = baseB;
+
+  if (applyDarkModeFilter(rgbToHex(baseR, baseG, baseB), true) !== opaqueHex) {
+    for (const [dr, dg, db] of INVERSE_REFINEMENT_OFFSETS) {
+      const cr = clamp(baseR + dr, 0, 255);
+      const cg = clamp(baseG + dg, 0, 255);
+      const cb = clamp(baseB + db, 0, 255);
+      if (applyDarkModeFilter(rgbToHex(cr, cg, cb), true) === opaqueHex) {
+        r = cr;
+        g = cg;
+        b = cb;
+        break;
+      }
+    }
+  }
+
+  const result = rgbToHex(r, g, b, alpha);
+
+  if (DARK_MODE_INVERSE_COLORS_CACHE) {
+    DARK_MODE_INVERSE_COLORS_CACHE.set(color, result);
+  }
+
+  return result;
+};
+
 // ---------------------------------------------------------------------------
 // Color palette
 // ---------------------------------------------------------------------------

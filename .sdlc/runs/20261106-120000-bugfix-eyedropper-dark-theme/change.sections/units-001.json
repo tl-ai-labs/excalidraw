@@ -1,0 +1,342 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/common/src/colors.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Add unit tests for invertDarkModeFilter verifying exact palette round trips, exact on-screen round trips, unclamped custom colour tolerance, clamped saturated custom colours, alpha preservation, and disabled flag.",
+    "rules": [
+      "1. Import `DEFAULT_CANVAS_BACKGROUND_PICKS` and `invertDarkModeFilter` alongside `applyDarkModeFilter`, `COLOR_PALETTE`, and `rgbToHex` from `@excalidraw/common`.",
+      "2. Add a `describe(\"invertDarkModeFilter\", () => { ... })` suite immediately after `describe(\"applyDarkModeFilter\", ...)` without altering existing tests or adding snapshot assertions.",
+      "3. Test that `invertDarkModeFilter(color, false)` returns `color` unchanged.",
+      "4. Test exact stored-colour round trip `invertDarkModeFilter(applyDarkModeFilter(c)) === c` for `COLOR_PALETTE.black` (`#1e1e1e`), `COLOR_PALETTE.white` (`#ffffff`), `COLOR_PALETTE.transparent` (`transparent`), all 60 shades across all 12 colour families in `COLOR_PALETTE`, and every colour in `DEFAULT_CANVAS_BACKGROUND_PICKS`.",
+      "5. Test exact on-screen round trip `applyDarkModeFilter(invertDarkModeFilter(x)) === x` for `x = applyDarkModeFilter(c)` across palette colours, unclamped custom colours (`#6496c8`, `#585858`), and clamped saturated custom colours (`#ff00ff`, `#ff0000`, `#00ff00`, `#0000ff`).",
+      "6. Test unclamped custom colours: for `#6496c8` (`applyDarkModeFilter(\"#6496c8\") === \"#4d78a3\"`), `invertDarkModeFilter(\"#4d78a3\") === \"#6496c8\"`; for quantization-colliding `#585858` and `#595959` (`applyDarkModeFilter` is `#a1a1a1` for both), `invertDarkModeFilter(\"#a1a1a1\") === \"#595959\"`, per-channel absolute error from `#585858` is <= 3, and `applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(\"#585858\"))) === \"#a1a1a1\"`.",
+      "7. Test clamped saturated custom colours: for `#ff00ff`, `applyDarkModeFilter(\"#ff00ff\") === \"#ff70ff\"`, `invertDarkModeFilter(\"#ff70ff\") === \"#d832d8\"`, and `applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(\"#ff00ff\"))) === \"#ff70ff\"`; for `#ff0000` (`#ff9090` -> `#b73636` -> `#ff9090`), `#00ff00` (`#008f00`), and `#0000ff` (`#cdcdff`), `applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c)`.",
+      "8. Test alpha preservation for `#ff000080`, `rgba(255, 0, 0, 0.5)`, `#ff000000`, and `transparent`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1,
+        "to": 5,
+        "first_line": "import {",
+        "last_line": "} from \"@excalidraw/common\";",
+        "rule": "Import DEFAULT_CANVAS_BACKGROUND_PICKS and invertDarkModeFilter alongside applyDarkModeFilter, COLOR_PALETTE, and rgbToHex from @excalidraw/common."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 216,
+        "to": 216,
+        "first_line": "});",
+        "rule": "Insert the describe(\"invertDarkModeFilter\", ...) test suite covering FR-5, AC-2, and AC-4."
+      }
+    ],
+    "style_from": {
+      "path": "packages/common/src/colors.test.ts",
+      "lines": [1, 216],
+      "reason": "Match existing describe/it structure and assertion conventions in colors.test.ts."
+    },
+    "uses": [
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [83, 228],
+        "reason": "Tests applyDarkModeFilter, invertDarkModeFilter, COLOR_PALETTE, and DEFAULT_CANVAS_BACKGROUND_PICKS."
+      }
+    ],
+    "depends_on": [],
+    "covers": [
+      "FR-5",
+      "NFR-2",
+      "NFR-3",
+      "AC-4",
+      "AC-5"
+    ],
+    "tests": [
+      {
+        "name": "returns input color unchanged when enable is false",
+        "given": "A dark-mode hex string such as #d3d3d3 and enable = false",
+        "expect": "invertDarkModeFilter(\"#d3d3d3\", false) returns \"#d3d3d3\""
+      },
+      {
+        "name": "reproduces every COLOR_PALETTE and DEFAULT_CANVAS_BACKGROUND_PICKS color with exact hex equality",
+        "given": "Every color c in COLOR_PALETTE (black, white, transparent, and all 60 shades) and DEFAULT_CANVAS_BACKGROUND_PICKS",
+        "expect": "invertDarkModeFilter(applyDarkModeFilter(c)) === c and applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c)"
+      },
+      {
+        "name": "inverts unclamped custom colors within +-3 per channel and preserves exact on-screen round trip",
+        "given": "Unclamped custom colors #6496c8 (dark #4d78a3) and quantization-colliding pair #585858 / #595959 (dark #a1a1a1)",
+        "expect": "invertDarkModeFilter(\"#4d78a3\") === \"#6496c8\", invertDarkModeFilter(\"#a1a1a1\") === \"#595959\", per-channel difference from #585858 is <= 3, and applyDarkModeFilter(invertDarkModeFilter(x)) === x"
+      },
+      {
+        "name": "inverts clamped saturated custom colors (#ff00ff, #ff0000, #00ff00, #0000ff) to canonical preimages with exact on-screen round trip",
+        "given": "Clamped saturated colors #ff00ff (dark #ff70ff), #ff0000 (dark #ff9090), #00ff00 (dark #008f00), and #0000ff (dark #cdcdff)",
+        "expect": "invertDarkModeFilter(\"#ff70ff\") === \"#d832d8\", invertDarkModeFilter(\"#ff9090\") === \"#b73636\", and applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c) for all four"
+      },
+      {
+        "name": "preserves alpha channel across hex8, rgba, and transparent inputs",
+        "given": "Alpha colors #ff000080, rgba(255, 0, 0, 0.5), #ff000000, and transparent transformed via applyDarkModeFilter",
+        "expect": "invertDarkModeFilter preserves the alpha suffix (80, 00) and returns \"transparent\" for transparent"
+      }
+    ],
+    "checks": [
+      "lint"
+    ],
+    "red_checks": [
+      "test"
+    ]
+  },
+  {
+    "id": "U02",
+    "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Add reproducing jsdom tests for EyeDropper in dark and light themes covering palette shapes, clamped saturated shapes, colliding-colour tie-breaking, multi-layer overlap, stroke vs. background disambiguation, and general-inverse fallback.",
+    "rules": [
+      "1. Import `COLOR_PALETTE` and `THEME` from `@excalidraw/common`, `API` from `./helpers/api`, and `act` alongside `fireEvent, GlobalTestState, render, waitFor` from `./test-utils`.",
+      "2. Keep the existing `keeps the color preview within the editor container` test unchanged.",
+      "3. For each dark-theme test, render `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} initialData={{ elements, appState: { theme: THEME.DARK } }} />` (using `API.createElement` to construct scene rectangles) and mock `vi.spyOn(window.h.app.canvas!.getContext(\"2d\")!, \"getImageData\")` to return `{ data: new Uint8ClampedArray([r, g, b, 255]) } as unknown as ImageData`.",
+      "4. Activate the eyedropper with `Keyboard.keyPress(\"i\")`, wait for `.excalidraw-eye-dropper-preview` and `.excalidraw-eye-dropper-backdrop`, fire `fireEvent.pointerMove(window, { clientX, clientY })`, `fireEvent.pointerDown(eyeDropperContainer, { clientX, clientY })`, and `fireEvent.pointerUp(eyeDropperContainer, { clientX, clientY })`, and assert `window.h.state.currentItemBackgroundColor`.",
+      "5. Add test cases covering: (a) dark-theme palette shape `#1e1e1e` (`COLOR_PALETTE.black`, canvas pixel `[211, 211, 211, 255]` `#d3d3d3`) at `(10, 10, 100, 100)` picked at `(50, 50)` saves `#1e1e1e`; (b) dark-theme clamped saturated custom shape `#ff00ff` (canvas pixel `[255, 112, 255, 255]` `#ff70ff`) at `(10, 10, 100, 100)` picked at `(50, 50)` saves `#ff00ff`; (c) dark-theme tie-breaking between Shape A (`backgroundColor: \"#ff00ff\"`, `fillStyle: \"solid\"` at `x: 10, y: 10, width: 80, height: 80`) and Shape B (`backgroundColor: \"#d832d8\"`, `fillStyle: \"solid\"` at `x: 200, y: 10, width: 80, height: 80`) both rendering `[255, 112, 255, 255]`, saving `#ff00ff` when picked at `(40, 40)` and `#d832d8` when picked at `(240, 40)`; (d) dark-theme overlap where a `#ff00ff` solid rectangle at `(10, 10, 100, 100)` is covered by an unmatched hachured rectangle (`backgroundColor: \"#12b886\"`, `strokeColor: \"#1e1e1e\"`, `fillStyle: \"hachure\"`) at `(10, 10, 100, 100)` while a `#d832d8` solid rectangle sits elsewhere at `(300, 300, 80, 80)` at a higher z-index, saving `#ff00ff` when picking `[255, 112, 255, 255]` at `(50, 50)`; (e) dark-theme stroke vs. background disambiguation on one solid rectangle at `(10, 10, 100, 100)` with `strokeColor: \"#ff00ff\"` and `backgroundColor: \"#1e1e1e\"`, saving `#ff00ff` when `getImageData` returns `[255, 112, 255, 255]` and `#1e1e1e` when `getImageData` returns `[211, 211, 211, 255]`; (f) dark-theme general-inverse fallback when picking `[77, 120, 163, 255]` (`#4d78a3`) over empty canvas at `(400, 400)` saves `#6496c8`, and light-theme (`THEME.LIGHT`) pick of `[211, 211, 211, 255]` saves `#d3d3d3` unchanged."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1,
+        "to": 6,
+        "first_line": "import React from \"react\";",
+        "last_line": "import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";",
+        "rule": "Import COLOR_PALETTE and THEME from @excalidraw/common, API from ./helpers/api, and act from ./test-utils."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 49,
+        "to": 49,
+        "first_line": "});",
+        "rule": "Insert dark-theme and light-theme eyedropper test cases covering FR-6, AC-1, AC-3, and AC-4."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "lines": [1, 50],
+      "reason": "Follow existing EyeDropper jsdom test setup and pointer event dispatch pattern."
+    },
+    "uses": [
+      {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "lines": [22, 195],
+        "reason": "Exercises EyeDropper pointermove, pointerdown, and pointerup listeners in dark and light themes."
+      }
+    ],
+    "depends_on": [],
+    "covers": [
+      "FR-6",
+      "NFR-2",
+      "NFR-3",
+      "AC-4",
+      "AC-5"
+    ],
+    "tests": [
+      {
+        "name": "picks exact stored palette color (#1e1e1e) in dark theme instead of dark-mode pixel (#d3d3d3)",
+        "given": "Dark theme with a solid rectangle of backgroundColor #1e1e1e at (10, 10, 100, 100) and canvas getImageData returning [211, 211, 211, 255] (#d3d3d3)",
+        "expect": "Picking at (50, 50) sets window.h.state.currentItemBackgroundColor to \"#1e1e1e\""
+      },
+      {
+        "name": "picks exact stored clamped saturated color (#ff00ff) from shape under cursor in dark theme",
+        "given": "Dark theme with a solid rectangle of backgroundColor #ff00ff at (10, 10, 100, 100) and canvas getImageData returning [255, 112, 255, 255] (#ff70ff)",
+        "expect": "Picking at (50, 50) sets window.h.state.currentItemBackgroundColor to \"#ff00ff\""
+      },
+      {
+        "name": "resolves tie in favor of the shape under the cursor when two shapes render to the same dark-mode pixel (#ff00ff vs #d832d8)",
+        "given": "Dark theme with Shape A (#ff00ff at 10,10,80,80) and Shape B (#d832d8 at 200,10,80,80), both rendering [255, 112, 255, 255] (#ff70ff)",
+        "expect": "Picking at (40, 40) saves \"#ff00ff\" and picking at (240, 40) saves \"#d832d8\""
+      },
+      {
+        "name": "resolves overlapping shapes in z-order under the cursor when an unmatched shape sits above #ff00ff and a colliding #d832d8 shape sits elsewhere at higher z-index",
+        "given": "Dark theme with a bottom #ff00ff solid shape at (10,10,100,100), a middle hachured shape (#12b886 / #1e1e1e) overlapping at (10,10,100,100), and a top #d832d8 shape at (300,300,80,80)",
+        "expect": "Picking pixel [255, 112, 255, 255] (#ff70ff) at (50, 50) saves \"#ff00ff\""
+      },
+      {
+        "name": "disambiguates strokeColor vs backgroundColor on a single shape in dark theme based on sampled pixel",
+        "given": "Dark theme with a solid rectangle at (10,10,100,100) having strokeColor #ff00ff (dark #ff70ff) and backgroundColor #1e1e1e (dark #d3d3d3)",
+        "expect": "Picking when getImageData returns [255, 112, 255, 255] saves \"#ff00ff\" and when getImageData returns [211, 211, 211, 255] saves \"#1e1e1e\""
+      },
+      {
+        "name": "falls back to invertDarkModeFilter when no shape under cursor matches in dark theme and preserves raw pixel in light theme",
+        "given": "Empty canvas at (400, 400) returning [77, 120, 163, 255] (#4d78a3) in dark theme, and [211, 211, 211, 255] (#d3d3d3) in light theme",
+        "expect": "Dark theme saves \"#6496c8\" and light theme saves \"#d3d3d3\""
+      }
+    ],
+    "checks": [
+      "lint"
+    ],
+    "red_checks": [
+      "test"
+    ]
+  },
+  {
+    "id": "U03",
+    "path": "packages/common/src/colors.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Export invertDarkModeFilter(color, enable) in packages/common/src/colors.ts to invert applyDarkModeFilter with exact palette recovery, exact on-screen round trips, alpha preservation, and browser-only caching.",
+    "rules": [
+      "1. Define a browser-only cache `const DARK_MODE_INVERSE_COLORS_CACHE: Map<string, string> | null = typeof window !== \"undefined\" ? new Map() : null;` and a lazily initialized reverse palette lookup `getDarkModePaletteInverseMap(): Map<string, string>` that maps `applyDarkModeFilter(c, true)` -> `c` for every opaque colour `c` in `COLOR_PALETTE` (`black`, `white`, and all 12 shade arrays) and `DEFAULT_CANVAS_BACKGROUND_PICKS`.",
+      "2. Export `invertDarkModeFilter = (color: string, enable = true): string => { ... }`: return `color` unchanged when `!enable`; return `DARK_MODE_INVERSE_COLORS_CACHE?.get(color)` on cache hit; if `color === COLOR_PALETTE.transparent` or `color.toLowerCase() === applyDarkModeFilter(COLOR_PALETTE.transparent, true)` (`#ededed00`), cache and return `COLOR_PALETTE.transparent` (`\"transparent\"`).",
+      "3. Parse `color` with `tinycolor(color)`, extract `alpha = tc.getAlpha()` and `rgb = tc.toRgb()`, and compute `opaqueHex = rgbToHex(rgb.r, rgb.g, rgb.b)`. If `getDarkModePaletteInverseMap().get(opaqueHex)` returns a `paletteHex`, preserve `alpha` (returning `paletteHex` when `alpha === 1`, or `rgbToHex(pRgb.r, pRgb.g, pRgb.b, alpha)` when `alpha < 1`), store in `DARK_MODE_INVERSE_COLORS_CACHE`, and return.",
+      "4. For non-palette colours, reverse the 180-degree hue rotation via `const unrotated = cssHueRotate(rgb.r, rgb.g, rgb.b, 180 as Degrees)` and reverse the 93% invert per channel via `const uninvertComponent = (v: number): number => Math.round(clamp((255 * 0.93 - v) / (2 * 0.93 - 1), 0, 255))` to get `(baseR, baseG, baseB)`.",
+      "5. If `applyDarkModeFilter(rgbToHex(baseR, baseG, baseB), true) !== opaqueHex`, search integer offsets `(dr, dg, db)` in `[-2, 2]^3` ordered by increasing Manhattan distance `|dr| + |dg| + |db|` around `(baseR, baseG, baseB)` (clamped to `[0, 255]`) and pick the first `(r, g, b)` satisfying `applyDarkModeFilter(rgbToHex(r, g, b), true) === opaqueHex` (defaulting to `(baseR, baseG, baseB)` if none matches).",
+      "6. Format with `rgbToHex(r, g, b, alpha)`, cache in `DARK_MODE_INVERSE_COLORS_CACHE`, and return."
+    ],
+    "exports": [
+      {
+        "name": "invertDarkModeFilter",
+        "kind": "function",
+        "params": [
+          {
+            "name": "color",
+            "type": "string"
+          },
+          {
+            "name": "enable",
+            "type": "boolean"
+          }
+        ],
+        "returns": "string"
+      }
+    ],
+    "import_line": "import { invertDarkModeFilter } from \"@excalidraw/common\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 114,
+        "to": 114,
+        "first_line": "};",
+        "rule": "Insert DARK_MODE_INVERSE_COLORS_CACHE, lazy reverse palette lookup, and exported invertDarkModeFilter right after applyDarkModeFilter."
+      }
+    ],
+    "style_from": {
+      "path": "packages/common/src/colors.ts",
+      "lines": [12, 114],
+      "reason": "Match applyDarkModeFilter caching, tinycolor usage, and function formatting."
+    },
+    "uses": [
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [147, 305],
+        "reason": "References COLOR_PALETTE, DEFAULT_CANVAS_BACKGROUND_PICKS, and rgbToHex in the same file."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02"
+    ],
+    "covers": [
+      "FR-1",
+      "NFR-1",
+      "NFR-2",
+      "NFR-4",
+      "AC-2",
+      "AC-5"
+    ],
+    "checks": [
+      "lint"
+    ]
+  },
+  {
+    "id": "U04",
+    "path": "packages/excalidraw/components/EyeDropper.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Update getCurrentColor in EyeDropper.tsx so dark theme resolves sampled canvas pixels to the exact stored colour of the matching hit shape under the cursor in top-down z-order, then viewBackgroundColor, then invertDarkModeFilter.",
+    "rules": [
+      "1. Import `applyDarkModeFilter`, `colorToHex`, `EVENT`, `invertDarkModeFilter`, `isOpaqueColor`, `KEYS`, `rgbToHex`, `THEME`, and `viewportCoordsToSceneCoords` from `@excalidraw/common`, `pointFrom` from `@excalidraw/math`, and `hitElementItself`, `isFrameLikeElement` from `@excalidraw/element`.",
+      "2. Include `elements` in `stableProps` (`useStable({ app, elements, onCancel, onChange, onSelect, selectedElements })`) and include `appState.theme` in the `useEffect` dependency array.",
+      "3. In `getCurrentColor({ clientX, clientY })`, compute `const pixelHex = rgbToHex(pixel[0], pixel[1], pixel[2])` and return `pixelHex` unchanged when `appState.theme !== THEME.DARK`.",
+      "4. When `appState.theme === THEME.DARK`, compute `{ x: sceneX, y: sceneY } = viewportCoordsToSceneCoords({ clientX, clientY }, stableProps.app.state)`, `point = pointFrom(sceneX, sceneY)`, and `elementsMap = stableProps.app.scene.getNonDeletedElementsMap()`.",
+      "5. Iterate `stableProps.elements` from top-most to bottom-most (`for (let i = stableProps.elements.length - 1; i >= 0; i--)`), skipping elements with `element.isDeleted` or `element.type === \"image\"`, and keeping elements where `hitElementItself({ point, element, threshold: stableProps.app.getElementHitThreshold(element), elementsMap, frameNameBound: isFrameLikeElement(element) ? stableProps.app.frameNameBoundsCache.get(element) : null })` is `true`.",
+      "6. For each hit element in top-down z-order, check candidate colours in order `colorPickerType === \"elementBackground\" ? [element.backgroundColor, element.strokeColor] : [element.strokeColor, element.backgroundColor]`: for each candidate where `candidate && isOpaqueColor(candidate)`, compute `const hex = colorToHex(candidate)` and if `hex && applyDarkModeFilter(hex, true) === pixelHex`, return `hex`.",
+      "7. If no hit element under the cursor matches `pixelHex`, check `const viewBg = stableProps.app.state.viewBackgroundColor`: if `viewBg && isOpaqueColor(viewBg)`, compute `const bgHex = colorToHex(viewBg)` and if `bgHex && applyDarkModeFilter(bgHex, true) === pixelHex`, return `bgHex`.",
+      "8. Otherwise return `invertDarkModeFilter(pixelHex, true)`."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 4,
+        "to": 4,
+        "first_line": "import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";",
+        "rule": "Import applyDarkModeFilter, colorToHex, EVENT, invertDarkModeFilter, isOpaqueColor, KEYS, rgbToHex, THEME, viewportCoordsToSceneCoords from @excalidraw/common, pointFrom from @excalidraw/math, and hitElementItself, isFrameLikeElement from @excalidraw/element."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 59,
+        "to": 65,
+        "first_line": "const stableProps = useStable({",
+        "last_line": "});",
+        "rule": "Add elements to stableProps so getCurrentColor always accesses the latest scene elements."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 80,
+        "to": 95,
+        "first_line": "const getCurrentColor = ({",
+        "last_line": "};",
+        "rule": "In dark theme, resolve pixelHex via top-down hitElementItself cursor stack lookup, then viewBackgroundColor, then invertDarkModeFilter(pixelHex, true)."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 210,
+        "to": 218,
+        "first_line": "}, [",
+        "last_line": "]);",
+        "rule": "Add appState.theme to the useEffect dependency array."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/components/EyeDropper.tsx",
+      "lines": [1, 249],
+      "reason": "Match existing EyeDropper component structure and hook patterns."
+    },
+    "uses": [
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [83, 334],
+        "reason": "Calls applyDarkModeFilter, invertDarkModeFilter, rgbToHex, colorToHex, and isOpaqueColor."
+      },
+      {
+        "path": "packages/excalidraw/components/App.bucketFill.ts",
+        "lines": [1, 27],
+        "reason": "Follows @excalidraw/common, @excalidraw/math, and @excalidraw/element import grouping."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U03"
+    ],
+    "covers": [
+      "FR-2",
+      "FR-3",
+      "FR-4",
+      "NFR-1",
+      "NFR-2",
+      "NFR-4",
+      "AC-1",
+      "AC-3",
+      "AC-5"
+    ],
+    "checks": [
+      "lint"
+    ]
+  }
+]

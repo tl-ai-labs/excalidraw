@@ -1,8 +1,23 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  applyDarkModeFilter,
+  colorToHex,
+  DEFAULT_COLLISION_THRESHOLD,
+  EVENT,
+  invertDarkModeFilter,
+  isOpaqueColor,
+  KEYS,
+  rgbToHex,
+  THEME,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
+import { pointFrom } from "@excalidraw/math";
 
+import { hitElementItself } from "@excalidraw/element";
+
+import type { GlobalPoint } from "@excalidraw/math";
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { useUIAppState } from "../context/ui-appState";
@@ -58,6 +73,7 @@ export const EyeDropper: React.FC<{
 
   const stableProps = useStable({
     app,
+    elements,
     onCancel,
     onChange,
     onSelect,
@@ -91,7 +107,65 @@ export const EyeDropper: React.FC<{
         1,
       ).data;
 
-      return rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const pixelHex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+
+      if (appState.theme !== THEME.DARK) {
+        return pixelHex;
+      }
+
+      const { x: sceneX, y: sceneY } = viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        stableProps.app.state,
+      );
+      const point = pointFrom<GlobalPoint>(sceneX, sceneY);
+      const elementsMap = stableProps.app.scene.getNonDeletedElementsMap();
+
+      for (let i = stableProps.elements.length - 1; i >= 0; i--) {
+        const element = stableProps.elements[i];
+        if (element.isDeleted || element.type === "image") {
+          continue;
+        }
+        if (
+          !hitElementItself({
+            point,
+            element,
+            threshold: Math.max(
+              element.strokeWidth / 2 + 0.1,
+              0.85 *
+                (DEFAULT_COLLISION_THRESHOLD /
+                  stableProps.app.state.zoom.value),
+            ),
+            elementsMap,
+            frameNameBound: null,
+          })
+        ) {
+          continue;
+        }
+
+        const candidates =
+          colorPickerType === "elementBackground"
+            ? [element.backgroundColor, element.strokeColor]
+            : [element.strokeColor, element.backgroundColor];
+
+        for (const candidate of candidates) {
+          if (candidate && isOpaqueColor(candidate)) {
+            const hex = colorToHex(candidate);
+            if (hex && applyDarkModeFilter(hex, true) === pixelHex) {
+              return hex;
+            }
+          }
+        }
+      }
+
+      const viewBg = stableProps.app.state.viewBackgroundColor;
+      if (viewBg && isOpaqueColor(viewBg)) {
+        const bgHex = colorToHex(viewBg);
+        if (bgHex && applyDarkModeFilter(bgHex, true) === pixelHex) {
+          return bgHex;
+        }
+      }
+
+      return invertDarkModeFilter(pixelHex, true);
     };
 
     const mouseMoveListener = ({
@@ -215,6 +289,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

@@ -1,6 +1,8 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  DEFAULT_CANVAS_BACKGROUND_PICKS,
+  invertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -211,6 +213,119 @@ describe("applyDarkModeFilter", () => {
       const result1 = applyDarkModeFilter("#ff0000");
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
+    });
+  });
+});
+
+describe("invertDarkModeFilter", () => {
+  const paletteColors = (
+    Object.values(COLOR_PALETTE) as (string | readonly string[])[]
+  ).flat();
+  const allStoredColors = [
+    ...paletteColors,
+    ...(DEFAULT_CANVAS_BACKGROUND_PICKS as readonly string[]),
+  ];
+
+  const channels = (hex: string) => [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+
+  it("returns input color unchanged when enable is false", () => {
+    expect(invertDarkModeFilter("#d3d3d3", false)).toBe("#d3d3d3");
+  });
+
+  describe("palette colors", () => {
+    it("covers black, white, transparent and all 60 shades", () => {
+      expect(paletteColors).toHaveLength(63);
+    });
+
+    it.each(allStoredColors.map((color) => [color]))(
+      "reproduces %s with exact hex equality",
+      (color) => {
+        const dark = applyDarkModeFilter(color);
+        expect(invertDarkModeFilter(dark)).toBe(color);
+        expect(applyDarkModeFilter(invertDarkModeFilter(dark))).toBe(dark);
+      },
+    );
+  });
+
+  describe("unclamped custom colors", () => {
+    it("inverts #6496c8", () => {
+      expect(applyDarkModeFilter("#6496c8")).toBe("#4d78a3");
+      expect(invertDarkModeFilter("#4d78a3")).toBe("#6496c8");
+    });
+
+    it("inverts quantization-colliding #585858 / #595959 within +-3 per channel", () => {
+      expect(applyDarkModeFilter("#585858")).toBe("#a1a1a1");
+      expect(applyDarkModeFilter("#595959")).toBe("#a1a1a1");
+
+      const inverted = invertDarkModeFilter("#a1a1a1");
+      expect(inverted).toBe("#595959");
+
+      const expected = channels("#585858");
+      channels(inverted).forEach((value, i) => {
+        expect(Math.abs(value - expected[i])).toBeLessThanOrEqual(3);
+      });
+
+      expect(
+        applyDarkModeFilter(
+          invertDarkModeFilter(applyDarkModeFilter("#585858")),
+        ),
+      ).toBe("#a1a1a1");
+    });
+
+    it.each([["#6496c8"], ["#585858"]])(
+      "preserves exact on-screen round trip for %s",
+      (color) => {
+        const dark = applyDarkModeFilter(color);
+        expect(applyDarkModeFilter(invertDarkModeFilter(dark))).toBe(dark);
+      },
+    );
+  });
+
+  describe("clamped saturated custom colors", () => {
+    it("inverts #ff00ff to a canonical preimage", () => {
+      expect(applyDarkModeFilter("#ff00ff")).toBe("#ff70ff");
+      expect(invertDarkModeFilter("#ff70ff")).toBe("#d832d8");
+      expect(
+        applyDarkModeFilter(
+          invertDarkModeFilter(applyDarkModeFilter("#ff00ff")),
+        ),
+      ).toBe("#ff70ff");
+    });
+
+    it("inverts #ff0000 to a canonical preimage", () => {
+      expect(applyDarkModeFilter("#ff0000")).toBe("#ff9090");
+      expect(invertDarkModeFilter("#ff9090")).toBe("#b73636");
+      expect(applyDarkModeFilter("#b73636")).toBe("#ff9090");
+    });
+
+    it.each([["#ff00ff"], ["#ff0000"], ["#00ff00"], ["#0000ff"]])(
+      "preserves exact on-screen round trip for %s",
+      (color) => {
+        const dark = applyDarkModeFilter(color);
+        expect(applyDarkModeFilter(invertDarkModeFilter(dark))).toBe(dark);
+      },
+    );
+  });
+
+  describe("alpha preservation", () => {
+    it.each([
+      ["#ff000080", "80"],
+      ["rgba(255, 0, 0, 0.5)", "80"],
+      ["#ff000000", "00"],
+    ])("preserves alpha for %s", (color, alpha) => {
+      const inverted = invertDarkModeFilter(applyDarkModeFilter(color));
+      expect(inverted).toMatch(/^#[0-9a-f]{8}$/);
+      expect(inverted.slice(-2)).toBe(alpha);
+    });
+
+    it("returns transparent for transparent", () => {
+      expect(invertDarkModeFilter(applyDarkModeFilter("transparent"))).toBe(
+        "transparent",
+      );
     });
   });
 });

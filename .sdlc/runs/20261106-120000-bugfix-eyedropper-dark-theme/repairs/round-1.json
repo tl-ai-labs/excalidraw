@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-120000-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/excalidraw/components/EyeDropper.tsx",
+    "instruction": "Fix `packages/excalidraw/components/EyeDropper.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. `yarn test:typecheck` (tsc) fails with three new errors in this file (all other checks pass: eslint, vitest for colors.test.ts and eyeDropper.test.tsx, yarn test:app):\npackages/excalidraw/components/EyeDropper.tsx(128,13): error TS2322: Type 'GlobalPoint | LocalPoint' is not assignable to type 'GlobalPoint'.\npackages/excalidraw/components/EyeDropper.tsx(130,40): error TS2339: Property 'getElementHitThreshold' does not exist on type 'AppClassProperties'.\npackages/excalidraw/components/EyeDropper.tsx(133,33): error TS2339: Property 'frameNameBoundsCache' does not exist on type 'AppClassProperties'.\nCause: useApp() returns AppClassProperties (packages/excalidraw/types.ts:1082, a narrowed view of App that does not expose getElementHitThreshold or frameNameBoundsCache). types.ts and App.tsx are outside the write contract and must not change; fix it inside EyeDropper.tsx only, keeping behaviour identical. (1) Type the point: `pointFrom<GlobalPoint>(sceneX, sceneY)` with `import type { GlobalPoint } from \"@excalidraw/math\";` (type imports in their own import statement, per the project's import/order and consistent-type-imports rules). (2) Replace `stableProps.app.getElementHitThreshold(element)` with the same formula computed locally, copied from App.tsx:6572-6579: `Math.max(element.strokeWidth / 2 + 0.1, 0.85 * (DEFAULT_COLLISION_THRESHOLD / stableProps.app.state.zoom.value))`, importing DEFAULT_COLLISION_THRESHOLD from \"@excalidraw/common\" (packages/common/src/constants.ts:224). (3) Replace the frameNameBoundsCache lookup with `frameNameBound: null` (frame-like elements are hit by their body, not their name label, for colour picking). Do not cast app to any or to App. Keep all other code unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/EyeDropper.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/EyeDropper.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-bugfix-eyedropper-dark-theme/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

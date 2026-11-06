@@ -1,0 +1,66 @@
+{
+  "conventions": [
+    "TypeScript with strict mode, double quotes, semicolons, 2-space indentation, and trailing commas (enforced by ESLint + Prettier via eslint --max-warnings=0).",
+    "Use separate type imports (`import type { ... } from ...`) per `@typescript-eslint/consistent-type-imports`.",
+    "Order imports with blank lines between groups: builtin/external first, then `@excalidraw/**` packages, then parent (`../`), then sibling (`./`), then type imports (`import/order` with `newlines-between: always-and-inside-groups`).",
+    "All hex colour strings produced by `rgbToHex` and `colorToHex` are lowercase 6-digit `#rrggbb` (or 8-digit `#rrggbbaa` when `0 <= alpha < 1`).",
+    "Vitest with globals (`describe`, `it`, `expect`, `vi`) and `@testing-library/react` (`render`, `fireEvent`, `waitFor`, `act`) via `packages/excalidraw/tests/test-utils`; never run `yarn test:update`."
+  ],
+  "decisions": [
+    {
+      "topic": "Exported dark-mode inverse function name and signature in `@excalidraw/common`",
+      "choice": "Export `invertDarkModeFilter = (color: string, enable = true): string` from `packages/common/src/colors.ts` (re-exported via `packages/common/src/index.ts`).",
+      "rejected": [
+        "unapplyDarkModeFilter",
+        "reverseDarkModeFilter"
+      ],
+      "reason": "`invertDarkModeFilter` pairs directly with `applyDarkModeFilter(color: string, enable = true): string` and shares the identical `(color: string, enable = true): string` signature."
+    },
+    {
+      "topic": "Exact palette recovery + algebraic inverse with neighbourhood refinement in `invertDarkModeFilter`",
+      "choice": "Lazily build a reverse palette `Map<string, string>` over `COLOR_PALETTE` and `DEFAULT_CANVAS_BACKGROUND_PICKS` for exact palette hex equality, and for non-palette colours invert `cssHueRotate(..., 180)` then `Math.round(clamp((237.15 - v) / 0.86, 0, 255))` per channel, refining within a `[-2, 2]` Manhattan-ordered neighbourhood when needed so `applyDarkModeFilter(invertDarkModeFilter(x)) === x` holds for every `x` in the transform's image.",
+      "rejected": [
+        "Pure algebraic formula without palette map or neighbourhood check",
+        "Hardcoded black/white lookup only"
+      ],
+      "reason": "Guarantees both exact palette round trips (`invertDarkModeFilter(applyDarkModeFilter(c)) === c`) and exact on-screen round trips (`applyDarkModeFilter(invertDarkModeFilter(x)) === x`) while keeping per-channel error <= 3 on unclamped custom colours."
+    },
+    {
+      "topic": "Dark-theme colour resolution order in `EyeDropper.tsx` `getCurrentColor`",
+      "choice": "In dark theme (`appState.theme === THEME.DARK`), check hit elements under the cursor in top-down z-order via `hitElementItself` (preferring the property matching `colorPickerType` when both `strokeColor` and `backgroundColor` render to `pixelHex`), then check `app.state.viewBackgroundColor`, and finally fall back to `invertDarkModeFilter(pixelHex, true)` (including for semi-transparent/blended pixels where `pixelHex` does not match the unblended dark-mode colour).",
+      "rejected": [
+        "Pixel-only inverse without checking scene elements under cursor",
+        "Global scene colour search ignoring cursor position",
+        "Returning unblended element colour for semi-transparent shapes"
+      ],
+      "reason": "Recovers the exact stored hex for clamped saturated shapes (e.g. `#ff00ff` rendering `#ff70ff`), resolves ties in favour of the shape under the cursor in z-order, and preserves light-theme-consistent composite fallback for blended/image/grid pixels."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "lint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --max-warnings=0 --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "test",
+      "run": "yarn vitest run {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "code",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "app-tests",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}
