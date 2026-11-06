@@ -1,0 +1,7 @@
+[
+  {
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "problem": "yarn test:typecheck fails (the 4 new per-range text styling tests all pass under vitest; only the types are wrong):\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3616,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3681,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3718,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3747,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\nAll four are the line `      API.setSelectedElements([h.elements[0]]);` inside describe(\"per-range text styling\"). Fix ONLY those four lines, using the idiom the file already uses at lines 1856 and 2560: `API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);` (NonDeletedExcalidrawElement is already imported at line 29). Change nothing else: test names, steps, assertions and comments stay exactly as they are; no source file changes; no toMatchSnapshot.",
+    "context_paths": []
+  }
+]

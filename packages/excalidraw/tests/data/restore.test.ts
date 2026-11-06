@@ -1031,6 +1031,120 @@ describe("restoreElements", () => {
     );
     expect(restoredElements[0].version).toBe(modified_rectangle_2.version + 1);
   });
+
+  describe("textRanges", () => {
+    it("preserves valid textRanges across round-trip serialization and restore", () => {
+      const textElement = API.createElement({
+        type: "text",
+        text: "Hello World",
+      }) as ExcalidrawTextElement;
+
+      const elementWithRanges: ExcalidrawTextElement = {
+        ...textElement,
+        originalText: "Hello World",
+        textRanges: [
+          { start: 0, end: 5, color: "#e03131" },
+          { start: 6, end: 11, highlightColor: "#ffec99" },
+        ],
+      };
+
+      const restored = restore.restoreElements(
+        [elementWithRanges],
+        null,
+      )[0] as ExcalidrawTextElement;
+
+      expect(restored.textRanges).toEqual([
+        { start: 0, end: 5, color: "#e03131" },
+        { start: 6, end: 11, highlightColor: "#ffec99" },
+      ]);
+
+      const json = serializeAsJSON(
+        [restored],
+        getDefaultAppState(),
+        {},
+        "local",
+      );
+      const imported: ImportedDataState = JSON.parse(json);
+      const roundTripped = restore.restoreElements(
+        imported.elements,
+        null,
+      )[0] as ExcalidrawTextElement;
+
+      expect(roundTripped.textRanges).toEqual(restored.textRanges);
+    });
+
+    it("clamps, splits, or drops out-of-bounds, overlapping, empty, or transparent ranges", () => {
+      const textElement = API.createElement({
+        type: "text",
+        text: "Excalidraw",
+      }) as ExcalidrawTextElement;
+
+      const elementWithMalformedRanges: ExcalidrawTextElement = {
+        ...textElement,
+        originalText: "Excalidraw",
+        textRanges: [
+          { start: -5, end: 4, color: "#1971c2" }, // clamped to 0..4
+          { start: 2, end: 6, highlightColor: "#fab005" }, // overlaps 0..4
+          { start: 7, end: 7, color: "#2f9e44" }, // empty -> dropped
+          { start: 8, end: 10, color: "transparent" }, // transparent -> dropped
+          { start: 9, end: 20, color: "#e03131" }, // clamped to 9..10
+        ],
+      };
+
+      const restored = restore.restoreElements(
+        [elementWithMalformedRanges],
+        null,
+      )[0] as ExcalidrawTextElement;
+
+      expect(restored.textRanges).toBeDefined();
+      expect(restored.textRanges).toEqual([
+        { start: 0, end: 2, color: "#1971c2" },
+        { start: 2, end: 4, color: "#1971c2", highlightColor: "#fab005" },
+        { start: 4, end: 6, highlightColor: "#fab005" },
+        { start: 9, end: 10, color: "#e03131" },
+      ]);
+    });
+
+    it("omits the textRanges own property when empty, invalid, or absent", () => {
+      const plainText = API.createElement({
+        type: "text",
+        text: "Plain",
+      });
+
+      const invalidRangesText = {
+        ...API.createElement({
+          type: "text",
+          text: "Invalid",
+        }),
+        textRanges: [
+          { start: 10, end: 20, color: "#e03131" },
+          { start: 2, end: 2, highlightColor: "#fab005" },
+        ],
+      };
+
+      const emptyRangesText = {
+        ...API.createElement({
+          type: "text",
+          text: "Empty",
+        }),
+        textRanges: [],
+      };
+
+      const restored = restore.restoreElements(
+        [plainText, invalidRangesText, emptyRangesText],
+        null,
+      ) as ExcalidrawTextElement[];
+
+      expect("textRanges" in restored[0]).toBe(false);
+      expect(restored[0].textRanges).toBeUndefined();
+
+      expect("textRanges" in restored[1]).toBe(false);
+      expect(restored[1].textRanges).toBeUndefined();
+
+      expect("textRanges" in restored[2]).toBe(false);
+      expect(restored[2].textRanges).toBeUndefined();
+    });
+  });
 });
 
 describe("restoreAppState", () => {

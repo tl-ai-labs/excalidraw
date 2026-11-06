@@ -79,6 +79,7 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import { normalizeTextRanges } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -457,7 +458,10 @@ const restoreElementWithProperties = <
     /** @deprecated `movePoints()` option wrongly persisted on linear elements */
     moveMidPointsWithElement?: boolean | null;
   },
-  K extends Pick<T, keyof Omit<Required<T>, keyof ExcalidrawElement>>,
+  K extends Pick<
+    T,
+    keyof Omit<Required<T>, keyof ExcalidrawElement | "textRanges">
+  >,
 >(
   element: T,
   extra: Pick<
@@ -574,6 +578,12 @@ export const restoreElement = (
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
+      const originalText = element.originalText || text;
+      const textRanges = normalizeTextRanges(
+        element.textRanges,
+        originalText.length,
+      );
+
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
@@ -581,7 +591,7 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -600,6 +610,15 @@ export const restoreElement = (
         // TODO: we should not do this since it breaks sync / versioning when we exchange / apply just deltas and restore the elements (deletion isn't recorded)
         element = { ...element, originalText: text, isDeleted: true };
         element = bumpVersion(element);
+      }
+
+      if (
+        textRanges &&
+        !(opts?.deleteInvisibleElements && !text && !element.isDeleted)
+      ) {
+        (element as Mutable<ExcalidrawTextElement>).textRanges = textRanges;
+      } else {
+        delete (element as Mutable<ExcalidrawTextElement>).textRanges;
       }
 
       return element;

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review blocker (review.json): unit U17 is still not applied; the file is unchanged. Previous attempts failed because a short closing-brace search block (e.g. `  });\\n});`) matched 6 times. ANCHOR RULE: make exactly two edits, each with a search text that is unique in the file. (1) Imports: search for one existing, unique import line near the top and replace it with itself plus `import { actionChangeStrokeColor, actionChangeHighlightColor } from \"../actions/actionProperties\";` (actionChangeHighlightColor is now a plain exported Action object, not registered; execute it the way the file executes registered actions, e.g. h.app.actionManager.executeAction(action, \"ui\", value), or call action.perform via the same manager). (2) The new suite: search for the unique line `      expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);` (it occurs exactly once, inside it(\"removes a plain text in a single undo\")) and replace it with itself followed by `    });\\n  });\\n\\n  describe(\"per-range text styling\", () => {` ... the new cases ..., ending so that the file's existing closing `    });\\n  });\\n});` still closes correctly (i.e. your replacement must close the old it() and the old describe(\"history\") and open the new describe, and the file's remaining `    });\\n  });\\n});` then closes the last new it(), the new describe and the outer describe). Cases (briefs/U17.md): (a) live display while the editor is open: open the editor on an existing text element, set editor.selectionStart=0/selectionEnd=5 (a strict sub-range, not the whole text), apply a stroke colour and a highlight, and assert while h.state.editingTextElement is still set: editor.style.color === \"transparent\", JSON.parse(editor.dataset.textRanges!) holds the range, and h.app.renderer.getRenderableElements(...).elementsMap.get(id)?.textRanges holds it; (b) live typing shifts/deletes ranges; (c) collapsed selection (selectionStart === selectionEnd set explicitly) recolours the whole element's strokeColor and leaves no textRanges own property; (d) undo/redo: range styling applied while editing is captured EVENTUALLY and folds into the edit session's single history entry, so: apply the highlight to a sub-range, exit the editor (Keyboard.exitTextEditor(editor)), assert textRanges set, Keyboard.undo() -> textRanges undefined / not an own property (or the element reverted per the existing single-entry model), Keyboard.redo() -> restored. No toMatchSnapshot; existing tests unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/scene/Renderer.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

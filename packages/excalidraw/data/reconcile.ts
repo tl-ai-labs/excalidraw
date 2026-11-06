@@ -3,6 +3,9 @@ import throttle from "lodash.throttle";
 import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
+  areTextRangesEqual,
+  isTextElement,
+  normalizeTextRanges,
   orderByFractionalIndex,
   syncInvalidIndices,
   validateFractionalIndices,
@@ -89,11 +92,37 @@ export const reconcileElements = (
         remoteElement,
       );
 
+      const sanitizeReconciledElement = (
+        element: OrderedExcalidrawElement,
+      ): OrderedExcalidrawElement => {
+        if (!isTextElement(element) || !("textRanges" in element)) {
+          return element;
+        }
+        const normalized = normalizeTextRanges(
+          element.textRanges,
+          typeof element.originalText === "string"
+            ? element.originalText.length
+            : 0,
+        );
+        if (!normalized) {
+          const cloned = { ...element };
+          delete (cloned as any).textRanges;
+          return cloned;
+        }
+        if (
+          areTextRangesEqual(element.textRanges, normalized) &&
+          Array.isArray(element.textRanges)
+        ) {
+          return element;
+        }
+        return { ...element, textRanges: normalized };
+      };
+
       if (localElement && discardRemoteElement) {
-        reconciledElements.push(localElement);
+        reconciledElements.push(sanitizeReconciledElement(localElement));
         added.add(localElement.id);
       } else {
-        reconciledElements.push(remoteElement);
+        reconciledElements.push(sanitizeReconciledElement(remoteElement));
         added.add(remoteElement.id);
       }
     }
@@ -102,7 +131,28 @@ export const reconcileElements = (
   // process remaining local elements
   for (const localElement of localElements) {
     if (!added.has(localElement.id)) {
-      reconciledElements.push(localElement);
+      if (isTextElement(localElement) && "textRanges" in localElement) {
+        const normalized = normalizeTextRanges(
+          localElement.textRanges,
+          typeof localElement.originalText === "string"
+            ? localElement.originalText.length
+            : 0,
+        );
+        if (!normalized) {
+          const cloned = { ...localElement };
+          delete (cloned as any).textRanges;
+          reconciledElements.push(cloned);
+        } else if (
+          areTextRangesEqual(localElement.textRanges, normalized) &&
+          Array.isArray(localElement.textRanges)
+        ) {
+          reconciledElements.push(localElement);
+        } else {
+          reconciledElements.push({ ...localElement, textRanges: normalized });
+        }
+      } else {
+        reconciledElements.push(localElement);
+      }
       added.add(localElement.id);
     }
   }

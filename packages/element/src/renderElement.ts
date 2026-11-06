@@ -59,6 +59,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { projectTextRangesToLines } from "./textRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -218,6 +219,7 @@ export interface ExcalidrawElementWithCanvas {
   canvasOffsetY: number;
   imageCrop: ExcalidrawImageElement["crop"] | null;
   containingFrameOpacity: number;
+  textRanges?: ExcalidrawTextElement["textRanges"];
 }
 
 const cappedElementCanvasSize = (
@@ -341,6 +343,7 @@ const generateElementCanvas = (
     containingFrameOpacity:
       getContainingFrame(element, elementsMap)?.opacity || 100,
     imageCrop: isImageElement(element) ? element.crop : null,
+    textRanges: isTextElement(element) ? element.textRanges : undefined,
   };
 };
 
@@ -703,12 +706,99 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          if (!element.textRanges?.length) {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
+          } else {
+            const lineRuns = projectTextRangesToLines(
+              element.originalText,
+              element.text.replace(/\r\n?/g, "\n"),
+              element.textRanges,
             );
+
+            for (let index = 0; index < lines.length; index++) {
+              const runs = lineRuns[index];
+              if (
+                runs &&
+                runs.length === 1 &&
+                !runs[0].color &&
+                !runs[0].highlightColor
+              ) {
+                context.fillText(
+                  lines[index],
+                  horizontalOffset,
+                  index * lineHeightPx + verticalOffset,
+                );
+              } else if (runs && runs.length > 0) {
+                const lineWidth = context.measureText(lines[index]).width;
+                const lineStartX =
+                  element.textAlign === "center"
+                    ? (element.width - lineWidth) / 2
+                    : element.textAlign === "right"
+                    ? element.width - lineWidth
+                    : 0;
+
+                const runWidths: number[] = [];
+                for (const run of runs) {
+                  runWidths.push(context.measureText(run.text).width);
+                }
+
+                const runPositions: { x: number; width: number }[] = [];
+                if (!rtl) {
+                  let currentX = lineStartX;
+                  for (let i = 0; i < runs.length; i++) {
+                    const w = runWidths[i];
+                    runPositions.push({ x: currentX, width: w });
+                    currentX += w;
+                  }
+                } else {
+                  let currentRight = lineStartX + lineWidth;
+                  for (let i = 0; i < runs.length; i++) {
+                    const w = runWidths[i];
+                    runPositions.push({ x: currentRight - w, width: w });
+                    currentRight -= w;
+                  }
+                }
+
+                // First pass: background highlights
+                for (let i = 0; i < runs.length; i++) {
+                  const run = runs[i];
+                  if (run.highlightColor) {
+                    context.fillStyle = applyDarkModeFilter(
+                      run.highlightColor,
+                      renderConfig.theme === THEME.DARK,
+                    );
+                    context.fillRect(
+                      runPositions[i].x,
+                      index * lineHeightPx,
+                      runPositions[i].width,
+                      lineHeightPx,
+                    );
+                  }
+                }
+
+                // Second pass: text fills
+                context.textAlign = "left";
+                for (let i = 0; i < runs.length; i++) {
+                  const run = runs[i];
+                  context.fillStyle = applyDarkModeFilter(
+                    run.color || element.strokeColor,
+                    renderConfig.theme === THEME.DARK,
+                  );
+                  context.fillText(
+                    run.text,
+                    runPositions[i].x,
+                    index * lineHeightPx + verticalOffset,
+                  );
+                }
+                context.textAlign = element.textAlign as CanvasTextAlign;
+              }
+            }
           }
         });
         if (shouldTemporarilyAttach) {
@@ -753,7 +843,9 @@ const generateElementWithCanvas = (
     prevElementWithCanvas.deviceScale !== renderConfig.scale ||
     prevElementWithCanvas.environment !== renderEnvironment ||
     prevElementWithCanvas.imageCrop !== imageCrop ||
-    prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity
+    prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity ||
+    prevElementWithCanvas.textRanges !==
+      (isTextElement(element) ? element.textRanges : undefined)
   ) {
     const elementWithCanvas = generateElementCanvas(
       element,

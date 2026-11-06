@@ -1,0 +1,310 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 1) yarn test:typecheck: actionProperties.tsx(438,3): error TS2322: Type '\"changeHighlightColor\"' is not assignable to type 'ActionName'. The ActionName union is defined in packages/excalidraw/actions/types.ts, which is OUTSIDE this run's write contract and must not be edited: do not register a new action name. Keep the Highlight behaviour without a new ActionName (e.g. route the highlight through actionChangeBackgroundColor's perform with a distinguishing value such as { highlightColor }, or apply it via updateData of the existing action); keep exporting what other files import, or keep an exported alias that still works. 2) actionProperties.tsx(647,15): error TS2322: Type 'readonly string[]' is not assignable to type 'readonly [string, string, string, string, string]' (topPicks for the Highlight ColorPicker). 3) actionProperties.tsx(657,21): error TS2339: Property 'actionManager' does not exist on type 'AppClassProperties' (use the PanelComponent's updateData instead of app.actionManager.executeAction). 4) Regressions in existing tests that passed before this run (yarn test:app --watch=false packages/excalidraw/tests/stickyNotes.test.tsx): 'sticky notes > editing > routes a top pick to the label and the sticky default while editing a note' -> expected getElement(label.id).strokeColor '#1e1e1e' to be '#e03131' (stickyNotes.test.tsx:604); 'sticky notes > editing > offers the note's background while editing its label and colors the note with it' -> expected getElement(note.id).backgroundColor '#ffdf6b' to be '#fcc2d7' (stickyNotes.test.tsx:653). Cause: the WYSIWYG editor calls editable.select() when it opens, so the whole text is 'selected' and colour picks are routed to a text range instead of the element. Fix: only treat the selection as a range when 0 < selectionStart < selectionEnd is a strict sub-range, i.e. NOT when it covers the whole originalText (start === 0 && end === originalText.length) — then apply to the whole element exactly as before; and never route actionChangeBackgroundColor to a highlight for sticky-note labels (the note background behaviour must be unchanged). Existing tests must pass unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U11.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/stickyNotes.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Regression in an existing snapshot that passed before this run (existing snapshot entries must not change; tests run without --update): yarn test:app --watch=false packages/element/tests/linearElementEditor.test.tsx 'Test Linear Elements > Test bound text element > should match styles for text editor' -> Snapshot mismatched: the textarea inline style used to read '... text-align: center; vertical-align: middle; color: rgb(30, 30, 30); opacity: 1; font: ...' and now reads '... vertical-align: middle; opacity: 1; color: rgb(30, 30, 30); font: ...'. Keep `color` set in the same Object.assign/style position as before (before opacity), and only set color: transparent / caretColor / dataset.textRanges when the element has non-empty textRanges, so the textarea of an element without textRanges has exactly the old inline style and attributes.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/linearElementEditor.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/element/tests/textRanges.test.ts",
+    "instruction": "Fix `packages/element/tests/textRanges.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: textRanges.test.ts(384,13), (453,7), (469,7): error TS2345: Argument of type 'NonDeletedSceneElementsMap' is not assignable to parameter of type 'RenderableElementsMap' (cast via the project's toBrandedType<RenderableElementsMap>(...) or build the map as renderers do); (497,11), (498,11), (503,11), (532,11): error TS2322: Type 'Map<string, ...>' is not assignable to type 'SceneElementsMap' (use arrayToMap + toBrandedType<SceneElementsMap>); (520,40): error TS2339: Property 'from' does not exist on type 'typeof ElementsDelta' (use the ElementsDelta API that delta.ts actually exports, e.g. ElementsDelta.calculate). Runtime: yarn test:app --watch=false packages/element/tests/textRanges.test.ts: 'textRanges > omits textRanges own property on newTextElement when empty and renders per-run fillRect and fillText on canvas' -> expected rectOps.length +0 to be 1 (textRanges.test.ts:403); 'textRanges > applies and reverses ElementsDelta for textRanges without leaving undefined own properties' -> expected forwardAppliedEl.textRanges undefined to deeply equal [{start:0,end:5,color:'#e03131',highlightColor:'#ffec99'}] (textRanges.test.ts:515). Make the tests use the real APIs of renderElement.ts and delta.ts correctly (see context files) so they exercise the implemented behaviour; do not add toMatchSnapshot.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/textRanges.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/textRanges.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textRanges.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/textRanges.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U17 was not applied (its 3 attempts failed and the file was restored): add the `describe(\"per-range text styling\", ...)` block per briefs/U17.md. Last attempt's failure: yarn test:app --watch=false packages/excalidraw/wysiwyg/textWysiwyg.test.tsx 'textWysiwyg > per-range text styling > updates whole-element strokeColor when selection is collapsed and supports undo/redo of range styling' -> expected afterWholeStroke.strokeColor '#1e1e1e' to be '#2f9e44' (line 3731). The other two new cases passed. Note: when the editor opens it calls editable.select(), so the whole text is selected; a selection covering the whole originalText now applies to the whole element (fix in actionProperties.tsx this round). For the collapsed-selection case, explicitly set editor.selectionStart = editor.selectionEnd before triggering the stroke colour, and read the result after the action from h.elements / h.state.editingTextElement. Existing tests in the file must not change; no toMatchSnapshot.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "excalidraw-app/tests/collab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/collab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: collab.test.tsx(267,7): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in the API.createElement options type (pass `text` only, or set originalText afterwards via newElementWith); collab.test.tsx(288,11): error TS2353: 'textRanges' does not exist in type 'ElementUpdate<ExcalidrawElement>' (narrow the element to ExcalidrawTextElement before mutateElement/newElementWith, e.g. `newElementWith(textEl as ExcalidrawTextElement, { textRanges: [...] })`).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/tests/data/restore.test.ts",
+    "instruction": "Fix `packages/excalidraw/tests/data/restore.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: restore.test.ts(1040,9) and (1080,9): error TS2353: Object literal may only specify known properties, and 'originalText' does not exist in the API.createElement options type. Build the text elements without the originalText option (API.createElement({ type: 'text', text: ... })) and set textRanges/originalText on a typed ExcalidrawTextElement object (e.g. spread into a plain object typed as ExcalidrawTextElement) before passing to restoreElements.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/data/restore.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

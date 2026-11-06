@@ -1,0 +1,451 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Define `TextRangeStyle` and add the optional `textRanges?: readonly TextRangeStyle[]` property to `ExcalidrawTextElement`.",
+    "rules": [
+      "1. Export `type TextRangeStyle = Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>` where `start` and `end` are UTF-16 code-unit offsets in `[0, originalText.length]` with `start < end`.",
+      "2. Add `textRanges?: readonly TextRangeStyle[];` as an optional field on `ExcalidrawTextElement` so unstyled text elements omit the key entirely."
+    ],
+    "exports": [
+      {
+        "name": "TextRangeStyle",
+        "kind": "type",
+        "params": [],
+        "returns": "Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>"
+      },
+      {
+        "name": "ExcalidrawTextElement",
+        "kind": "type",
+        "params": [],
+        "returns": "_ExcalidrawElementBase & Readonly<{ type: \"text\"; ...; textRanges?: readonly TextRangeStyle[] }>"
+      }
+    ],
+    "import_line": "import type { ExcalidrawTextElement, TextRangeStyle } from \"./types\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 253,
+        "to": 253,
+        "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
+        "rule": "Export `TextRangeStyle = Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>` immediately before `ExcalidrawTextElement`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 290,
+        "to": 290,
+        "first_line": "labelPosition?: number | null;",
+        "rule": "Add optional `textRanges?: readonly TextRangeStyle[];` to `ExcalidrawTextElement`."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/src/types.ts",
+      "lines": [250, 292],
+      "reason": "Matches existing `ExcalidrawTextElement` readonly type declaration style."
+    },
+    "depends_on": [],
+    "covers": ["FR-1", "NFR-1", "NFR-5"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/textRanges.ts",
+    "action": "create",
+    "phase": "codegen",
+    "behaviour": "Provide pure range algebra for normalizing, merging, splitting, applying, shifting on edit, querying, and line-projecting `TextRangeStyle` spans over `originalText`.",
+    "rules": [
+      "1. `isValidRangeColor(color: unknown): color is string` returns `true` iff `typeof color === \"string\"` and `color.trim().length > 0` and `color.trim().toLowerCase() !== \"transparent\"`.",
+      "2. `normalizeTextRanges(ranges: unknown, textLength: number): readonly TextRangeStyle[] | undefined` returns `undefined` if `!Array.isArray(ranges)` or `textLength <= 0` or `ranges.length === 0`; clamps each entry's finite `start`/`end` integers into `[0, textLength]`, drops entries with `start >= end` or neither valid `color` nor valid `highlightColor`, splits overlapping intervals at all sorted unique boundary points so later entries override earlier entries per defined channel (`color` independently of `highlightColor`) while preserving the other channel from earlier entries, merges adjacent intervals that have `prev.end === curr.start && prev.color === curr.color && prev.highlightColor === curr.highlightColor`, omits undefined channel keys from each `TextRangeStyle` object, and returns `undefined` when empty.",
+      "3. `areTextRangesEqual(a: readonly TextRangeStyle[] | undefined, b: readonly TextRangeStyle[] | undefined): boolean` treats `undefined` and `[]` as equal and returns `true` iff both arrays have equal length and identical `start`, `end`, `color`, and `highlightColor` at every index.",
+      "4. `applyTextRangeStyle(ranges: readonly TextRangeStyle[] | undefined, textLength: number, start: number, end: number, style: { color?: string | null; highlightColor?: string | null }, baseStrokeColor?: string): readonly TextRangeStyle[] | undefined` clamps `[start, end)` to `[0, textLength]`; if `s >= e` or `textLength <= 0`, returns `normalizeTextRanges(ranges, textLength)`. Splits existing normalized ranges at `s` and `e`; when `\"color\" in style`, sets `color` on `[s, e)` if `isValidRangeColor(style.color)` and `(!baseStrokeColor || style.color.trim().toLowerCase() !== baseStrokeColor.trim().toLowerCase())`, otherwise clears the `color` channel on `[s, e)`; when `\"highlightColor\" in style`, sets `highlightColor` on `[s, e)` if `isValidRangeColor(style.highlightColor)`, otherwise clears the `highlightColor` channel on `[s, e)`; normalizes and merges the result via `normalizeTextRanges`.",
+      "5. `computeTextEditDelta(prevText: string, nextText: string): TextEditDelta` computes common prefix length `start` and non-overlapping common suffix length `suffixLen`, returning `{ start, deleteCount: prevText.length - start - suffixLen, insertLength: nextText.length - start - suffixLen }`.",
+      "6. `shiftTextRangesOnEdit(ranges: readonly TextRangeStyle[] | undefined, prevText: string, nextText: string): readonly TextRangeStyle[] | undefined` returns `undefined` if `!ranges?.length || nextText.length === 0`, or `normalizeTextRanges(ranges, nextText.length)` if `prevText === nextText`. Otherwise uses `computeTextEditDelta(prevText, nextText)` (`dStart = start`, `dEnd = start + deleteCount`, `dLen = deleteCount`, `k = insertLength`) to transform each range in two steps: first delete `[dStart, dEnd)` (`s1 = r.start <= dStart ? r.start : r.start >= dEnd ? r.start - dLen : dStart`, `e1 = r.end <= dStart ? r.end : r.end >= dEnd ? r.end - dLen : dStart`, dropping if `s1 >= e1`), then insert `k` at `dStart` (`s2 = s1 >= dStart ? s1 + k : s1`, `e2 = e1 > dStart ? e1 + k : e1`), and returns `normalizeTextRanges(shifted, nextText.length)`.",
+      "7. `getStyleForTextRange(ranges: readonly TextRangeStyle[] | undefined, start: number, end: number, defaultStrokeColor: string): { color: string; highlightColor: string }` returns `{ color: defaultStrokeColor, highlightColor: \"transparent\" }` when `start >= end` or `!ranges?.length`; otherwise inspects normalized ranges overlapping `[start, end)` and returns a uniform `color` if ranges completely cover `[start, end)` with the same `color` (else `defaultStrokeColor`) and a uniform `highlightColor` if ranges completely cover `[start, end)` with the same `highlightColor` (else `\"transparent\"`).",
+      "8. `projectTextRangesToLines(originalText: string, wrappedText: string, ranges: readonly TextRangeStyle[] | undefined): readonly (readonly TextLineRun[])[]` normalizes newlines (`\\r\\n?` -> `\\n`) on both inputs, splits `wrappedText` on `\"\\n\"`, advances a cursor `pos` through `originalText` to locate each line's `[lineStart, lineEnd)` offset in `originalText` (skipping soft-wrap trimmed whitespace via `originalText.indexOf(lineText, pos)` and advancing past at most one `\\n` after each line), and slices each line `[lineStart, lineEnd)` against `normalizeTextRanges(ranges, originalText.length)` into contiguous `TextLineRun` segments `{ text, start, end, ...(color ? { color } : {}), ...(highlightColor ? { highlightColor } : {}) }`."
+    ],
+    "exports": [
+      {
+        "name": "TextLineRun",
+        "kind": "type",
+        "params": [],
+        "returns": "Readonly<{ text: string; start: number; end: number; color?: string; highlightColor?: string }>"
+      },
+      {
+        "name": "TextEditDelta",
+        "kind": "type",
+        "params": [],
+        "returns": "Readonly<{ start: number; deleteCount: number; insertLength: number }>"
+      },
+      {
+        "name": "isValidRangeColor",
+        "kind": "function",
+        "params": [{ "name": "color", "type": "unknown" }],
+        "returns": "color is string"
+      },
+      {
+        "name": "normalizeTextRanges",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "unknown" },
+          { "name": "textLength", "type": "number" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "areTextRangesEqual",
+        "kind": "function",
+        "params": [
+          { "name": "a", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "b", "type": "readonly TextRangeStyle[] | undefined" }
+        ],
+        "returns": "boolean"
+      },
+      {
+        "name": "applyTextRangeStyle",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "textLength", "type": "number" },
+          { "name": "start", "type": "number" },
+          { "name": "end", "type": "number" },
+          { "name": "style", "type": "{ color?: string | null; highlightColor?: string | null }" },
+          { "name": "baseStrokeColor", "type": "string | undefined" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "computeTextEditDelta",
+        "kind": "function",
+        "params": [
+          { "name": "prevText", "type": "string" },
+          { "name": "nextText", "type": "string" }
+        ],
+        "returns": "TextEditDelta"
+      },
+      {
+        "name": "shiftTextRangesOnEdit",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "prevText", "type": "string" },
+          { "name": "nextText", "type": "string" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "getStyleForTextRange",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "start", "type": "number" },
+          { "name": "end", "type": "number" },
+          { "name": "defaultStrokeColor", "type": "string" }
+        ],
+        "returns": "{ color: string; highlightColor: string }"
+      },
+      {
+        "name": "projectTextRangesToLines",
+        "kind": "function",
+        "params": [
+          { "name": "originalText", "type": "string" },
+          { "name": "wrappedText", "type": "string" },
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" }
+        ],
+        "returns": "readonly (readonly TextLineRun[])[]"
+      }
+    ],
+    "import_line": "import { isValidRangeColor, normalizeTextRanges, areTextRangesEqual, applyTextRangeStyle, computeTextEditDelta, shiftTextRangesOnEdit, getStyleForTextRange, projectTextRangesToLines } from \"./textRanges\";",
+    "style_from": {
+      "path": "packages/element/src/textMeasurements.ts",
+      "lines": [1, 80],
+      "reason": "Follows @excalidraw/element pure helper structure and TypeScript conventions."
+    },
+    "uses": [
+      {
+        "path": "packages/element/src/types.ts",
+        "lines": [250, 292],
+        "reason": "Imports `TextRangeStyle` from `./types`."
+      }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-2", "FR-3", "FR-5", "FR-6", "AC-5", "AC-6", "AC-7"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Accept optional `textRanges` in `newTextElement` and normalize it, omitting the property completely when empty.",
+    "rules": [
+      "1. Accept `textRanges?: ExcalidrawTextElement[\"textRanges\"];` in `newTextElement` options.",
+      "2. Compute `const originalText = opts.originalText ?? text;` and `const textRanges = normalizeTextRanges(opts.textRanges, originalText.length);`.",
+      "3. Spread `...(textRanges ? { textRanges } : {})` into `textElementProps` so that `\"textRanges\" in textElement` is `false` whenever `textRanges` is `undefined`."
+    ],
+    "exports": [
+      {
+        "name": "newTextElement",
+        "kind": "function",
+        "params": [{ "name": "opts", "type": "object & ElementConstructorOpts" }],
+        "returns": "NonDeleted<ExcalidrawTextElement>"
+      }
+    ],
+    "import_line": "import { newTextElement } from \"./newElement\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 33,
+        "to": 33,
+        "first_line": "import { wrapText } from \"./textWrapping\";",
+        "rule": "Import `normalizeTextRanges` from `./textRanges`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 349,
+        "to": 387,
+        "first_line": "baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];",
+        "last_line": "};",
+        "rule": "Add `textRanges?: ExcalidrawTextElement[\"textRanges\"];` to `newTextElement` options, normalize `opts.textRanges` against `originalText.length`, and conditionally spread `...(textRanges ? { textRanges } : {})` into `textElementProps`."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/src/newElement.ts",
+      "lines": [337, 395],
+      "reason": "Matches `newTextElement` construction style."
+    },
+    "uses": [
+      {
+        "path": "packages/element/src/types.ts",
+        "lines": [250, 292],
+        "reason": "Uses `ExcalidrawTextElement`."
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-1", "NFR-1", "NFR-5"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/renderElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Render per-run background highlight rectangles and per-run coloured text on Canvas 2D and invalidate cached element canvases when `textRanges` changes.",
+    "rules": [
+      "1. Add `textRanges?: ExcalidrawTextElement[\"textRanges\"];` and `versionNonce?: number;` to `ExcalidrawElementWithCanvas`, populate them in `generateElementCanvas`, and check `prevElementWithCanvas.versionNonce !== element.versionNonce || prevElementWithCanvas.textRanges !== (isTextElement(element) ? element.textRanges : undefined)` in `generateElementWithCanvas` so any range change regenerates the cached bitmap.",
+      "2. In `drawElementOnCanvas` (`if (isTextElement(element))`): when `!element.textRanges?.length`, keep the existing single `context.fillText(lines[index], horizontalOffset, index * lineHeightPx + verticalOffset)` loop unchanged.",
+      "3. When `element.textRanges?.length` is non-empty, call `const lineRuns = projectTextRangesToLines(element.originalText, element.text.replace(/\\r\\n?/g, \"\\n\"), element.textRanges)`. For each line `index`, if `lineRuns[index]` has a single run with neither `color` nor `highlightColor`, draw `lines[index]` with the existing fast path; otherwise measure `lineWidth = context.measureText(lines[index]).width`, compute `lineStartX = element.textAlign === \"center\" ? (element.width - lineWidth) / 2 : element.textAlign === \"right\" ? element.width - lineWidth : 0`, compute each run's `[runX, runWidth]` advancing left-to-right from `lineStartX` when `!rtl` or right-to-left from `lineStartX + lineWidth` when `rtl`, first draw `context.fillRect(runX, index * lineHeightPx, runWidth, lineHeightPx)` with `context.fillStyle = applyDarkModeFilter(run.highlightColor, renderConfig.theme === THEME.DARK)` for every run with `run.highlightColor`, then set `context.textAlign = \"left\"` and draw `context.fillText(run.text, runX, index * lineHeightPx + verticalOffset)` with `context.fillStyle = applyDarkModeFilter(run.color || element.strokeColor, renderConfig.theme === THEME.DARK)` for every run, restoring `context.textAlign = element.textAlign as CanvasTextAlign` after the line."
+    ],
+    "exports": [
+      {
+        "name": "ExcalidrawElementWithCanvas",
+        "kind": "interface",
+        "params": [],
+        "returns": "ExcalidrawElementWithCanvas"
+      }
+    ],
+    "import_line": "import { renderElement, elementWithCanvasCache } from \"./renderElement\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 61,
+        "to": 61,
+        "first_line": "import { getLineHeightInPx } from \"./textMeasurements\";",
+        "rule": "Import `projectTextRangesToLines` from `./textRanges`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 219,
+        "to": 221,
+        "first_line": "imageCrop: ExcalidrawImageElement[\"crop\"] | null;",
+        "last_line": "}",
+        "rule": "Add `versionNonce?: number;` and `textRanges?: ExcalidrawTextElement[\"textRanges\"];` to `ExcalidrawElementWithCanvas`."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 343,
+        "to": 345,
+        "first_line": "imageCrop: isImageElement(element) ? element.crop : null,",
+        "last_line": "};",
+        "rule": "Record `versionNonce: element.versionNonce` and `textRanges: isTextElement(element) ? element.textRanges : undefined` in the object returned by `generateElementCanvas`."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 706,
+        "to": 713,
+        "first_line": "for (let index = 0; index < lines.length; index++) {",
+        "last_line": "});",
+        "rule": "When `element.textRanges?.length` is non-empty, project ranges via `projectTextRangesToLines` and render per-run highlight `fillRect`s before per-run `fillText` calls with `applyDarkModeFilter` and alignment/RTL positioning; preserve the single `fillText` loop when `!element.textRanges?.length`."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 755,
+        "to": 756,
+        "first_line": "prevElementWithCanvas.imageCrop !== imageCrop ||",
+        "last_line": "prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity",
+        "rule": "Also regenerate cached element canvas when `prevElementWithCanvas.versionNonce !== element.versionNonce` or `prevElementWithCanvas.textRanges !== (isTextElement(element) ? element.textRanges : undefined)`."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/src/renderElement.ts",
+      "lines": [660, 775],
+      "reason": "Matches existing Canvas 2D text rendering and element canvas caching."
+    },
+    "uses": [
+      {
+        "path": "packages/element/src/types.ts",
+        "lines": [250, 292],
+        "reason": "Uses `ExcalidrawTextElement` and `TextRangeStyle`."
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-7", "FR-8", "NFR-2", "NFR-4", "AC-2", "AC-4"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/delta.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Normalize or remove `textRanges` when applying `ElementsDelta` and compare `textRanges` structurally in `checkForVisibleDifference`.",
+    "rules": [
+      "1. In `ElementsDelta.applyDelta`: after `const nextElement = newElementWith(element, directlyApplicablePartial, true);`, if `isTextElement(nextElement)` and `(\"textRanges\" in directlyApplicablePartial || \"textRanges\" in nextElement)`, compute `const normalizedRanges = \"textRanges\" in directlyApplicablePartial ? normalizeTextRanges(directlyApplicablePartial.textRanges, nextElement.originalText.length) : normalizeTextRanges(nextElement.textRanges, nextElement.originalText.length);`; if `normalizedRanges` is defined, set `(nextElement as Mutable<ExcalidrawTextElement>).textRanges = normalizedRanges`, else `delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges` so undoing back to an unstyled state removes the own property.",
+      "2. In `ElementsDelta.checkForVisibleDifference`: handle `case \"textRanges\": return !areTextRangesEqual((before as ExcalidrawTextElement).textRanges, (after as ExcalidrawTextElement).textRanges);`."
+    ],
+    "exports": [
+      {
+        "name": "ElementsDelta",
+        "kind": "class",
+        "params": [],
+        "returns": "ElementsDelta"
+      }
+    ],
+    "import_line": "import { Delta, ElementsDelta } from \"./delta\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 47,
+        "to": 47,
+        "first_line": "import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";",
+        "rule": "Import `areTextRangesEqual` and `normalizeTextRanges` from `./textRanges`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 1791,
+        "to": 1792,
+        "first_line": "return newElementWith(element, directlyApplicablePartial, true);",
+        "last_line": "}",
+        "rule": "Normalize `textRanges` on `nextElement` against `nextElement.originalText.length` and `delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges` when empty or cleared by `directlyApplicablePartial`."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 1876,
+        "to": 1883,
+        "first_line": "case \"boundElements\":",
+        "last_line": "}",
+        "rule": "Add `case \"textRanges\": return !areTextRangesEqual((before as ExcalidrawTextElement).textRanges, (after as ExcalidrawTextElement).textRanges);` before `default:`."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/src/delta.ts",
+      "lines": [1742, 1885],
+      "reason": "Matches `ElementsDelta.applyDelta` and `checkForVisibleDifference` conventions."
+    },
+    "uses": [
+      {
+        "path": "packages/element/src/types.ts",
+        "lines": [250, 292],
+        "reason": "Uses `ExcalidrawTextElement`."
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-12", "NFR-1", "AC-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U06",
+    "path": "packages/element/src/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Re-export all range algebra helpers and types from `./textRanges` in `@excalidraw/element`.",
+    "rules": [
+      "1. Add `export * from \"./textRanges\";` after `export * from \"./textWrapping\";`."
+    ],
+    "exports": [
+      {
+        "name": "normalizeTextRanges",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "unknown" },
+          { "name": "textLength", "type": "number" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "applyTextRangeStyle",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "textLength", "type": "number" },
+          { "name": "start", "type": "number" },
+          { "name": "end", "type": "number" },
+          { "name": "style", "type": "{ color?: string | null; highlightColor?: string | null }" },
+          { "name": "baseStrokeColor", "type": "string | undefined" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "shiftTextRangesOnEdit",
+        "kind": "function",
+        "params": [
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" },
+          { "name": "prevText", "type": "string" },
+          { "name": "nextText", "type": "string" }
+        ],
+        "returns": "readonly TextRangeStyle[] | undefined"
+      },
+      {
+        "name": "projectTextRangesToLines",
+        "kind": "function",
+        "params": [
+          { "name": "originalText", "type": "string" },
+          { "name": "wrappedText", "type": "string" },
+          { "name": "ranges", "type": "readonly TextRangeStyle[] | undefined" }
+        ],
+        "returns": "readonly (readonly TextLineRun[])[]"
+      }
+    ],
+    "import_line": "import { isValidRangeColor, normalizeTextRanges, areTextRangesEqual, applyTextRangeStyle, computeTextEditDelta, shiftTextRangesOnEdit, getStyleForTextRange, projectTextRangesToLines } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 102,
+        "to": 102,
+        "first_line": "export * from \"./textWrapping\";",
+        "rule": "Add `export * from \"./textRanges\";`."
+      }
+    ],
+    "style_from": {
+      "path": "packages/element/src/index.ts",
+      "lines": [85, 111],
+      "reason": "Matches `@excalidraw/element` barrel export style."
+    },
+    "depends_on": ["U02"],
+    "covers": ["FR-2", "FR-3", "FR-5", "FR-6"],
+    "checks": ["eslint"]
+  }
+]

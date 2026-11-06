@@ -85,6 +85,67 @@ import type { AppState } from "../types";
  */
 export const CARET_FOLLOW_PADDING = 5;
 
+let activeEditable: HTMLTextAreaElement | null = null;
+let activeEditableExplicitSelection = false;
+
+export const getWysiwygSelectionRange = (
+  ownerDocument?: Document,
+): { start: number; end: number } | null => {
+  const editable =
+    activeEditable ??
+    (ownerDocument ?? document).querySelector<HTMLTextAreaElement>(
+      ".excalidraw-wysiwyg",
+    );
+  if (!editable) {
+    return null;
+  }
+  const start = Math.min(editable.selectionStart, editable.selectionEnd);
+  const end = Math.max(editable.selectionStart, editable.selectionEnd);
+
+  if (
+    !activeEditableExplicitSelection &&
+    start === 0 &&
+    end === editable.value.length
+  ) {
+    return { start: 0, end: 0 };
+  }
+
+  return { start, end };
+};
+
+export const syncWysiwygTextRangesStyle = (
+  element: ExcalidrawTextElement,
+  theme: AppState["theme"],
+  editableEl?: HTMLTextAreaElement | null,
+): void => {
+  const editable =
+    editableEl ??
+    activeEditable ??
+    document.querySelector<HTMLTextAreaElement>(".excalidraw-wysiwyg");
+  if (!editable) {
+    return;
+  }
+
+  const filteredStroke = applyDarkModeFilter(
+    element.strokeColor,
+    theme === THEME.DARK,
+  );
+
+  if (element.textRanges && element.textRanges.length > 0) {
+    editable.style.color = "transparent";
+    editable.style.caretColor = filteredStroke;
+    editable.dataset.textRanges = JSON.stringify(element.textRanges);
+  } else {
+    editable.style.color = filteredStroke;
+    if (editable.style.caretColor) {
+      editable.style.caretColor = "";
+    }
+    if ("textRanges" in editable.dataset) {
+      delete editable.dataset.textRanges;
+    }
+  }
+};
+
 /**
  * The editor is scaled and rotated about the text's center (its transform
  * origin), as the canvas draws the text. The zoom puts that center at half
@@ -506,6 +567,7 @@ export const textWysiwyg = ({
         ),
         opacity: updatedTextElement.opacity / 100,
       });
+      syncWysiwygTextRangesStyle(updatedTextElement, appState.theme, editable);
       currentTextLayout = {
         angle: angle as Radians,
         font,
@@ -1089,6 +1151,10 @@ export const textWysiwyg = ({
   };
 
   const cleanup = () => {
+    if (activeEditable === editable) {
+      activeEditable = null;
+      activeEditableExplicitSelection = false;
+    }
     // remove events to ensure they don't late-fire
     editable.onblur = null;
     editable.oninput = null;
@@ -1298,9 +1364,32 @@ export const textWysiwyg = ({
 
   let isDestroyed = false;
 
-  if (autoSelect && !pendingInitialSelection) {
-    // select on init (focusing is done separately inside the bindBlurEvent()
-    // because we need it to happen *after* the blur event from `pointerdown`)
+  activeEditable = editable;
+  activeEditableExplicitSelection = false;
+
+  const originalSetSelectionRange = editable.setSelectionRange.bind(editable);
+  editable.setSelectionRange = (
+    start: number,
+    end: number,
+    direction?: "forward" | "backward" | "none",
+  ) => {
+    activeEditableExplicitSelection = true;
+    originalSetSelectionRange(start, end, direction);
+  };
+
+  const markSelectionExplicit = () => {
+    activeEditableExplicitSelection = true;
+  };
+  editable.addEventListener("select", markSelectionExplicit);
+  editable.addEventListener("keyup", markSelectionExplicit);
+  editable.addEventListener("mouseup", markSelectionExplicit);
+
+  if (pendingInitialSelection) {
+    editable.setSelectionRange(
+      pendingInitialSelection.start,
+      pendingInitialSelection.end,
+    );
+  } else if (autoSelect) {
     editable.select();
   }
   bindBlurEvent();

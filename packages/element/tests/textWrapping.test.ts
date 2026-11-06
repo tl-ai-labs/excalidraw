@@ -3,6 +3,7 @@ import {
   parseTokens,
   wrapText,
 } from "../src/textWrapping";
+import { projectTextRangesToLines } from "../src/textRanges";
 
 import type { FontString } from "../src/types";
 
@@ -169,6 +170,52 @@ describe("Test wrapText", () => {
         end: 4,
       },
     ]);
+  });
+
+  it("should project styled ranges onto wrapped lines consistently with getWrappedTextLines offsets", () => {
+    const text = "  Hello  World";
+    const wrapped = wrapText(text, font, 90);
+    const ranges = [
+      { start: 2, end: 7, color: "#e03131" },
+      { start: 5, end: 12, highlightColor: "#fab005" },
+    ];
+
+    const runsByLine = projectTextRangesToLines(text, wrapped, ranges);
+
+    expect(runsByLine).toEqual([
+      [
+        { text: "  ", start: 0, end: 2 },
+        { text: "Hel", start: 2, end: 5, color: "#e03131" },
+        {
+          text: "lo",
+          start: 5,
+          end: 7,
+          color: "#e03131",
+          highlightColor: "#fab005",
+        },
+      ],
+      [
+        { text: "Wor", start: 9, end: 12, highlightColor: "#fab005" },
+        { text: "ld", start: 12, end: 14 },
+      ],
+    ]);
+
+    const longText = "Excalidraw";
+    const wrappedLong = wrapText(longText, font, 50);
+    const longRanges = [{ start: 3, end: 8, color: "#1971c2" }];
+
+    expect(projectTextRangesToLines(longText, wrappedLong, longRanges)).toEqual(
+      [
+        [
+          { text: "Exc", start: 0, end: 3 },
+          { text: "al", start: 3, end: 5, color: "#1971c2" },
+        ],
+        [
+          { text: "idr", start: 5, end: 8, color: "#1971c2" },
+          { text: "aw", start: 8, end: 10 },
+        ],
+      ],
+    );
   });
 
   describe("When text is CJK", () => {
