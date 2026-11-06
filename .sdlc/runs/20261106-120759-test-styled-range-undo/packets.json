@@ -1,0 +1,124 @@
+[
+  {
+    "id": "tp_tests_U01",
+    "unit": "U01",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "test",
+    "pass_id": "20261106-120759-test-styled-range-undo",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/textStyleRanges.test.tsx` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 2 (line 2 reads `import { newElementWith } from \"@excalidraw/element\";`) — Becomes the single line: import { CaptureUpdateAction, newElementWith } from \"@excalidraw/element\";\n- S2: replace line 4 (line 4 reads `import type { ExcalidrawTextElement } from \"@excalidraw/element/types\";`) — Becomes a multi-line `import type {` statement naming ExcalidrawTextElement then NonDeletedExcalidrawElement, one per line with trailing commas, closing with `} from \"@excalidraw/element/types\";`.\n- S3: replace line 29 (line 29 reads `API.setSelectedElements([text]);`) — Becomes API.setSelectedElements([text as NonDeletedExcalidrawElement]); at the same two-space indent, nothing else changed.\n- S4: replace line 66 (line 66 reads `API.setElements([text]);`) — Becomes the only seed call, at the same four-space indent, printed as prettier does: API.updateScene({ then `elements: [text],` and `captureUpdate: CaptureUpdateAction.IMMEDIATELY,` one per line, then });\n- S5: replace line 172 (line 172 reads `Keyboard.undo();`) — At the same four-space indent, becomes in order: a two-line // comment saying the first undo reverts the selection-only appState entry Keyboard.exitTextEditor pushes and the second reverts the styleRanges update; Keyboard.undo(); Keyboard.undo(); expect(getText(text.id).isDeleted).toBe(false); the existing range assertion on lines 173-175 follows unchanged.\n- S6: replace line 190 (line 190 reads `API.setSelectedElements([styled]);`) — Becomes API.setSelectedElements([styled as NonDeletedExcalidrawElement]); at the same four-space indent; line 194 (setSelectedElements([plain])) is not touched.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120759-test-styled-range-undo/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120759-test-styled-range-undo/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "lines": [
+          242,
+          245
+        ],
+        "reason": "style file: Shape of an API.updateScene seed with captureUpdate: CaptureUpdateAction.IMMEDIATELY."
+      },
+      {
+        "path": "packages/excalidraw/tests/convertElementType.binding.test.tsx",
+        "lines": [
+          62,
+          62
+        ],
+        "reason": "uses: The repo's local element cast at a setSelectedElements call site."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          74,
+          96
+        ],
+        "reason": "uses: Signatures of API.updateScene, API.setElements and API.setSelectedElements."
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "undo restores the previous ranges and redo re-applies them: given a committed text element, a red stroke pick on range 12-19, then exitTextEditor, expect range present before undo; after two undos isDeleted is false and no red range remains; after redo the range [12,19,red] is back",
+      "a stroke pick on a selected range sets its text colour only: given the committed seed instead of setElements, expect unchanged assertions still pass",
+      "a background pick on a selected range sets its highlight only: given the committed seed, expect unchanged assertions still pass",
+      "picking the element's stroke colour clears a range's text colour: given the committed seed, expect unchanged assertions still pass",
+      "a bound label's highlight does not change its container: given the committed seed, then its own setElements of rectangle and label, expect unchanged assertions still pass",
+      "typing before a range shifts it: given the committed seed, expect unchanged assertions still pass",
+      "with no selection the stroke pick changes strokeColor: given the committed seed, expect unchanged assertions still pass",
+      "paste styles does not copy ranges: given the committed seed, then its own setElements of styled and plain, with the cast at the styled selection, expect unchanged assertions still pass"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 2,
+          "to": 2
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 4,
+          "to": 4
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 29,
+          "to": 29
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 66,
+          "to": 66
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 172,
+          "to": 172
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 190,
+          "to": 190
+        }
+      ],
+      "verify_timeout_sec": 90,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

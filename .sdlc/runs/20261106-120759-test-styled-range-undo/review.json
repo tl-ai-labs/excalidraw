@@ -1,0 +1,27 @@
+{
+  "module": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+  "verdict": "approved",
+  "tool_calls": 3,
+  "summary": "All six sites (S1-S6) match change_plan.md exactly; no other line changed. Seed is committed via API.updateScene with CaptureUpdateAction.IMMEDIATELY, setElements removed from beforeEach; double undo plus isDeleted guard added; existing range assertions unchanged; casts are per-element as planned; imports are value/type separated and alphabetized. Typecheck, eslint and full suite green per orchestrator. Env-fixture check skipped (intent: test).",
+  "checks": {
+    "correctness_vs_plan": "pass",
+    "type_safety": "pass (local `as NonDeletedExcalidrawElement` casts match convertElementType.binding.test.tsx:62 convention)",
+    "error_handling": "n/a (test-only)",
+    "authz": "n/a",
+    "pii": "n/a",
+    "dry": "pass",
+    "test_coverage": "pass (undo test now guards isDeleted and keeps exact range assertion; no test removed or skipped)",
+    "sensitive_files": "none touched",
+    "env_fixtures": "skipped (intent: test)"
+  },
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "line": 178,
+      "issue": "The new comment's first line is roughly 95 columns at its four-space indent, over the 80-column width the change plan names. Prettier and eslint do not wrap comments, so the checks pass, but the line is inconsistent with the file's width.",
+      "fix": "Rewrap the two comment lines so each fits in 80 columns, for example: `// Undo #1 reverts the selection-only appState entry that` / `// Keyboard.exitTextEditor pushes; undo #2 reverts the styleRanges update.`, keeping the meaning."
+    }
+  ],
+  "refinement_packets": []
+}

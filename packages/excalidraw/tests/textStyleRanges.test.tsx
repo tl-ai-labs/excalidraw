@@ -1,7 +1,10 @@
 import { COLOR_PALETTE, KEYS } from "@excalidraw/common";
-import { newElementWith } from "@excalidraw/element";
+import { CaptureUpdateAction, newElementWith } from "@excalidraw/element";
 
-import type { ExcalidrawTextElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawTextElement,
+  NonDeletedExcalidrawElement,
+} from "@excalidraw/element/types";
 
 import { Excalidraw } from "../index";
 import {
@@ -26,7 +29,7 @@ const getText = (id: string) =>
   h.app.scene.getElement(id) as ExcalidrawTextElement;
 
 const editText = async (text: ExcalidrawTextElement) => {
-  API.setSelectedElements([text]);
+  API.setSelectedElements([text as NonDeletedExcalidrawElement]);
   Keyboard.keyPress(KEYS.ENTER);
   return getTextEditor();
 };
@@ -63,7 +66,10 @@ describe("textStyleRanges", () => {
       type: "text",
       text: "Bid request timeout",
     });
-    API.setElements([text]);
+    API.updateScene({
+      elements: [text],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
   });
 
   it("a stroke pick on a selected range sets its text colour only", async () => {
@@ -169,7 +175,11 @@ describe("textStyleRanges", () => {
       { start: 12, end: 19, color: red },
     ]);
 
+    // Undo #1 reverts the selection-only appState entry that
+    // Keyboard.exitTextEditor pushes; undo #2 reverts the styleRanges update.
     Keyboard.undo();
+    Keyboard.undo();
+    expect(getText(text.id).isDeleted).toBe(false);
     expect(
       (getText(text.id).styleRanges ?? []).some((range) => range.color === red),
     ).toBe(false);
@@ -187,7 +197,7 @@ describe("textStyleRanges", () => {
     const plain = API.createElement({ type: "text", text: "Plain text" });
     API.setElements([styled, plain]);
 
-    API.setSelectedElements([styled]);
+    API.setSelectedElements([styled as NonDeletedExcalidrawElement]);
     act(() => {
       h.app.actionManager.executeAction(actionCopyStyles);
     });

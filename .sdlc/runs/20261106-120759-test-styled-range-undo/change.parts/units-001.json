@@ -1,0 +1,161 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Repair the styled-range test file: commit the seed to history, undo twice with an isDeleted guard in the undo/redo test, and cast the two setSelectedElements arguments to NonDeletedExcalidrawElement.",
+      "rules": [
+        "1. Change only the six sites; every other line, including the other seven test cases and every existing expect, stays byte-for-byte as it is.",
+        "2. No new test case, no it.skip/it.todo, no removed expect; the post-undo range assertion stays exact (no bound, no tautology).",
+        "3. CaptureUpdateAction is a value import from \"@excalidraw/element\"; NonDeletedExcalidrawElement is a type import from \"@excalidraw/element/types\".",
+        "4. Output must be prettier-clean at 80 columns, as `yarn fix` would leave it."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 2,
+          "to": 2,
+          "first_line": "import { newElementWith } from \"@excalidraw/element\";",
+          "rule": "Becomes the single line: import { CaptureUpdateAction, newElementWith } from \"@excalidraw/element\";"
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 4,
+          "to": 4,
+          "first_line": "import type { ExcalidrawTextElement } from \"@excalidraw/element/types\";",
+          "rule": "Becomes a multi-line `import type {` statement naming ExcalidrawTextElement then NonDeletedExcalidrawElement, one per line with trailing commas, closing with `} from \"@excalidraw/element/types\";`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 29,
+          "to": 29,
+          "first_line": "API.setSelectedElements([text]);",
+          "rule": "Becomes API.setSelectedElements([text as NonDeletedExcalidrawElement]); at the same two-space indent, nothing else changed."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 66,
+          "to": 66,
+          "first_line": "API.setElements([text]);",
+          "rule": "Becomes the only seed call, at the same four-space indent, printed as prettier does: API.updateScene({ then `elements: [text],` and `captureUpdate: CaptureUpdateAction.IMMEDIATELY,` one per line, then });"
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 172,
+          "to": 172,
+          "first_line": "Keyboard.undo();",
+          "rule": "At the same four-space indent, becomes in order: a two-line // comment saying the first undo reverts the selection-only appState entry Keyboard.exitTextEditor pushes and the second reverts the styleRanges update; Keyboard.undo(); Keyboard.undo(); expect(getText(text.id).isDeleted).toBe(false); the existing range assertion on lines 173-175 follows unchanged."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 190,
+          "to": 190,
+          "first_line": "API.setSelectedElements([styled]);",
+          "rule": "Becomes API.setSelectedElements([styled as NonDeletedExcalidrawElement]); at the same four-space indent; line 194 (setSelectedElements([plain])) is not touched."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "lines": [
+          242,
+          245
+        ],
+        "reason": "Shape of an API.updateScene seed with captureUpdate: CaptureUpdateAction.IMMEDIATELY."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/convertElementType.binding.test.tsx",
+          "lines": [
+            62,
+            62
+          ],
+          "reason": "The repo's local element cast at a setSelectedElements call site."
+        },
+        {
+          "path": "packages/excalidraw/tests/helpers/api.ts",
+          "lines": [
+            74,
+            96
+          ],
+          "reason": "Signatures of API.updateScene, API.setElements and API.setSelectedElements."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "NFR-1",
+        "NFR-2",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "tests": [
+        {
+          "name": "undo restores the previous ranges and redo re-applies them",
+          "given": "a committed text element, a red stroke pick on range 12-19, then exitTextEditor",
+          "expect": "range present before undo; after two undos isDeleted is false and no red range remains; after redo the range [12,19,red] is back"
+        },
+        {
+          "name": "a stroke pick on a selected range sets its text colour only",
+          "given": "the committed seed instead of setElements",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "a background pick on a selected range sets its highlight only",
+          "given": "the committed seed",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "picking the element's stroke colour clears a range's text colour",
+          "given": "the committed seed",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "a bound label's highlight does not change its container",
+          "given": "the committed seed, then its own setElements of rectangle and label",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "typing before a range shifts it",
+          "given": "the committed seed",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "with no selection the stroke pick changes strokeColor",
+          "given": "the committed seed",
+          "expect": "unchanged assertions still pass"
+        },
+        {
+          "name": "paste styles does not copy ranges",
+          "given": "the committed seed, then its own setElements of styled and plain, with the cast at the styled selection",
+          "expect": "unchanged assertions still pass"
+        }
+      ],
+      "checks": [
+        "lint"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/tests/textStyleRanges.test.tsx": "99af299d5c3a0077620a2f65c3ef2ff44a5ab6e0c3361eb40ac8c80839b51237",
+    "packages/excalidraw/tests/history.test.tsx": "cdf36824cf636a0074ca9db7ecfe503c61ad1650758b2fe865ff910e29492ef4",
+    "packages/excalidraw/tests/convertElementType.binding.test.tsx": "add7766a9b004f3c48713f9b4137186977c662ba80a7be25b9d4377619b7d2a8",
+    "packages/excalidraw/tests/helpers/api.ts": "c982523abb11522dc32111c7b80de8348a2299adb6f43e919c73bfe1dcb52291"
+  }
+}
