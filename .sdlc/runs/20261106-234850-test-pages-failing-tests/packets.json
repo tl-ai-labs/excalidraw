@@ -1,0 +1,130 @@
+[
+  {
+    "id": "tp_tests_U01",
+    "unit": "U01",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "test",
+    "pass_id": "20261106-234850-test-pages-failing-tests",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/pages.test.tsx` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 6 (line 6 reads `import { DEFAULT_PAGE_ID, getVisiblePages } from \"@excalidraw/element\";`) — Rule 1: multi-line import of CaptureUpdateAction, DEFAULT_PAGE_ID, getVisiblePages, newElementWith from \"@excalidraw/element\".\n- S2: replace line 69 (line 69 reads `const trigger = queryContainer(\"[data-testid='pages-tab-menu-trigger']\");`) — Rule 2: same line with the id pages-menu-trigger.\n- S3: replace line 175 (line 175 reads `const item = queryContainer(\"[data-testid='pages-menu-delete']\");`) — Rule 3: same line with the id page-menu-delete.\n- S4: replace line 191 (line 191 reads `const item = queryContainer(\"[data-testid='pages-menu-delete']\");`) — Rule 3: same line with the id page-menu-delete.\n- S5: replace line 324 (line 324 reads `API.setElements([r1, r2]);`) — Rule 4: captured seed via API.updateScene with CaptureUpdateAction.IMMEDIATELY.\n- S6: replace lines 326-327 (line 326 reads `API.setSelectedElements([r1]);`, line 327 reads `Keyboard.keyPress(KEYS.ARROW_RIGHT);`) — Rules 5 and 7: one captured API.updateScene moving r1 to x 1, both rectangles passed.\n- S7: replace lines 331-332 (line 331 reads `API.setSelectedElements([API.getElement(r2)]);`, line 332 reads `Keyboard.keyPress(KEYS.ARROW_RIGHT);`) — Rules 6 and 7: one captured API.updateScene moving r2 to x 1, both rectangles passed.\n- S8: insert after line 379 (line 379 reads `});`) — Rule 9: fireEvent.keyDown(searchInput, { key: KEYS.ENTER }); on its own line, indented like the surrounding statements.\n- S9: replace line 402 (line 402 reads `expect(queryContainer(\"[data-testid='pages-tab-menu-trigger']\")).toBe(null);`) — Rule 10: same assertion with the id pages-menu-trigger.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-234850-test-pages-failing-tests/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-234850-test-pages-failing-tests/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "lines": [
+          2378,
+          2405
+        ],
+        "reason": "style file: Shows API.updateScene with newElementWith(...) elements and CaptureUpdateAction.IMMEDIATELY as this repo writes it."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          70,
+          170
+        ],
+        "reason": "uses: API.updateScene, API.setElements and API.getElement signatures."
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "keeps undo on its page: given r1 on the default page and r2 on page 2 seeded by one captured update, then each moved to x 1 by its own captured update on its page, expect one undo on the default page gives r1.x 0, r2.x 1, activePageId default; one undo on page 2 gives r2.x 0, activePageId page 2",
+      "deletes a page via the menu: given the menu opened through pages-menu-trigger, first with one page, then with a second page holding a rectangle, expect page-menu-delete is disabled with one page; clicking it with two leaves one visible page, the rectangle isDeleted, and the default page active",
+      "finds text on another page and switches to it: given a text 'pipeline' on page 2, the search typed while the default page is active, then Enter pressed in the search input, expect one search match and activePageId switches to page 2",
+      "lets view mode switch but not edit pages: given two pages and view mode on, expect no add button and no pages-menu-trigger, while tab clicks still switch pages"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 6,
+          "to": 6
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 69,
+          "to": 69
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 175,
+          "to": 175
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 191,
+          "to": 191
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 324,
+          "to": 324
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 326,
+          "to": 327
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 331,
+          "to": 332
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 379,
+          "to": 379
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 402,
+          "to": 402
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

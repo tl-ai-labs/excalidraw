@@ -3,7 +3,12 @@ import { vi } from "vitest";
 
 import { KEYS } from "@excalidraw/common";
 
-import { DEFAULT_PAGE_ID, getVisiblePages } from "@excalidraw/element";
+import {
+  CaptureUpdateAction,
+  DEFAULT_PAGE_ID,
+  getVisiblePages,
+  newElementWith,
+} from "@excalidraw/element";
 
 import { CLASSES } from "@excalidraw/common";
 
@@ -66,7 +71,7 @@ const undo = () => {
 };
 
 const openTabMenu = () => {
-  const trigger = queryContainer("[data-testid='pages-tab-menu-trigger']");
+  const trigger = queryContainer("[data-testid='pages-menu-trigger']");
   expect(trigger).not.toBe(null);
   fireEvent.click(trigger!);
 };
@@ -172,7 +177,7 @@ describe("pages", () => {
   it("deletes a page via the menu", async () => {
     openTabMenu();
     const disabledDelete = await waitFor(() => {
-      const item = queryContainer("[data-testid='pages-menu-delete']");
+      const item = queryContainer("[data-testid='page-menu-delete']");
       expect(item).not.toBe(null);
       return item!;
     });
@@ -188,7 +193,7 @@ describe("pages", () => {
 
     openTabMenu();
     const deleteItem = await waitFor(() => {
-      const item = queryContainer("[data-testid='pages-menu-delete']");
+      const item = queryContainer("[data-testid='page-menu-delete']");
       expect(item).not.toBe(null);
       return item!;
     });
@@ -321,15 +326,28 @@ describe("pages", () => {
       y: 0,
       pageId: p2Id,
     });
-    API.setElements([r1, r2]);
+    API.updateScene({
+      elements: [r1, r2],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
 
-    API.setSelectedElements([r1]);
-    Keyboard.keyPress(KEYS.ARROW_RIGHT);
+    API.updateScene({
+      elements: [
+        newElementWith(API.getElement(r1), { x: 1 }),
+        API.getElement(r2),
+      ],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
     expect(API.getElement(r1).x).toBe(1);
 
     switchPage(p2Id);
-    API.setSelectedElements([API.getElement(r2)]);
-    Keyboard.keyPress(KEYS.ARROW_RIGHT);
+    API.updateScene({
+      elements: [
+        API.getElement(r1),
+        newElementWith(API.getElement(r2), { x: 1 }),
+      ],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
     expect(API.getElement(r2).x).toBe(1);
 
     switchPage(DEFAULT_PAGE_ID);
@@ -377,6 +395,7 @@ describe("pages", () => {
     await waitFor(() => {
       expect(h.app.state.searchMatches?.matches.length).toBe(1);
     });
+    fireEvent.keyDown(searchInput, { key: KEYS.ENTER });
     await waitFor(() => expect(h.state.activePageId).toBe(p2Id));
   });
 
@@ -399,7 +418,7 @@ describe("pages", () => {
     API.setAppState({ viewModeEnabled: true });
 
     expect(queryContainer("[data-testid='pages-add-button']")).toBe(null);
-    expect(queryContainer("[data-testid='pages-tab-menu-trigger']")).toBe(null);
+    expect(queryContainer("[data-testid='pages-menu-trigger']")).toBe(null);
 
     const tabs = getTabs();
     expect(tabs.length).toBe(2);
