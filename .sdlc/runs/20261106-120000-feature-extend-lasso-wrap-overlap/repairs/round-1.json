@@ -1,0 +1,110 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/lasso.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false: FAIL packages/excalidraw/tests/lasso.test.tsx > Wrap (contain) vs Overlap lasso selection > selects a group in contain mode only when all selectable group members are enclosed. AssertionError: expected [ 'group-rect-1', …(2) ] to deeply equal [ 'group-rect-1', 'group-rect-2' ] (Received also contains \"group-bound-text\") at lasso.test.tsx:2269. Once every selectable member is enclosed, the group is selected through selectGroupsForSelectedElements, the same path Overlap mode and box selection use, and that selection includes the group's bound text. Make the assertion match what that path selects (the two rectangles plus the bound text, order-insensitive), unless the source in context shows the bound text should be excluded. Do not weaken the partial-enclosure assertion (selects nothing in contain, whole group in overlap).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-120000-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false, three failures in the new describe(\"lasso selection mode\") suite (the suite's first partial-vs-full element test passes, so lasso activation works): (1) \"selects a group in contain mode only when all group members are enclosed\": AssertionError: expected +0 to be 2 at assertSelectedElements (test-utils.ts:229) from selection.test.tsx:1555. (2) \"frame child extending past the frame edge > contain mode: enclosing the visible part selects the child, not the frame\": expected +0 to be 1 at selection.test.tsx:1612. (3) \"frame child extending past the frame edge > overlap mode: touching the clipped-out part selects the child\": expected +0 to be 1 at selection.test.tsx:1636. Each lasso selects nothing at all, even in overlap mode. The equivalent cases in lasso.test.tsx (which call getLassoSelectedElementIds / LassoTrail directly) pass with the source in context, so check the pointer-driven setup of these three tests: the lasso must start on empty canvas (a mouse.downAt on an element starts a drag or select, not a lasso), the path must be drawn with the same lasso activation and moveTo sequence as the passing test in this suite, and the elements (frame with child via frameId, grouped rectangles) must be in the scene the way the passing test's elements are. Keep the expectations the plan states: group selected in contain only when both members are enclosed; frame visible-part lasso selects the child and not the frame in contain; hidden-part lasso (x 110..160) selects the child in overlap and not in contain.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

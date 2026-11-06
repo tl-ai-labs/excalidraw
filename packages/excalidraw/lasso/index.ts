@@ -7,6 +7,7 @@ import {
 import { getElementLineSegments } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import {
+  isBoundToContainer,
   isFrameLikeElement,
   isLinearElement,
   isTextElement,
@@ -109,7 +110,9 @@ export class LassoTrail extends AnimatedTrail {
             this.app.scene.getNonDeletedElementsMap(),
           );
           if (container) {
-            nextSelectedElementIds[container.id] = true;
+            if (prevState.boxSelectionMode === "overlap") {
+              nextSelectedElementIds[container.id] = true;
+            }
             delete nextSelectedElementIds[element.id];
           }
         }
@@ -126,6 +129,40 @@ export class LassoTrail extends AnimatedTrail {
           );
           for (const child of elementsInFrame) {
             delete nextSelectedElementIds[child.id];
+          }
+        }
+      }
+
+      if (prevState.boxSelectionMode === "contain") {
+        const groups: Record<string, ExcalidrawElement[]> = {};
+
+        for (const element of this.app.scene.getNonDeletedElements()) {
+          if (element.locked || isBoundToContainer(element)) {
+            continue;
+          }
+
+          const groupId = element.groupIds.at(-1);
+          if (groupId) {
+            if (!groups[groupId]) {
+              groups[groupId] = [];
+            }
+            groups[groupId].push(element);
+          }
+        }
+
+        for (const id of Object.keys(nextSelectedElementIds)) {
+          const element = this.app.scene.getNonDeletedElement(id);
+          const group = element?.groupIds.at(-1)
+            ? groups[element.groupIds.at(-1)!]
+            : null;
+
+          if (
+            group &&
+            !group.every(
+              (groupElement) => nextSelectedElementIds[groupElement.id],
+            )
+          ) {
+            delete nextSelectedElementIds[id];
           }
         }
       }
@@ -202,6 +239,7 @@ export class LassoTrail extends AnimatedTrail {
         intersectedElements: this.intersectedElements,
         enclosedElements: this.enclosedElements,
         simplifyDistance: 5 / this.app.state.zoom.value,
+        boxSelectionMode: this.app.state.boxSelectionMode,
       });
 
       this.selectElementsFromIds(selectedElementIds);

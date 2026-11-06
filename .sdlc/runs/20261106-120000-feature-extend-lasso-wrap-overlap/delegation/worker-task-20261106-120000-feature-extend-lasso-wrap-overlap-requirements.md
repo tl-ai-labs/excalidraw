@@ -1,0 +1,11 @@
+## This invocation
+
+mode: brownfield. intent: feature-extend. run_id: 20261106-120000-feature-extend-lasso-wrap-overlap.
+Brief: .sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/intent_brief.md (Gate 0 approved; its decisions, files in scope, off-limits list and acceptance criteria are settled). Discovery code map: .sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/discovery.md.
+Write .sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/requirements.md as DELTA requirements (feature-extend, Phase 1): only what changes relative to the existing lasso behaviour. Sections: In scope (numbered, testable); Out of scope (numbered, include the brief's non-goals); Functional requirements (FR-1, FR-2, ... — lasso reads appState.boxSelectionMode; Wrap = full enclosure by real outline for rectangle, diamond, ellipse, rotated shapes, lines/arrows, freehand; Overlap = today's behaviour unchanged; group and bound-text/arrow-label semantics in Wrap match box selection; box selection and elementsOverlappingBBox/getElementsWithinSelection behaviour unchanged; additive-only changes in packages/element; CHANGELOG Unreleased entry); Non-functional requirements (NFR-n: performance comparable to today's lasso on many elements, no new preference, typecheck strict); PII inventory (state none if none); Role matrix (single local editor user; state it is not applicable beyond that); Acceptance criteria (AC-1.. , executable, mapping the brief's six criteria, naming the test files packages/excalidraw/tests/lasso.test.tsx and packages/excalidraw/tests/selection.test.tsx and the commands yarn test:typecheck, yarn test:code, yarn test:app --watch=false); Open questions for HITL (only genuine ones not already settled by the brief). Every FR and AC id must be testable; keep the file concise. Respect the brief's off-limits list: App.tsx, appState.ts, types.ts, restore.ts, locales are not to be changed.
+
+## The step's input files
+
+Copied into the project for you, in the order given (read each with read_file):
+- .sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/inputs/intent_brief.md
+- .sdlc/runs/20261106-120000-feature-extend-lasso-wrap-overlap/inputs/discovery.md

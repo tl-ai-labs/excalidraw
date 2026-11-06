@@ -13,6 +13,10 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Features
+
+- Lasso selection now respects the Wrap / Overlap (`boxSelectionMode`) selection preference: in Wrap mode only fully enclosed elements and groups are selected, while Overlap mode selects any element the lasso touches [#11809](https://github.com/excalidraw/excalidraw/pull/11809)
+
 ## Excalidraw API
 
 ### Host-controlled active tool (2026-07-14) [#11665](https://github.com/excalidraw/excalidraw/pull/11665)

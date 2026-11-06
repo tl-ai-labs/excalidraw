@@ -1,0 +1,76 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "Format code with Prettier (@excalidraw/prettier-config: double quotes, semicolons, 2-space indent, trailing commas).",
+      "Group imports with blank lines between external packages, internal @excalidraw/* workspace packages, relative imports, and type-only imports.",
+      "Use Vitest (describe/it/expect) with ./test-utils (render, act, assertSelectedElements) and window.h harness in packages/excalidraw/tests/*.test.tsx.",
+      "Keep strict TypeScript compliance without any or ts-ignore."
+    ],
+    "decisions": [
+      {
+        "topic": "getLassoSelectedElementIds mode parameter and default",
+        "choice": "Accept optional boxSelectionMode?: BoxSelectionMode defaulting to \"contain\" on getLassoSelectedElementIds input, and pass this.app.state.boxSelectionMode from LassoTrail.updateSelection",
+        "rejected": [
+          "Defaulting boxSelectionMode to \"overlap\" in getLassoSelectedElementIds",
+          "Reading window.h.state directly inside getLassoSelectedElementIds"
+        ],
+        "reason": "Aligns getLassoSelectedElementIds with getElementsWithinSelection (which defaults boxSelectionMode to \"contain\") while keeping utils.ts pure and testable."
+      },
+      {
+        "topic": "Full outline containment and frame-child clipping in Wrap (\"contain\") mode",
+        "choice": "Require every segment endpoint of the element outline (and its positioned bound text outline if present) to lie inside the closed lasso polygon via polygonIncludesPointNonZero AND require intersectionTest to be false while skipping standalone bound text elements; when an element belongs to an overlapping containing frame (getContainingFrame + elementOverlapsWithFrame), clip its AABB, outline segments, and intersection hits to the frame bounds in \"contain\" mode while keeping \"overlap\" mode unclipped",
+        "rejected": [
+          "Testing unclipped outline points of frame children in \"contain\" mode",
+          "Testing only element AABB corners against the lasso polygon",
+          "Testing only segment points without checking lasso edge intersections"
+        ],
+        "reason": "Matches elementsOverlappingBBox frame-clipping semantics so only the visible portion of a frame child inside its frame must be enclosed in Wrap mode, while preserving exact shape outline containment and leaving Overlap behaviour unchanged."
+      },
+      {
+        "topic": "Group resolution in Wrap (\"contain\") vs Overlap (\"overlap\") mode",
+        "choice": "In LassoTrail.selectElementsFromIds, when prevState.boxSelectionMode === \"contain\", group non-deleted selectable (!locked && !isBoundToContainer) scene elements by top-level groupId (element.groupIds.at(-1)) and delete any selected element whose top-level group members are not all present in nextSelectedElementIds before calling selectGroupsForSelectedElements",
+        "rejected": [
+          "Letting selectGroupsForSelectedElements expand partially enclosed groups in contain mode",
+          "Including locked or bound-text elements in top-level group membership counts"
+        ],
+        "reason": "Matches elementsOverlappingBBox \"contain\" group post-processing so partially enclosed groups are dropped and bound text or locked elements do not prevent group selection."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "prettier",
+        "run": "yarn prettier --list-different {path}",
+        "fix": "yarn prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "eslint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --max-warnings=0 --fix {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "yarn test:app --watch=false {path}",
+        "timeout_s": 120
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "lint",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}

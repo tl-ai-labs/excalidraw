@@ -184,12 +184,13 @@ describe("lasso reselection", () => {
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
       mouse.downAt(110, 50);
-      mouse.moveTo(50, -20);
+      mouse.moveTo(110, -20);
 
       expect(h.app.lassoTrail.hasCurrentTrail).toBe(true);
 
-      mouse.moveTo(-20, 50);
-      mouse.moveTo(50, 120);
+      mouse.moveTo(-20, -20);
+      mouse.moveTo(-20, 120);
+      mouse.moveTo(110, 120);
       mouse.moveTo(110, 50);
       mouse.up();
     });
@@ -1457,5 +1458,187 @@ describe("deselecting", () => {
     expect(API.getSelectedElements()).toEqual([]);
     expect(h.state.editingGroupId).toBeNull();
     expect(h.state.selectedGroupIds).toEqual({});
+  });
+});
+
+describe("lasso selection mode", () => {
+  const setup = async (boxSelectionMode: "contain" | "overlap") => {
+    await render(
+      <Excalidraw initialData={{ appState: { boxSelectionMode } }} />,
+    );
+    act(() => {
+      h.state.width = 1000;
+      h.state.height = 1000;
+      h.app.setActiveTool({ type: "lasso" });
+    });
+  };
+
+  const lasso = (points: [number, number][]) => {
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+    mouse.downAt(points[0][0], points[0][1]);
+    points.slice(1).forEach(([x, y]) => mouse.moveTo(x, y));
+    mouse.up();
+  };
+
+  const rectLasso = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+  ): [number, number][] => [
+    [x1, y1],
+    [x2, y1],
+    [x2, y2],
+    [x1, y2],
+    [x1, y1],
+  ];
+
+  it("does not select a partially touched element in contain mode and selects it in overlap mode", async () => {
+    await setup("contain");
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+    API.setElements([rect]);
+
+    lasso(rectLasso(25, -20, 75, 70));
+    assertSelectedElements([]);
+
+    lasso(rectLasso(-20, -20, 70, 70));
+    assertSelectedElements([rect.id]);
+  });
+
+  it("selects a partially touched element in overlap mode", async () => {
+    await setup("overlap");
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+    API.setElements([rect]);
+
+    lasso(rectLasso(25, -20, 75, 70));
+    assertSelectedElements([rect.id]);
+  });
+
+  it("selects a group in contain mode only when all group members are enclosed", async () => {
+    await setup("contain");
+    const rect1 = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      groupIds: ["A"],
+    });
+    const rect2 = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 0,
+      width: 50,
+      height: 50,
+      groupIds: ["A"],
+    });
+    API.setElements([rect1, rect2]);
+
+    lasso(rectLasso(-20, -20, 70, 70));
+    assertSelectedElements([]);
+    expect(h.state.selectedGroupIds).toEqual({});
+
+    lasso(rectLasso(-25, -25, 170, 70));
+    assertSelectedElements([rect1.id, rect2.id]);
+    expect(h.state.selectedGroupIds).toEqual({ A: true });
+  });
+
+  it("selects the whole group in overlap mode when one member is touched", async () => {
+    await setup("overlap");
+    const rect1 = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      groupIds: ["A"],
+    });
+    const rect2 = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 0,
+      width: 50,
+      height: 50,
+      groupIds: ["A"],
+    });
+    API.setElements([rect1, rect2]);
+
+    lasso(rectLasso(-20, -20, 70, 70));
+    assertSelectedElements([rect1.id, rect2.id]);
+    expect(h.state.selectedGroupIds).toEqual({ A: true });
+  });
+
+  describe("frame child extending past the frame edge", () => {
+    const createFrameScene = () => {
+      const frame = API.createElement({
+        type: "frame",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      });
+      const child = API.createElement({
+        type: "rectangle",
+        x: 50,
+        y: 20,
+        width: 100,
+        height: 60,
+        frameId: frame.id,
+        backgroundColor: "transparent",
+        fillStyle: "solid",
+      });
+      API.setElements([child, frame]);
+      return { frame, child };
+    };
+
+    it("contain mode: enclosing the visible part selects the child, not the frame", async () => {
+      await setup("contain");
+      const { child } = createFrameScene();
+
+      lasso(rectLasso(105, 10, 40, 90));
+      assertSelectedElements([child.id]);
+    });
+
+    it("contain mode: enclosing only the clipped-out part leaves the child unselected", async () => {
+      await setup("contain");
+      createFrameScene();
+
+      lasso(rectLasso(160, 10, 110, 90));
+      assertSelectedElements([]);
+    });
+
+    it("overlap mode: touching the visible part selects the frame, not the child", async () => {
+      await setup("overlap");
+      const { frame } = createFrameScene();
+
+      lasso(rectLasso(105, 10, 40, 90));
+      assertSelectedElements([frame.id]);
+    });
+
+    it("overlap mode: touching the clipped-out part selects the child", async () => {
+      await setup("overlap");
+      const { child } = createFrameScene();
+
+      lasso(rectLasso(160, 10, 110, 90));
+      assertSelectedElements([child.id]);
+    });
   });
 });

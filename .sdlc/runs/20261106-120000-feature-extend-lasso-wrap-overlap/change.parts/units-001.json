@@ -1,0 +1,512 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/lasso/utils.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Extend getLassoSelectedElementIds with a boxSelectionMode parameter supporting full outline, bound-text, and frame-clipped enclosure in Wrap (\"contain\") mode while preserving existing Overlap (\"overlap\") behaviour.",
+      "rules": [
+        "1. Import elementOverlapsWithFrame, getContainingFrame, getElementLineSegments, isBoundToContainer, and pointInsideBoundsInclusive from \"@excalidraw/element\", lineSegmentIntersectionPoints and pointFrom from \"@excalidraw/math\", type LineSegment from \"@excalidraw/math/types\", and type BoxSelectionMode from \"../types\".",
+        "2. Add optional boxSelectionMode?: BoxSelectionMode to getLassoSelectedElementIds input parameter, destructuring with default boxSelectionMode = \"contain\".",
+        "3. In getLassoSelectedElementIds loop over unlockedElements, when boxSelectionMode === \"contain\" and isBoundToContainer(element) is true, skip the element so standalone bound text never selects a partially enclosed container.",
+        "4. For each candidate element in \"contain\" mode, check const associatedFrame = getContainingFrame(element, elementsMap) and when associatedFrame && elementOverlapsWithFrame(element, associatedFrame, elementsMap), compute frameBounds = getElementBounds(associatedFrame, elementsMap) and clip elementBounds to [Math.max(elementBounds[0], frameBounds[0]), Math.max(elementBounds[1], frameBounds[1]), Math.min(elementBounds[2], frameBounds[2]), Math.min(elementBounds[3], frameBounds[3])] as Bounds (matching elementsOverlappingBBox); in \"overlap\" mode leave frameBounds = null and elementBounds unclipped.",
+        "5. Keep the fast AABB pre-filter doBoundsIntersect(lassoBounds, elementBounds) && !intersectedElements.has(element.id) && !enclosedElements.has(element.id).",
+        "6. When boxSelectionMode === \"contain\", add element.id to enclosedElements if and only if enclosureTest(path, element, elementsSegments, elementsMap, \"contain\", frameBounds, elementBounds) is true AND !intersectionTest(path, element, elementsMap, elementsSegments.get(element.id), frameBounds) is true; do not add anything to intersectedElements in \"contain\" mode.",
+        "7. When boxSelectionMode === \"overlap\", preserve exact existing behaviour: if enclosureTest(path, element, elementsSegments, elementsMap, \"overlap\") is true add element.id to enclosedElements, else if intersectionTest(path, element, elementsMap) is true add element.id to intersectedElements.",
+        "8. Implement a helper clipSegmentToBounds([p0, p1]: LineSegment<GlobalPoint>, [minX, minY, maxX, maxY]: Bounds): LineSegment<GlobalPoint> | null using Liang-Barsky parameter clipping on [0, 1] against [minX, minY, maxX, maxY], and clipSegmentsToBounds(segments, bounds) returning the non-null clipped segments.",
+        "9. In enclosureTest(lassoPath, element, elementsSegments, elementsMap, mode = \"overlap\", frameBounds = null, clippedElementBounds?): resolve rawSegments = elementsSegments.get(element.id) ?? getElementLineSegments(element, elementsMap); if !rawSegments || rawSegments.length === 0 return false; when mode === \"overlap\" return rawSegments.some((segment) => segment.some((point) => polygonIncludesPointNonZero(point, lassoPolygon))).",
+        "10. In enclosureTest when mode === \"contain\", if frameBounds is non-null, clip rawSegments via clipSegmentsToBounds(rawSegments, frameBounds) (falling back to the 4 boundary segments of clippedElementBounds if all outline segments lie outside frameBounds because the element surrounds the frame), and require every segment endpoint to satisfy polygonIncludesPointNonZero(point, lassoPolygon); additionally, if getBoundTextElement(element, elementsMap) returns a boundTextElement, construct positionedBoundText = { ...boundTextElement, ...computeBoundTextPosition(element, boundTextElement, elementsMap) }, compute boundTextSegments = frameBounds ? clipSegmentsToBounds(getElementLineSegments(positionedBoundText, elementsMap), frameBounds) : getElementLineSegments(positionedBoundText, elementsMap), and require every endpoint in boundTextSegments (when non-empty, or when frameBounds is null require boundTextSegments.length > 0) to satisfy polygonIncludesPointNonZero(point, lassoPolygon).",
+        "11. In intersectionTest(lassoPath, element, elementsMap, elementSegments?, frameBounds = null), when frameBounds is null keep existing intersectElementWithLineSegment(..., 0, true) checks on element and positioned boundTextElement plus elementSegments.some((seg) => lineSegmentIntersectionPoints(lassoSegment, seg) !== null) when elementSegments is provided; when frameBounds is non-null, call intersectElementWithLineSegment(..., 0, false) on element and positioned boundTextElement and only count hits where pointInsideBoundsInclusive(hit, frameBounds) is true, and clip elementSegments with clipSegmentsToBounds(elementSegments, frameBounds) before testing lineSegmentIntersectionPoints."
+      ],
+      "exports": [
+        {
+          "name": "getLassoSelectedElementIds",
+          "kind": "function",
+          "params": [
+            {
+              "name": "input",
+              "type": "{ lassoPath: GlobalPoint[]; elements: readonly ExcalidrawElement[]; elementsMap: ElementsMap; elementsSegments: ElementsSegmentsMap; intersectedElements: Set<ExcalidrawElement[\"id\"]>; enclosedElements: Set<ExcalidrawElement[\"id\"]>; simplifyDistance?: number; boxSelectionMode?: BoxSelectionMode }"
+            }
+          ],
+          "returns": "{ selectedElementIds: string[] }"
+        }
+      ],
+      "import_line": "import { getLassoSelectedElementIds } from \"./utils\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 3,
+          "to": 143,
+          "first_line": "import {",
+          "last_line": "};",
+          "rule": "Add boxSelectionMode parameter to getLassoSelectedElementIds and implement full-outline, bound-text, and frame-clipped containment for \"contain\" mode alongside existing \"overlap\" mode."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "lines": [
+          1,
+          143
+        ],
+        "reason": "Existing lasso selection utility structure, imports, and helper style"
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            299,
+            415
+          ],
+          "reason": "getElementLineSegments signature and outline segment generation per element type"
+        },
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            1236,
+            1244
+          ],
+          "reason": "pointInsideBoundsInclusive signature for checking whether intersection points lie within frame bounds"
+        },
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            1366,
+            1390
+          ],
+          "reason": "Frame-child bounds clipping via getContainingFrame and elementOverlapsWithFrame in elementsOverlappingBBox"
+        },
+        {
+          "path": "packages/element/src/frame.ts",
+          "lines": [
+            148,
+            158
+          ],
+          "reason": "elementOverlapsWithFrame signature"
+        },
+        {
+          "path": "packages/element/src/frame.ts",
+          "lines": [
+            436,
+            445
+          ],
+          "reason": "getContainingFrame signature"
+        },
+        {
+          "path": "packages/element/src/textElement.ts",
+          "lines": [
+            229,
+            316
+          ],
+          "reason": "computeBoundTextPosition and getBoundTextElement signatures for bound text enclosure"
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-7",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-6"
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/excalidraw/lasso/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Pass appState.boxSelectionMode from LassoTrail.updateSelection into getLassoSelectedElementIds and enforce Wrap (\"contain\") vs Overlap (\"overlap\") bound-text and group selection semantics in LassoTrail.selectElementsFromIds.",
+      "rules": [
+        "1. Import isBoundToContainer alongside isFrameLikeElement, isLinearElement, isTextElement from \"@excalidraw/element\".",
+        "2. In LassoTrail.selectElementsFromIds bound-text loop, only set nextSelectedElementIds[container.id] = true when prevState.boxSelectionMode === \"overlap\", and always delete nextSelectedElementIds[element.id] when container exists.",
+        "3. In LassoTrail.selectElementsFromIds after removing children of selected frames, when prevState.boxSelectionMode === \"contain\", build a groups: Record<string, ExcalidrawElement[]> map over this.app.scene.getNonDeletedElements() skipping any element where element.locked || isBoundToContainer(element) and indexing by const groupId = element.groupIds.at(-1).",
+        "4. Still inside the prevState.boxSelectionMode === \"contain\" branch, iterate over Object.keys(nextSelectedElementIds), look up element = this.app.scene.getNonDeletedElement(id), resolve group = element?.groupIds.at(-1) ? groups[element.groupIds.at(-1)!] : null, and if group && !group.every((groupElement) => nextSelectedElementIds[groupElement.id]), delete nextSelectedElementIds[id] before calling selectGroupsForSelectedElements.",
+        "5. In LassoTrail.updateSelection, pass boxSelectionMode: this.app.state.boxSelectionMode in the argument object to getLassoSelectedElementIds."
+      ],
+      "exports": [
+        {
+          "name": "LassoTrail",
+          "kind": "class",
+          "params": [
+            {
+              "name": "app",
+              "type": "App"
+            }
+          ],
+          "returns": "LassoTrail"
+        }
+      ],
+      "import_line": "import { LassoTrail } from \"../lasso\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 9,
+          "to": 13,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Add isBoundToContainer to @excalidraw/element imports."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 103,
+          "to": 131,
+          "first_line": "for (const [id] of Object.entries(nextSelectedElementIds)) {",
+          "last_line": "}",
+          "rule": "Restrict bound-text-to-container promotion to overlap mode and drop partially enclosed top-level groups in contain mode after frame-children removal."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 197,
+          "to": 205,
+          "first_line": "const { selectedElementIds } = getLassoSelectedElementIds({",
+          "last_line": "});",
+          "rule": "Pass boxSelectionMode: this.app.state.boxSelectionMode to getLassoSelectedElementIds."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "lines": [
+          1,
+          218
+        ],
+        "reason": "Existing LassoTrail class implementation"
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            1323,
+            1337
+          ],
+          "reason": "Top-level group membership tracking excluding locked and bound-text elements"
+        },
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            1525,
+            1549
+          ],
+          "reason": "Group post-processing in contain vs overlap mode"
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-6"
+      ],
+      "checks": [
+        "prettier",
+        "eslint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/excalidraw/tests/lasso.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Pin existing overlap-assuming lasso test suites to boxSelectionMode: \"overlap\" and add a Wrap (\"contain\") vs Overlap (\"overlap\") suite covering all shape types, bound text/arrow labels, groups, and frame-clipped children.",
+      "rules": [
+        "1. Import { ROUNDNESS } from \"@excalidraw/common\", { API } from \"./helpers/api\", and type { BoxSelectionMode } from \"../types\" following the repo's ESLint import/order groups (with blank lines between groups).",
+        "2. Update updatePath signature to (startPoint: GlobalPoint, points: LocalPoint[], boxSelectionMode: BoxSelectionMode = h.state.boxSelectionMode), set h.state.boxSelectionMode = boxSelectionMode at the start of act(), and pass boxSelectionMode into getLassoSelectedElementIds.",
+        "3. In describe(\"Basic lasso selection tests\") beforeEach and in a new beforeEach inside describe(\"Special cases\"), set h.state.boxSelectionMode = \"overlap\" so existing overlap-specific expectations remain pinned and passing.",
+        "4. Add a new describe(\"Wrap (contain) vs Overlap lasso selection\", ...) suite after describe(\"Special cases\") where default h.state.boxSelectionMode is \"contain\" and test cases verify both \"contain\" and \"overlap\" modes across: sharp and rounded rectangles (including rounded corner AABB gap), diamond, ellipse, rotated rectangle (angle !== 0), line and arrow, freedraw stroke, container with bound text and arrow with bound text label, partial vs full group enclosure, and a frame child extending past the frame edge (for the visible-part lasso x: 40..105, y: 10..90 crossing the frame's right edge at x = 100, assert that in \"contain\" the child is selected and the frame is not, while in \"overlap\" the frame is selected and the child is not because selectElementsFromIds drops children of selected frames; for the hidden-part lasso x: 110..160, y: 10..90 outside the frame, assert that the child is unselected in \"contain\" and selected in \"overlap\")."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 35,
+          "to": 85,
+          "first_line": "import { act, render } from \"./test-utils\";",
+          "last_line": "};",
+          "rule": "Import ROUNDNESS, API, and BoxSelectionMode, and thread boxSelectionMode through updatePath and getLassoSelectedElementIds."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 365,
+          "to": 369,
+          "first_line": "act(() => {",
+          "last_line": "});",
+          "rule": "Set h.state.boxSelectionMode = \"overlap\" in Basic lasso selection tests beforeEach."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 920,
+          "to": 921,
+          "first_line": "describe(\"Special cases\", () => {",
+          "last_line": "it(\"Select only frame if its children are also selected\", () => {",
+          "rule": "Add beforeEach setting h.state.boxSelectionMode = \"overlap\" in Special cases suite."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1804,
+          "to": 1804,
+          "first_line": "});",
+          "rule": "Add Wrap (contain) vs Overlap lasso selection test suite covering rectangle, rounded rectangle, diamond, ellipse, rotated shape, line/arrow, freedraw, bound text/arrow label, groups, and frame-clipped children."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "lines": [
+          17,
+          150
+        ],
+        "reason": "Existing lasso test harness, updatePath helper, and element fixture style"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/selection.test.tsx",
+          "lines": [
+            276,
+            300
+          ],
+          "reason": "API.createElement and group selection test idioms"
+        },
+        {
+          "path": "packages/excalidraw/tests/selection.test.tsx",
+          "lines": [
+            734,
+            787
+          ],
+          "reason": "Framed child element setup with frameId extending past frame bounds"
+        },
+        {
+          "path": "packages/excalidraw/tests/selection.test.tsx",
+          "lines": [
+            988,
+            1029
+          ],
+          "reason": "Bound text and container element creation with API.createElement"
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-8",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "rejects partially overlapped rectangle in contain mode and selects it in overlap mode",
+          "given": "A rectangle at (0, 0, 100, 100) and a lasso path that clips only its top-left corner",
+          "expect": "Selected elements are empty in \"contain\" mode and [rect.id] in \"overlap\" mode, and a fully enclosing lasso selects [rect.id] in \"contain\" mode"
+        },
+        {
+          "name": "selects rounded rectangle when lasso encloses its rounded outline even if cutting sharp AABB corners",
+          "given": "A rounded rectangle (roundness: ADAPTIVE_RADIUS) and a lasso polygon passing inside the sharp AABB corners but outside the rounded corner arcs",
+          "expect": "The rounded rectangle is selected in \"contain\" mode"
+        },
+        {
+          "name": "evaluates full outline containment for diamond and ellipse in contain mode",
+          "given": "A diamond and an ellipse tested with a partial lasso vs a lasso that encloses the shape outline while cutting through empty AABB corners",
+          "expect": "Partial lasso leaves each unselected in \"contain\" and selected in \"overlap\"; outline-enclosing lasso selects each in \"contain\""
+        },
+        {
+          "name": "evaluates full outline containment for rotated shapes in contain mode",
+          "given": "A rotated rectangle (angle: Math.PI / 4) tested with a lasso clipping one rotated corner vs a lasso enclosing all four rotated corners",
+          "expect": "Corner-clipping lasso leaves the rotated rectangle unselected in \"contain\" and selected in \"overlap\"; full rotated-outline lasso selects it in \"contain\""
+        },
+        {
+          "name": "evaluates full outline containment for lines, arrows, and freedraw strokes in contain mode",
+          "given": "A line, an arrow, and a freedraw element tested with a lasso enclosing only part of the stroke vs the entire stroke",
+          "expect": "Partial lasso leaves each unselected in \"contain\" and selected in \"overlap\"; full lasso selects each in \"contain\""
+        },
+        {
+          "name": "requires bound text and arrow labels to be enclosed with their container or arrow in contain mode",
+          "given": "A rectangle with bound text (lasso enclosing only the bound text vs both) and an arrow with a bound text label (lasso enclosing only the arrow shaft vs both arrow and label)",
+          "expect": "Enclosing only bound text or only the arrow shaft leaves the element unselected in \"contain\" and selected in \"overlap\"; enclosing both selects the container/arrow in \"contain\""
+        },
+        {
+          "name": "selects a group in contain mode only when all selectable group members are enclosed",
+          "given": "Two grouped rectangles (with bound text on one member) tested with a lasso enclosing one member vs all members",
+          "expect": "Enclosing one member selects nothing in \"contain\" and the whole group in \"overlap\"; enclosing all selectable members selects the group and sets selectedGroupIds in \"contain\""
+        },
+        {
+          "name": "clips a frame child to its containing frame in contain mode while keeping overlap mode unclipped",
+          "given": "A frame at (0, 0, 100, 100) and a child rectangle at (50, 20, 100, 60) with frameId: frame.id extending to x = 150 past the frame's right edge",
+          "expect": "A lasso enclosing the visible portion inside the frame (x: 40..105, y: 10..90, crossing the frame's right edge at x = 100) selects the child and not the frame in \"contain\" mode, and selects the frame and not the child in \"overlap\" mode; a lasso enclosing only the hidden portion outside the frame (x: 110..160, y: 10..90) leaves the child unselected in \"contain\" mode and selects the child in \"overlap\" mode"
+        }
+      ],
+      "checks": [
+        "prettier",
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/excalidraw/tests/selection.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Update the lasso reselection test path to fully enclose rectA under default Wrap mode and add a lasso selection suite exercising both boxSelectionMode: \"contain\" and \"overlap\" via initialData, including frame-clipped children.",
+      "rules": [
+        "1. In describe(\"lasso reselection\"), update the pointer path after mouse.downAt(110, 50) to mouse.moveTo(110, -20), expect(h.app.lassoTrail.hasCurrentTrail).toBe(true), mouse.moveTo(-20, -20), mouse.moveTo(-20, 120), mouse.moveTo(110, 120), mouse.moveTo(110, 50), mouse.up() so rectA (0, 0, 100, 100) is fully enclosed under default boxSelectionMode: \"contain\".",
+        "2. Keep all existing box-selection suites and assertions in packages/excalidraw/tests/selection.test.tsx completely unchanged.",
+        "3. At the end of packages/excalidraw/tests/selection.test.tsx, add a describe(\"lasso selection mode\", ...) suite testing pointer-driven lasso selection with initialData={{ appState: { boxSelectionMode: \"contain\" } }} and initialData={{ appState: { boxSelectionMode: \"overlap\" } }} for partial vs full element enclosure, partial vs full group enclosure, and a frame child extending past the frame edge (for the visible-part lasso x: 40..105, y: 10..90 crossing the frame's right edge at x = 100, in \"contain\" the child is selected and the frame is not, while in \"overlap\" the frame is selected and the child is not; for the hidden-part lasso x: 110..160, y: 10..90 outside the frame, the child is unselected in \"contain\" and selected in \"overlap\")."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 185,
+          "to": 195,
+          "first_line": "Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {",
+          "last_line": "});",
+          "rule": "Update ctrl+alt lasso reselection path coordinates so the lasso polygon wraps all four corners of rectA in default contain mode."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 1461,
+          "to": 1461,
+          "first_line": "});",
+          "rule": "Add describe(\"lasso selection mode\") suite testing contain and overlap modes via initialData={{ appState: { boxSelectionMode } }}, including frame-clipped children."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "lines": [
+          154,
+          299
+        ],
+        "reason": "Existing lasso reselection and box-selection overlap mode test suites"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/selection.test.tsx",
+          "lines": [
+            734,
+            787
+          ],
+          "reason": "Existing frame-clipped child box-selection tests"
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-8",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-4",
+        "AC-5",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "does not select a partially touched element in contain mode and selects it in overlap mode",
+          "given": "Excalidraw rendered with initialData={{ appState: { boxSelectionMode: \"contain\" } }} vs \"overlap\" and a lasso stroke clipping one corner of a rectangle",
+          "expect": "Rectangle is unselected in \"contain\" mode, selected when fully enclosed in \"contain\" mode, and selected by the corner-clipping lasso in \"overlap\" mode"
+        },
+        {
+          "name": "selects a group in contain mode only when all group members are enclosed and in overlap mode when one member is touched",
+          "given": "Two grouped rectangles rendered under boxSelectionMode: \"contain\" vs \"overlap\" and a lasso enclosing one member vs both members",
+          "expect": "Enclosing one member leaves the group unselected in \"contain\" and selects both members with selectedGroupIds: { A: true } in \"overlap\"; enclosing both members selects the group in \"contain\""
+        },
+        {
+          "name": "selects a frame child extending past the frame edge in contain mode when its visible portion inside the frame is enclosed and ignores its clipped-out portion",
+          "given": "A frame at (0, 0, 100, 100) and a child rectangle at (50, 20, 100, 60) with frameId: frame.id extending to x = 150, tested under boxSelectionMode: \"contain\" and \"overlap\"",
+          "expect": "A lasso enclosing the visible portion inside the frame (x: 40..105, y: 10..90, crossing the frame's right edge at x = 100) selects the child and not the frame in \"contain\" mode (matching box selection) and selects the frame and not the child in \"overlap\" mode; a lasso enclosing only the clipped-out portion outside the frame (x: 110..160, y: 10..90) leaves the child unselected in \"contain\" and selects the child in \"overlap\""
+        }
+      ],
+      "checks": [
+        "prettier",
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Document under ## Unreleased that lasso selection now respects the Wrap / Overlap (boxSelectionMode) selection preference.",
+      "rules": [
+        "1. Under ## Unreleased, add a ### Features subsection with a bullet entry stating that lasso selection now respects the Wrap / Overlap (boxSelectionMode) preference with link to #11809."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14,
+          "first_line": "## Unreleased",
+          "rule": "Add Features entry under Unreleased for lasso Wrap / Overlap selection preference."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "lines": [
+          1,
+          25
+        ],
+        "reason": "Changelog header, section guidelines, and Unreleased heading"
+      },
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-9",
+        "AC-6"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/lasso/utils.ts": "a54dc5ff0acc15179b93e84db8526c63eaa081b95caebc0ca25d37085d180b12",
+    "packages/element/src/bounds.ts": "1ab5191224ccf8200f4bdd09071da50385a4c1d7d297ba8681f620c39ea7d2f7",
+    "packages/element/src/frame.ts": "6dd0d70f22f7528865244bee8854ca645766961af86a9468119576b5f2208871",
+    "packages/element/src/textElement.ts": "8d6b44ce19ff9ecff25aea0d06b7fc6c5be3268f93e3479d14ff8bcf6dd04036",
+    "packages/excalidraw/lasso/index.ts": "2045fb75d7375172d1aea5f500b77d946b5d9f377b61a195c5f63971a3e6f9fd",
+    "packages/excalidraw/tests/lasso.test.tsx": "6cc4f23628d733766a3ea00d329256aa0a463fb343466c8ec9be39d41f9f116f",
+    "packages/excalidraw/tests/selection.test.tsx": "7f24aca9f591e17d1489d830331ec01a9e7186797bc6f9d90a24bcac5e754d66",
+    "packages/excalidraw/CHANGELOG.md": "af7749cb0caa17ae8a497c1391dfd5e30b4d0b922b9a5045b275d53c3bf38b7c"
+  }
+}

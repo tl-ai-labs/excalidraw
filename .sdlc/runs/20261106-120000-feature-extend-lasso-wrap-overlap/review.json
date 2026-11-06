@@ -1,0 +1,15 @@
+{
+  "module": "packages/excalidraw/lasso",
+  "verdict": "needs_changes",
+  "tool_calls": 29,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 1465,
+      "issue": "In describe(\"lasso selection mode\"), setup() renders <Excalidraw /> without setting non-zero viewport dimensions (h.state.width and h.state.height), so after restoreOriginalGetBoundingClientRect() runs in an earlier suite (line 1142), h.state.width and h.state.height default to 0 in jsdom and Renderer.getVisibleCanvasElements (isElementInViewport) culls every element whose bounds do not contain (0, 0) from h.app.visibleElements (specifically rect2 at x: 100 and child at x: 50, y: 20), causing LassoTrail.updateSelection() to never see those elements in the 3 failing pointer-driven tests.",
+      "fix": "Set h.state.width = 1000 and h.state.height = 1000 inside the act(() => { ... }) block in setup() (matching packages/excalidraw/tests/lasso.test.tsx lines 47-48) so all scene elements in the suite lie within the viewport and are included in h.app.visibleElements before API.setElements() and pointer lasso strokes run."
+    }
+  ],
+  "refinement_packets": []
+}

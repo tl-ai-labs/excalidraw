@@ -1,0 +1,7 @@
+Changes asked for this step:
+
+Gate 2 revise comments from the person, verbatim: "the frame test's Overlap expectation contradicts today's lasso: a lasso around the visible part (x 40–105) crosses the frame's edge at x=100, so Overlap selects the frame, and the lasso then removes every child of a selected frame (lasso/index.ts:118), leaving the child unselected. The test expects the child selected in both modes, which conflicts with FR-2's unchanged Overlap behaviour."
+Confirmed against code: intersectionTest (packages/excalidraw/lasso/utils.ts:110-143) selects the frame when the lasso crosses its edge, and LassoTrail.selectElementsFromIds (packages/excalidraw/lasso/index.ts:118-130) drops children of selected frames.
+What to change, and nothing else: in U03 (packages/excalidraw/tests/lasso.test.tsx) and U04 (packages/excalidraw/tests/selection.test.tsx), fix the frame-child test cases so that for the visible-part lasso (x 40..105, y 10..90, crossing the frame's right edge at x=100): in Overlap ("overlap") the expectation is the frame selected and the child NOT selected; in Wrap ("contain") the child is selected and the frame is not. Update both the unit rules and the Tests entries that describe these cases. Keep the hidden-part lasso cases and the rest of the plan (U01, U02, U05, decisions, other tests) exactly as they are. Fix these spots in your section files with Edit, check each changed file again with plan-lint --section, and return.
+
+Edit the pieces you handed in and hand each changed one in again.
