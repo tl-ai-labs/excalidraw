@@ -416,6 +416,7 @@ export const SVG_DOCUMENT_PREAMBLE = `<?xml version="1.0" standalone="no"?>
 
 export const ENCRYPTION_KEY_BITS = 128;
 
+// Page data (appState.pages, appState.activePageId, appState.pageViewports, element.pageId) is additive and readable by version-2 readers.
 export const VERSIONS = {
   excalidraw: 2,
   excalidrawLibrary: 2,

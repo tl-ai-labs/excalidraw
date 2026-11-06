@@ -1,0 +1,396 @@
+{
+  "section": "units",
+  "source": "units-005.json",
+  "value": [
+    {
+      "id": "U40",
+      "path": "packages/excalidraw/tests/pages.test.tsx",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "jsdom tests for page actions, the tab bar, rendering/selection scoping, per-page viewport, undo scoping and search across pages.",
+      "rules": [
+        "Render <Excalidraw handleKeyboardGlobally /> in beforeEach after mockBoundingClientRect (as viewMode.test.tsx does) and restoreOriginalGetBoundingClientRect in afterEach.",
+        "Run actions with API.executeAction(action) or h.app.actionManager.executeAction(action, \"api\", value) inside act; query tab bar elements by their data-testid and role inside GlobalTestState container / document; drive drag with fireEvent.dragStart/dragOver/drop.",
+        "Elements on a page are created with API.createElement({ ..., pageId }) and set with API.setElements; for the default page omit pageId.",
+        "Render scoping uses vi.spyOn(StaticScene, \"renderStaticScene\") and reads the visibleElements of the last call's first argument."
+      ],
+      "import_line": "",
+      "style_from": {
+        "path": "packages/excalidraw/tests/viewMode.test.tsx",
+        "reason": "jsdom editor test scaffolding"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/helpers/api.ts",
+          "lines": [
+            70,
+            200
+          ],
+          "reason": "API.updateScene, setAppState, setElements, createElement, getUndoStack"
+        },
+        {
+          "path": "packages/excalidraw/tests/search.test.tsx",
+          "lines": [
+            1,
+            120
+          ],
+          "reason": "how search is opened and its input queried"
+        },
+        {
+          "path": "packages/excalidraw/tests/move.test.tsx",
+          "lines": [
+            1,
+            40
+          ],
+          "reason": "spying on renderStaticScene"
+        }
+      ],
+      "tests": [
+        {
+          "name": "starts with one default page",
+          "given": "a fresh editor",
+          "expect": "h.state.pages has one visible page Page 1 and the tab bar shows one tab with aria-selected true"
+        },
+        {
+          "name": "add page via the + button",
+          "given": "click pages-add-button",
+          "expect": "two visible pages, the new one named Page 2 is active and its tab is aria-selected"
+        },
+        {
+          "name": "switch page via a tab click",
+          "given": "two pages, click the first tab",
+          "expect": "activePageId is the first page and selection is cleared"
+        },
+        {
+          "name": "rename page inline",
+          "given": "double-click the active tab, type \"SDK flow\", press Enter",
+          "expect": "the page name is SDK flow; a second rename to blank spaces plus Enter keeps SDK flow; Escape cancels an edit"
+        },
+        {
+          "name": "delete page via the menu",
+          "given": "two pages with a rectangle on the active one, open the menu and click delete",
+          "expect": "one visible page remains, the rectangle isDeleted, the adjacent page is active; with one page the delete entry is disabled"
+        },
+        {
+          "name": "reorder via move right and via drag",
+          "given": "pages A, B, C; move A right from the menu, then drag C onto the first tab",
+          "expect": "visible order becomes B, A, C and then C, B, A"
+        },
+        {
+          "name": "only the active page renders",
+          "given": "rectangle r1 on the default page and r2 on page p2",
+          "expect": "renderStaticScene visibleElements contain r1 only, and r2 only after switching to p2"
+        },
+        {
+          "name": "select-all and click selection ignore other pages",
+          "given": "r1 on the active page and r2 overlapping it on another page",
+          "expect": "Ctrl+A selects r1 only; clicking where r2 lies selects nothing on page B's coordinates when r2 is the only element there"
+        },
+        {
+          "name": "new elements land on the active page",
+          "given": "switch to a second page and draw a rectangle with the UI",
+          "expect": "the new element's pageId is the active page"
+        },
+        {
+          "name": "per-page viewport is restored",
+          "given": "scroll and zoom on page A, switch to B, change its viewport, switch back",
+          "expect": "A's scrollX/scrollY/zoom are restored and B's are restored when returning to B; a never-visited page starts at 0,0 zoom 1"
+        },
+        {
+          "name": "undo stays on its page",
+          "given": "move r1 on page A, switch to B, move r2, switch back to A, undo",
+          "expect": "r1 returns to its position, r2 keeps its moved position, activePageId stays A; switching to B and undoing reverts r2"
+        },
+        {
+          "name": "switching page is not an undo step",
+          "given": "switch pages twice then undo with an empty stack",
+          "expect": "activePageId does not change"
+        },
+        {
+          "name": "search finds text on another page and switches to it",
+          "given": "a text \"pipeline\" on page B while A is active, search for pipeline",
+          "expect": "one match; focusing it sets activePageId to B"
+        },
+        {
+          "name": "tab bar hidden in zen mode and via UIOptions",
+          "given": "zenModeEnabled true, then render with UIOptions pages false",
+          "expect": "no pages-tab-bar in the DOM in both cases"
+        },
+        {
+          "name": "view mode can switch but not edit pages",
+          "given": "two pages and viewModeEnabled true",
+          "expect": "tabs switch the page; no add button and no menu trigger"
+        }
+      ],
+      "depends_on": [
+        "U28",
+        "U29",
+        "U31",
+        "U32",
+        "U33"
+      ],
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-6",
+        "AC-9",
+        "AC-10",
+        "AC-12",
+        "NFR-1",
+        "NFR-2",
+        "FR-15",
+        "FR-16",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "FR-21",
+        "FR-22",
+        "FR-9"
+      ],
+      "checks": [
+        "eslint",
+        "prettier",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U41",
+      "path": "packages/excalidraw/tests/data/pages.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Serialization, restore and export tests for multi-page drawings.",
+      "rules": [
+        "Pure functions only: serializeAsJSON, restoreAppState, restoreElements, loadFromBlob over a Blob built from the serialized JSON, prepareElementsForExport and toActivePageExportState; no editor render needed except where loadFromBlob needs window (jsdom is the default environment)."
+      ],
+      "import_line": "",
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          1,
+          60
+        ],
+        "reason": "data test imports and restore usage"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/data/blob.ts",
+          "lines": [
+            140,
+            215
+          ],
+          "reason": "loadFromBlob signature"
+        }
+      ],
+      "tests": [
+        {
+          "name": "round trip keeps pages, names, order, elements and viewports",
+          "given": "two pages (A, B with fractional indexes), elements on both, pageViewports for B and a live viewport on active A, serializeAsJSON then loadFromBlob",
+          "expect": "pages, names and order equal; each element keeps its pageId; pageViewports holds A's live viewport and B's saved one"
+        },
+        {
+          "name": "legacy file restores onto one default page",
+          "given": "a file JSON without appState.pages and elements without pageId",
+          "expect": "restored pages is exactly one default page, activePageId is DEFAULT_PAGE_ID and every element is on it"
+        },
+        {
+          "name": "elements of an unknown page restore onto the first page",
+          "given": "a file whose element pageId is not in pages",
+          "expect": "after loadFromBlob the element is on the first visible page"
+        },
+        {
+          "name": "older readers keep the data",
+          "given": "restoreElements on an element with pageId p2",
+          "expect": "pageId p2 is kept; a pageId of \"default\" is dropped"
+        },
+        {
+          "name": "export contains only the active page",
+          "given": "elements on two pages and appState.activePageId = A, prepareElementsForExport(elements, appState, false)",
+          "expect": "exportedElements holds only page A's elements"
+        },
+        {
+          "name": "embedded scene holds only the active page",
+          "given": "toActivePageExportState over an appState with two pages",
+          "expect": "pages has only the active page record and pageViewports only its entry"
+        }
+      ],
+      "depends_on": [
+        "U14",
+        "U15",
+        "U16"
+      ],
+      "covers": [
+        "AC-4",
+        "AC-5",
+        "AC-7",
+        "FR-23",
+        "FR-24",
+        "FR-25",
+        "FR-26"
+      ],
+      "checks": [
+        "eslint",
+        "prettier",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U42",
+      "path": "excalidraw-app/tests/collab.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Adds collaboration tests for page structure and per-page elements.",
+      "rules": [
+        "New describe block \"collaboration pages\" at the end of the file reusing the file's mocks; render <ExcalidrawApp />, start collaboration with window.collab.startCollaboration(null) inside act, then drive remote updates through the private applyRemotePages and handleRemoteSceneUpdate methods via bracket access (with eslint-disable-next-line dot-notation as the file does).",
+        "Spy on window.collab.portal.broadcastScene with vi.spyOn to assert outgoing payloads."
+      ],
+      "tests": [
+        {
+          "name": "remote page records and elements apply",
+          "given": "a remote pages list adding page p2 named Data pipeline and a remote element with pageId p2",
+          "expect": "h.state.pages contains p2 with that name, the element is in h.elements, and the local activePageId and scroll are unchanged"
+        },
+        {
+          "name": "concurrent rename resolves by version",
+          "given": "local rename of a page to X (version 2) and a remote record with version 3 named Y",
+          "expect": "the page is named Y"
+        },
+        {
+          "name": "local page changes are broadcast",
+          "given": "adding a page locally while collaborating",
+          "expect": "broadcastScene is called with a pages argument containing the new page"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 252,
+          "to": 252,
+          "first_line": "});",
+          "rule": "Append the new describe block."
+        }
+      ],
+      "depends_on": [
+        "U37",
+        "U39"
+      ],
+      "covers": [
+        "AC-8",
+        "FR-30",
+        "FR-31"
+      ],
+      "checks": [
+        "eslint",
+        "prettier",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U43",
+      "path": "dev-docs/docs/codebase/json-schema.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents the page fields of the .excalidraw format.",
+      "rules": [
+        "Add a `### Pages` section after the JSON Schema example: appState.pages (records id, name, index, version, versionNonce, isDeleted; order by index), appState.activePageId, appState.pageViewports ({ [pageId]: { scrollX, scrollY, zoom } }), element.pageId (absent = page \"default\"); legacy files without pages load as one page named Page 1; version stays 2; exported PNG/SVG with an embedded scene carry only the active page.",
+        "Add `\"pageId\": \"p2\"` to the example element is not needed; instead add `\"activePageId\": \"default\"` and a one-page `\"pages\"` array to the example appState."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 46,
+          "to": 47,
+          "first_line": "\"gridSize\": 20,",
+          "last_line": "\"viewBackgroundColor\": \"#ffffff\"",
+          "rule": "Keep both keys and add activePageId and a one-entry pages array to the example."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 65,
+          "to": 65,
+          "first_line": "### Element creation time",
+          "rule": "Insert the Pages section with an attribute table."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-34"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U44",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Changelog entry for drawing pages under Unreleased.",
+      "rules": [
+        "Add `### Pages in a drawing` under `## Unreleased` before the exportScene entry: a tab bar to add, switch, rename, reorder and delete pages; per-page elements, viewport and undo; new AppState keys pages/activePageId/pageViewports and element.pageId; `UIOptions.pages: false` hides the tab bar; `getSceneElements()` now returns every page's elements; exports DrawingPage, PageViewport and the page helpers/actions; file format version unchanged."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "",
+          "rule": "Insert the new section followed by a blank line."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-34"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U45",
+      "path": "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Regenerates the AppState snapshots of the editor tests that now include the page fields.",
+      "run": "yarn -s vitest run --update packages/excalidraw/tests/history.test.tsx packages/excalidraw/tests/regressionTests.test.tsx packages/excalidraw/tests/contextmenu.test.tsx",
+      "depends_on": [
+        "U31",
+        "U33"
+      ],
+      "covers": [
+        "NFR-4"
+      ]
+    },
+    {
+      "id": "U46",
+      "path": "packages/excalidraw/tests/__snapshots__/export.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Regenerates the embedded-scene export snapshots whose payload now carries the page fields.",
+      "run": "yarn -s vitest run --update packages/excalidraw/tests/export.test.tsx packages/excalidraw/tests/scene/export.test.ts",
+      "depends_on": [
+        "U15",
+        "U16",
+        "U33"
+      ],
+      "covers": [
+        "NFR-4"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/tests/viewMode.test.tsx": "897d8ed3a6f23bd8d4762f3a200c8d0fc6596baec71ea498f6699a7cbc170f07",
+    "packages/excalidraw/tests/helpers/api.ts": "c982523abb11522dc32111c7b80de8348a2299adb6f43e919c73bfe1dcb52291",
+    "packages/excalidraw/tests/search.test.tsx": "b6fd39faed82a15dc2a5fd795b3b4d1a3fa6ebf25ea830487b1da803f58f98c2",
+    "packages/excalidraw/tests/move.test.tsx": "5370d73520861e19293d077ceeb06f22a29e42b606fa2d7a54ca0165c73dcfb8",
+    "packages/excalidraw/tests/data/restore.test.ts": "2c41ed983ce10672f7aec07817b7bcd5c0690b868153189d19c5bd8f89eb6bfb",
+    "packages/excalidraw/data/blob.ts": "f0d835720c7680edfd3938b4578e12cc5f606b5aad515cfb873d1cc54576d08d",
+    "excalidraw-app/tests/collab.test.tsx": "6f63de466dbfd6a0bd0ffa7b35bf3a09dfb359b9fa63b2b9dfa16cbb14c1888d",
+    "dev-docs/docs/codebase/json-schema.mdx": "fc63a982f811f0aa40946156c2436e6a1b40d692c4710af09df9ca0483a1eb82",
+    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811"
+  }
+}

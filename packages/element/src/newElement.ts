@@ -34,6 +34,8 @@ import { wrapText } from "./textWrapping";
 
 import { isLineElement } from "./typeChecks";
 
+import { DEFAULT_PAGE_ID } from "./pages";
+
 import type { RenderEnvironment } from "./renderEnvironment";
 
 import type {
@@ -84,6 +86,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "opacity"
   | "customData"
   | "created"
+  | "pageId"
 >;
 
 const _newElementBase = <T extends ExcalidrawElement>(
@@ -169,6 +172,9 @@ const _newElementBase = <T extends ExcalidrawElement>(
     link,
     locked,
     customData: rest.customData,
+    ...(rest.pageId && rest.pageId !== DEFAULT_PAGE_ID
+      ? { pageId: rest.pageId }
+      : {}),
   };
   return element;
 };

@@ -9,7 +9,11 @@ import {
   arrayToMap,
 } from "@excalidraw/common";
 
-import { getNonDeletedElements } from "@excalidraw/element";
+import {
+  getNonDeletedElements,
+  isElementOnPage,
+  toActivePageExportState,
+} from "@excalidraw/element";
 
 import { isFrameLikeElement } from "@excalidraw/element";
 
@@ -48,10 +52,17 @@ export type ExportedElements = readonly NonDeletedExcalidrawElement[] & {
 
 export const prepareElementsForExport = (
   allElements: readonly ExcalidrawElement[],
-  { selectedElementIds }: Pick<AppState, "selectedElementIds">,
+  {
+    selectedElementIds,
+    activePageId,
+  }: Pick<AppState, "selectedElementIds"> &
+    Partial<Pick<AppState, "activePageId">>,
   exportSelectionOnly: boolean,
 ) => {
-  const elements = getNonDeletedElements(allElements);
+  const nonDeleted = getNonDeletedElements(allElements);
+  const elements = activePageId
+    ? nonDeleted.filter((el) => isElementOnPage(el, activePageId))
+    : nonDeleted;
   const elementsMap = arrayToMap(elements);
 
   const isExportingSelection =
@@ -131,7 +142,7 @@ export const exportCanvas = async (
       type: "svg",
       data: {
         elements,
-        appState,
+        appState: toActivePageExportState(appState),
         files,
       },
       config: {
@@ -187,7 +198,12 @@ export const exportCanvas = async (
         import("./image").then(({ encodePngMetadata }) =>
           encodePngMetadata({
             blob,
-            metadata: serializeAsJSON(elements, appState, files, "local"),
+            metadata: serializeAsJSON(
+              elements,
+              toActivePageExportState(appState),
+              files,
+              "local",
+            ),
           }),
         ),
       );

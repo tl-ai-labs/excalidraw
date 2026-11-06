@@ -1,0 +1,394 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "instruction": "Fix `packages/element/src/Scene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 127): Plan U05 rule 1 says `activePageId` starts as null, meaning no filtering, so temporary scenes see every page. The code starts it at DEFAULT_PAGE_ID. As a result, the temp scenes built with `new Scene(...)` in delta.ts (`ElementsDelta.redrawElements`, used by undo/redo/remote deltas) and transform.ts (`convertToExcalidrawElements`) only see default-page elements in `getNonDeletedElements`/`getNonDeletedElementsMap`. Bound text and bound arrows on any other page are not redrawn on undo/redo, and transform's arrow pass skips non-default-page arrows. `insertElement` on those temp scenes also stamps 'default'. There is also a dead `this.activePageId ?? DEFAULT_PAGE_ID` in recomputeActivePageCaches. — fix: Initialise `private activePageId: string | null = null` as the plan specifies; App.render already calls setActivePageId(state.activePageId) on the app's scene. Then drop the `?? DEFAULT_PAGE_ID` fallback in recomputeActivePageCaches and the now-unused DEFAULT_PAGE_ID import.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 69): The test ids don't match the component. The test queries `pages-tab-menu-trigger` (lines 69, 402) and `pages-menu-delete` (lines 175, 190), but PagesTabBar renders `pages-menu-trigger` and `page-menu-delete`. That makes 'deletes a page via the menu' fail. It also makes the view-mode assertion at line 402 pass even if the menu were shown. — fix: Use `[data-testid='pages-menu-trigger']` and `[data-testid='page-menu-delete']` in openTabMenu, the delete test and the view-mode test.\n2. blocker (line 324): 'keeps undo on its page' looks like a test bug, not a History bug. API.setElements writes h.elements, which calls scene.replaceAllElements and commits as EVENTUALLY, so the store snapshot never sees r1 and r2. The first arrow-key capture then records r1 added, r2 added and r1 moved as a single entry on the default page's stack. Undoing it marks both r1 and r2 deleted and leaves r1.x at 1, which matches the reported failure. Confidence: medium-high, from reading store.ts getScheduledMacroAction and the h.elements setter. — fix: Seed with `API.updateScene({ elements: [r1, r2], captureUpdate: CaptureUpdateAction.NEVER })`, as history.test.tsx does, so the snapshot holds both elements before the first undoable change. Re-run the test before changing History.\n3. blocker (line 375): 'finds text on another page and switches to it' never focuses a match. handleSearch only picks a focusIndex among matches visible on the current page, so none is focused here. By design (FR-28) the page switch happens only when a match is focused, so the activePageId wait times out. — fix: After the matches appear, focus the result: press Enter in the search input, or click the result row (`.layer-ui__search-result-item` or the equivalent row class). Then assert activePageId === p2Id.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U40.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap",
+    "instruction": "Fix `packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker: 2 snapshot mismatches caused only by shifted Radix useId counters (radix-:rq: -> radix-:r16:), because PagesTabBar adds components that call useId. Same cause in packages/excalidraw/tests/__snapshots__/MermaidToExcalidraw.test.tsx.snap (1 mismatch). These two files were not in the U45/U46 regeneration set, so `yarn test:app` stays red. — fix: Run the snapshot tooling (`yarn -s vitest run --update packages/excalidraw/tests/excalidraw.test.tsx packages/excalidraw/tests/MermaidToExcalidraw.test.tsx`), then check the diff contains only the radix id changes.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/tests/__snapshots__/excalidraw.test.tsx.snap",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major: applyRemotePages only calls updateScene when the summed page versions or the record count change. When two clients edit the same page from the same base version (for example concurrent renames, both reaching version 2), reconcilePages picks the remote record on the lower versionNonce, but the sums and lengths are equal. The merged result is dropped, while lastBroadcastedOrReceivedPagesVersion is still advanced. The two clients then disagree permanently on the page name or order. This is exactly the FR-30 concurrent-rename case; the test only covers a strictly higher remote version. — fix: Detect changes by record identity: `merged.length !== currentPages.length || merged.some((p) => currentPages.find((c) => c.id === p.id) !== p)`. Add a collab test with equal versions and a lower remote versionNonce.\n2. minor: syncElements can send pages twice. broadcastElements already attaches pages via Portal.broadcastScene, which advances portal.broadcastedPagesVersion but not lastBroadcastedOrReceivedPagesVersion. The follow-up `broadcastScene(UPDATE, [], false, pages)` then sends a second, pages-only message. — fix: Update lastBroadcastedOrReceivedPagesVersion inside broadcastElements when pages were included, or check portal.broadcastedPagesVersion before the extra pages-only broadcast.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U37.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/src/pages.ts",
+    "instruction": "Fix `packages/element/src/pages.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 109): createPage and movePage call generateKeyBetween(prev.index, next.index) without checking prev < next. Equal indices are reachable: two collaborators adding a page after the same page get the same deterministic key, and restorePageState fills invalid keys with generateNKeysBetween(null, null, n), which can repeat an existing valid key. With equal indices, generateKeyBetween throws `a >= b` inside the action's perform (addPage, movePage, movePageLeft/Right, drag), so page operations crash the editor. — fix: In a shared helper, treat an upper bound that is <= the lower bound as null, or step to the next visible page with a strictly greater index. In restorePageState, generate fill keys after the largest valid key so they can't collide. Add tests for createPage and movePage with duplicate indices.\n2. minor (line 375): Type safety: restorePageState casts `(item as any)` about 20 times, and assignElementToPage uses `as any`, without comment. The comparator for sorting by index, then id, is duplicated in getVisiblePages and reconcilePages. — fix: Narrow once with an `isRecord(value): value is Record<string, unknown>` guard and read typed fields. Use a `Mutable<T>` cast with a one-line justification in assignElementToPage. Extract a `comparePages` helper used by both sorts.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/pages.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/pages.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "excalidraw-app/data/firebase.ts",
+    "instruction": "Fix `excalidraw-app/data/firebase.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 380): decryptPages returns `JSON.parse(...)` straight into reconcilePages and AppState. Remote WS payload pages (Collab.applyRemotePages) are also used without validation, so a malformed record from a buggy or older peer, such as a missing index or non-string name, lands in appState.pages unsanitised. — fix: Run decoded and received page arrays through a validator before reconciling, for example `restorePageState({ pages }).pages`, or a lighter shared record sanitiser exported from pages.ts.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/firebase.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/firebase.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 4341): When componentDidUpdate falls back after the active page disappears (remote delete or updateScene), it hand-builds a partial reset: activePageId plus selection plus editingTextElement. It does not restore the target page's viewport or clear selectedLinearElement, croppingElementId and the other fields that getPageSwitchAppState clears, so the two switch paths behave differently. — fix: Use `getPageSwitchAppState(this.state, visiblePages[0].id)` (exported from actions/actionPages) for the fallback setState.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6034
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6035,
+          11537
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_008",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/SearchMenu.tsx",
+    "instruction": "Fix `packages/excalidraw/components/SearchMenu.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 1494): In MatchListBase, `visiblePages` is a new array on every render, so `useMemo(..., [visiblePages])` recomputes every time and does nothing. — fix: Key the memo on the `pagesKey` prop that is already passed in, or compute the map in SearchMenu and pass it down.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

@@ -15,6 +15,8 @@ import {
   DEFAULT_STICKY_NOTE_BG,
 } from "@excalidraw/common";
 
+import { DEFAULT_PAGE_ID, getDefaultPages } from "@excalidraw/element";
+
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
 
 /**
@@ -149,6 +151,9 @@ export const getDefaultAppState = (): Omit<
       stickyNoteBackground: null,
     },
     fontTopPicks: null,
+    pages: getDefaultPages(),
+    activePageId: DEFAULT_PAGE_ID,
+    pageViewports: {},
   };
 };
 
@@ -294,6 +299,9 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: true },
+  pageViewports: { browser: true, export: true, server: false },
 });
 
 const _clearAppStateForStorage = <

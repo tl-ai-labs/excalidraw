@@ -1,0 +1,128 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/components/App.tsx(4352,23): error TS2345: Argument of type 'Partial<AppState>' is not assignable to parameter of type 'AppState | Pick<AppState, keyof AppState> | ((prevState...) => ...) | null'. Types of property 'name' are incompatible: 'string | null | undefined' is not assignable to 'string | null'. The line is `this.setState(fallbackState);` where fallbackState = getPageSwitchAppState(this.state, visiblePages[0].id) returns Partial<AppState> | null (packages/excalidraw/actions/actionPages.ts:21). Fix with the narrowest change on that line only: `this.setState(fallbackState as Pick<AppState, keyof typeof fallbackState>)` is not allowed to widen; instead use the functional form `this.setState((prevState) => ({ ...prevState, ...fallbackState }))`, or spread into the current state `this.setState({ ...this.state, ...fallbackState })`. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6032
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6033,
+          11539
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Answer in edits mode with small exact {search, replace} edits (do NOT return the whole file). 3 tests fail: (1) 'deletes a page via the menu' -> expected null not to be null: openTabMenu() (line ~69) queries [data-testid='pages-tab-menu-trigger'] but PagesTabBar.tsx renders data-testid=\"pages-menu-trigger\"; and the delete item is queried as [data-testid='pages-menu-delete'] (lines ~175, ~191 and in the view-mode test ~402) but PagesTabBar.tsx renders data-testid=\"page-menu-delete\": replace those two id strings everywhere in the file. (2) 'keeps undo on its page' line ~324-337 -> expected 1 to be 0: the test seeds with API.setElements([r1, r2]) which writes elements without updating the store snapshot, so the first arrow-key capture records 'r1 added, r2 added, r1 moved' as one undo entry; seed instead with `API.updateScene({ elements: [r1, r2], captureUpdate: CaptureUpdateAction.NEVER })` (import CaptureUpdateAction from \"@excalidraw/element\"; history.test.tsx seeds this way). Keep the assertions. (3) 'finds text on another page and switches to it' line ~380 -> activePageId stays 'default': SearchMenu only auto-focuses matches on the current page, so after the match count is 1 press Enter in the search input (`fireEvent.keyDown(searchInput, { key: KEYS.ENTER })`) before `await waitFor(() => expect(h.state.activePageId).toBe(p2Id))`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U40.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

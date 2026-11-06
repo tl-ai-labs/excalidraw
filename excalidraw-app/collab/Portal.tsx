@@ -1,11 +1,14 @@
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
 import { trackEvent } from "@excalidraw/excalidraw/analytics";
 import { encryptData } from "@excalidraw/excalidraw/data/encryption";
-import { newElementWith } from "@excalidraw/element";
+import { getPagesVersion, newElementWith } from "@excalidraw/element";
 import throttle from "lodash.throttle";
 
 import type { UserIdleState } from "@excalidraw/common";
-import type { OrderedExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  DrawingPage,
+  OrderedExcalidrawElement,
+} from "@excalidraw/element/types";
 import type {
   OnUserFollowedPayload,
   SocketId,
@@ -29,6 +32,7 @@ class Portal {
   roomId: string | null = null;
   roomKey: string | null = null;
   broadcastedElementVersions: Map<string, number> = new Map();
+  broadcastedPagesVersion: number = -1;
 
   constructor(collab: TCollabClass) {
     this.collab = collab;
@@ -51,6 +55,7 @@ class Portal {
         WS_SUBTYPES.INIT,
         this.collab.getSceneElementsIncludingDeleted(),
         /* syncAll */ true,
+        this.collab.excalidrawAPI.getAppState().pages,
       );
     });
     this.socket.on("room-user-change", (clients: SocketId[]) => {
@@ -71,6 +76,7 @@ class Portal {
     this.roomKey = null;
     this.socketInitialized = false;
     this.broadcastedElementVersions = new Map();
+    this.broadcastedPagesVersion = -1;
   }
 
   isOpen() {
@@ -143,6 +149,7 @@ class Portal {
     updateType: WS_SUBTYPES.INIT | WS_SUBTYPES.UPDATE,
     elements: readonly OrderedExcalidrawElement[],
     syncAll: boolean,
+    pages?: readonly DrawingPage[],
   ) => {
     if (updateType === WS_SUBTYPES.INIT && !syncAll) {
       throw new Error("syncAll must be true when sending SCENE.INIT");
@@ -163,12 +170,22 @@ class Portal {
       return acc;
     }, [] as SyncableExcalidrawElement[]);
 
+    const pagesVersion = getPagesVersion(pages);
+    const includePages =
+      pages !== undefined &&
+      (syncAll || pagesVersion > this.broadcastedPagesVersion);
+
     const data: SocketUpdateDataSource[typeof updateType] = {
       type: updateType,
       payload: {
         elements: syncableElements,
+        ...(includePages ? { pages } : {}),
       },
     };
+
+    if (includePages) {
+      this.broadcastedPagesVersion = pagesVersion;
+    }
 
     for (const syncableElement of syncableElements) {
       this.broadcastedElementVersions.set(

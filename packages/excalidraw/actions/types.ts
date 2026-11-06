@@ -143,7 +143,14 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleWrap"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "addPage"
+  | "switchPage"
+  | "renamePage"
+  | "movePageLeft"
+  | "movePageRight"
+  | "movePage"
+  | "deletePage";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

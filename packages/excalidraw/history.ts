@@ -6,6 +6,8 @@ import {
   StoreDelta,
 } from "@excalidraw/element";
 
+import { DEFAULT_PAGE_ID, getElementPageId } from "@excalidraw/element";
+
 import type {
   RenderEnvironment,
   StoreSnapshot,
@@ -99,8 +101,28 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private readonly stacks = new Map<
+    string,
+    { undo: HistoryDelta[]; redo: HistoryDelta[] }
+  >();
+  private activePageId: string = DEFAULT_PAGE_ID;
+
+  private getStacks(pageId: string) {
+    let stacks = this.stacks.get(pageId);
+    if (!stacks) {
+      stacks = { undo: [], redo: [] };
+      this.stacks.set(pageId, stacks);
+    }
+    return stacks;
+  }
+
+  public get undoStack(): HistoryDelta[] {
+    return this.getStacks(this.activePageId).undo;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    return this.getStacks(this.activePageId).redo;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -112,30 +134,72 @@ export class History {
 
   constructor(private readonly store: Store) {}
 
+  public setActivePage(pageId: string) {
+    if (pageId === this.activePageId) {
+      return;
+    }
+
+    this.activePageId = pageId;
+
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
   public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+    this.stacks.clear();
   }
 
   /**
    * Record a non-empty local durable increment, which will go into the undo stack..
    * Do not re-record history entries, which were already pushed to undo / redo stack, as part of history action.
    */
+  private getTargetPageId(delta: StoreDelta): string {
+    const { added, removed, updated } = delta.elements;
+    const elementIds = [
+      ...Object.keys(added),
+      ...Object.keys(removed),
+      ...Object.keys(updated),
+    ];
+
+    for (const id of elementIds) {
+      const element = this.store.snapshot.elements.get(id);
+      if (element) {
+        return getElementPageId(element);
+      }
+      const partial =
+        added[id]?.inserted ??
+        added[id]?.deleted ??
+        removed[id]?.inserted ??
+        removed[id]?.deleted ??
+        updated[id]?.inserted ??
+        updated[id]?.deleted;
+      if (partial) {
+        return getElementPageId({ pageId: partial.pageId });
+      }
+    }
+
+    return this.activePageId;
+  }
+
   public record(delta: StoreDelta) {
     if (delta.isEmpty() || delta instanceof HistoryDelta) {
       return;
     }
 
+    const targetPageId = this.getTargetPageId(delta);
+    const stacks = this.getStacks(targetPageId);
+
     // construct history entry, so once it's emitted, it's not recorded again
     const historyDelta = HistoryDelta.inverse(delta);
 
-    this.undoStack.push(historyDelta);
+    stacks.undo.push(historyDelta);
 
     if (!historyDelta.elements.isEmpty()) {
       // don't reset redo stack on local appState changes,
       // as a simple click (unselect) could lead to losing all the redo entries
       // only reset on non empty elements changes!
-      this.redoStack.length = 0;
+      stacks.redo.length = 0;
     }
 
     this.onHistoryChangedEmitter.trigger(

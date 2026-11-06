@@ -1,0 +1,51 @@
+[
+  {
+    "id": "tp_debug_r11_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx",
+    "instruction": "Fix `packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unhandled errors during packages/excalidraw/tests/pages.test.tsx ('reorders via move right and via drag') make vitest fail the whole file: `TypeError: Cannot set properties of undefined (setting 'dropEffect')` at PagesTabBar.tsx:132 in handleDragOver (`event.dataTransfer.dropEffect = \"move\";`) and the same at line ~120-121 in handleDragStart (`event.dataTransfer.setData(...)`, `event.dataTransfer.effectAllowed = \"move\";`); under another event shape it is `Cannot assign to read only property 'dropEffect' of object '#<DataTransfer>'`. dataTransfer can be undefined or read-only (jsdom, synthetic drag events). Guard every dataTransfer access: `const dt = event.dataTransfer; if (dt) { try { dt.setData(\"text/plain\", pageId); dt.effectAllowed = \"move\"; } catch {} }` and the same pattern for dropEffect in handleDragOver; reordering must keep working from draggedPageIdRef alone (handleDrop must not depend on dataTransfer.getData). Edits only; change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

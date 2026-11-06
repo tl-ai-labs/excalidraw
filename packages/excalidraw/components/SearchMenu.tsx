@@ -12,6 +12,8 @@ import {
 
 import {
   getCommonBounds,
+  getElementPageId,
+  getVisiblePages,
   isElementCompletelyInViewport,
 } from "@excalidraw/element";
 
@@ -40,7 +42,13 @@ import { atom, useAtom } from "../editor-jotai";
 import { useStable } from "../hooks/useStable";
 import { t } from "../i18n";
 
-import { useApp, useExcalidrawSetAppState } from "./App";
+import { actionSwitchPage } from "../actions/actionPages";
+
+import {
+  useApp,
+  useExcalidrawActionManager,
+  useExcalidrawSetAppState,
+} from "./App";
 import { Button } from "./Button";
 import { TextField } from "./TextField";
 import {
@@ -62,6 +70,7 @@ const SEARCH_DEBOUNCE = 350;
 
 type SearchMatchItem = {
   element: ExcalidrawTextElement | ExcalidrawFrameLikeElement;
+  pageId: string;
   searchQuery: SearchQuery;
   index: number;
   preview: {
@@ -83,6 +92,8 @@ type SearchQuery = string & { _brand: "SearchQuery" };
 export const SearchMenu = () => {
   const app = useApp();
   const setAppState = useExcalidrawSetAppState();
+  const actionManager = useExcalidrawActionManager();
+  const activePageId = app.state.activePageId;
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -197,6 +208,10 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        if (match.pageId !== activePageId) {
+          actionManager.executeAction(actionSwitchPage, "ui", match.pageId);
+          return;
+        }
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -252,7 +267,7 @@ export const SearchMenu = () => {
         }
       }
     }
-  }, [focusIndex, searchMatches, app]);
+  }, [focusIndex, searchMatches, app, activePageId, actionManager]);
 
   useEffect(() => {
     return () => {
@@ -426,6 +441,9 @@ export const SearchMenu = () => {
         onItemClick={setFocusIndex}
         focusIndex={focusIndex}
         searchQuery={searchQuery}
+        pagesKey={getVisiblePages(app.state.pages)
+          .map((page) => `${page.id}:${page.name}`)
+          .join(",")}
       />
     </div>
   );
@@ -436,6 +454,7 @@ const ListItem = (props: {
   searchQuery: SearchQuery;
   highlighted: boolean;
   onClick?: () => void;
+  pageName?: string;
 }) => {
   const preview = [
     props.preview.moreBefore ? "..." : "",
@@ -468,6 +487,11 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName && (
+        <div className="preview-page">
+          {t("pages.onPage", { pageName: props.pageName })}
+        </div>
+      )}
     </div>
   );
 };
@@ -477,9 +501,19 @@ interface MatchListProps {
   onItemClick: (index: number) => void;
   focusIndex: number | null;
   searchQuery: SearchQuery;
+  pagesKey: string;
 }
 
 const MatchListBase = (props: MatchListProps) => {
+  const app = useApp();
+  const pageNameMap = useMemo(() => {
+    const visiblePages = getVisiblePages(app.state.pages);
+    if (visiblePages.length <= 1) {
+      return new Map<string, string>();
+    }
+    return new Map(visiblePages.map((page) => [page.id, page.name]));
+  }, [app.state.pages]);
+
   const frameNameMatches = useMemo(
     () =>
       props.matches.items.filter((match) => isFrameLikeElement(match.element)),
@@ -506,6 +540,7 @@ const MatchListBase = (props: MatchListProps) => {
               preview={searchMatch.preview}
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
+              pageName={pageNameMap.get(searchMatch.pageId)}
             />
           ))}
 
@@ -526,6 +561,7 @@ const MatchListBase = (props: MatchListProps) => {
               preview={searchMatch.preview}
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
+              pageName={pageNameMap.get(searchMatch.pageId)}
             />
           ))}
         </div>
@@ -537,7 +573,8 @@ const MatchListBase = (props: MatchListProps) => {
 const areEqual = (prevProps: MatchListProps, nextProps: MatchListProps) => {
   return (
     prevProps.matches.nonce === nextProps.matches.nonce &&
-    prevProps.focusIndex === nextProps.focusIndex
+    prevProps.focusIndex === nextProps.focusIndex &&
+    prevProps.pagesKey === nextProps.pagesKey
   );
 };
 
@@ -800,7 +837,7 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene.getNonDeletedElementsAllPages();
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -832,6 +869,7 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           textMatches.push({
             element: textEl,
+            pageId: getElementPageId(textEl),
             searchQuery,
             preview,
             index: match.index,
@@ -860,6 +898,7 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           frameMatches.push({
             element: frame,
+            pageId: getElementPageId(frame),
             searchQuery,
             preview,
             index: match.index,

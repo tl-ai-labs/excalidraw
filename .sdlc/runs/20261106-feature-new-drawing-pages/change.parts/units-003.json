@@ -1,0 +1,588 @@
+{
+  "section": "units",
+  "source": "units-003.json",
+  "value": [
+    {
+      "id": "U26",
+      "path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.scss",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Styles of the pages tab bar for desktop footer and mobile bottom bar, light and dark.",
+      "rules": [
+        "Root .pages-tab-bar inside `.excalidraw`: flex row, align-items center, gap 0.25rem, max-width min(60vw, 40rem), overflow-x auto, scrollbar-width none, pointer-events var(--ui-pointerEvents), padding 0.25rem, background var(--island-bg-color), border-radius var(--border-radius-lg), box-shadow var(--shadow-island).",
+        "Modifier .pages-tab-bar--mobile: max-width 100%, margin-bottom 0.5rem.",
+        ".pages-tab-bar__tab: inline-flex, height 2rem, padding 0 0.5rem, border 1px solid transparent, border-radius var(--border-radius-md), background transparent, color var(--text-primary-color), font-size 0.875rem, white-space nowrap, cursor pointer; :hover background var(--button-hover-bg); :focus-visible outline 2px solid var(--color-primary).",
+        ".pages-tab-bar__tab--active (and [aria-selected=\"true\"]): background var(--color-primary-light), color var(--color-primary-darker), font-weight 600.",
+        ".pages-tab-bar__tab--drop-target: border-inline-start 2px solid var(--color-primary).",
+        ".pages-tab-bar__rename-input: height 1.75rem, width 8rem, font-size 0.875rem, border 1px solid var(--color-primary), border-radius var(--border-radius-md), background var(--input-bg-color), color var(--text-primary-color).",
+        ".pages-tab-bar__add and .pages-tab-bar__menu-trigger: 2rem square icon buttons, transparent background, :hover var(--button-hover-bg), svg width 1rem.",
+        "Dark theme: `.excalidraw.theme--dark .pages-tab-bar__tab--active` uses color var(--color-primary-light-darker) and background var(--color-primary-darkest)."
+      ],
+      "import_line": "",
+      "style_from": {
+        "path": "packages/excalidraw/components/footer/FooterCenter.scss",
+        "reason": "plain SCSS with CSS variables and BEM names"
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-20",
+        "FR-15"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U27",
+      "path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Tab bar listing the drawing's pages with switch, add, inline rename, drag reorder and a per-page menu.",
+      "rules": [
+        "Reads appState via useUIAppState(), app via useApp(), actionManager via useExcalidrawActionManager(); pages come from getVisiblePages(appState.pages).",
+        "Returns null when appState.zenModeEnabled or app.props.UIOptions.pages === false.",
+        "Props: { isMobile?: boolean }; root <div className={clsx(\"pages-tab-bar\", {\"pages-tab-bar--mobile\": isMobile})} role=\"tablist\" aria-label={t(\"pages.title\")} data-testid=\"pages-tab-bar\">.",
+        "Each page renders a <button type=\"button\" role=\"tab\" aria-selected={active} tabIndex={active ? 0 : -1} data-testid={`page-tab-${page.id}`} className pages-tab-bar__tab (+ --active)>{page.name}</button>; click runs actionManager.executeAction(actionSwitchPage, \"ui\", page.id).",
+        "Keyboard on a tab: ArrowLeft/ArrowRight move focus to the previous/next tab and switch to it; Enter or F2 starts rename (edit mode only); Delete does nothing (delete is in the menu).",
+        "Rename (edit mode only, i.e. !appState.viewModeEnabled): double-click or the menu entry replaces the tab with <input className=\"pages-tab-bar__rename-input\" aria-label={t(\"pages.pageName\")} data-testid=\"page-rename-input\" autoFocus> holding the name; Enter commits via actionRenamePage {pageId, name: value}, Escape cancels, blur commits; an empty or whitespace name leaves the old name (the action rejects it).",
+        "Drag reorder (edit mode only): tabs are draggable; dragstart stores the page id in a ref and sets dataTransfer data \"text/plain\"; dragover on another tab calls preventDefault and marks it --drop-target; drop runs actionMovePage {pageId: dragged, toIndex: index of the target tab among the visible pages without the dragged page}; dragend clears state.",
+        "Menu (edit mode only): a DropdownMenu (../dropdownMenu/DropdownMenu) with a trigger button className pages-tab-bar__menu-trigger aria-label={t(\"pages.pageMenu\")} data-testid=\"pages-menu-trigger\" (icon DotsHorizontalIcon) for the active page; open state is local useState; items: rename (data-testid page-menu-rename), move left (page-menu-move-left, disabled when first), move right (page-menu-move-right, disabled when last), delete (page-menu-delete, icon TrashIcon, disabled when only one page); move/delete run actionMovePageLeft/actionMovePageRight/actionDeletePage with the active page id via executeAction(action, \"ui\", pageId); onClickOutside closes the menu.",
+        "Add button (edit mode only): <button className=\"pages-tab-bar__add\" aria-label={t(\"pages.addPage\")} title={t(\"pages.addPage\")} data-testid=\"pages-add-button\"> with PlusIcon running actionAddPage via executeAction(actionAddPage, \"ui\").",
+        "The active tab scrolls into view (scrollIntoView({block: \"nearest\", inline: \"nearest\"})) when activePageId changes; guard for jsdom where scrollIntoView may be missing.",
+        "Use app.ownerDocument where DOM access is needed; set PagesTabBar.displayName = \"PagesTabBar\"; export as named and default."
+      ],
+      "exports": [
+        {
+          "name": "PagesTabBar",
+          "kind": "component",
+          "params": [
+            {
+              "name": "props",
+              "type": "{ isMobile?: boolean }"
+            }
+          ],
+          "returns": "JSX.Element | null"
+        }
+      ],
+      "import_line": "import { PagesTabBar } from \"../PagesTabBar/PagesTabBar\";",
+      "style_from": {
+        "path": "packages/excalidraw/components/footer/FooterCenter.tsx",
+        "reason": "function component shape, clsx, useUIAppState, displayName"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/main-menu/MainMenu.tsx",
+          "lines": [
+            1,
+            90
+          ],
+          "reason": "DropdownMenu trigger/content/item usage"
+        },
+        {
+          "path": "packages/excalidraw/components/dropdownMenu/DropdownMenuItem.tsx",
+          "reason": "DropdownMenu.Item props (icon, onSelect, disabled, data-testid)"
+        },
+        {
+          "path": "packages/excalidraw/components/App.tsx",
+          "lines": [
+            528,
+            550
+          ],
+          "reason": "useApp and useExcalidrawActionManager hooks"
+        }
+      ],
+      "depends_on": [
+        "U18",
+        "U19",
+        "U26"
+      ],
+      "covers": [
+        "FR-15",
+        "FR-16",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "FR-20",
+        "NFR-6",
+        "NFR-5"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U28",
+      "path": "packages/excalidraw/components/footer/Footer.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The desktop footer hosts the pages tab bar between the left controls and the footer-center slot.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 7,
+          "to": 7,
+          "first_line": "import { HelpButton } from \"../HelpButton\";",
+          "rule": "Add `import { PagesTabBar } from \"../PagesTabBar/PagesTabBar\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 60,
+          "to": 60,
+          "first_line": "<FooterCenterTunnel.Out />",
+          "rule": "Render `{defaultUIEnabled && <PagesTabBar />}`."
+        }
+      ],
+      "depends_on": [
+        "U27"
+      ],
+      "covers": [
+        "FR-15",
+        "FR-19"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "packages/excalidraw/components/MobileMenu.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The mobile layout shows the tab bar above the bottom toolbar, also in view mode.",
+      "rules": [
+        "Inside the default bottom bar, render <PagesTabBar isMobile /> right before the toolbar Island.",
+        "When the default bottom bar is not rendered (view mode) but defaultUIEnabled, render <div className=\"App-bottom-bar\"><PagesTabBar isMobile /></div> so viewers can switch pages."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 11,
+          "to": 11,
+          "first_line": "import { MobileToolbar } from \"./MobileToolbar\";",
+          "rule": "Add `import { PagesTabBar } from \"./PagesTabBar/PagesTabBar\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 182,
+          "to": 182,
+          "first_line": "<Island className=\"App-toolbar\">",
+          "rule": "Render `<PagesTabBar isMobile />`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 189,
+          "to": 189,
+          "first_line": "{!shouldRenderDefaultBottomBar && scrollBackToContentButton && (",
+          "rule": "Render the view-mode bottom bar holding the tab bar when defaultUIEnabled && !shouldRenderDefaultBottomBar."
+        }
+      ],
+      "depends_on": [
+        "U27"
+      ],
+      "covers": [
+        "FR-19"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U30",
+      "path": "packages/excalidraw/components/LayerUI.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The JSON export dialog saves every page while the image export dialog keeps the active page.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 207,
+          "to": 207,
+          "first_line": "elements={elements}",
+          "rule": "Pass `elements={app.scene.getNonDeletedElementsAllPages()}` to JSONExportDialog only."
+        }
+      ],
+      "depends_on": [
+        "U05"
+      ],
+      "covers": [
+        "FR-23",
+        "FR-26"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U31",
+      "path": "packages/excalidraw/components/App.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Keeps the Scene and History on the active page, stamps pasted elements, restores orphans on init, and exposes all pages through getSceneElements.",
+      "rules": [
+        "render(): first statement `if (this.scene.getActivePageId() !== this.state.activePageId) { this.scene.setActivePageId(this.state.activePageId); }`.",
+        "componentDidUpdate (after appStateObserver.flush): when prevState.activePageId !== this.state.activePageId: this.history.setActivePage(this.state.activePageId); this.fonts.loadSceneFonts().then((faces) => this.fonts.onLoaded(faces)); this.clearImageShapeCache is not needed. Independently, when the active page is not a visible page of this.state.pages and at least one visible page exists, setState({activePageId: first visible id, selectedElementIds: {}, selectedGroupIds: {}, editingTextElement: null}).",
+        "The constructor calls this.history.setActivePage(this.state.activePageId) after the second `new History` line (both History instances exist; set on the final one).",
+        "getSceneElements returns this.scene.getNonDeletedElementsAllPages().",
+        "addElementsFromPasteOrLibrary: after duplication, for each element of duplicatedElements call assignElementToPage(element, this.state.activePageId) before replaceAllElements (they are fresh objects not yet in the scene).",
+        "initializeScene: after restoreAppState, reassign orphans: `const pageElements = reassignOrphanedElementsToPage(restoredElements, restoredAppState.pages)` and use it as the restored elements; the scroll-to-content and initial-viewport computations use only elements on restoredAppState.activePageId (filter with isElementOnPage)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 209,
+          "to": 209,
+          "first_line": "isNonDeletedElement,",
+          "rule": "Add assignElementToPage, getVisiblePages, isElementOnPage and reassignOrphanedElementsToPage to this @excalidraw/element import list after isNonDeletedElement."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 910,
+          "to": 910,
+          "first_line": "this.history = new History(this.store);",
+          "rule": "Call this.history.setActivePage(this.state.activePageId)."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 2325,
+          "to": 2325,
+          "first_line": "public render() {",
+          "rule": "Sync the scene's active page before anything reads the scene."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 2770,
+          "to": 2770,
+          "first_line": "return this.scene.getNonDeletedElements();",
+          "rule": "Return this.scene.getNonDeletedElementsAllPages()."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 3621,
+          "to": 3625,
+          "first_line": "const restoredElements = restoreElements(initialData?.elements, null, {",
+          "last_line": "let restoredAppState = restoreAppState(initialData?.appState, null);",
+          "rule": "Restore appState first, then restoredElements = reassignOrphanedElementsToPage(restoreElements(...same options), restoredAppState.pages); keep both names in scope (restoredElements stays const)."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 3667,
+          "to": 3669,
+          "first_line": "const restoredNonDeletedElements = restoredElements.filter(",
+          "last_line": ") as readonly NonDeletedExcalidrawElement[];",
+          "rule": "Filter non-deleted elements on restoredAppState.activePageId."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 3689,
+          "to": 3689,
+          "first_line": "...getScrollToContentState(restoredElements, viewportAppState),",
+          "rule": "Scroll to the active page's elements only."
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 4317,
+          "to": 4317,
+          "first_line": "this.appStateObserver.flush(prevState);",
+          "rule": "Handle the active-page change and the invisible-active-page fallback."
+        },
+        {
+          "id": "S9",
+          "at": "insert_before",
+          "from": 4656,
+          "to": 4656,
+          "first_line": "this.scene.replaceAllElements(nextElements);",
+          "rule": "Stamp the active page on duplicatedElements."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/App.tsx",
+          "lines": [
+            3600,
+            3720
+          ],
+          "reason": "initializeScene context for S5-S7"
+        },
+        {
+          "path": "packages/excalidraw/components/App.tsx",
+          "lines": [
+            4290,
+            4330
+          ],
+          "reason": "componentDidUpdate context for S8"
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U10",
+        "U11",
+        "U12"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "FR-8",
+        "FR-9",
+        "FR-21",
+        "FR-22",
+        "FR-24",
+        "FR-27",
+        "FR-33",
+        "NFR-3"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U32",
+      "path": "packages/excalidraw/components/SearchMenu.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Search finds text and frame names on every page, labels results with their page, and switches page before focusing a match.",
+      "rules": [
+        "SearchMatchItem gains pageId: string, set with getElementPageId(element) when pushing text and frame matches.",
+        "handleSearch scans app.scene.getNonDeletedElementsAllPages().",
+        "The focus effect: when the focused match's pageId differs from activePageId (read from app.state into a local before the effects), call actionManager.executeAction(actionSwitchPage, \"ui\", match.pageId) (actionManager from useExcalidrawActionManager()) and return; activePageId is in the effect dependencies so the zoom-to-match runs once the page is active.",
+        "ListItem gets an optional pageName prop rendered as <div className=\"preview-page\">{t(\"pages.onPage\", { pageName })}</div> under the preview text; MatchListBase passes pageName only when the drawing has more than one visible page (look up the name in getVisiblePages(app.state.pages) via useApp()).",
+        "The MatchList memo comparison also compares a pagesKey prop (visible page ids and names joined) so renamed pages refresh labels."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 13,
+          "to": 16,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Import getCommonBounds, getElementPageId, getVisiblePages and isElementCompletelyInViewport from @excalidraw/element."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 43,
+          "to": 43,
+          "first_line": "import { useApp, useExcalidrawSetAppState } from \"./App\";",
+          "rule": "Import useApp, useExcalidrawActionManager and useExcalidrawSetAppState from ./App; also add `import { actionSwitchPage } from \"../actions/actionPages\";` as the first line of the relative import group (before ../editor-jotai)."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 64,
+          "to": 64,
+          "first_line": "element: ExcalidrawTextElement | ExcalidrawFrameLikeElement;",
+          "rule": "Add `pageId: string;`."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 85,
+          "to": 85,
+          "first_line": "const setAppState = useExcalidrawSetAppState();",
+          "rule": "Add `const actionManager = useExcalidrawActionManager();` and `const activePageId = app.state.activePageId;`."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 196,
+          "to": 199,
+          "first_line": "if (searchMatches.items.length > 0 && focusIndex !== null) {",
+          "last_line": "if (match) {",
+          "rule": "When match.pageId !== activePageId, executeAction(actionSwitchPage, \"ui\", match.pageId) and return; else continue as today."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 255,
+          "to": 255,
+          "first_line": "}, [focusIndex, searchMatches, app]);",
+          "rule": "Dependencies [focusIndex, searchMatches, app, activePageId, actionManager]."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 424,
+          "to": 429,
+          "first_line": "<MatchList",
+          "last_line": "/>",
+          "rule": "Also pass pagesKey computed from getVisiblePages(app.state.pages)."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 434,
+          "to": 439,
+          "first_line": "const ListItem = (props: {",
+          "last_line": "}) => {",
+          "rule": "Add the optional pageName prop."
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 470,
+          "to": 470,
+          "first_line": "</div>",
+          "rule": "Render the page label when pageName is set."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 475,
+          "to": 480,
+          "first_line": "interface MatchListProps {",
+          "last_line": "}",
+          "rule": "Add pagesKey: string."
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 503,
+          "to": 509,
+          "first_line": "<ListItem",
+          "last_line": "/>",
+          "rule": "Pass pageName for frame matches."
+        },
+        {
+          "id": "S12",
+          "at": "replace",
+          "from": 523,
+          "to": 529,
+          "first_line": "<ListItem",
+          "last_line": "/>",
+          "rule": "Pass pageName for text matches."
+        },
+        {
+          "id": "S13",
+          "at": "replace",
+          "from": 539,
+          "to": 540,
+          "first_line": "prevProps.matches.nonce === nextProps.matches.nonce &&",
+          "last_line": "prevProps.focusIndex === nextProps.focusIndex",
+          "rule": "Also compare pagesKey."
+        },
+        {
+          "id": "S14",
+          "at": "replace",
+          "from": 803,
+          "to": 803,
+          "first_line": "const elements = app.scene.getNonDeletedElements();",
+          "rule": "Use getNonDeletedElementsAllPages()."
+        },
+        {
+          "id": "S15",
+          "at": "insert_after",
+          "from": 834,
+          "to": 834,
+          "first_line": "element: textEl,",
+          "rule": "Add `pageId: getElementPageId(textEl),`."
+        },
+        {
+          "id": "S16",
+          "at": "insert_after",
+          "from": 862,
+          "to": 862,
+          "first_line": "element: frame,",
+          "rule": "Add `pageId: getElementPageId(frame),`."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/SearchMenu.tsx",
+          "lines": [
+            480,
+            495
+          ],
+          "reason": "MatchListBase body where pageName is resolved"
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U19"
+      ],
+      "covers": [
+        "FR-28"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U33",
+      "path": "packages/excalidraw/index.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Public API exports page types and helpers, and the UIOptions pages flag defaults to true.",
+      "rules": [
+        "UIOptions built in ExcalidrawBase gets `pages: props.UIOptions?.pages ?? true`.",
+        "Export from @excalidraw/element: DEFAULT_PAGE_ID, getVisiblePages, getElementPageId, getPageElements, createPage, renamePage, movePage, deletePage, restorePageState.",
+        "Export type { DrawingPage, PageViewport } from @excalidraw/element/types.",
+        "Export the page actions from ./actions: actionAddPage, actionSwitchPage, actionRenamePage, actionMovePage, actionDeletePage."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 132,
+          "to": 134,
+          "first_line": "tools: {",
+          "last_line": "},",
+          "rule": "Keep tools and add the pages default."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 411,
+          "to": 411,
+          "first_line": "} from \"@excalidraw/element\";",
+          "rule": "Add the page helper exports, the page type exports and the page action exports."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U09",
+        "U20"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-19",
+        "FR-33"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/components/footer/FooterCenter.scss": "a348a4b99e053564d54ebd9ec62bd0a7478ec9d218edfcfb4f4051403c1eb1ce",
+    "packages/excalidraw/components/footer/FooterCenter.tsx": "2853e42e1f3380f536247d3785beba5d5fea1df49375d1a4f7734988c9a6f185",
+    "packages/excalidraw/components/main-menu/MainMenu.tsx": "66adfcb89a2dfb3cf202ed2af17261f7ec3730121cc7b7c5d41d6c0142fa8443",
+    "packages/excalidraw/components/dropdownMenu/DropdownMenuItem.tsx": "d0f9be9a278658961479133e7e2cdc75dac0313e91964399dfb9fd4639c32aa1",
+    "packages/excalidraw/components/App.tsx": "36fd13a5d52c9730f2bf0c5fe6d451ba18a329d55abd57485e1a4f8cdafa6c6c",
+    "packages/excalidraw/components/footer/Footer.tsx": "b3c47cfc68a42807c2805363ff2a8fb413b5cd51d9039dfe3684c96e1b41d475",
+    "packages/excalidraw/components/MobileMenu.tsx": "fda2de8492aaa374b5b1684b65e967d89bd7ed4be71b8b9737b4901512f39bbd",
+    "packages/excalidraw/components/LayerUI.tsx": "32bbc7da2b827fa87b2b6931f8ed9825884e90a8c4ddfc00ef52fe9e32fb48f4",
+    "packages/excalidraw/components/SearchMenu.tsx": "ed57ee578a7eab16d68932b9dec54e54420af5e7114c88ade18e62019afd6f28",
+    "packages/excalidraw/index.tsx": "8a3218f932b2aa396b0bc3616bf43ade4eabfac8a3ee231788fa7673daf69132"
+  }
+}

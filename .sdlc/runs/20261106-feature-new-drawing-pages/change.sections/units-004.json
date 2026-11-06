@@ -1,0 +1,141 @@
+[
+  {
+    "id": "U34",
+    "path": "excalidraw-app/data/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Scene socket payloads may carry the page records.",
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 86, "to": 86, "first_line": "elements: readonly OrderedExcalidrawElement[];", "rule": "Keep elements and add `pages?: readonly DrawingPage[];` in SCENE_INIT.payload." },
+      { "id": "S2", "at": "replace", "from": 92, "to": 92, "first_line": "elements: readonly OrderedExcalidrawElement[];", "rule": "Keep elements and add `pages?: readonly DrawingPage[];` in SCENE_UPDATE.payload." },
+      { "id": "S3", "at": "replace", "from": 20, "to": 20, "first_line": "ExcalidrawElement,", "rule": "Add `DrawingPage,` before ExcalidrawElement in this type import list." }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-30"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U35",
+    "path": "excalidraw-app/collab/Portal.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Scene broadcasts include the page records when they changed, and always on INIT and full syncs.",
+    "rules": [
+      "New field broadcastedPagesVersion: number = -1, reset to -1 in close().",
+      "broadcastScene gains a fourth parameter pages: readonly DrawingPage[] | undefined; it includes payload.pages when pages is defined and (syncAll or getPagesVersion(pages) > broadcastedPagesVersion), then sets broadcastedPagesVersion = getPagesVersion(pages).",
+      "The early return for nothing to send stays as today (Portal sends even empty element lists today; keep that behaviour).",
+      "The new-user handler passes this.collab.excalidrawAPI.getAppState().pages."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 4, "to": 4, "first_line": "import { newElementWith } from \"@excalidraw/element\";", "rule": "Import getPagesVersion and newElementWith from @excalidraw/element." },
+      { "id": "S2", "at": "replace", "from": 8, "to": 8, "first_line": "import type { OrderedExcalidrawElement } from \"@excalidraw/element/types\";", "rule": "Import type DrawingPage and OrderedExcalidrawElement." },
+      { "id": "S3", "at": "insert_after", "from": 31, "to": 31, "first_line": "broadcastedElementVersions: Map<string, number> = new Map();", "rule": "Add broadcastedPagesVersion." },
+      { "id": "S4", "at": "replace", "from": 50, "to": 54, "first_line": "this.broadcastScene(", "last_line": ");", "rule": "Pass the current page records as the fourth argument." },
+      { "id": "S5", "at": "insert_after", "from": 73, "to": 73, "first_line": "this.broadcastedElementVersions = new Map();", "rule": "Reset broadcastedPagesVersion." },
+      { "id": "S6", "at": "replace", "from": 142, "to": 146, "first_line": "broadcastScene = async (", "last_line": ") => {", "rule": "Add the pages parameter." },
+      { "id": "S7", "at": "replace", "from": 166, "to": 171, "first_line": "const data: SocketUpdateDataSource[typeof updateType] = {", "last_line": "};", "rule": "Include pages when due and record broadcastedPagesVersion." }
+    ],
+    "depends_on": ["U03", "U34"],
+    "covers": ["FR-30"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U36",
+    "path": "excalidraw-app/data/firebase.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The room document carries encrypted page records next to the encrypted elements; rooms without them load as one default page.",
+    "rules": [
+      "FirebaseStoredScene gains optional pagesIv?: Bytes and pagesCiphertext?: Bytes.",
+      "A private encryptPages(key, pages) / decryptPages(data, key) mirror encryptElements/decryptElements (JSON of the page records); decryptPages returns null when the fields are absent.",
+      "createFirebaseSceneDocument(elements, pages, roomKey) also sets pagesIv/pagesCiphertext and sceneVersion stays getSceneVersion(elements).",
+      "saveToFirebase(portal, elements, appState): pages = appState.pages; the saved check and FirebaseSceneVersionCache use getSceneVersion(elements) + getPagesVersion(pages); inside the transaction for an existing doc, storedPages = reconcilePages(pages, await decryptPages(prev, roomKey)); returns { elements: RemoteExcalidrawElement[], pages: readonly DrawingPage[] | null } (pages decrypted from the stored doc).",
+      "isSavedToFirebase(portal, elements, pages?) compares the cache with getSceneVersion(elements) + getPagesVersion(pages).",
+      "loadFromFirebase returns { elements, pages } where pages is the decrypted page records or null for legacy rooms; returns null when the doc does not exist (unchanged)."
+    ],
+    "exports": [
+      { "name": "saveToFirebase", "kind": "function", "params": [{ "name": "portal", "type": "Portal" }, { "name": "elements", "type": "readonly SyncableExcalidrawElement[]" }, { "name": "appState", "type": "AppState" }], "returns": "Promise<{ elements: RemoteExcalidrawElement[]; pages: readonly DrawingPage[] | null } | null>" },
+      { "name": "loadFromFirebase", "kind": "function", "params": [{ "name": "roomId", "type": "string" }, { "name": "roomKey", "type": "string" }, { "name": "socket", "type": "Socket | null" }], "returns": "Promise<{ elements: readonly SyncableExcalidrawElement[]; pages: readonly DrawingPage[] | null } | null>" },
+      { "name": "isSavedToFirebase", "kind": "function", "params": [{ "name": "portal", "type": "Portal" }, { "name": "elements", "type": "readonly ExcalidrawElement[]" }, { "name": "pages", "type": "readonly DrawingPage[] | undefined" }], "returns": "boolean" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 9, "to": 9, "first_line": "import { getSceneVersion } from \"@excalidraw/element\";", "rule": "Import getPagesVersion, getSceneVersion and reconcilePages from @excalidraw/element." },
+      { "id": "S2", "at": "replace", "from": 13, "to": 13, "first_line": "ExcalidrawElement,", "rule": "Add `DrawingPage,` before ExcalidrawElement in the type import." },
+      { "id": "S3", "at": "replace", "from": 86, "to": 128, "first_line": "type FirebaseStoredScene = {", "last_line": "}", "rule": "Extend the stored type, add encryptPages/decryptPages after decryptElements, and make FirebaseSceneVersionCache.set take (socket, elements, pages)." },
+      { "id": "S4", "at": "replace", "from": 130, "to": 142, "first_line": "export const isSavedToFirebase = (", "last_line": "};", "rule": "Take the optional pages and compare the combined version." },
+      { "id": "S5", "at": "replace", "from": 176, "to": 275, "first_line": "const createFirebaseSceneDocument = async (", "last_line": "};", "rule": "Rewrite createFirebaseSceneDocument, saveToFirebase and loadFromFirebase per the rules, keeping the transaction, restoreElements and getSyncableElements logic." }
+    ],
+    "uses": [{ "path": "excalidraw-app/data/firebase.ts", "lines": [86, 276], "reason": "the functions being rewritten" }],
+    "depends_on": ["U03", "U09", "U35"],
+    "covers": ["FR-31", "FR-30"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U37",
+    "path": "excalidraw-app/collab/Collab.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Collaboration syncs page records both ways and merges them by version; each collaborator keeps their own active page and viewport.",
+    "rules": [
+      "New private lastBroadcastedOrReceivedPagesVersion = -1, reset to -1 in destroySocketClient.",
+      "A private applyRemotePages(remotePages: readonly DrawingPage[] | null | undefined): returns when null/empty; merged = reconcilePages(getAppState().pages, remotePages); sets lastBroadcastedOrReceivedPagesVersion = getPagesVersion(merged); when merged differs (by version sum or length) from the current pages, excalidrawAPI.updateScene({ appState: { pages: merged }, captureUpdate: CaptureUpdateAction.NEVER }).",
+      "INIT and UPDATE socket handlers call applyRemotePages(decryptedData.payload.pages) before handleRemoteSceneUpdate.",
+      "syncElements(elements, pages?) : broadcastElements(elements) then, when pages is given and getPagesVersion(pages) > lastBroadcastedOrReceivedPagesVersion, portal.broadcastScene(WS_SUBTYPES.UPDATE, [], false, pages) and record the version; then queueSaveToFirebase().",
+      "broadcastElements and queueBroadcastAllElements pass getAppState().pages as the fourth broadcastScene argument (full syncs always include pages).",
+      "saveCollabRoomToFirebase: the result is { elements, pages }; call applyRemotePages(result.pages) and handleRemoteSceneUpdate(this._reconcileElements(result.elements)) when collaborating.",
+      "beforeUnload passes getAppState().pages to isSavedToFirebase.",
+      "initializeRoom with fetchScene: loadFromFirebase returns {elements, pages}; return { elements, appState: { pages: pages ?? undefined }, scrollToContent: true } only including appState when pages is not null, and set lastBroadcastedOrReceivedPagesVersion from them."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 24, "to": 24, "first_line": "import { newElementWith } from \"@excalidraw/element\";", "rule": "Import getPagesVersion, newElementWith and reconcilePages from @excalidraw/element." },
+      { "id": "S2", "at": "replace", "from": 41, "to": 41, "first_line": "ExcalidrawElement,", "rule": "Add `DrawingPage,` before ExcalidrawElement in the type import." },
+      { "id": "S3", "at": "insert_after", "from": 148, "to": 148, "first_line": "private lastBroadcastedOrReceivedSceneVersion: number = -1;", "rule": "Add lastBroadcastedOrReceivedPagesVersion." },
+      { "id": "S4", "at": "replace", "from": 318, "to": 318, "first_line": "!isSavedToFirebase(this.portal, syncableElements))", "rule": "Pass this.excalidrawAPI.getAppState().pages as the third argument." },
+      { "id": "S5", "at": "replace", "from": 339, "to": 349, "first_line": "const storedElements = await saveToFirebase(", "last_line": "}", "rule": "Handle the { elements, pages } result." },
+      { "id": "S6", "at": "insert_after", "from": 425, "to": 425, "first_line": "this.lastBroadcastedOrReceivedSceneVersion = -1;", "rule": "Reset the pages version." },
+      { "id": "S7", "at": "insert_after", "from": 607, "to": 607, "first_line": "this.initializeRoom({ fetchScene: false });", "rule": "Call this.applyRemotePages(decryptedData.payload.pages)." },
+      { "id": "S8", "at": "replace", "from": 622, "to": 630, "first_line": "case WS_SUBTYPES.UPDATE:", "last_line": "break;", "rule": "Apply remote pages first, then the elements update." },
+      { "id": "S9", "at": "replace", "from": 745, "to": 758, "first_line": "const elements = await loadFromFirebase(", "last_line": "};", "rule": "Destructure {elements, pages}, record both versions, return elements plus appState.pages when present." },
+      { "id": "S10", "at": "insert_before", "from": 821, "to": 821, "first_line": "private handleRemoteSceneUpdate = (", "rule": "Add the private applyRemotePages method." },
+      { "id": "S11", "at": "replace", "from": 971, "to": 999, "first_line": "broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {", "last_line": "}, SYNC_FULL_SCENE_INTERVAL_MS);", "rule": "Rewrite broadcastElements, syncElements and queueBroadcastAllElements per the rules." }
+    ],
+    "uses": [{ "path": "excalidraw-app/collab/Collab.tsx", "lines": [730, 832], "reason": "initializeRoom and the remote update path" }],
+    "depends_on": ["U35", "U36"],
+    "covers": ["FR-30", "FR-31"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U38",
+    "path": "excalidraw-app/data/localStorage.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The saved page list, active page and viewports are restored from local storage on reload.",
+    "rules": [
+      "importFromLocalStorage spreads ...restorePageState(parsed) after clearAppStateForLocalStorage(parsed) so a corrupted or missing page list falls back to the default page."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 4, "to": 4, "first_line": "} from \"@excalidraw/excalidraw/appState\";", "rule": "Add `import { restorePageState } from \"@excalidraw/element\";`." },
+      { "id": "S2", "at": "replace", "from": 62, "to": 67, "first_line": "appState = {", "last_line": "};", "rule": "Parse once into a const, then build the appState with the restored page state spread last." }
+    ],
+    "depends_on": ["U03", "U10"],
+    "covers": ["FR-29", "FR-32"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U39",
+    "path": "excalidraw-app/App.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The app passes page records to collab sync and keeps local page state when joining a room.",
+    "rules": [
+      "onChange calls collabAPI.syncElements(elements, appState.pages).",
+      "When joining a room (the startCollaboration branch), the restored appState keeps the room's pages when the scene has them, else the default page: pass `{ ...scene?.appState, theme }` to restoreAppState as today (restorePageState inside restoreAppState already handles a missing pages list)."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 721, "to": 721, "first_line": "collabAPI.syncElements(elements);", "rule": "Pass appState.pages as the second argument." }
+    ],
+    "depends_on": ["U37"],
+    "covers": ["FR-29", "FR-30"],
+    "checks": ["eslint", "prettier"]
+  }
+]

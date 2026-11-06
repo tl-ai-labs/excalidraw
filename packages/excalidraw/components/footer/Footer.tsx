@@ -5,6 +5,7 @@ import { useTunnels } from "../../context/tunnels";
 import { ExitZenModeButton, UndoRedoActions, ZoomActions } from "../Actions";
 import { useApp } from "../App";
 import { HelpButton } from "../HelpButton";
+import { PagesTabBar } from "../PagesTabBar/PagesTabBar";
 import { Section } from "../Section";
 import Stack from "../Stack";
 
@@ -57,6 +58,7 @@ const Footer = ({
           </Stack.Col>
         </div>
       )}
+      {defaultUIEnabled && <PagesTabBar />}
       <FooterCenterTunnel.Out />
       {(defaultUIEnabled || renderWelcomeScreen) && (
         <div

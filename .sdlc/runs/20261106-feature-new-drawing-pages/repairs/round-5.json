@@ -1,0 +1,234 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Undo is recorded on the wrong page (FR-21): test 'pages > keeps undo on its page' (packages/excalidraw/tests/pages.test.tsx:337) moves r1 on the default page, switches to page 2, moves r2, switches back and presses undo: r1.x stays 1 (expected 0). Cause: in componentDidUpdate, the block `if (prevState.activePageId !== this.state.activePageId) { this.history.setActivePage(this.state.activePageId); ... }` (around line 4337) runs BEFORE `this.store.commit(elementsMap, this.state);` (around line 4533), so the pending element change from the page being left is committed and recorded (history.record via store.onDurableIncrementEmitter, line ~3866) into the NEW page's undo stack. Fix: call `this.history.setActivePage(this.state.activePageId)` only AFTER `this.store.commit(elementsMap, this.state)` in componentDidUpdate (keep the fonts reload where it is, or move it with it). Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U31.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6033
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6034,
+          11534
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/src/pages.ts",
+    "instruction": "Fix `packages/element/src/pages.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/element/src/pages.ts(9,10): error TS2459: Module './mutateElement' declares 'getUpdatedTimestamp' locally, but it is not exported. At runtime this makes `getUpdatedTimestamp` undefined: TypeError '(0 , getUpdatedTimestamp) is not a function' at pages.ts:279 (reassignOrphanedElementsToPage), which also makes loadFromBlob throw 'Error: invalid file' in packages/excalidraw/tests/data/pages.test.ts > 'elements of an unknown page restore onto the first page'. Fix: import getUpdatedTimestamp (and randomInteger/randomId) from \"@excalidraw/common\", where it is exported, and remove the import from ./mutateElement. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/pages.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/pages.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/tests/pages.test.ts",
+    "instruction": "Fix `packages/element/tests/pages.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Still failing (yarn -s vitest run packages/element/tests/pages.test.ts and yarn test:typecheck): (a) pages.test.ts(197,48) TS2345 and 'Scene filters by active page' -> 'expected undefined to be true': validateFractionalIndices returns nothing and only throws; replace `expect(validateFractionalIndices(elements, {})).toBe(true)` with `expect(() => validateFractionalIndices(elements, { shouldThrow: true, includeBoundTextValidation: false })).not.toThrow()`. (b) 'Scene stamps inserted elements' -> TypeError '(0 , syncMovedIndices) is not a function': the file imports from ../src/* paths, which loads Scene before the package barrel (circular import). Import EVERYTHING this test uses (Scene, syncInvalidIndices, validateFractionalIndices, newElement, and the page helpers) from \"@excalidraw/element\" in one import, and no import from ../src/*. (c) 'orphaned elements move to the first page' failed with getUpdatedTimestamp undefined — fixed in pages.ts this round; keep the test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/pages.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/pages.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/pages.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Two test bugs remain (the third, 'keeps undo on its page', is fixed in App.tsx this round — keep that test exactly as it is): (1) 'deletes a page via the menu': openTabMenu() (line ~69) queries `[data-testid='pages-tab-menu-trigger']` and lines ~175/191 query `[data-testid='pages-menu-delete']`, but PagesTabBar.tsx renders data-testid=\"pages-menu-trigger\" for the trigger and data-testid=\"page-menu-delete\" for the delete item: use exactly those ids. (2) 'finds text on another page and switches to it' (line 380): activePageId stays 'default' because the SearchMenu only switches page for the FOCUSED match; after the matches appear, focus the first match (press KEYS.ENTER on the search input, as SearchMenu's own tests do, or click the first `.layer-ui__result-item`) and then waitFor activePageId to be p2Id. Keep all other assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U40.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PagesTabBar/PagesTabBar.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

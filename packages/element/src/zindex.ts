@@ -10,6 +10,7 @@ import { getElementsInGroup } from "./groups";
 import { syncMovedIndices } from "./fractionalIndex";
 import { getSelectedElements } from "./selection";
 import { getBoundTextElement, getContainerElement } from "./textElement";
+import { getElementPageId, isElementOnPage } from "./pages";
 
 import type { Scene } from "./Scene";
 import type {
@@ -206,6 +207,12 @@ const getTargetIndex = (
 
   const indexFilter = (element: ExcalidrawElement) => {
     if (element.isDeleted) {
+      return false;
+    }
+    if (
+      sourceElement &&
+      !isElementOnPage(element, getElementPageId(sourceElement))
+    ) {
       return false;
     }
     if (containingFrame) {

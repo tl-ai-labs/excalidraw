@@ -2,6 +2,7 @@ import {
   clearAppStateForLocalStorage,
   getDefaultAppState,
 } from "@excalidraw/excalidraw/appState";
+import { restorePageState } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 import type { AppState } from "@excalidraw/excalidraw/types";
@@ -59,11 +60,11 @@ export const importFromLocalStorage = () => {
   let appState = null;
   if (savedState) {
     try {
+      const parsed = JSON.parse(savedState) as Partial<AppState>;
       appState = {
         ...getDefaultAppState(),
-        ...clearAppStateForLocalStorage(
-          JSON.parse(savedState) as Partial<AppState>,
-        ),
+        ...clearAppStateForLocalStorage(parsed),
+        ...restorePageState(parsed),
       };
     } catch (error: any) {
       console.error(error);

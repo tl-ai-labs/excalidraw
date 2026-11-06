@@ -132,6 +132,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     tools: {
       image: props.UIOptions?.tools?.image ?? true,
     },
+    pages: props.UIOptions?.pages ?? true,
   };
 
   if (canvasActions?.export) {
@@ -409,6 +410,26 @@ export {
   hashString,
   getNonDeletedElements,
 } from "@excalidraw/element";
+
+export {
+  DEFAULT_PAGE_ID,
+  getVisiblePages,
+  getElementPageId,
+  getPageElements,
+  createPage,
+  renamePage,
+  movePage,
+  deletePage,
+  restorePageState,
+} from "@excalidraw/element";
+export type { DrawingPage, PageViewport } from "@excalidraw/element/types";
+export {
+  actionAddPage,
+  actionSwitchPage,
+  actionRenamePage,
+  actionMovePage,
+  actionDeletePage,
+} from "./actions";
 
 export { getTextFromElements } from "@excalidraw/element";
 export { isInvisiblySmallElement } from "@excalidraw/element";

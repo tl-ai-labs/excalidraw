@@ -231,6 +231,7 @@ export const wrapInFrame = (
     y: y1 - padding,
     width: x2 - x1 + padding * 2,
     height: y2 - y1 + padding * 2,
+    pageId: appState.activePageId,
   });
 
   // for a selected partial group, we want to remove it from the remainder of the group
