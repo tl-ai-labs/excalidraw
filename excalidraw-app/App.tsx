@@ -964,6 +964,7 @@ const ExcalidrawWrapper = () => {
         UIOptions={{
           canvasActions: {
             toggleTheme: true,
+            pages: true,
             export: {
               onExportToBackend,
               renderCustomUI: excalidrawAPI

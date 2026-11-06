@@ -1,0 +1,77 @@
+{
+  "section": "units",
+  "source": "units-005.json",
+  "value": [
+    {
+      "id": "U06",
+      "path": "excalidraw-app/tests/pages.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Updates the `fetch` mock in `excalidraw-app/tests/pages.test.tsx` so the share-link `GET` returns the stored bytes regardless of the URL's form.",
+      "rules": [
+        "1. In S1 (lines 135-168), return `backendStore.get(\"share-multi-page-id\") ?? new ArrayBuffer(0)` on any non-`POST` `fetch` call regardless of the URL's form."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 135,
+          "to": 168,
+          "first_line": "globalThis.fetch = vi.fn(",
+          "last_line": ") as unknown as typeof fetch;",
+          "rule": "Store the POST body bytes under \"share-multi-page-id\" and return backendStore.get(\"share-multi-page-id\") ?? new ArrayBuffer(0) for any GET request regardless of the URL's form."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U04"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "NFR-1",
+        "NFR-2",
+        "NFR-4",
+        "AC-1",
+        "AC-10",
+        "AC-11",
+        "AC-12"
+      ],
+      "tests": [
+        {
+          "name": "renders the page tab bar by default in ExcalidrawApp",
+          "given": "<ExcalidrawApp /> rendered in jsdom",
+          "expect": "data-testid=\"page-bar\" is present in the rendered app"
+        },
+        {
+          "name": "round-trips all pages, elements, viewports, and activePageId through share links (exportToBackend and importFromBackend)",
+          "given": "a multi-page scene with two pages, elements on both pages, custom per-page viewports, and activePageId set to page-2 exported via exportToBackend and imported via importFromBackend",
+          "expect": "the imported and restored scene preserves all pages in order, their names, per-page scrollX/scrollY/zoom, all elements with their pageId, and activePageId === 'page-2'"
+        },
+        {
+          "name": "round-trips all pages, elements, viewports, and activePageId through local autosave (LocalData and importFromLocalStorage)",
+          "given": "a multi-page scene with two pages, elements on both pages, custom per-page viewports, and activePageId set to page-2 saved via LocalData.save + LocalData.flushSave and loaded via importFromLocalStorage",
+          "expect": "the restored localStorage state preserves all pages, their elements, per-page viewports, and activePageId === 'page-2'"
+        },
+        {
+          "name": "saves and loads room pages in Firebase as a backward-compatible JSON array so a room loaded with no peers online keeps every element on its own page",
+          "given": "a collaboration room with pages page-1 and page-2 and elements on each page saved via saveToFirebase and loaded via loadFromFirebase with no peers online",
+          "expect": "the encrypted ciphertext decodes to a JSON array accepted by restoreElements, loadFromFirebase returns both pages and elements, and after applying the loaded room state to the scene, page-1 shows only page-1 elements and switching to page-2 shows page-2 elements"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    }
+  ],
+  "hashes": {
+    "excalidraw-app/tests/pages.test.tsx": "6132f8b95cda0ce5046a2e3ca3bead0116ad19e262d743574319edbb22e1eafa"
+  }
+}

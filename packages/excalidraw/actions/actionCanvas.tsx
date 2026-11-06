@@ -94,13 +94,21 @@ export const actionClearCanvas = register({
     );
   },
   perform: (elements, appState, _, app) => {
-    app.imageCache.clear();
+    if (appState.pages.length <= 1) {
+      app.imageCache.clear();
+    }
+    const activePageElementIds = new Set(
+      app.scene.getNonDeletedElements().map((el) => el.id),
+    );
+    const defaultAppState = getDefaultAppState();
     return {
       elements: elements.map((element) =>
-        newElementWith(element, { isDeleted: true }),
+        activePageElementIds.has(element.id)
+          ? newElementWith(element, { isDeleted: true })
+          : element,
       ),
       appState: {
-        ...getDefaultAppState(),
+        ...defaultAppState,
         files: {},
         theme: appState.theme,
         penMode: appState.penMode,
@@ -113,6 +121,17 @@ export const actionClearCanvas = register({
         stats: appState.stats,
         colorTopPicks: appState.colorTopPicks,
         fontTopPicks: appState.fontTopPicks,
+        activePageId: appState.activePageId,
+        pages: appState.pages.map((page) =>
+          page.id === appState.activePageId
+            ? {
+                ...page,
+                scrollX: 0,
+                scrollY: 0,
+                zoom: defaultAppState.zoom,
+              }
+            : page,
+        ),
         activeTool:
           appState.activeTool.type === "image"
             ? {
@@ -326,7 +345,7 @@ export const actionZoomToFitSelectionInViewport = register({
       ? getCommonBounds(getNonDeletedElements(selectedElements))
       : appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,
@@ -369,7 +388,7 @@ export const actionZoomToFitSelection = register({
       ? getCommonBounds(getNonDeletedElements(selectedElements))
       : appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,
@@ -406,7 +425,7 @@ export const actionZoomToFit = register({
     // under a viewport lock, fits the locked box rather than the elements
     const bounds = appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,

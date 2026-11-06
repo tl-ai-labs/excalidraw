@@ -1,0 +1,156 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (exit 2), errors in this file, verbatim:\npackages/excalidraw/components/App.tsx(5426,21): error TS2352: Conversion of type '{ scrollX?: number | undefined; scrollY?: number | undefined; zoom?: { value: NormalizedZoomValue; } | undefined; selectedElementIds?: {} | undefined; selectedGroupIds?: {} | undefined; ... 8 more ...; activePageId: string; }' to type 'Pick<AppState, keyof AppState>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Type '{ scrollX?: number | undefined; scrollY?: number | undefined; zoom?: { value: NormalizedZoomValue; } | undefined; selectedElementIds?: {} | undefined; selectedGroupIds?: {} | undefined; ... 8 more ...; activePageId: string; }' is missing the following properties from type 'Pick<AppState, keyof AppState>': name, width, height, viewModeEnabled, and 82 more.\npackages/excalidraw/components/App.tsx(5545,19): error TS2352: Conversion of type '{ scrollX?: number | undefined; scrollY?: number | undefined; zoom?: { value: NormalizedZoomValue; } | undefined; selectedElementIds?: {} | undefined; selectedGroupIds?: {} | undefined; ... 8 more ...; activePageId: string; }' to type 'Pick<AppState, keyof AppState>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Type '{ scrollX?: number | undefined; scrollY?: number | undefined; zoom?: { value: NormalizedZoomValue; } | undefined; selectedElementIds?: {} | undefined; selectedGroupIds?: {} | undefined; ... 8 more ...; activePageId: string; }' is missing the following properties from type 'Pick<AppState, keyof AppState>': name, width, height, viewModeEnabled, and 82 more.\nThe `as Pick<AppState, keyof AppState>` casts at these two setState calls (addPage, deletePage) do not type-check; type the object so this.setState accepts it without a cast to the full AppState (e.g. build it as a `Partial<AppState>`-compatible literal and call setState with it, as other setState calls in this file do). Change only these two sites.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6042
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6043,
+          12037
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (exit 2), errors in this file, verbatim:\npackages/excalidraw/tests/pages.test.tsx(55,11): error TS2322: Type 'ExcalidrawImperativeAPI | null' is not assignable to type 'ExcalidrawImperativeAPI'.\n  Type 'null' is not assignable to type 'ExcalidrawImperativeAPI'.\npackages/excalidraw/tests/pages.test.tsx(111,11): error TS2322: Type 'ExcalidrawImperativeAPI | null' is not assignable to type 'ExcalidrawImperativeAPI'.\n  Type 'null' is not assignable to type 'ExcalidrawImperativeAPI'.\n\nyarn test:app --watch=false failures in this file, verbatim:\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support in <Excalidraw /> > adds, switches, renames, reorders, and deletes pages while preserving per-page viewport and isolating elements\nAssertionError: expected 'page-1' to be 'page-id7' // Object.is equality\n\nExpected: \"page-id7\"\nReceived: \"page-1\"\n\n ❯ packages/excalidraw/tests/pages.test.tsx:194:37\n    192|       Keyboard.keyPress(KEYS.PAGE_DOWN);\n    193|     });\n    194|     expect(h.app.getActivePageId()).toBe(page2Id);\n       |                                     ^\n    195|     expect(h.state.scrollX).toBe(-300);\n    196|     expect(h.state.scrollY).toBe(450);\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support in <Excalidraw /> > scopes undo/redo to each page without switching pages or recording page switches\nAssertionError: expected [] to have a length of 1 but got +0\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ packages/excalidraw/tests/pages.test.tsx:373:45\n    371|     mouse.down(20, 20);\n    372|     mouse.up(70, 70);\n    373|     expect(h.scene.getNonDeletedElements()).toHaveLength(1);\n       |                                             ^\n    374|     const page2ElId = h.scene.getNonDeletedElements()[0].id;\n    375| \n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support in <Excalidraw /> > restores legacy single-page scenes, serializes all pages to JSON, and scopes visual exports via exportScene to the active page\nError: Error copying to clipboard.\n ❯ copyTextToSystemClipboard packages/excalidraw/clipboard.ts:635:11\n    633|   // (3) if previous fails, use document.execCommand\n    634|   if (plainTextEntry && !copyTextViaExecCommand(plainTextEntry[1])) {\n    635|     throw new Error(\"Error copying to clipboard.\");\n       |           ^\n    636|   }\n    637| };\n ❯ copyToClipboard packages/excalidraw/clipboard.ts:203:9\n ❯ exportToClipboard packages/excalidraw/scene/export.ts:1434:11\n ❯ packages/excalidraw/tests/pages.test.tsx:558:11\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯\n\n\n Test Files  2 failed | 150 passed (152)\n      Tests  4 failed | 2640 passed | 47 skipped | 1 todo (2692)\n   Start at  20:17:49\n   Duration  42.27s (transform 5.01s, setup 27.70s, collect 110.87s, tests 172.37s, environment 37.31s, prepare 6.88s)\n\nerror Command failed with exit code 1.\ninfo Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.\n\n\nNotes from the code at this commit: (a) the test fires Keyboard.keyPress on the document but renders <Excalidraw> without handleKeyboardGlobally={true}, which every other keyboard test here passes (e.g. actionStyles.test.tsx:30), so Alt+PageDown never reaches App; (b) onExcalidrawAPI passes ExcalidrawImperativeAPI | null; (c) exportToClipboard({type:\"json\"}) throws \"Error copying to clipboard.\" in jsdom unless the clipboard path is mocked as clipboard.test.tsx does; (d) at line 373 the drawn ellipse is not on the active page list; check how history.test.tsx draws an element and reads it. Keep every assertion about page behaviour.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/clipboard.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false failure in this file, verbatim:\n FAIL  excalidraw-app/tests/pages.test.tsx > excalidraw-app multi-page integration > round-trips all pages, elements, viewports, and activePageId through share links (exportToBackend and importFromBackend)\nOperationError: The operation failed for an operation-specific reason\nCaused by: Error: Cipher job failed\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯\n\n\nThe share-link round-trip fails inside Web Crypto (Cipher job failed): decryption runs with a key or iv that does not match the encryption. Use the key exportToBackend returns in its url (#json=<id>,<key>) and the exact bytes it POSTed, as excalidraw-app/data/index.ts encodes them; reuse the setup collab.test.tsx uses.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

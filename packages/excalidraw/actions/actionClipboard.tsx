@@ -140,7 +140,7 @@ export const actionCopyAsSvg = register({
     }
 
     const { exportedElements, exportingFrame } = prepareElementsForExport(
-      elements,
+      app.scene.getNonDeletedElements(),
       appState,
       true,
     );
@@ -189,8 +189,11 @@ export const actionCopyAsSvg = register({
       };
     }
   },
-  predicate: (elements) => {
-    return probablySupportsClipboardWriteText && elements.length > 0;
+  predicate: (_, _appState, _appProps, app) => {
+    return (
+      probablySupportsClipboardWriteText &&
+      app.scene.getNonDeletedElements().length > 0
+    );
   },
   keywords: ["svg", "clipboard", "copy"],
 });
@@ -213,7 +216,7 @@ export const actionCopyAsPng = register({
     });
 
     const { exportedElements, exportingFrame } = prepareElementsForExport(
-      elements,
+      app.scene.getNonDeletedElements(),
       appState,
       true,
     );
@@ -250,8 +253,11 @@ export const actionCopyAsPng = register({
       };
     }
   },
-  predicate: (elements) => {
-    return probablySupportsClipboardBlob && elements.length > 0;
+  predicate: (_, _appState, _appProps, app) => {
+    return (
+      probablySupportsClipboardBlob &&
+      app.scene.getNonDeletedElements().length > 0
+    );
   },
   keyTest: (event) => event.code === CODES.C && event.altKey && event.shiftKey,
   keywords: ["png", "clipboard", "copy"],

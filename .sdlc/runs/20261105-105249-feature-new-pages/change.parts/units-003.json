@@ -1,0 +1,103 @@
+{
+  "section": "units",
+  "source": "units-003.json",
+  "value": [
+    {
+      "id": "U03",
+      "path": "excalidraw-app/data/firebase.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Passes `reconciledElements` as the third argument to `reconcilePages` in `saveToFirebase` so local pages with non-deleted elements are preserved during Firebase transaction reconciliation.",
+      "rules": [
+        "1. In S1 (line 298), pass `reconciledElements` as the third argument to `reconcilePages(appState.pages, prevDecrypted.pages, reconciledElements)`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 298,
+          "to": 298,
+          "first_line": "const reconciledPages = reconcilePages(appState.pages, prevDecrypted.pages);",
+          "rule": "Pass reconciledElements as the third argument to reconcilePages: const reconciledPages = reconcilePages(appState.pages, prevDecrypted.pages, reconciledElements);"
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "NFR-4",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "excalidraw-app/collab/Collab.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Passes `reconciledElements` / `elements` as the third argument to all four `reconcilePages` call sites in `Collab.tsx` (lines 632, 789, 810, and 901).",
+      "rules": [
+        "1. In S1 (lines 632-636), pass `reconciledElements` as the third argument to `reconcilePages` when resolving `WS_SUBTYPES.INIT`.",
+        "2. In S2 (lines 789-792) and S3 (lines 810-813), pass `elements` as the third argument to `reconcilePages` when loading the room from Firebase.",
+        "3. In S4 (lines 901-904), pass `elements` as the third argument to `reconcilePages` in `handleRemoteSceneUpdate`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 632,
+          "to": 636,
+          "first_line": "pages: reconcilePages(",
+          "last_line": "),",
+          "rule": "Pass reconciledElements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 789,
+          "to": 792,
+          "first_line": "const reconciledPages = reconcilePages(",
+          "last_line": ");",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 810,
+          "to": 813,
+          "first_line": "pages: reconcilePages(",
+          "last_line": "),",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 901,
+          "to": 904,
+          "first_line": "const nextPages = reconcilePages(",
+          "last_line": ");",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    }
+  ],
+  "hashes": {
+    "excalidraw-app/data/firebase.ts": "ed28fcad1fe6b21760798c5bbc59e7f9654b5abe587ca8d2d5a86a107ebd84c6",
+    "excalidraw-app/collab/Collab.tsx": "d1c5818f6586e2ebb3be74a432b18a9f26791873ec315de64615a055208eab75"
+  }
+}

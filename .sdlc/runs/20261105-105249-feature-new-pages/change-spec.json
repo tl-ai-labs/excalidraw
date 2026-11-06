@@ -1,0 +1,560 @@
+{
+  "header": {
+    "conventions": [
+      "Prettier formatting: 2-space indentation, double quotes, trailing commas everywhere, semicolons enabled, 80-character print width.",
+      "ESLint import order: builtin, external, internal, parent, sibling, index, object, type, with blank lines between groups (`newlines-between: always`) and `import type` for type-only imports (`@typescript-eslint/consistent-type-imports`).",
+      "TypeScript strict mode across all workspaces; prefer `Merge<Base, Overrides>` from `@excalidraw/common/utility-types` over `Omit<Base, ...> & Overrides`.",
+      "DOM/window access in `packages/excalidraw` must use `this.ownerDocument` / `this.ownerWindow` (or `app.ownerDocument` / `app.ownerWindow`) rather than global `document` or `window`.",
+      "i18n: only modify `packages/excalidraw/locales/en.json` and look up strings with `t(\"pages....\")`; never modify non-English locale files.",
+      "Vitest + `@testing-library/react` for tests, using `render` from `./test-utils`, `UI` and `Keyboard` helpers from `./helpers/ui`, and `API` from `./helpers/api`."
+    ],
+    "decisions": [
+      {
+        "topic": "Element page association and snapshot compatibility (`ExcalidrawElement.pageId`)",
+        "choice": "Add optional `pageId?: string` to `_ExcalidrawElementBase`. Do not emit `pageId` on element literals when creating or restoring elements on `DEFAULT_PAGE_ID` (`\"page-1\"`) unless an explicit non-default `pageId` string is present; resolve missing or orphaned `pageId` values at runtime via `getElementPageId(element, pages)` returning the first page ID or `DEFAULT_PAGE_ID`.",
+        "rejected": [
+          "Always setting `pageId: \"page-1\"` on every created and restored element",
+          "Storing per-page element arrays inside `AppState.pages`"
+        ],
+        "reason": "Omitting `pageId` when on the default first page preserves backward compatibility with legacy single-page `.excalidraw` files and keeps all existing single-page element snapshots unchanged while `Scene.insertElementsAtIndex` and `Scene.replaceAllElements` automatically stamp `pageId: this.activePageId` on newly created elements when `activePageId !== DEFAULT_PAGE_ID`."
+      },
+      {
+        "topic": "Page metadata model and viewport synchronization (`AppState.pages` and `AppState.activePageId`)",
+        "choice": "Define `ExcalidrawPage = Readonly<{ id: string; name: string; scrollX: number; scrollY: number; zoom: Zoom }>` in `@excalidraw/element` and `@excalidraw/excalidraw`, default `AppState.pages` to `[{ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME, scrollX: 0, scrollY: 0, zoom: { value: 1 as NormalizedZoomValue } }]` and `AppState.activePageId` to `DEFAULT_PAGE_ID`, configure both `pages` and `activePageId` with `{ browser: true, export: true, server: true }` in `APP_STATE_STORAGE_CONF`, and sync top-level `scrollX`, `scrollY`, and `zoom` into the outgoing page entry and out of the incoming page entry whenever switching pages or updating viewport.",
+        "rejected": [
+          "Replacing top-level `AppState.scrollX`, `AppState.scrollY`, and `AppState.zoom` with page-only fields",
+          "Keeping page viewports in component-local React state outside `AppState`"
+        ],
+        "reason": "Keeping top-level `scrollX`, `scrollY`, and `zoom` mirrored with the active page's entry in `AppState.pages` and marking `pages` and `activePageId` as `server: true` allows all existing renderer, viewport, local autosave (`FR-17`), `.excalidraw` JSON files (`FR-14`), and `#json=` share links (`FR-18`, `AC-10`) to round-trip pages and `activePageId`."
+      },
+      {
+        "topic": "Active-page filtering in `Scene` vs full-document access and `componentDidUpdate` render-count preservation",
+        "choice": "`Scene` tracks `activePageId` and `pageIds` via `scene.setActivePage(activePageId, pageIds)`, and `App.componentDidUpdate` calls `this.scene.setActivePage` and `this.syncPageHistoryStacks` only when `activePageId` or the page id list changed from `prevState`.",
+        "rejected": [
+          "Calling `this.scene.setActivePage` unconditionally on every `componentDidUpdate` when `activePageId` and `pages` ids did not change"
+        ],
+        "reason": "Guarding `scene.setActivePage` and `syncPageHistoryStacks` at `App.tsx:4521-4525` preserves `Scene.getSelectedElements` cache identity on mount so `dragCreate` and `selection` render counts match HEAD (`NFR-3`)."
+      },
+      {
+        "topic": "History and undo/redo tracking for page mutations and page-scoped element edits",
+        "choice": "Include `pages` (but not `activePageId`) in `ObservedStandaloneAppState` (`packages/element/src/store.ts` and `packages/excalidraw/types.ts`) and `AppStateDelta` (`packages/element/src/delta.ts`), never switch `activePageId` in `StoreDelta.applyTo`, maintain per-page undo/redo stacks in `App` (swapping `this.history.undoStack` and `this.history.redoStack` in-place when `activePageId` changes), and schedule `CaptureUpdateAction.NEVER` in `addPage` so the page-list change does not land on the newly created page's undo stack and a new page starts with an empty undo stack.",
+        "rejected": [
+          "Recording `activePageId` in `ObservedStandaloneAppState` or switching `activePageId` in `StoreDelta.applyTo` on undo/redo",
+          "Calling `this.store.scheduleCapture()` after `syncPageHistoryStacks` in `addPage`, which pushes the `pages` delta onto the newly created page's undo stack"
+        ],
+        "reason": "Satisfies `FR-6` and `AC-5`: undo and redo never switch pages, page switches (`activePageId`) are not recorded in history, a newly created page starts with an empty undo stack, and undoing or redoing on a page applies only to that page's changes without mutating inactive pages."
+      },
+      {
+        "topic": "UI control gating and placement for `PageBar`",
+        "choice": "Use a single opt-in switch `UIOptions.canvasActions.pages: boolean` with `pages: false` in `DEFAULT_UI_OPTIONS.canvasActions` (since `AppProps[\"UIOptions\"][\"canvasActions\"]` is `Required<CanvasActions>`, keeping it off by default in `@excalidraw/excalidraw`, with no `?? true` fallback and no separate `pagesUIEnabled` / `UIConfig.enabled.pages` flag), gate `PageBar` on `Boolean(app.props.UIOptions.canvasActions.pages) && !appState.zenModeEnabled && (app.isInteractionEnabled() || app.isNavigationEnabled())`, enable `UIOptions.canvasActions.pages: true` in `excalidraw-app/App.tsx`, render `PageBar` in both desktop `Footer` and mobile `MobileMenu`, and in `viewModeEnabled` allow switching tabs while hiding `+`, rename, reorder, and delete controls.",
+        "rejected": [
+          "Enabling `pages: true` in `DEFAULT_UI_OPTIONS.canvasActions` or adding a separate `UIConfig.enabled.pages` / `pagesUIEnabled` flag",
+          "Hiding `PageBar` completely in `viewModeEnabled`"
+        ],
+        "reason": "Satisfies `FR-7` and `AC-1` with a single opt-in switch `UIOptions.canvasActions.pages` that defaults to `false` in `DEFAULT_UI_OPTIONS.canvasActions` (`@excalidraw/excalidraw`) and is enabled in `excalidraw-app/App.tsx`."
+      },
+      {
+        "topic": "Multi-page collaboration synchronization and backward-compatible Firebase room storage",
+        "choice": "Extend `WS_SUBTYPES.INIT` and `WS_SUBTYPES.UPDATE` payloads with optional `pages?: readonly ExcalidrawPage[]` and `WS_SUBTYPES.MOUSE_LOCATION` and `WS_SUBTYPES.USER_VISIBLE_SCENE_BOUNDS` payloads (plus `Collaborator`) with optional `pageId?: string`; accept an optional third argument `elements?: readonly ExcalidrawElement[]` in `reconcilePages(localPages, remotePages, elements)` so local pages missing from `remotePages` that still have non-deleted elements on them are preserved (`AC-12`), and pass `reconciledElements` / `elements` at all `Collab.tsx` and `firebase.ts` call sites; in `excalidraw-app/data/firebase.ts`, always encrypt a JSON array inside `FirebaseStoredScene.ciphertext` (encoding `elements` unchanged when `pages` is the single default page, and appending a sentinel `{ id: \"__excalidraw_pages__\", type: \"selection\", pages }` entry to the array when custom or multiple pages exist, which `decryptElements` extracts and removes).",
+        "rejected": [
+          "Dropping local pages missing from `remotePages` in `reconcilePages` even when non-deleted elements are still on them",
+          "Encrypting a non-array `{ elements, pages }` object as the root payload in `FirebaseStoredScene.ciphertext`, which breaks older clients calling `restoreElements` -> `arrayToMap` -> `items.reduce`"
+        ],
+        "reason": "Preserving local pages that still have non-deleted elements in `reconcilePages` ensures a page created before its broadcast is not dropped (`AC-12`), and keeping `FirebaseStoredScene.ciphertext` as a JSON array ensures backward-compatible E2E-encrypted Firebase room storage (`FR-19`, `NFR-1`, `NFR-4`)."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "yarn eslint --max-warnings 0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 120
+      },
+      {
+        "id": "vitest",
+        "run": "yarn vitest run {path}",
+        "timeout_s": 180
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "test-code",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test-app",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/data/reconcile.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds an optional third parameter `elements?: readonly ExcalidrawElement[]` to `reconcilePages` so local pages missing from `remotePages` are kept when non-deleted elements are still on them (AC-12).",
+      "rules": [
+        "1. In S1 (line 11), import `ExcalidrawElement` alongside `OrderedExcalidrawElement` from `\"@excalidraw/element/types\"`.",
+        "2. In S2 (lines 120-148), add `elements?: readonly ExcalidrawElement[]` as an optional third parameter to `reconcilePages`; after iterating `remotePages`, if `elements?.length`, collect the set of `element.pageId` values across non-deleted elements (`!element.isDeleted && element.pageId`) and append any `localPage` in `localPages` whose `id` is not yet in `seen` and is in that set."
+      ],
+      "exports": [
+        {
+          "name": "reconcilePages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "localPages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "remotePages",
+              "type": "readonly ExcalidrawPage[] | undefined"
+            },
+            {
+              "name": "elements",
+              "type": "readonly ExcalidrawElement[] | undefined"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        }
+      ],
+      "import_line": "import { reconcilePages } from \"@excalidraw/excalidraw\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 11,
+          "first_line": "import type { OrderedExcalidrawElement } from \"@excalidraw/element/types\";",
+          "rule": "Import ExcalidrawElement alongside OrderedExcalidrawElement from @excalidraw/element/types."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 120,
+          "to": 148,
+          "first_line": "export const reconcilePages = (",
+          "last_line": "};",
+          "rule": "Add optional elements?: readonly ExcalidrawElement[] parameter to reconcilePages and keep any localPage missing from remotePages that still has non-deleted elements on it."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/excalidraw/components/App.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Replaces `this.store.scheduleCapture()` with `this.store.scheduleAction(CaptureUpdateAction.NEVER)` in `addPage` so the page-list change does not land on the newly created page's undo stack and a new page starts with an empty undo stack (FR-6).",
+      "rules": [
+        "1. In S1 (line 5425), replace `this.store.scheduleCapture();` with `this.store.scheduleAction(CaptureUpdateAction.NEVER);` inside `addPage` so `componentDidUpdate` updates `this.store.snapshot` with `nextPages` without recording a `HistoryDelta` on the new page's undo stack."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 5425,
+          "to": 5425,
+          "first_line": "this.store.scheduleCapture();",
+          "rule": "Replace this.store.scheduleCapture(); with this.store.scheduleAction(CaptureUpdateAction.NEVER); so the newly created page starts with an empty undo stack."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-13",
+        "FR-14",
+        "FR-15",
+        "FR-16",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "FR-20",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "NFR-4",
+        "NFR-5",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "excalidraw-app/data/firebase.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Passes `reconciledElements` as the third argument to `reconcilePages` in `saveToFirebase` so local pages with non-deleted elements are preserved during Firebase transaction reconciliation.",
+      "rules": [
+        "1. In S1 (line 298), pass `reconciledElements` as the third argument to `reconcilePages(appState.pages, prevDecrypted.pages, reconciledElements)`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 298,
+          "to": 298,
+          "first_line": "const reconciledPages = reconcilePages(appState.pages, prevDecrypted.pages);",
+          "rule": "Pass reconciledElements as the third argument to reconcilePages: const reconciledPages = reconcilePages(appState.pages, prevDecrypted.pages, reconciledElements);"
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "NFR-4",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "excalidraw-app/collab/Collab.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Passes `reconciledElements` / `elements` as the third argument to all four `reconcilePages` call sites in `Collab.tsx` (lines 632, 789, 810, and 901).",
+      "rules": [
+        "1. In S1 (lines 632-636), pass `reconciledElements` as the third argument to `reconcilePages` when resolving `WS_SUBTYPES.INIT`.",
+        "2. In S2 (lines 789-792) and S3 (lines 810-813), pass `elements` as the third argument to `reconcilePages` when loading the room from Firebase.",
+        "3. In S4 (lines 901-904), pass `elements` as the third argument to `reconcilePages` in `handleRemoteSceneUpdate`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 632,
+          "to": 636,
+          "first_line": "pages: reconcilePages(",
+          "last_line": "),",
+          "rule": "Pass reconciledElements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 789,
+          "to": 792,
+          "first_line": "const reconciledPages = reconcilePages(",
+          "last_line": ");",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 810,
+          "to": 813,
+          "first_line": "pages: reconcilePages(",
+          "last_line": "),",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 901,
+          "to": 904,
+          "first_line": "const nextPages = reconcilePages(",
+          "last_line": ");",
+          "rule": "Pass elements as the third argument to reconcilePages."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/excalidraw/tests/pages.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Updates `packages/excalidraw/tests/pages.test.tsx` to use only methods and `data-testid`s that exist at this commit (`h.scene.getAllNonDeletedElements()`, `h.scene.getElementsIncludingDeleted()`, `h.app.actionManager.executeAction(actionSelectAll)`, `page-rename-input`, `page-move-left-${page2Id}`, and `api!.reorderPages(0, 1)`).",
+      "rules": [
+        "1. In S1 (line 23), import `actionSelectAll` alongside `actionDeleteSelected` from `\"../actions\"`.",
+        "2. In S2 (line 187), replace `h.scene.getAllElementsIncludingInactivePages()` with `h.scene.getAllNonDeletedElements()`.",
+        "3. In S3 (lines 227-229) and S6 (lines 350-352), replace `h.app.selectAll()` with `h.app.actionManager.executeAction(actionSelectAll)`.",
+        "4. In S4 (lines 246-283), query `[data-testid=\"page-rename-input\"]` instead of `[data-testid=\"page-tab-rename-input\"]`, re-query `[data-testid=\"page-tab-${DEFAULT_PAGE_ID}\"]` before the second doubleClick, query `[data-testid=\"page-move-left-${page2Id}\"]` instead of firing contextMenu and querying `[data-testid=\"page-context-move-left\"]`, and call `api!.reorderPages(0, 1)` instead of `api!.reorderPages(page2Id, 1)`.",
+        "5. In S5 (lines 299-301), S7 (lines 405-407), S8 (lines 425-427), and S9 (lines 448-450), replace `h.scene.getAllElementsIncludingInactivePages()` with `h.scene.getElementsIncludingDeleted()`.",
+        "6. In S10 (lines 541-546), replace `h.scene.getAllElementsIncludingInactivePages()` with `h.scene.getAllNonDeletedElements()`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 23,
+          "to": 23,
+          "first_line": "import { actionDeleteSelected } from \"../actions\";",
+          "rule": "Import actionSelectAll alongside actionDeleteSelected from ../actions."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 187,
+          "to": 187,
+          "first_line": "expect(h.scene.getAllElementsIncludingInactivePages()).toHaveLength(1);",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getAllNonDeletedElements()."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 227,
+          "to": 229,
+          "first_line": "act(() => {",
+          "last_line": "});",
+          "rule": "Replace h.app.selectAll() with h.app.actionManager.executeAction(actionSelectAll)."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 246,
+          "to": 283,
+          "first_line": "// Rename Page 1 via double-click inline input (FR-9, AC-6)",
+          "last_line": "expect(h.state.pages.map((p) => p.id)).toEqual([DEFAULT_PAGE_ID, page2Id]);",
+          "rule": "Use data-testid=\"page-rename-input\", re-query [data-testid=\"page-tab-${DEFAULT_PAGE_ID}\"] before the second doubleClick, click [data-testid=\"page-move-left-${page2Id}\"], and call api!.reorderPages(0, 1)."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 299,
+          "to": 301,
+          "first_line": "const deletedPage2El = h.scene",
+          "last_line": ".find((e) => e.id === \"ellipse-page-2\");",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getElementsIncludingDeleted()."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 350,
+          "to": 352,
+          "first_line": "act(() => {",
+          "last_line": "});",
+          "rule": "Replace h.app.selectAll() with h.app.actionManager.executeAction(actionSelectAll)."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 405,
+          "to": 407,
+          "first_line": "h.scene",
+          "last_line": ".find((el) => el.id === page1ElId)?.isDeleted,",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getElementsIncludingDeleted()."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 425,
+          "to": 427,
+          "first_line": "h.scene",
+          "last_line": ".find((el) => el.id === page1ElId)?.isDeleted,",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getElementsIncludingDeleted()."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 448,
+          "to": 450,
+          "first_line": "h.scene",
+          "last_line": ".find((el) => el.id === page2ElId)?.isDeleted,",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getElementsIncludingDeleted()."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 541,
+          "to": 546,
+          "first_line": "const serialized = serializeAsJSON(",
+          "last_line": ");",
+          "rule": "Replace h.scene.getAllElementsIncludingInactivePages() with h.scene.getAllNonDeletedElements()."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-13",
+        "FR-14",
+        "FR-15",
+        "FR-16",
+        "FR-19",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "NFR-5",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-12",
+        "AC-13",
+        "AC-14"
+      ],
+      "tests": [
+        {
+          "name": "hides PageBar by default and renders it when UIOptions.canvasActions.pages is true",
+          "given": "<Excalidraw /> rendered with default props vs UIOptions={{ canvasActions: { pages: true } }} and viewModeEnabled",
+          "expect": "page-bar is absent by default, present with page-bar-add when UIOptions.canvasActions.pages is true, and hides mutation buttons in viewModeEnabled"
+        },
+        {
+          "name": "adds, switches, renames, reorders, and deletes pages while preserving per-page viewport and isolating elements",
+          "given": "an Excalidraw instance with UIOptions={{ canvasActions: { pages: true } }} and elements on Page 1 and Page 2",
+          "expect": "each page retains its own elements and scrollX/scrollY/zoom, empty rename is rejected, actionSelectAll only selects active-page elements, and deleting the last page is prevented"
+        },
+        {
+          "name": "scopes undo/redo to each page without switching pages or recording page switches",
+          "given": "elements created on Page 1, Page 2 added and switched to, undo/redo executed on Page 2, and then switched back to Page 1",
+          "expect": "adding and switching to Page 2 starts Page 2 with an empty undo stack, undo on Page 2 never switches pages or mutates Page 1's elements, undo on Page 2 only reverts Page 2 edits, and switching back to Page 1 allows undoing Page 1's element edits"
+        },
+        {
+          "name": "restores legacy single-page scenes, serializes all pages to JSON, and scopes visual exports via exportScene to the active page",
+          "given": "legacy scene data without pages/pageId and a multi-page scene exported via serializeAsJSON, exportScene, and exportToClipboard",
+          "expect": "legacy data normalizes to Page 1, serializeAsJSON includes all pages and elements, and exportScene ('svg' and 'canvas') and exportToClipboard render only active-page elements while embedding all pages when embedScene is true"
+        },
+        {
+          "name": "searches across all pages, reconciles remote pages, and filters remote collaborator cursors by pageId",
+          "given": "text elements across Page 1 and Page 2, remote pages and elements passed to reconcilePages, and collaborators with different pageIds",
+          "expect": "SearchMenu lists matches from both pages and switches activePageId on selection, and reconcilePages keeps local pages that still have non-deleted elements on them (AC-12)"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "excalidraw-app/tests/pages.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Updates the `fetch` mock in `excalidraw-app/tests/pages.test.tsx` so the share-link `GET` returns the stored bytes regardless of the URL's form.",
+      "rules": [
+        "1. In S1 (lines 135-168), return `backendStore.get(\"share-multi-page-id\") ?? new ArrayBuffer(0)` on any non-`POST` `fetch` call regardless of the URL's form."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 135,
+          "to": 168,
+          "first_line": "globalThis.fetch = vi.fn(",
+          "last_line": ") as unknown as typeof fetch;",
+          "rule": "Store the POST body bytes under \"share-multi-page-id\" and return backendStore.get(\"share-multi-page-id\") ?? new ArrayBuffer(0) for any GET request regardless of the URL's form."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U04"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-17",
+        "FR-18",
+        "FR-19",
+        "NFR-1",
+        "NFR-2",
+        "NFR-4",
+        "AC-1",
+        "AC-10",
+        "AC-11",
+        "AC-12"
+      ],
+      "tests": [
+        {
+          "name": "renders the page tab bar by default in ExcalidrawApp",
+          "given": "<ExcalidrawApp /> rendered in jsdom",
+          "expect": "data-testid=\"page-bar\" is present in the rendered app"
+        },
+        {
+          "name": "round-trips all pages, elements, viewports, and activePageId through share links (exportToBackend and importFromBackend)",
+          "given": "a multi-page scene with two pages, elements on both pages, custom per-page viewports, and activePageId set to page-2 exported via exportToBackend and imported via importFromBackend",
+          "expect": "the imported and restored scene preserves all pages in order, their names, per-page scrollX/scrollY/zoom, all elements with their pageId, and activePageId === 'page-2'"
+        },
+        {
+          "name": "round-trips all pages, elements, viewports, and activePageId through local autosave (LocalData and importFromLocalStorage)",
+          "given": "a multi-page scene with two pages, elements on both pages, custom per-page viewports, and activePageId set to page-2 saved via LocalData.save + LocalData.flushSave and loaded via importFromLocalStorage",
+          "expect": "the restored localStorage state preserves all pages, their elements, per-page viewports, and activePageId === 'page-2'"
+        },
+        {
+          "name": "saves and loads room pages in Firebase as a backward-compatible JSON array so a room loaded with no peers online keeps every element on its own page",
+          "given": "a collaboration room with pages page-1 and page-2 and elements on each page saved via saveToFirebase and loaded via loadFromFirebase with no peers online",
+          "expect": "the encrypted ciphertext decodes to a JSON array accepted by restoreElements, loadFromFirebase returns both pages and elements, and after applying the loaded room state to the scene, page-1 shows only page-1 elements and switching to page-2 shows page-2 elements"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    }
+  ]
+}

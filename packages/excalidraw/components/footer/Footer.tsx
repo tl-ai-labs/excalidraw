@@ -5,6 +5,7 @@ import { useTunnels } from "../../context/tunnels";
 import { ExitZenModeButton, UndoRedoActions, ZoomActions } from "../Actions";
 import { useApp } from "../App";
 import { HelpButton } from "../HelpButton";
+import { PageBar } from "../PageBar/PageBar";
 import { Section } from "../Section";
 import Stack from "../Stack";
 
@@ -36,7 +37,13 @@ const Footer = ({
     >
       {/* footer-left is not faded out in zen mode: it holds the zoom controls,
           which stay visible (chrome-less). Its children opt in individually. */}
-      {(defaultUIEnabled || (zoomUIEnabled && app.isNavigationEnabled())) && (
+      {(defaultUIEnabled ||
+        (zoomUIEnabled && app.isNavigationEnabled()) ||
+        Boolean(
+          app.props.UIOptions.canvasActions.pages &&
+            !appState.zenModeEnabled &&
+            (app.isInteractionEnabled() || app.isNavigationEnabled()),
+        )) && (
         <div className="layer-ui__wrapper__footer-left zen-mode-transition">
           <Stack.Col gap={2}>
             <Section heading="canvasActions">
@@ -53,6 +60,12 @@ const Footer = ({
                   })}
                 />
               )}
+
+              {Boolean(
+                app.props.UIOptions.canvasActions.pages &&
+                  !appState.zenModeEnabled &&
+                  (app.isInteractionEnabled() || app.isNavigationEnabled()),
+              ) && <PageBar app={app} appState={appState} />}
             </Section>
           </Stack.Col>
         </div>

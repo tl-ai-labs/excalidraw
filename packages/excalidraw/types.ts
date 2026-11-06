@@ -96,6 +96,7 @@ export type Collaborator = Readonly<{
   isInCall?: boolean;
   isSpeaking?: boolean;
   isMuted?: boolean;
+  pageId?: string;
 }>;
 
 export type CollaboratorPointer = {
@@ -204,6 +205,7 @@ type _CommonCanvasAppState = {
   offsetLeft: AppState["offsetLeft"];
   offsetTop: AppState["offsetTop"];
   theme: AppState["theme"];
+  activePageId?: AppState["activePageId"];
 };
 
 export type StaticCanvasAppState = Readonly<
@@ -268,6 +270,7 @@ export type ObservedAppState = ObservedStandaloneAppState &
 export type ObservedStandaloneAppState = {
   name: AppState["name"];
   viewBackgroundColor: AppState["viewBackgroundColor"];
+  pages: AppState["pages"];
 };
 
 export type ObservedElementsAppState = {
@@ -588,6 +591,8 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  pages: readonly ExcalidrawPage[];
+  activePageId: string;
 }
 
 export type SearchMatch = {
@@ -626,6 +631,14 @@ export type NormalizedZoomValue = number & { _brand: "normalizedZoom" };
 
 export type Zoom = Readonly<{
   value: NormalizedZoomValue;
+}>;
+
+export type ExcalidrawPage = Readonly<{
+  id: string;
+  name: string;
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
 }>;
 
 export type PointerCoords = Readonly<{
@@ -1162,6 +1175,7 @@ export type CanvasActions = Partial<{
    * */
   toggleTheme: boolean | null;
   saveAsImage: boolean;
+  pages?: boolean;
 }>;
 
 export type UIOptions = Partial<{
@@ -1275,6 +1289,14 @@ export type AppClassProperties = {
   requestUnfollow: App["requestUnfollow"];
 
   setAppState: App["setAppState"];
+
+  getPages: App["getPages"];
+  getActivePageId: App["getActivePageId"];
+  setActivePage: App["setActivePage"];
+  addPage: App["addPage"];
+  renamePage: App["renamePage"];
+  reorderPages: App["reorderPages"];
+  deletePage: App["deletePage"];
 
   isInteractionEnabled: App["isInteractionEnabled"];
   isNavigationEnabled: App["isNavigationEnabled"];
@@ -1426,6 +1448,13 @@ export interface ExcalidrawImperativeAPI {
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];
+  getPages: InstanceType<typeof App>["getPages"];
+  getActivePageId: InstanceType<typeof App>["getActivePageId"];
+  setActivePage: InstanceType<typeof App>["setActivePage"];
+  addPage: InstanceType<typeof App>["addPage"];
+  renamePage: InstanceType<typeof App>["renamePage"];
+  reorderPages: InstanceType<typeof App>["reorderPages"];
+  deletePage: InstanceType<typeof App>["deletePage"];
   setViewport: InstanceType<typeof App>["viewport"]["setViewport"];
   getViewportOffsets: InstanceType<typeof App>["viewport"]["getOffsets"];
   /**

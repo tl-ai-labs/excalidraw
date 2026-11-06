@@ -8,11 +8,14 @@ import {
   validateFractionalIndices,
 } from "@excalidraw/element";
 
-import type { OrderedExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  OrderedExcalidrawElement,
+} from "@excalidraw/element/types";
 
 import type { MakeBrand } from "@excalidraw/common/utility-types";
 
-import type { AppState } from "../types";
+import type { AppState, ExcalidrawPage } from "../types";
 
 export type ReconciledExcalidrawElement = OrderedExcalidrawElement &
   MakeBrand<"ReconciledElement">;
@@ -115,4 +118,53 @@ export const reconcileElements = (
   syncInvalidIndices(orderedElements);
 
   return orderedElements as ReconciledExcalidrawElement[];
+};
+
+export const reconcilePages = (
+  localPages: readonly ExcalidrawPage[],
+  remotePages: readonly ExcalidrawPage[] | undefined,
+  elements?: readonly ExcalidrawElement[],
+): ExcalidrawPage[] => {
+  if (!remotePages || !remotePages.length) {
+    return [...localPages];
+  }
+
+  const localMap = new Map(localPages.map((p) => [p.id, p]));
+  const result: ExcalidrawPage[] = [];
+  const seen = new Set<string>();
+
+  for (const remotePage of remotePages) {
+    if (!remotePage?.id || seen.has(remotePage.id)) {
+      continue;
+    }
+    seen.add(remotePage.id);
+    const localPage = localMap.get(remotePage.id);
+    result.push({
+      id: remotePage.id,
+      name: remotePage.name || localPage?.name || "Page",
+      scrollX: localPage ? localPage.scrollX : remotePage.scrollX ?? 0,
+      scrollY: localPage ? localPage.scrollY : remotePage.scrollY ?? 0,
+      zoom: localPage ? localPage.zoom : remotePage.zoom,
+    });
+  }
+
+  if (elements?.length) {
+    const pageIdsWithNonDeletedElements = new Set<string>();
+    for (const element of elements) {
+      if (!element.isDeleted && element.pageId) {
+        pageIdsWithNonDeletedElements.add(element.pageId);
+      }
+    }
+    for (const localPage of localPages) {
+      if (
+        !seen.has(localPage.id) &&
+        pageIdsWithNonDeletedElements.has(localPage.id)
+      ) {
+        seen.add(localPage.id);
+        result.push(localPage);
+      }
+    }
+  }
+
+  return result.length ? result : [...localPages];
 };

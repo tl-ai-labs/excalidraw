@@ -163,10 +163,12 @@ class Portal {
       return acc;
     }, [] as SyncableExcalidrawElement[]);
 
+    const appState = this.collab.excalidrawAPI.getAppState();
     const data: SocketUpdateDataSource[typeof updateType] = {
       type: updateType,
       payload: {
         elements: syncableElements,
+        ...(appState.pages?.length ? { pages: appState.pages } : {}),
       },
     };
 
@@ -213,6 +215,7 @@ class Portal {
           selectedElementIds:
             this.collab.excalidrawAPI.getAppState().selectedElementIds,
           username: this.collab.state.username,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
         },
       };
 
@@ -236,6 +239,7 @@ class Portal {
           socketId: this.socket.id as SocketId,
           username: this.collab.state.username,
           sceneBounds: payload.sceneBounds,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
         },
       };
 

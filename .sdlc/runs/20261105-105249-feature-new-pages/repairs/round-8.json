@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r8_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise from the person, verbatim: \"add the Gate 0 decision 2 test to packages/excalidraw/tests/pages.test.tsx: render <Excalidraw> with the tab bar off (no UIOptions.canvasActions.pages) and initialData holding two pages with elements on each and activePageId on page 2; assert only page 2's elements are in h.scene.getNonDeletedElements(), that the last onChange call's elements include both pages' elements and its appState.pages has both pages, and that serializeAsJSON of h.scene.getAllNonDeletedElements() keeps both pages.\"\nAdd this as one new it(...) case inside the existing describe block; change no existing test. Write the assertions exactly as stated (do not weaken them). Use API.createElement for the elements (spread pageId onto them, as the existing cases in this file do), the existing render/h helpers, and serializeAsJSON already imported in this file; parse its JSON and assert both page ids appear on the serialized elements and both pages are in appState.pages.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]
