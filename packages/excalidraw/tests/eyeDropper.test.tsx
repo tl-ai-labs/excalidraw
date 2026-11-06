@@ -4,7 +4,11 @@ import { vi } from "vitest";
 import { applyDarkModeFilter, COLOR_PALETTE, THEME } from "@excalidraw/common";
 import { ShapeCache } from "@excalidraw/element";
 
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
 import { Excalidraw } from "../index";
+import { activeEyeDropperAtom } from "../components/EyeDropper";
+import { editorJotaiStore } from "../editor-jotai";
 
 import { API } from "./helpers/api";
 import { Keyboard } from "./helpers/ui";
@@ -12,12 +16,29 @@ import {
   act,
   fireEvent,
   GlobalTestState,
+  mockBoundingClientRect,
   render,
+  restoreOriginalGetBoundingClientRect,
   togglePopover,
   waitFor,
 } from "./test-utils";
 
+import type { Drawable } from "roughjs/bin/core";
+
+const darkFill = (element: ExcalidrawElement) =>
+  (ShapeCache.get(element, THEME.DARK) as Drawable | undefined)?.options.fill;
+
 describe("eye dropper", () => {
+  beforeEach(() => {
+    // the eyedropper state lives in a shared store, so a test that leaves it
+    // open would make the next test's trigger click close it
+    editorJotaiStore.set(activeEyeDropperAtom, null);
+  });
+
+  afterEach(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
   it("keeps the color preview within the editor container", async () => {
     await render(<Excalidraw autoFocus={true} handleKeyboardGlobally={true} />);
 
@@ -61,6 +82,9 @@ describe("eye dropper", () => {
   });
 
   it("inverts dark-mode canvas pixel when picking color in dark theme", async () => {
+    // jsdom gives the editor a 0×0 viewport, which leaves the target
+    // rectangle unrendered and its shape cache empty
+    mockBoundingClientRect({ width: 1000, height: 1000 });
     await render(
       <Excalidraw
         autoFocus={true}
@@ -92,7 +116,7 @@ describe("eye dropper", () => {
     API.setSelectedElements([targetRect]);
 
     await waitFor(() => {
-      expect(ShapeCache.get(sourceRect, THEME.DARK)?.options.fill).toBe(
+      expect(darkFill(sourceRect)).toBe(
         applyDarkModeFilter(COLOR_PALETTE.black),
       );
     });
@@ -133,9 +157,11 @@ describe("eye dropper", () => {
     fireEvent.pointerUp(eyeDropperContainer, { clientX: 50, clientY: 50 });
 
     expect(window.h.elements[1].backgroundColor).toBe(COLOR_PALETTE.black);
-    expect(ShapeCache.get(window.h.elements[1], THEME.DARK)?.options.fill).toBe(
-      ShapeCache.get(window.h.elements[0], THEME.DARK)?.options.fill,
-    );
+    await waitFor(() => {
+      expect(darkFill(window.h.elements[1])).toBe(
+        darkFill(window.h.elements[0]),
+      );
+    });
     expect(
       (
         GlobalTestState.renderResult.container.querySelector(
