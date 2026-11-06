@@ -1,0 +1,15 @@
+{
+  "module": "packages/excalidraw/lasso",
+  "verdict": "needs_changes",
+  "tool_calls": 18,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 1498,
+      "issue": "In describe(\"lasso selection modes\"), the drawLasso helper calls h.app.setActiveTool({ type: \"lasso\" }) unconditionally before every lasso gesture, which clears selectedElementIds before the Shift+lasso gesture at line 1878 and causes assertSelectedElements([frame.id, standaloneRect.id]) at line 1887 to fail.",
+      "fix": "Activate the lasso tool once inside renderWithBoxSelectionMode (or guard the call in drawLasso with if (h.state.activeTool.type !== \"lasso\")) so that consecutive and Shift-modified lasso gestures do not clear the existing selection."
+    }
+  ],
+  "refinement_packets": []
+}

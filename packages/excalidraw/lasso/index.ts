@@ -109,7 +109,9 @@ export class LassoTrail extends AnimatedTrail {
             this.app.scene.getNonDeletedElementsMap(),
           );
           if (container) {
-            nextSelectedElementIds[container.id] = true;
+            if (prevState.boxSelectionMode !== "contain") {
+              nextSelectedElementIds[container.id] = true;
+            }
             delete nextSelectedElementIds[element.id];
           }
         }
@@ -202,6 +204,7 @@ export class LassoTrail extends AnimatedTrail {
         intersectedElements: this.intersectedElements,
         enclosedElements: this.enclosedElements,
         simplifyDistance: 5 / this.app.state.zoom.value,
+        boxSelectionMode: this.app.state.boxSelectionMode,
       });
 
       this.selectElementsFromIds(selectedElementIds);

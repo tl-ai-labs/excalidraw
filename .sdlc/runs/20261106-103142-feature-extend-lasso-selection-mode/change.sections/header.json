@@ -1,0 +1,71 @@
+{
+  "conventions": [
+    "Format with Prettier defaults (2-space indent, double quotes, trailing commas, semicolons).",
+    "Follow ESLint import/order: builtin, external, @excalidraw/** (external after), internal, parent, sibling, index, object, type; always leave an empty line between every import statement (newlines-between: always-and-inside-groups).",
+    "Use separate type imports (`import type { ... } from ...`) to satisfy `@typescript-eslint/consistent-type-imports` with zero ESLint warnings.",
+    "Never import from the barrel `packages/excalidraw/index.tsx` inside non-test source files; use direct relative imports such as `import type { BoxSelectionMode } from \"../types\"`.",
+    "Tests run under Vitest with jsdom and use `render`, `act`, `API`, `Pointer`, `Keyboard`, and `assertSelectedElements` from `packages/excalidraw/tests/test-utils` and `./helpers/*`."
+  ],
+  "decisions": [
+    {
+      "topic": "Mode parameter name and default on getLassoSelectedElementIds",
+      "choice": "Accept optional `boxSelectionMode?: BoxSelectionMode` on `getLassoSelectedElementIds` input object, defaulting to `\"overlap\"` when omitted.",
+      "rejected": [
+        "Required `boxSelectionMode` parameter",
+        "Defaulting `boxSelectionMode` to `\"contain\"` inside `getLassoSelectedElementIds`"
+      ],
+      "reason": "Preserves backward compatibility for existing direct callers in `lasso.test.tsx` while matching `appState.boxSelectionMode` naming when `LassoTrail.updateSelection` passes `this.app.state.boxSelectionMode`."
+    },
+    {
+      "topic": "Element and bound-text enclosure in contain vs overlap mode",
+      "choice": "In `\"contain\"` mode, skip bound-to-container text elements (`isBoundToContainer(element)`) on their own, require non-empty element segments with every segment endpoint inside `lassoPolygon` and zero `lassoSegments` intersecting `element`, and for arrows (`isArrowElement(element)`) with bound text (`getBoundTextElement`) also require the positioned bound text (`computeBoundTextPosition` + `getElementLineSegments`) to have all segment endpoints inside `lassoPolygon` and zero `lassoSegments` intersecting it.",
+      "rejected": [
+        "Bounding-box containment shortcut against `lassoBounds`",
+        "Treating bound-to-container text on non-arrow containers as selectable or required in `\"contain\"` mode"
+      ],
+      "reason": "Matches `elementsOverlappingBBox` semantics while accurately handling concave lasso polygons across all shapes supported by `getElementLineSegments`."
+    },
+    {
+      "topic": "Group selection filtering in contain mode",
+      "choice": "After collecting individually enclosed elements in `\"contain\"` mode, remove any enclosed element with `element.groupIds.length > 0` unless every non-deleted, unlocked, non-bound-text element in the scene (`elementsMap` and `elements`) whose `groupIds` includes `element.groupIds.at(-1)` is also in `enclosedElements`.",
+      "rejected": [
+        "Checking group membership only against `this.app.visibleElements`",
+        "Allowing locked or bound-text group members to block group selection in `\"contain\"` mode"
+      ],
+      "reason": "Ensures off-screen or un-enclosed selectable group members block top-level group selection while locked and bound-text elements do not, matching `elementsOverlappingBBox`."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "lint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "prettier",
+      "run": "yarn prettier --list-different {path}",
+      "fix": "yarn prettier --write {path}",
+      "timeout_s": 30
+    },
+    {
+      "id": "test",
+      "run": "yarn vitest run {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lint",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "test",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 1498): In describe(\"lasso selection modes\"), the drawLasso helper calls h.app.setActiveTool({ type: \"lasso\" }) unconditionally before every lasso gesture, which clears selectedElementIds before the Shift+lasso gesture at line 1878 and causes assertSelectedElements([frame.id, standaloneRect.id]) at line 1887 to fail. — fix: Activate the lasso tool once inside renderWithBoxSelectionMode (or guard the call in drawLasso with if (h.state.activeTool.type !== \"lasso\")) so that consecutive and Shift-modified lasso gestures do not clear the existing selection.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

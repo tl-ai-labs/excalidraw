@@ -1,0 +1,114 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 3 new tests in describe(\"lasso selection modes\") fail under `yarn test:app --watch=false` (the file's own vitest check was set aside at dispatch, so they never ran): (1) `selects fully enclosed shapes and respects concave lasso polygon in contain mode` -> AssertionError: expected 1 to be 6 at selection.test.tsx:1593 (assertSelectedElements); (2) `respects arrow bound label enclosure and ignores container bound label in contain mode` -> AssertionError: expected +0 to be 1 at :1676; (3) `enforces group containment across visible, off-screen, locked, and bound-text members and preserves frame/shift behaviour` -> AssertionError: expected 3 to be 1 at :1832. Cause of (1) and (2), measured: in jsdom the editor's viewport is 0x0 (h.state.width = h.state.height = 0), so this.app.visibleElements only holds elements touching the origin and the pointer-driven lasso (LassoTrail.updateSelection uses this.app.visibleElements) never considers the others (probe: 3 elements set, visibleElements.length === 1, only the one at x=0,y=0 selected). This is test setup, not lasso code. Fix as other tests in this repo do (arrowBinding.test.tsx): in describe(\"lasso selection modes\") add beforeAll(() => { mockBoundingClientRect(); }) and afterAll(() => { restoreOriginalGetBoundingClientRect(); }) (both exported from ./test-utils), and after each render set h.state.width = 1920; h.state.height = 1080; (or put the render in a helper that does so) so every element in the tests is inside the viewport. For the off-screen group-member case, place that member deliberately outside the 1920x1080 viewport (e.g. x = 5000) and keep expecting the group unselected in contain mode. Cause of (3): wrong expectation. Locked and bound-text group members only stop BLOCKING Wrap group completeness; once a group qualifies, selectGroupsForSelectedElements adds EVERY member of the group, locked and bound text included, to selectedElementIds, exactly as box selection does, and selectedGroupIds holds only the selected top-level group. Assert the group via h.state.selectedGroupIds and the unlocked members, never that locked or bound-text members are absent. Do not touch any test outside describe(\"lasso selection modes\") except keeping describe(\"lasso reselection\") pinned to boxSelectionMode \"overlap\"; add no toMatchSnapshot() calls.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/test-utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowBinding.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/lasso.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. `yarn test:typecheck` fails on this file (vitest does not typecheck, so its own checks pass): (a) lasso.test.tsx(101,9): error TS2554: Expected 1 arguments, but got 2 -- `h.app.lassoTrail.selectElementsFromIds(result.selectedElementIds, keepPreviousSelection)`; LassoTrail.selectElementsFromIds(ids: string[]) takes one argument and reads this.keepPreviousSelection instead. Fix: drop the second argument; when keepPreviousSelection is wanted, set it the way the existing tests do (e.g. via h.app.lassoTrail.startPath(x, y, keepPreviousSelection) or by assigning (h.app.lassoTrail as any).keepPreviousSelection before the call), without changing behaviour of the existing tests. (b) lasso.test.tsx(2010,7), (2063,7), (2224,7): error TS2353: 'originalText' does not exist in the type API.createElement accepts for type \"text\". Fix: remove `originalText` from those API.createElement calls (API.createElement sets it from `text`). Keep every existing test and all new test expectations as they are otherwise.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

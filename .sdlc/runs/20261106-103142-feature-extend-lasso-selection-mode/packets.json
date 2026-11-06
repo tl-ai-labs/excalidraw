@@ -1,0 +1,367 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/lasso/utils.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/utils.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 11-143 (line 11 reads `import {`, line 143 reads `};`) — Add `getElementLineSegments`, `isArrowElement`, `isBoundToContainer`, and `BoxSelectionMode` imports, add `boxSelectionMode?: BoxSelectionMode` (defaulting to `\"overlap\"`) to `getLassoSelectedElementIds`, implement `\"contain\"` mode full-outline and arrow-label enclosure plus top-level group containment filtering across `elementsMap`, and preserve `\"overlap\"` mode.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/utils.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/eraser/index.ts",
+        "lines": [
+          1,
+          39
+        ],
+        "reason": "style file: Follows @excalidraw/element and @excalidraw/math import grouping and type import style."
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "lines": [
+          183,
+          209
+        ],
+        "reason": "uses: Caller of getLassoSelectedElementIds providing visibleElements, nonDeletedElementsMap, and elementsSegments."
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 143
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/lasso/index.ts",
+    "depends_on": [
+      "tp_codegen_U01"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/lasso/index.ts` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 106-115 (line 106 reads `if (element && isTextElement(element)) {`, line 115 reads `}`) — Only promote a bound text element to `nextSelectedElementIds[container.id] = true` when `prevState.boxSelectionMode !== \"contain\"`, and always delete `nextSelectedElementIds[element.id]`.\n- S2: replace lines 196-208 (line 196 reads `if (lassoPath) {`, line 208 reads `}`) — Pass `boxSelectionMode: this.app.state.boxSelectionMode` to `getLassoSelectedElementIds`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "style file: Matches boxSelectionMode parameter on getLassoSelectedElementIds."
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 106,
+          "to": 115
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 196,
+          "to": 208
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U03",
+    "unit": "U03",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/lasso.test.tsx` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 35-85 (line 35 reads `import { act, render } from \"./test-utils\";`, line 85 reads `};`) — Import `API` from `\"./helpers/api\"` and `type { BoxSelectionMode } from \"../types\"`, and add optional `boxSelectionMode?: BoxSelectionMode` and `keepPreviousSelection = false` parameters to `updatePath`.\n- S2: insert after line 1804 (line 1804 reads `});`) — Add `describe(\"Lasso boxSelectionMode\", () => { ... })` covering `\"contain\"` and `\"overlap\"` modes across shapes, concave polygons, arrow/container bound labels, groups, frames, and additive selection.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "lines": [
+          250,
+          348
+        ],
+        "reason": "style file: Element creation with API.createElement and group/bound-text setup patterns."
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [
+          68,
+          125
+        ],
+        "reason": "uses: API.createElement, API.setElements, API.setAppState helpers for scene setup."
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "selects partially overlapped rectangle in overlap mode but not in contain mode: given A rectangle at (0, 0, 100, 100) and a lasso path clipping only its top-left corner, expect Selected elements is empty in \"contain\" mode and contains the rectangle in \"overlap\" mode",
+      "selects fully enclosed rectangle, diamond, ellipse, rotated shape, line, arrow, and freedraw in contain mode: given Unlocked rectangle, diamond, ellipse, rotated rectangle, line, arrow, and freedraw stroke inside a surrounding lasso polygon in \"contain\" mode, expect All seven elements are selected",
+      "does not select element partially inside a concave lasso polygon in contain mode: given A rectangle whose AABB intersects a concave U-shaped lasso's bounds while part of its outline lies in the concave notch outside the polygon, expect Selected elements is empty in \"contain\" mode and contains the rectangle in \"overlap\" mode",
+      "requires arrow bound text label to be enclosed in contain mode: given An arrow with a bound text label whose computed label bounds extend beyond the arrow shaft, expect A lasso enclosing only the arrow shaft selects nothing in \"contain\" mode, while a lasso enclosing both the arrow and its bound label selects the arrow",
+      "ignores rectangle bound text label in contain mode while selecting container in overlap mode: given A rectangle with a bound text label and a lasso path completely inside the rectangle that encloses only the bound label, expect Selected elements is empty in \"contain\" mode and contains the rectangle in \"overlap\" mode",
+      "enforces top-level, nested, off-screen, locked, and bound-text group rules in contain and overlap modes: given Grouped elements including two-member groups, nested inner/outer groups, an off-screen group member, a locked group member, and a bound-text group member, expect In \"contain\" mode, a group is selected only when all selectable scene members of its top-level group are enclosed (locked and bound-text members do not block); in \"overlap\" mode, touching one member selects the whole group",
+      "preserves frame child exclusion and additive selection in contain mode: given A frame with child elements and a pre-selected element with keepPreviousSelection=true in \"contain\" mode, expect Enclosing the frame and its children selects only the frame, and keepPreviousSelection=true retains the previously selected element"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 35,
+          "to": 85
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 1804,
+          "to": 1804
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U04",
+    "unit": "U04",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/tests/selection.test.tsx` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 155-157 (line 155 reads `beforeEach(async () => {`, line 157 reads `});`) — Render `<Excalidraw initialData={{ appState: { boxSelectionMode: \"overlap\" } }} />` in `describe(\"lasso reselection\")`.\n- S2: insert after line 1461 (line 1461 reads `});`) — Add `describe(\"lasso selection modes\", () => { ... })` with pointer-driven end-to-end lasso tests for `\"contain\"` and `\"overlap\"` modes.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "lines": [
+          65,
+          83
+        ],
+        "reason": "uses: Keyboard.withModifierKeys and Pointer methods for driving canvas lasso gestures."
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "does not select partially lassoed rectangle in contain mode and selects it in overlap mode: given A rectangle at (0, 0, 100, 100) and a pointer-driven lasso clipping one corner under boxSelectionMode \"contain\" vs \"overlap\", expect assertSelectedElements([]) in \"contain\" mode and assertSelectedElements([rect.id]) in \"overlap\" mode",
+      "selects fully enclosed shapes and respects concave lasso polygon in contain mode: given Pointer-driven lasso paths around rectangle, diamond, ellipse, rotated rectangle, arrow, and freedraw, plus a concave lasso partially enclosing a rectangle, expect Fully enclosed shapes are selected while the partially enclosed rectangle in the concave notch is not selected",
+      "respects arrow bound label enclosure and ignores container bound label in contain mode: given An arrow with a tall bound label and a rectangle with a bound label under pointer-driven lassos in \"contain\" and \"overlap\" modes, expect In \"contain\" mode, arrow is selected only when both arrow and label are enclosed, and enclosing only a rectangle's bound label selects nothing (whereas \"overlap\" mode selects the rectangle)",
+      "enforces group containment across visible, off-screen, locked, and bound-text members and preserves frame/shift behaviour: given Top-level and nested groups (including an off-screen member, a locked member, and bound text), a frame with a child, and Shift-modified lasso in \"contain\" and \"overlap\" modes, expect In \"contain\" mode, groups require all selectable scene members to be enclosed, frames exclude their children, and Shift retains previous selection"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 155,
+          "to": 157
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 1461,
+          "to": 1461
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U05",
+    "unit": "U05",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 14 (line 14 reads `## Unreleased`) — Keep `## Unreleased` followed by a blank line and the single-line bullet entry for lasso `boxSelectionMode` support.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "yarn prettier --list-different '{path}'",
+          "fix": "yarn prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 14,
+          "to": 14
+        }
+      ],
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

@@ -1,0 +1,5 @@
+Changes asked for this step:
+
+Gate 1 revise, the person's comments verbatim: "(1) In Wrap mode a bound-to-container text element never counts on its own and never selects its container — the container is selected only when its own outline is fully enclosed, as box selection ignores bound text; Overlap keeps today's text→container behaviour. Fix FR-8 and AC-5 accordingly and add a Wrap test where a lasso enclosing only a rectangle's label selects nothing. (2) FR-7: Wrap group completeness counts every selectable member of the top-level group in the whole scene (non-deleted elements), not only this.app.visibleElements; a member off-screen or outside the lasso blocks the group. (3) FR-4: the label-enclosure rule applies to arrow labels only, as in elementsOverlappingBBox." Edit requirements.md in place: fix FR-8, AC-5, FR-7 and FR-4 as stated, add the requirement and acceptance criterion for the new Wrap test (lasso enclosing only a rectangle's bound label selects nothing), and keep every other id and section unchanged unless these comments require it.
+
+Edit the pieces you handed in and hand each changed one in again.

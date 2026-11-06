@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-103142-feature-extend-lasso-selection-mode",
+    "artifact_path": "packages/excalidraw/tests/lasso.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/lasso.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U03 failed its check `yarn vitest run packages/excalidraw/tests/lasso.test.tsx` on all 3 attempts; the file is back to its pre-run state, so U03's two sites (S1: replace lines 35-85 to extend imports and updatePath(startPoint, points, boxSelectionMode?, keepPreviousSelection = false); S2: insert describe(\"Lasso boxSelectionMode\") after line 1804) must be typed again in full. Last failure: `Lasso boxSelectionMode > enforces top-level, nested, off-screen, locked, and bound-text group rules in contain and overlap modes` -> AssertionError: expected true to be undefined at `expect(h.state.selectedElementIds[lockedMember.id]).toBeUndefined()` right after `updatePath(oneMemberStart, oneMemberPoints, \"contain\")`. Earlier attempts failed the same test with `expected { outer: true } to deeply equal { inner1: false, inner2: false, ... }` and `expected [ 'unlockedContainer', ...(2) ] to deeply equal [ 'unlockedContainer' ]`. Cause: the test's expectations are wrong, not lasso/utils.ts. Locked and bound-text members only stop counting as BLOCKERS of Wrap group completeness (FR-7); once the group qualifies, selectGroupsForSelectedElements (packages/element/src/groups.ts) adds EVERY member of the selected group to selectedElementIds, locked ones and bound text included, exactly as box selection does, and selectedGroupIds holds only the top-level selected group (e.g. { outer: true }), never inner groups set to false. Fix: assert the group is selected via h.state.selectedGroupIds and the unlocked members, do not assert that locked or bound-text members are absent, and do not assert inner groups in selectedGroupIds; or split this test into smaller cases (top-level, nested, off-screen blocker, locked non-blocker, bound-text non-blocker) with expectations that follow the group expansion above. Keep every existing test unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/lasso.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-103142-feature-extend-lasso-selection-mode/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]
