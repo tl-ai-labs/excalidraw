@@ -250,3 +250,130 @@ describe("collaboration", () => {
     });
   });
 });
+
+describe("collaboration pages", () => {
+  it("remote page records and elements apply without moving active page or viewport", async () => {
+    await render(<ExcalidrawApp />);
+    await act(async () => {
+      await window.collab.startCollaboration(null);
+    });
+
+    const initialActivePageId = h.state.activePageId;
+    const initialScrollX = h.state.scrollX;
+    const initialScrollY = h.state.scrollY;
+
+    const remotePages = [
+      ...h.state.pages,
+      {
+        id: "p2",
+        name: "Data pipeline",
+        index: "a1",
+        version: 1,
+        versionNonce: 1,
+        isDeleted: false,
+      },
+    ];
+
+    const remoteElement = API.createElement({
+      type: "rectangle",
+      id: "elem-p2",
+      x: 500,
+      y: 500,
+      width: 100,
+      height: 100,
+    });
+    (remoteElement as any).pageId = "p2";
+
+    act(() => {
+      // eslint-disable-next-line dot-notation
+      window.collab["applyRemotePages"](remotePages);
+      // eslint-disable-next-line dot-notation
+      window.collab["handleRemoteSceneUpdate"](
+        syncInvalidIndices([...h.elements, remoteElement]) as any,
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        h.state.pages.some((p) => p.id === "p2" && p.name === "Data pipeline"),
+      ).toBe(true);
+      expect(h.elements.some((el) => el.id === "elem-p2")).toBe(true);
+      expect(h.state.activePageId).toBe(initialActivePageId);
+      expect(h.state.scrollX).toBe(initialScrollX);
+      expect(h.state.scrollY).toBe(initialScrollY);
+    });
+  });
+
+  it("concurrent rename resolves by version", async () => {
+    await render(<ExcalidrawApp />);
+    await act(async () => {
+      await window.collab.startCollaboration(null);
+    });
+
+    const targetPageId = h.state.pages[0].id;
+
+    // Local rename to X with version 2
+    act(() => {
+      h.app.updateScene({
+        appState: {
+          pages: h.state.pages.map((p) =>
+            p.id === targetPageId ? { ...p, name: "X", version: 2 } : p,
+          ),
+        },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    });
+
+    expect(h.state.pages.find((p) => p.id === targetPageId)?.name).toBe("X");
+
+    // Remote rename to Y with higher version 3
+    const remotePages = h.state.pages.map((p) =>
+      p.id === targetPageId ? { ...p, name: "Y", version: 3 } : p,
+    );
+
+    act(() => {
+      // eslint-disable-next-line dot-notation
+      window.collab["applyRemotePages"](remotePages);
+    });
+
+    await waitFor(() => {
+      expect(h.state.pages.find((p) => p.id === targetPageId)?.name).toBe("Y");
+    });
+  });
+
+  it("local page changes are broadcast", async () => {
+    await render(<ExcalidrawApp />);
+    await act(async () => {
+      await window.collab.startCollaboration(null);
+    });
+
+    const broadcastSpy = vi.spyOn(window.collab.portal, "broadcastScene");
+
+    const newPages = [
+      ...h.state.pages,
+      {
+        id: "new-local-page",
+        name: "New Page",
+        index: "a1",
+        version: 1,
+        versionNonce: 1,
+        isDeleted: false,
+      },
+    ];
+
+    act(() => {
+      window.collab.syncElements(syncInvalidIndices(h.elements), newPages);
+    });
+
+    await waitFor(() => {
+      expect(broadcastSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.arrayContaining([
+          expect.objectContaining({ id: "new-local-page" }),
+        ]),
+      );
+    });
+  });
+});

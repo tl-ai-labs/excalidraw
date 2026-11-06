@@ -78,6 +78,8 @@ import {
   syncMovedIndices,
 } from "@excalidraw/element";
 
+import { DEFAULT_PAGE_ID, restorePageState } from "@excalidraw/element";
+
 import { refreshTextDimensions } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
@@ -448,8 +450,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -534,6 +537,14 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+  // default-page elements carry no pageId
+  if (
+    typeof ret.pageId !== "string" ||
+    !ret.pageId ||
+    ret.pageId === DEFAULT_PAGE_ID
+  ) {
+    delete ret.pageId;
+  }
 
   return ret;
 };
@@ -1381,6 +1392,7 @@ export const restoreAppState = (
     currentItemStickynoteBackgroundColor: normalizeStickyNoteBackgroundColor(
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
+    ...restorePageState(appState),
     editingFrame: null,
   };
 };

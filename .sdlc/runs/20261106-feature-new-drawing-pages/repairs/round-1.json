@@ -1,0 +1,51 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "instruction": "Fix `packages/element/src/Scene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U05 (Scene.ts) was never applied: 3 attempts (flash, flash, opus) each answered with lines outside the planned edit sites and were rejected — attempt 1: 'new lines after 24, new lines after 162, new lines after 358'; attempt 2: 'new lines after 24, new lines after 166, new lines after 348'; attempt 3: 'new lines after 162, new lines after 357'. Implement U05 exactly as its brief (briefs/U05.md) describes — activePageId on the Scene, active-page-only caches for getNonDeletedElements/getNonDeletedElementsMap/getNonDeletedFramesLikes rebuilt in replaceAllElements and setActivePageId (no onUpdate callbacks), getNonDeletedElementsAllPages, and the active-page stamp in insertElementsAtIndex. The new imports, fields and methods may be added where they belong in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

@@ -7,7 +7,7 @@ import {
   selectGroupsFromGivenElements,
 } from "@excalidraw/element";
 
-import { CaptureUpdateAction } from "@excalidraw/element";
+import { CaptureUpdateAction, isElementOnPage } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -166,14 +166,19 @@ export const actionUnlockAllElements = register({
     const selectedElements = getSelectedElements(elements, appState);
     return (
       selectedElements.length === 0 &&
-      elements.some((element) => element.locked)
+      elements.some(
+        (element) =>
+          element.locked && isElementOnPage(element, appState.activePageId),
+      )
     );
   },
   perform: (elements, appState) => {
-    const lockedElements = elements.filter((el) => el.locked);
+    const lockedElements = elements.filter(
+      (el) => el.locked && isElementOnPage(el, appState.activePageId),
+    );
 
     const nextElements = elements.map((element) => {
-      if (element.locked) {
+      if (element.locked && isElementOnPage(element, appState.activePageId)) {
         // remove the temporary groupId if it exists
         const nextGroupIds = element.groupIds.filter(
           (gid) => !appState.lockedMultiSelections[gid],

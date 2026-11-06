@@ -38,6 +38,8 @@ import type {
   ExcalidrawNonSelectionElement,
   BindMode,
   ExcalidrawTextElement,
+  DrawingPage,
+  PageViewport,
   StrokeVariability,
 } from "@excalidraw/element/types";
 
@@ -588,6 +590,12 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  /** Drawing pages list, including deleted tombstones. */
+  pages: readonly DrawingPage[];
+  /** Id of the currently active drawing page. */
+  activePageId: string;
+  /** Saved viewport state per page id. */
+  pageViewports: Readonly<Record<string, PageViewport>>;
 }
 
 export type SearchMatch = {
@@ -1170,6 +1178,8 @@ export type UIOptions = Partial<{
   tools: {
     image: boolean;
   };
+  /** set false to hide the pages tab bar (default true) */
+  pages?: boolean;
   /**
    * Optionally control the editor form factor and desktop UI mode from the host app.
    * If not provided, we will take care of it internally.

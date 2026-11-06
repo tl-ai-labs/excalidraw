@@ -1,0 +1,63 @@
+[
+  {
+    "id": "tp_debug_r9_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "instruction": "Fix `packages/excalidraw/history.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. History.getTargetPageId (line ~157-166, added last round) crashes: TypeError: Cannot read properties of undefined (reading 'values') at history.ts:158 `delta.elements.inserted.values()` — called from History.record (line ~172). This breaks pages.test.tsx 'select-all and click selection ignore other pages' and 'puts new elements on the active page'. ElementsDelta has NO `inserted`/`deleted` maps: its fields are `added`, `removed` and `updated`, each `Record<string, Delta<ElementPartial>>` keyed by element id (packages/element/src/delta.ts ~line 1042), and an `updated` partial carries only the changed props (e.g. x, version), NOT pageId. Rewrite getTargetPageId: collect the element ids from Object.keys(delta.elements.added), .removed and .updated; for each id find the element in `this.store.snapshot.elements.get(id)` (the snapshot holds every page's elements) and, if missing, read `pageId` from the delta's own `inserted`/`deleted` partials (`delta.elements.added[id].inserted.pageId` etc.); return getElementPageId({ pageId }) of the first element found; when the delta changes no elements (appState-only, e.g. selection) return this.activePageId. Keep everything else in history.ts as is. Test that must pass: packages/excalidraw/tests/pages.test.tsx 'keeps undo on its page' (r1 moved on the default page, r2 moved on page 2, back on the default page undo must set r1.x back to 0 and leave r2.x at 1).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U11.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

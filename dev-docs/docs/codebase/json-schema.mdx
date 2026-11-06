@@ -44,7 +44,18 @@ When saving an Excalidraw scene locally to a file, the JSON file (`.excalidraw`)
   // editor state (canvas config, preferences, ...)
   "appState": {
     "gridSize": 20,
-    "viewBackgroundColor": "#ffffff"
+    "viewBackgroundColor": "#ffffff",
+    "activePageId": "default",
+    "pages": [
+      {
+        "id": "default",
+        "name": "Page 1",
+        "index": "a0",
+        "version": 1,
+        "versionNonce": 0,
+        "isDeleted": false
+      }
+    ]
   },
 
   // files data for "image" elements, using format `{ [fileId]: fileData }`
@@ -61,6 +72,19 @@ When saving an Excalidraw scene locally to a file, the JSON file (`.excalidraw`)
   }
 }
 ```
+
+### Pages
+
+Drawings can contain multiple pages. The schema version remains `2` as this change is backward-compatible.
+
+| Attribute | Location | Description | Value |
+| --- | --- | --- | --- |
+| `pages` | `appState.pages` | Array of page records, ordered by `index` (fractional indexing). | Array of `{ id: string, name: string, index: string, version: number, versionNonce: number, isDeleted: boolean }` |
+| `activePageId` | `appState.activePageId` | The ID of the currently active page. | `string` |
+| `pageViewports` | `appState.pageViewports` | Saved viewport (scroll and zoom) per page. | `{ [pageId: string]: { scrollX: number, scrollY: number, zoom: number } }` |
+| `pageId` | Element | ID of the page the element belongs to. When absent, defaults to `"default"`. | `string` (optional) |
+
+Legacy files without `pages` or `pageId` load with a single default page named `"Page 1"`. Exported PNG/SVG files with an embedded scene carry only the active page and its elements.
 
 ### Element creation time
 

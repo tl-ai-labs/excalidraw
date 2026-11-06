@@ -1,0 +1,6 @@
+[
+ {
+  "path": "packages/excalidraw/scene/export.ts",
+  "problem": "yarn test:typecheck: packages/excalidraw/scene/export.ts(1337,15): error TS2552: Cannot find name 'elements'. Last round replaced, inside exportToBlob's PNG embedScene branch (~line 1333-1340), `restoreElements(data.elements, null)` with `elements`, which is not in scope there (it is local to configExportDimension ~line 571-580); at runtime the PNG export never resolves: packages/utils/tests/export.test.ts > 'elements lacking creation metadata > png export embeds the restored scene into its metadata' -> Error: Test timed out in 5000ms. Fix: in exportToBlob compute the embedded list locally \u2014 `const activePageId = data.appState?.activePageId; const restored = restoreElements(data.elements, null); const embeddedElements = typeof activePageId === \"string\" ? restored.filter((el) => isElementOnPage(el, activePageId)) : restored;` \u2014 and pass `embeddedElements` to serializeAsJSON. Keep the configExportDimension filtering from last round as it is. Edits only."
+ }
+]

@@ -40,6 +40,8 @@ import type {
   SameType,
 } from "@excalidraw/common/utility-types";
 
+import { assignElementToPage, isElementOnPage } from "./pages";
+
 import type { AppState } from "../../excalidraw/types";
 
 type SceneStateCallback = () => void;
@@ -122,6 +124,9 @@ export class Scene {
   private nonDeletedFramesLikes: readonly NonDeleted<ExcalidrawFrameLikeElement>[] =
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
+  private activePageId: string | null = null;
+  private nonDeletedElementsAllPages: readonly Ordered<NonDeletedExcalidrawElement>[] =
+    [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
@@ -158,6 +163,60 @@ export class Scene {
 
   getNonDeletedElements() {
     return this.nonDeletedElements;
+  }
+
+  getNonDeletedElementsAllPages(): readonly Ordered<NonDeletedExcalidrawElement>[] {
+    return this.nonDeletedElementsAllPages;
+  }
+
+  getActivePageId(): string | null {
+    return this.activePageId;
+  }
+
+  setActivePageId(pageId: string | null): void {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.recomputeActivePageCaches();
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
+    this.sceneNonce = (this.sceneNonce ?? 0) + 1;
+  }
+
+  private recomputeActivePageCaches() {
+    if (this.activePageId === null) {
+      this.nonDeletedElements = this.nonDeletedElementsAllPages;
+      const elementsMap = new Map() as NonDeletedSceneElementsMap;
+      for (const element of this.nonDeletedElementsAllPages) {
+        elementsMap.set(element.id, element);
+      }
+      this.nonDeletedElementsMap =
+        toBrandedType<NonDeletedSceneElementsMap>(elementsMap);
+      this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+      return;
+    }
+
+    const pageId = this.activePageId;
+
+    const filteredElements: Ordered<NonDeletedExcalidrawElement>[] = [];
+    const filteredMap = new Map() as NonDeletedSceneElementsMap;
+    for (const element of this.nonDeletedElementsAllPages) {
+      if (isElementOnPage(element, pageId)) {
+        filteredElements.push(element);
+        filteredMap.set(element.id, element);
+      }
+    }
+
+    this.nonDeletedElements = filteredElements;
+    this.nonDeletedElementsMap =
+      toBrandedType<NonDeletedSceneElementsMap>(filteredMap);
+
+    const nonDeletedFrames = getNonDeletedElements(this.frames).elements;
+    this.nonDeletedFramesLikes = nonDeletedFrames.filter((frame) =>
+      isElementOnPage(frame, pageId),
+    );
   }
 
   getFramesIncludingDeleted() {
@@ -290,12 +349,11 @@ export class Scene {
       }
       this.elementsMap.set(element.id, element);
     });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
-    this.nonDeletedElements = nonDeletedElements.elements;
-    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
-
+    this.nonDeletedElementsAllPages = getNonDeletedElements(
+      this.elements,
+    ).elements;
     this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+    this.recomputeActivePageCaches();
 
     this.triggerUpdate();
   }
@@ -328,6 +386,8 @@ export class Scene {
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
     this.frames = [];
+    this.nonDeletedElementsAllPages = [];
+    this.activePageId = null;
     this.elementsMap.clear();
     this.selectedElementsCache.selectedElementIds = null;
     this.selectedElementsCache.elements = null;
@@ -356,6 +416,14 @@ export class Scene {
       throw new Error(
         "insertElementAtIndex can only be called with index >= 0",
       );
+    }
+
+    if (this.activePageId !== null) {
+      for (const element of elements) {
+        if (!this.elementsMap.has(element.id)) {
+          assignElementToPage(element, this.activePageId);
+        }
+      }
     }
 
     const nextElements = [

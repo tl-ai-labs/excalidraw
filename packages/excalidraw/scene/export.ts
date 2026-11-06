@@ -18,6 +18,7 @@ import {
 } from "@excalidraw/common";
 
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
+import { isElementOnPage, toActivePageExportState } from "@excalidraw/element";
 
 import {
   getInitializedImageElements,
@@ -568,9 +569,15 @@ const configExportDimension = async ({
   // deleted ones. The type contract requires non-deleted elements already,
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
-  const elements = getNonDeletedElements(
+  const rawRestoredElements = getNonDeletedElements(
     restoreElements(data.elements, null, { deleteInvisibleElements: true }),
   );
+  const elements =
+    typeof data.appState?.activePageId === "string"
+      ? rawRestoredElements.filter((el) =>
+          isElementOnPage(el, data.appState!.activePageId!),
+        )
+      : rawRestoredElements;
 
   // initialize defaults
   // ---------------------------------------------------------------------------
@@ -1048,7 +1055,12 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          elements,
+          toActivePageExportState(appState),
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);
@@ -1316,14 +1328,20 @@ const exportToBlob = async (
           return reject(new Error("couldn't export to blob"));
         }
         if (opts.type === "png" && opts.config?.embedScene) {
+          const activePageId = data.appState?.activePageId;
+          const restored = restoreElements(data.elements, null);
+          const embeddedElements =
+            typeof activePageId === "string"
+              ? restored.filter((el) => isElementOnPage(el, activePageId))
+              : restored;
           blob = await encodePngMetadata({
             blob,
             metadata: serializeAsJSON(
               // NOTE as long as we're using the Scene hack, we need to ensure
               // we pass the original, uncloned elements when serializing
               // so that we keep ids stable (restoring keeps the ids)
-              restoreElements(data.elements, null),
-              data.appState ?? {},
+              embeddedElements,
+              toActivePageExportState(data.appState ?? {}),
               data.files || {},
               "local",
             ),

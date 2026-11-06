@@ -84,6 +84,8 @@ type _ExcalidrawElementBase = Readonly<{
   link: string | null;
   locked: boolean;
   customData?: Record<string, any>;
+  /** Id of the page this element belongs to; absent on the default page */
+  pageId?: string;
 }>;
 
 export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {
@@ -494,3 +496,24 @@ export type ExcalidrawLinearElementSubType =
 export type ConvertibleGenericTypes = "rectangle" | "diamond" | "ellipse";
 export type ConvertibleLinearTypes = ExcalidrawLinearElementSubType;
 export type ConvertibleTypes = ConvertibleGenericTypes | ConvertibleLinearTypes;
+
+/**
+ * Represents a page/sheet inside a multi-page Excalidraw drawing.
+ */
+export type DrawingPage = Readonly<{
+  id: string;
+  name: string;
+  index: string;
+  version: number;
+  versionNonce: number;
+  isDeleted: boolean;
+}>;
+
+/**
+ * Saved canvas scroll and zoom coordinates for a page.
+ */
+export type PageViewport = {
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+};

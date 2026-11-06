@@ -718,7 +718,7 @@ const ExcalidrawWrapper = () => {
     files: BinaryFiles,
   ) => {
     if (collabAPI?.isCollaborating()) {
-      collabAPI.syncElements(elements);
+      collabAPI.syncElements(elements, appState.pages);
     }
 
     // this check is redundant, but since this is a hot path, it's best

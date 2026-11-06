@@ -207,6 +207,10 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  assignElementToPage,
+  getVisiblePages,
+  isElementOnPage,
+  reassignOrphanedElementsToPage,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -278,6 +282,7 @@ import {
   actionToggleMidpointSnapping,
   actionToggleCropEditor,
 } from "../actions";
+import { getPageSwitchAppState } from "../actions/actionPages";
 import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionPaste } from "../actions/actionClipboard";
 import { actionCopyElementLink } from "../actions/actionElementLink";
@@ -908,6 +913,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.history = new History(this.store);
+    this.history.setActivePage(this.state.activePageId);
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -2323,6 +2329,9 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public render() {
+    if (this.scene.getActivePageId() !== this.state.activePageId) {
+      this.scene.setActivePageId(this.state.activePageId);
+    }
     const selectedElements = this.scene.getSelectedElements(this.state);
     const { renderTopRightUI, renderTopLeftUI, renderCustomStats } = this.props;
 
@@ -2767,7 +2776,7 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public getSceneElements = () => {
-    return this.scene.getNonDeletedElements();
+    return this.scene.getNonDeletedElementsAllPages();
   };
 
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
@@ -3618,11 +3627,14 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
-    const restoredElements = restoreElements(initialData?.elements, null, {
-      repairBindings: true,
-      deleteInvisibleElements: true,
-    });
     let restoredAppState = restoreAppState(initialData?.appState, null);
+    const restoredElements = reassignOrphanedElementsToPage(
+      restoreElements(initialData?.elements, null, {
+        repairBindings: true,
+        deleteInvisibleElements: true,
+      }),
+      restoredAppState.pages,
+    );
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -3665,7 +3677,9 @@ class App extends React.Component<AppProps, AppState> {
 
     if (initialViewport) {
       const restoredNonDeletedElements = restoredElements.filter(
-        (element) => !element.isDeleted,
+        (element) =>
+          !element.isDeleted &&
+          isElementOnPage(element, restoredAppState.activePageId),
       ) as readonly NonDeletedExcalidrawElement[];
       const restoredElementsMap = arrayToMap(
         restoredNonDeletedElements,
@@ -3686,7 +3700,12 @@ class App extends React.Component<AppProps, AppState> {
     } else if (initialData?.scrollToContent) {
       restoredAppState = {
         ...restoredAppState,
-        ...getScrollToContentState(restoredElements, viewportAppState),
+        ...getScrollToContentState(
+          restoredElements.filter((element) =>
+            isElementOnPage(element, restoredAppState.activePageId),
+          ),
+          viewportAppState,
+        ),
       };
     }
 
@@ -4316,6 +4335,27 @@ class App extends React.Component<AppProps, AppState> {
 
     this.appStateObserver.flush(prevState);
 
+    if (prevState.activePageId !== this.state.activePageId) {
+      this.fonts.loadSceneFonts().then((faces) => this.fonts.onLoaded(faces));
+    }
+
+    const visiblePages = getVisiblePages(this.state.pages);
+    if (
+      visiblePages.length > 0 &&
+      !visiblePages.some((p) => p.id === this.state.activePageId)
+    ) {
+      const fallbackState = getPageSwitchAppState(
+        this.state,
+        visiblePages[0].id,
+      );
+      if (fallbackState) {
+        this.setState((prevState) => ({
+          ...prevState,
+          ...fallbackState,
+        }));
+      }
+    }
+
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
     const elementsMap = this.scene.getElementsMapIncludingDeleted();
@@ -4496,6 +4536,10 @@ class App extends React.Component<AppProps, AppState> {
 
     this.store.commit(elementsMap, this.state);
 
+    if (prevState.activePageId !== this.state.activePageId) {
+      this.history.setActivePage(this.state.activePageId);
+    }
+
     // Do not notify consumers if we're still loading the scene. Among other
     // potential issues, this fixes a case where the tab isn't focused during
     // init, which would trigger onChange with empty elements, which would then
@@ -4652,6 +4696,10 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     const { nextElements, duplicatedElements } = duplication;
+
+    duplicatedElements.forEach((element) => {
+      assignElementToPage(element, this.state.activePageId);
+    });
 
     this.scene.replaceAllElements(nextElements);
 

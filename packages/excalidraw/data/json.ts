@@ -49,6 +49,30 @@ const filterOutDeletedFiles = (
   return nextFiles;
 };
 
+const withActivePageViewport = (
+  appState: Partial<AppState>,
+): Partial<AppState> => {
+  if (
+    typeof appState.activePageId === "string" &&
+    typeof appState.scrollX === "number" &&
+    typeof appState.scrollY === "number" &&
+    appState.zoom
+  ) {
+    return {
+      ...appState,
+      pageViewports: {
+        ...appState.pageViewports,
+        [appState.activePageId]: {
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
+          zoom: appState.zoom.value,
+        },
+      },
+    };
+  }
+  return appState;
+};
+
 export const serializeAsJSON = (
   elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
@@ -62,7 +86,7 @@ export const serializeAsJSON = (
     elements,
     appState:
       type === "local"
-        ? cleanAppStateForExport(appState)
+        ? cleanAppStateForExport(withActivePageViewport(appState))
         : clearAppStateForDatabase(appState),
     files:
       type === "local"

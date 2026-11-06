@@ -1,0 +1,224 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript + React test file under packages/excalidraw/tests, run by Vitest with jsdom; describe/it/expect are globals, vi is imported from \"vitest\".",
+      "Formatting is Prettier through eslint-plugin-prettier (@excalidraw/prettier-config: 80-column lines, double quotes, trailing commas, 2-space indent); an import list longer than 80 columns is broken one name per line.",
+      "Import groups are separated by blank lines in eslint import/order: external libs, then @excalidraw/common, then @excalidraw/element, then relative imports; names inside one import are sorted as the existing line has them.",
+      "Use the repo's helpers only: API (tests/helpers/api.ts) for scene and state, Keyboard/Pointer/UI (tests/helpers/ui.ts) for input, act/fireEvent/waitFor/GlobalTestState from ./test-utils.",
+      "Change only the lines the sites name; every other line of pages.test.tsx stays byte-for-byte as it is.",
+      "No assertion is deleted, loosened to a bound or made tautological, and no it.skip, it.todo or .only is introduced."
+    ],
+    "decisions": [
+      {
+        "topic": "How the undo test records its moves",
+        "choice": "Seed r1 and r2 with one API.updateScene({ elements: [r1, r2], captureUpdate: CaptureUpdateAction.IMMEDIATELY }) and make each move one API.updateScene whose elements list holds both rectangles in the order [r1, r2], the moved one replaced by newElementWith(API.getElement(el), { x: 1 }), with captureUpdate: CaptureUpdateAction.IMMEDIATELY.",
+        "rejected": [
+          "Keyboard.keyPress(KEYS.ARROW_RIGHT) nudges: App never captures a nudge, so the undo stack stays empty",
+          "Passing only the moved element to updateScene: updateScene replaces all scene elements, so the other rectangle would be dropped from the scene",
+          "A Pointer drag: works, but needs coordinates and selection state the updateScene form does not"
+        ],
+        "reason": "updateScene with IMMEDIATELY is the documented captured path (history.test.tsx uses it) and the brief confirmed it gives one undo step per move on its page."
+      },
+      {
+        "topic": "When the search test presses Enter",
+        "choice": "fireEvent.keyDown(searchInput, { key: KEYS.ENTER }) runs after the waitFor that sees searchMatches.matches.length === 1 and before the waitFor on activePageId.",
+        "rejected": [
+          "Pressing Enter right after updateTextEditor: the search is debounced and the Enter handler ignores the key while there are no match items"
+        ],
+        "reason": "The SearchMenu Enter handler only calls goToNextItem when match items exist, and focusing that match is what switches the page."
+      },
+      {
+        "topic": "Test ids",
+        "choice": "The tab menu trigger is [data-testid='pages-menu-trigger'] and the delete item is [data-testid='page-menu-delete'], as PagesTabBar.tsx renders them.",
+        "reason": "These are the ids the component has; the old ids match nothing."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "yarn -s eslint --max-warnings=0 {path}",
+        "fix": "yarn -s eslint --fix {path}",
+        "timeout_s": 120
+      },
+      {
+        "id": "vitest",
+        "run": "yarn -s vitest run {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "lint",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test-suite",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/tests/pages.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Correct the four defects in pages.test.tsx: record the undo test's seed and moves as captured updates, use the component's real menu test ids, and press Enter in the search input so the cross-page match is focused.",
+      "rules": [
+        "1. The @excalidraw/element import gains CaptureUpdateAction and newElementWith beside DEFAULT_PAGE_ID and getVisiblePages, sorted as CaptureUpdateAction, DEFAULT_PAGE_ID, getVisiblePages, newElementWith, broken one name per line since it exceeds 80 columns; Keyboard and KEYS stay imported because undo(), the select-all test, the rename test and the search test still use them.",
+        "2. openTabMenu queries [data-testid='pages-menu-trigger']; its not-null expectation and click stay.",
+        "3. Both lookups in 'deletes a page via the menu' query [data-testid='page-menu-delete']; the disabled-while-single-page assertion and every later assertion stay unchanged.",
+        "4. In 'keeps undo on its page' the seed is API.updateScene({ elements: [r1, r2], captureUpdate: CaptureUpdateAction.IMMEDIATELY }) in place of API.setElements([r1, r2]).",
+        "5. The default-page move replaces API.setSelectedElements([r1]) and the arrow key press with API.updateScene({ elements: [newElementWith(API.getElement(r1), { x: 1 }), API.getElement(r2)], captureUpdate: CaptureUpdateAction.IMMEDIATELY }); the following expect(API.getElement(r1).x).toBe(1) stays.",
+        "6. The page-2 move replaces API.setSelectedElements([API.getElement(r2)]) and the arrow key press with API.updateScene({ elements: [API.getElement(r1), newElementWith(API.getElement(r2), { x: 1 })], captureUpdate: CaptureUpdateAction.IMMEDIATELY }); the following expect(API.getElement(r2).x).toBe(1) stays.",
+        "7. Both updateScene move calls pass both rectangles in the order [r1, r2], because updateScene replaces every scene element and a missing rectangle would be removed.",
+        "8. The five post-undo assertions (r1.x 0, r2.x 1, activePageId DEFAULT_PAGE_ID; r2.x 0, activePageId p2Id) and both undo() calls and switchPage calls stay exactly as they are.",
+        "9. In 'finds text on another page and switches to it', fireEvent.keyDown(searchInput, { key: KEYS.ENTER }); is inserted after the waitFor that expects searchMatches.matches.length to be 1 and before the waitFor on activePageId.",
+        "10. In 'lets view mode switch but not edit pages' the absence assertion queries [data-testid='pages-menu-trigger'] and still expects null."
+      ],
+      "exports": [],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 6,
+          "to": 6,
+          "first_line": "import { DEFAULT_PAGE_ID, getVisiblePages } from \"@excalidraw/element\";",
+          "rule": "Rule 1: multi-line import of CaptureUpdateAction, DEFAULT_PAGE_ID, getVisiblePages, newElementWith from \"@excalidraw/element\"."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 69,
+          "to": 69,
+          "first_line": "const trigger = queryContainer(\"[data-testid='pages-tab-menu-trigger']\");",
+          "rule": "Rule 2: same line with the id pages-menu-trigger."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 175,
+          "to": 175,
+          "first_line": "const item = queryContainer(\"[data-testid='pages-menu-delete']\");",
+          "rule": "Rule 3: same line with the id page-menu-delete."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 191,
+          "to": 191,
+          "first_line": "const item = queryContainer(\"[data-testid='pages-menu-delete']\");",
+          "rule": "Rule 3: same line with the id page-menu-delete."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 324,
+          "to": 324,
+          "first_line": "API.setElements([r1, r2]);",
+          "rule": "Rule 4: captured seed via API.updateScene with CaptureUpdateAction.IMMEDIATELY."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 326,
+          "to": 327,
+          "first_line": "API.setSelectedElements([r1]);",
+          "last_line": "Keyboard.keyPress(KEYS.ARROW_RIGHT);",
+          "rule": "Rules 5 and 7: one captured API.updateScene moving r1 to x 1, both rectangles passed."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 331,
+          "to": 332,
+          "first_line": "API.setSelectedElements([API.getElement(r2)]);",
+          "last_line": "Keyboard.keyPress(KEYS.ARROW_RIGHT);",
+          "rule": "Rules 6 and 7: one captured API.updateScene moving r2 to x 1, both rectangles passed."
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 379,
+          "to": 379,
+          "first_line": "});",
+          "rule": "Rule 9: fireEvent.keyDown(searchInput, { key: KEYS.ENTER }); on its own line, indented like the surrounding statements."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 402,
+          "to": 402,
+          "first_line": "expect(queryContainer(\"[data-testid='pages-tab-menu-trigger']\")).toBe(null);",
+          "rule": "Rule 10: same assertion with the id pages-menu-trigger."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "lines": [
+          2378,
+          2405
+        ],
+        "reason": "Shows API.updateScene with newElementWith(...) elements and CaptureUpdateAction.IMMEDIATELY as this repo writes it."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/helpers/api.ts",
+          "lines": [
+            70,
+            170
+          ],
+          "reason": "API.updateScene, API.setElements and API.getElement signatures."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8"
+      ],
+      "tests": [
+        {
+          "name": "keeps undo on its page",
+          "given": "r1 on the default page and r2 on page 2 seeded by one captured update, then each moved to x 1 by its own captured update on its page",
+          "expect": "one undo on the default page gives r1.x 0, r2.x 1, activePageId default; one undo on page 2 gives r2.x 0, activePageId page 2"
+        },
+        {
+          "name": "deletes a page via the menu",
+          "given": "the menu opened through pages-menu-trigger, first with one page, then with a second page holding a rectangle",
+          "expect": "page-menu-delete is disabled with one page; clicking it with two leaves one visible page, the rectangle isDeleted, and the default page active"
+        },
+        {
+          "name": "finds text on another page and switches to it",
+          "given": "a text 'pipeline' on page 2, the search typed while the default page is active, then Enter pressed in the search input",
+          "expect": "one search match and activePageId switches to page 2"
+        },
+        {
+          "name": "lets view mode switch but not edit pages",
+          "given": "two pages and view mode on",
+          "expect": "no add button and no pages-menu-trigger, while tab clicks still switch pages"
+        }
+      ],
+      "checks": [
+        "eslint"
+      ]
+    }
+  ]
+}

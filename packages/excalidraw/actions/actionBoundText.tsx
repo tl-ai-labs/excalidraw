@@ -360,6 +360,7 @@ export const wrapTextsInContainers = (
       ],
       angle: textElement.angle,
       strokeColor: textElement.strokeColor,
+      pageId: textElement.pageId,
       roundness:
         getDefaultAppState().currentItemRoundness === "round"
           ? {

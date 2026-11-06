@@ -1,0 +1,161 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/SearchMenu.tsx",
+    "instruction": "Fix `packages/excalidraw/components/SearchMenu.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Uncaught ReferenceError: pageNameMap is not defined at packages/excalidraw/components/SearchMenu.tsx:555:25 (also used at line 534) inside MatchListBase: `pageName={pageNameMap.get(searchMatch.pageId)}`. pageNameMap is never declared in MatchListBase's scope. Define it there (a Map from page id to page name built from the visible pages, passed in as a prop or derived from the app state the component already receives) so result rows show the page name only when the drawing has more than one visible page, as U32's brief says.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn -s eslint --max-warnings=0 'packages/excalidraw/tests/pages.test.tsx' fails on unused vars: earlier attempts reported 'actionDeletePage' is defined but never used, 'queryAll' is assigned a value but never used, 'p2Id' is assigned a value but never used (twice), and 'DrawingPage' is defined but never used. Remove every unused import and variable (or use them in an assertion). The test run also crashed with 'ReferenceError: pageNameMap is not defined' from SearchMenu.tsx:555, which is fixed in SearchMenu.tsx in this round; keep the search-across-pages test.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U40.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-feature-new-drawing-pages",
+    "artifact_path": "packages/element/tests/pages.test.ts",
+    "instruction": "Create `packages/element/tests/pages.test.ts` so that these problems are solved, following the conventions in the shared brief:\n1. Unit U07 was never applied. Attempt 1: `yarn -s vitest run packages/element/tests/pages.test.ts` threw InvalidFractionalIndexError from validateFractionalIndices (packages/element/src/fractionalIndex.ts:115) via Scene.replaceAllElements (Scene.ts:339) called at pages.test.ts:367 — the test builds elements whose `index` values are missing or out of order; give the test's elements valid ascending fractional indices (e.g. run them through syncInvalidIndices from packages/element/src/fractionalIndex.ts, or use the test helpers that already do) before replaceAllElements. Attempt 2: eslint --max-warnings=0 failed: 18:3 'newElementWith' is defined but never used. Attempt 3 did not answer with one JSON object {path, content}. Write the whole file as U07's brief describes, with no unused imports.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-feature-new-drawing-pages/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

@@ -17,6 +17,7 @@ import type { UserIdleState } from "@excalidraw/common";
 import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
 import type { SceneBounds } from "@excalidraw/element";
 import type {
+  DrawingPage,
   ExcalidrawElement,
   FileId,
   OrderedExcalidrawElement,
@@ -84,12 +85,14 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly DrawingPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly DrawingPage[];
     };
   };
   MOUSE_LOCATION: {

@@ -8,6 +8,10 @@ import {
 } from "@excalidraw/common";
 
 import { getRenderEnvironment } from "@excalidraw/element/renderEnvironment";
+import {
+  isElementOnPage,
+  reassignOrphanedElementsToPage,
+} from "@excalidraw/element";
 
 import type { ValueOf } from "@excalidraw/common/utility-types";
 import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
@@ -160,25 +164,37 @@ export const loadSceneOrLibraryFromBlob = async (
       throw error;
     }
     if (isValidExcalidrawData(data)) {
-      const elements = restoreElements(data.elements, localElements, {
-        repairBindings: true,
-        deleteInvisibleElements: true,
-      });
+      const restoredAppState = restoreAppState(
+        {
+          theme: localAppState?.theme,
+          fileHandle: fileHandle || blob.handle || null,
+          ...cleanAppStateForExport(data.appState || {}),
+        },
+        localAppState,
+      );
+      const elements = reassignOrphanedElementsToPage(
+        restoreElements(data.elements, localElements, {
+          repairBindings: true,
+          deleteInvisibleElements: true,
+        }),
+        restoredAppState.pages,
+      );
+      const activePageElements = elements.filter((element) =>
+        isElementOnPage(element, restoredAppState.activePageId),
+      );
       return {
         type: MIME_TYPES.excalidraw,
         data: {
           elements,
-          appState: restoreAppState(
-            {
-              theme: localAppState?.theme,
-              fileHandle: fileHandle || blob.handle || null,
-              ...cleanAppStateForExport(data.appState || {}),
-              ...(localAppState
-                ? getScrollToContentState(elements, localAppState)
-                : {}),
-            },
-            localAppState,
-          ),
+          appState: {
+            ...restoredAppState,
+            ...(localAppState
+              ? getScrollToContentState(activePageElements, {
+                  ...localAppState,
+                  ...restoredAppState,
+                })
+              : {}),
+          },
           files: data.files || {},
         },
       };

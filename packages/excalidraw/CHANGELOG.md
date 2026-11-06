@@ -13,6 +13,15 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Pages in a drawing
+
+- Tab bar to add, switch, rename, reorder, and delete pages.
+- Per-page element membership, saved viewport, and undo/redo stacks.
+- New AppState keys: `pages`, `activePageId`, and `pageViewports`; optional `pageId` on elements (`DEFAULT_PAGE_ID = "default"` when omitted).
+- `UIOptions.pages: false` hides the tab bar UI.
+- `ExcalidrawImperativeAPI.getSceneElements()` returns every page's non-deleted elements.
+- Exports `DrawingPage`, `PageViewport`, and page helper/action APIs; file format version stays unchanged.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.
