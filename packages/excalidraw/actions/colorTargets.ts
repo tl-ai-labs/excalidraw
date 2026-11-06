@@ -21,9 +21,14 @@ import {
 } from "@excalidraw/element";
 
 import type { ColorPaletteCustom, ColorTuple } from "@excalidraw/common";
-import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ElementsMap,
+  ExcalidrawElement,
+  ExcalidrawTextElement,
+} from "@excalidraw/element/types";
 
 import { getSelectedElements } from "../scene";
+import { atom } from "../editor-jotai";
 
 import type { AppState } from "../types";
 
@@ -189,4 +194,61 @@ export const getColorTargetAppStateUpdates = (
         : color;
   }
   return updates;
+};
+
+/** Selection within an actively-edited text element. */
+export type TextEditorSelection = {
+  elementId: ExcalidrawTextElement["id"];
+  start: number;
+  end: number;
+};
+
+/**
+ * Holds the active text editor selection for the color panels.
+ * UI-only state: never persisted or collaborated.
+ */
+export const textEditorSelectionAtom = atom<TextEditorSelection | null>(null);
+
+/**
+ * Resolves the text range targeted by a color pick while editing text.
+ * Whole-text selections fall back to whole-element styling.
+ */
+export const getEditingTextRange = (
+  appState: Pick<AppState, "editingTextElement">,
+  elements: readonly ExcalidrawElement[],
+  selection: TextEditorSelection | null,
+  property: ColorProperty,
+): { element: ExcalidrawTextElement; start: number; end: number } | null => {
+  if (!appState.editingTextElement || !selection) {
+    return null;
+  }
+  if (selection.elementId !== appState.editingTextElement.id) {
+    return null;
+  }
+  const candidate = elements.find((el) => el.id === selection.elementId);
+  if (!candidate || candidate.isDeleted || !isTextElement(candidate)) {
+    return null;
+  }
+  const textLength = candidate.originalText.length;
+  const start = Math.min(selection.start, textLength);
+  const end = Math.min(selection.end, textLength);
+  if (start >= end) {
+    return null;
+  }
+  const isWholeText = start === 0 && end === textLength;
+  if (isWholeText) {
+    if (property === "strokeColor") {
+      return null;
+    }
+    const elementsMap = arrayToMap(elements);
+    const target = getColorTargetElement(
+      candidate,
+      "backgroundColor",
+      elementsMap,
+    );
+    if (target?.id !== candidate.id) {
+      return null;
+    }
+  }
+  return { element: candidate, start, end };
 };

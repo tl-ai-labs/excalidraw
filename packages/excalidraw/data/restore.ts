@@ -80,6 +80,8 @@ import {
 
 import { refreshTextDimensions } from "@excalidraw/element";
 
+import { sanitizeStyleRanges } from "@excalidraw/element";
+
 import { getNormalizedDimensions } from "@excalidraw/element";
 
 import { isInvisiblySmallElement } from "@excalidraw/element";
@@ -600,6 +602,21 @@ export const restoreElement = (
         // TODO: we should not do this since it breaks sync / versioning when we exchange / apply just deltas and restore the elements (deletion isn't recorded)
         element = { ...element, originalText: text, isDeleted: true };
         element = bumpVersion(element);
+      }
+
+      // drop malformed style ranges; keep legacy plain text key-free
+      if ("styleRanges" in element) {
+        const sanitized = sanitizeStyleRanges(
+          (element as ExcalidrawTextElement).styleRanges,
+          element.originalText.length,
+        );
+        if (sanitized) {
+          element = { ...element, styleRanges: sanitized };
+        } else {
+          const copy = { ...element };
+          delete (copy as { styleRanges?: unknown }).styleRanges;
+          element = copy;
+        }
       }
 
       return element;

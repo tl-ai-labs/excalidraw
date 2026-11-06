@@ -1,0 +1,210 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "instruction": "Fix `packages/element/src/textStyleRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security finding 1 (medium, Gate 3): a crafted scene can hang rendering. sanitizeStyleRanges (~L473) accepts an unbounded number of ranges, and normalizeStyleRanges (~L107) checks every range against every boundary segment (quadratic); getStyledLines re-normalises on every canvas redraw (renderElement.ts ~L713) and SVG export (staticSvgScene.ts ~L823). Fix: cap the range count in sanitizeStyleRanges (export a MAX_STYLE_RANGES constant, e.g. 1000, and drop ranges beyond it after sorting); rewrite normalizeStyleRanges as one sort plus a single linear pass (boundary sweep), same output contract (sorted, non-overlapping, clamped, empty/style-less dropped, equal-style neighbours merged); in getStyledLines use the stored ranges as already normalised (clamp only), never re-normalise at draw time. Security finding 2 (low): color and highlight only need to be non-empty strings and reach SVG fill attributes. Fix: in sanitizeStyleRanges accept a colour only if it is a valid CSS colour (use the same validity check the codebase already uses for colours, e.g. isColorValid / tinycolor from @excalidraw/common if exported; otherwise a strict #hex / rgb()/rgba()/hsl()/named-colour regex that rejects url( and any parenthesised function other than rgb/rgba/hsl/hsla) and its length is at most 64 characters; drop the invalid property, and drop the range if it has neither. Keep every existing export and signature.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textStyleRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textStyleRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/textStyleRanges.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FR-24 defect (Gate 3): undo does not reverse a range colour applied while editing. Failing test packages/excalidraw/tests/textStyleRanges.test.tsx > 'undo restores the previous ranges and redo re-applies them': after picking red on range [12,19) in the editor, exiting the editor and pressing undo, the red range is still on the element (expected false, received true), even with the text committed to history beforehand. Suspected cause: shiftRangesTo calls mutateElement with informMutation: false, so styleRanges changes made while the editor is open never reach the store/history, and the editor's exit commit then folds them into a state history already treats as the baseline. Fix so that range changes made while editing are recorded by the store like the text change itself (the editor's onChange / exit commit must carry the element's current styleRanges, and no styleRanges write may bypass the store's change detection). Do not change the textarea behaviour or the range-shifting rules.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. FR-24 defect (Gate 3): undo does not reverse a range colour applied while editing. Failing test packages/excalidraw/tests/textStyleRanges.test.tsx > 'undo restores the previous ranges and redo re-applies them' (red range still present after undo). The range-pick branch (applyRangeStylePick, ~L202) returns the new element with captureUpdate: CaptureUpdateAction.IMMEDIATELY while a text element is being edited; check that this capture actually records a history entry for styleRanges while appState.editingTextElement is set (the store/history may skip or overwrite the element being edited, and the editor's later commit can replace it). Make a range pick one undoable history entry: undo restores the previous styleRanges, redo re-applies them, and the editor's later commit must not erase that entry. Element-level colour behaviour must not change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/tests/textStyleRanges.test.tsx(29,28) and (190,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'. API.setSelectedElements takes NonDeleted elements: type the editText helper's parameter (and the value at line 190) as NonDeleted<ExcalidrawTextElement> (from @excalidraw/element/types), or cast as other tests in packages/excalidraw/tests do. Change only what the type errors need; keep all 8 tests and their assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}' --watch=false"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

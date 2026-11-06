@@ -1,6 +1,7 @@
 import React from "react";
 
 import { SVG_NS } from "@excalidraw/common";
+import { getLineHeightInPx, newElementWith } from "@excalidraw/element";
 
 import type { FileId, FractionalIndex } from "@excalidraw/element/types";
 
@@ -260,5 +261,101 @@ describe("export", () => {
     // in case of regressions, save the SVG to a file and visually compare to:
     // src/tests/fixtures/svg-image-exporting-reference.svg
     expect(svgText).toMatchSnapshot(`svg export output`);
+  });
+
+  it("exports styled text as tspans with per-run fill", async () => {
+    const textElement = newElementWith(
+      API.createElement({
+        type: "text",
+        id: "styled-text-1",
+        text: "hello world",
+        index: "a0" as FractionalIndex,
+        width: 100,
+        height: 25,
+      }),
+      {
+        styleRanges: [{ start: 6, end: 11, color: "#e03131" }],
+      },
+    );
+
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: [textElement],
+        appState: getDefaultAppState(),
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const textNodes = svg.querySelectorAll("text");
+    expect(textNodes.length).toBe(1);
+
+    const tspans = textNodes[0].querySelectorAll("tspan");
+    expect(tspans.length).toBe(2);
+    expect(tspans[0].textContent).toBe("hello ");
+    expect(tspans[0].getAttribute("fill")).toBe(textElement.strokeColor);
+    expect(tspans[1].textContent).toBe("world");
+    expect(tspans[1].getAttribute("fill")).toBe("#e03131");
+  });
+
+  it("exports a highlight rect behind a highlighted run", async () => {
+    const textElement = newElementWith(
+      API.createElement({
+        type: "text",
+        id: "styled-text-2",
+        text: "hello world",
+        index: "a0" as FractionalIndex,
+        width: 100,
+        height: 25,
+      }),
+      {
+        styleRanges: [{ start: 0, end: 5, highlight: "#ffec99" }],
+      },
+    );
+
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: [textElement],
+        appState: getDefaultAppState(),
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const textNode = svg.querySelector("text");
+    expect(textNode).not.toBeNull();
+    const parentGroup = textNode!.parentElement;
+    expect(parentGroup).not.toBeNull();
+
+    const rect = parentGroup!.querySelector("rect");
+    expect(rect).not.toBeNull();
+    expect(rect!.getAttribute("fill")).toBe("#ffec99");
+    expect(Number(rect!.getAttribute("height"))).toBe(
+      getLineHeightInPx(textElement.fontSize, textElement.lineHeight),
+    );
+
+    const children = Array.from(parentGroup!.children);
+    const rectIndex = children.indexOf(rect!);
+    const textIndex = children.indexOf(textNode!);
+    expect(rectIndex).toBeLessThan(textIndex);
+  });
+
+  it("plain text exports without tspans", async () => {
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: testElements,
+        appState: getDefaultAppState(),
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const textNodes = svg.querySelectorAll("text");
+    expect(textNodes.length).toBe(1);
+    const tspans = svg.querySelectorAll("tspan");
+    expect(tspans.length).toBe(0);
   });
 });

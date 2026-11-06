@@ -58,7 +58,8 @@ import {
   getBoundTextMaxHeight,
   getBoundTextMaxWidth,
 } from "./textElement";
-import { getLineHeightInPx } from "./textMeasurements";
+import { getLineHeightInPx, getLineWidth } from "./textMeasurements";
+import { getStyledLines, getStyledRunPositions } from "./textStyleRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -218,6 +219,7 @@ export interface ExcalidrawElementWithCanvas {
   canvasOffsetY: number;
   imageCrop: ExcalidrawImageElement["crop"] | null;
   containingFrameOpacity: number;
+  styleRanges: ExcalidrawTextElement["styleRanges"] | null;
 }
 
 const cappedElementCanvasSize = (
@@ -341,6 +343,7 @@ const generateElementCanvas = (
     containingFrameOpacity:
       getContainingFrame(element, elementsMap)?.opacity || 100,
     imageCrop: isImageElement(element) ? element.crop : null,
+    styleRanges: isTextElement(element) ? element.styleRanges ?? null : null,
   };
 };
 
@@ -703,12 +706,60 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          if (element.styleRanges?.length) {
+            context.textAlign = "left";
+            const dark = renderConfig.theme === THEME.DARK;
+            const font = getFontString(element);
+            const styledLines = getStyledLines(
+              element.originalText,
+              element.text,
+              element.styleRanges,
             );
+            for (let index = 0; index < styledLines.length; index++) {
+              const runs = styledLines[index];
+              const widths = runs.map((run) =>
+                getLineWidth(run.text, font, renderConfig.renderEnvironment),
+              );
+              const positions = getStyledRunPositions(
+                widths,
+                element.textAlign,
+                element.width,
+                rtl,
+              );
+              const lineTop = index * lineHeightPx;
+              for (let i = 0; i < runs.length; i++) {
+                const run = runs[i];
+                if (run.highlight) {
+                  context.fillStyle = applyDarkModeFilter(run.highlight, dark);
+                  context.fillRect(
+                    positions[i],
+                    lineTop,
+                    widths[i],
+                    lineHeightPx,
+                  );
+                }
+              }
+              for (let i = 0; i < runs.length; i++) {
+                const run = runs[i];
+                context.fillStyle = applyDarkModeFilter(
+                  run.color ?? element.strokeColor,
+                  dark,
+                );
+                context.fillText(
+                  run.text,
+                  positions[i],
+                  lineTop + verticalOffset,
+                );
+              }
+            }
+          } else {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {
@@ -753,7 +804,9 @@ const generateElementWithCanvas = (
     prevElementWithCanvas.deviceScale !== renderConfig.scale ||
     prevElementWithCanvas.environment !== renderEnvironment ||
     prevElementWithCanvas.imageCrop !== imageCrop ||
-    prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity
+    prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity ||
+    prevElementWithCanvas.styleRanges !==
+      (isTextElement(element) ? element.styleRanges ?? null : null)
   ) {
     const elementWithCanvas = generateElementCanvas(
       element,

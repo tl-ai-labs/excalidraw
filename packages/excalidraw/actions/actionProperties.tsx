@@ -42,7 +42,12 @@ import {
 
 import { LinearElementEditor } from "@excalidraw/element";
 
-import { newElementWith } from "@excalidraw/element";
+import {
+  applyTextStyle,
+  getUniformRangeStyle,
+  hasBackground,
+  newElementWith,
+} from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
 
 import {
@@ -158,6 +163,7 @@ import {
 
 import { Fonts } from "../fonts";
 import { getLanguage, t } from "../i18n";
+import { editorJotaiStore, useAtomValue } from "../editor-jotai";
 import {
   canHaveArrowheads,
   getSelectedElements,
@@ -174,7 +180,9 @@ import { getShortcutKey } from "../shortcut";
 
 import {
   getColorTargetAppStateUpdates,
+  getEditingTextRange,
   resolveColorTarget,
+  textEditorSelectionAtom,
 } from "./colorTargets";
 import { register } from "./register";
 
@@ -189,6 +197,39 @@ const getStylesPanelInfo = (app: AppClassProperties) => {
     isCompact: stylesPanelMode !== "full",
     isMobile: stylesPanelMode === "mobile",
   } as const;
+};
+
+const applyRangeStylePick = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  appStateUpdates: Partial<AppState>,
+  range: NonNullable<ReturnType<typeof getEditingTextRange>>,
+  style: Parameters<typeof applyTextStyle>[3],
+) => {
+  const updatedElement = newElementWith(range.element, {
+    styleRanges: applyTextStyle(
+      range.element.styleRanges ?? [],
+      range.start,
+      range.end,
+      style,
+      range.element.originalText.length,
+    ),
+  });
+
+  return {
+    elements: elements.map((el) =>
+      el.id === range.element.id ? updatedElement : el,
+    ),
+    appState: {
+      ...appState,
+      ...appStateUpdates,
+      editingTextElement:
+        appState.editingTextElement?.id === range.element.id
+          ? updatedElement
+          : appState.editingTextElement,
+    },
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  };
 };
 
 export const changeProperty = (
@@ -377,6 +418,24 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+    const strokeRange = getEditingTextRange(
+      appState,
+      elements,
+      editorJotaiStore.get(textEditorSelectionAtom),
+      "strokeColor",
+    );
+    if (strokeRange) {
+      return applyRangeStylePick(
+        elements,
+        appState,
+        appStateUpdates,
+        strokeRange,
+        {
+          color: color === strokeRange.element.strokeColor ? null : color,
+        },
+      );
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
@@ -408,12 +467,39 @@ export const actionChangeStrokeColor = register<
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
-  PanelComponent: ({ elements, appState, updateData, app }) => {
+  PanelComponent: ({ elements, appState, updateData, app, renderAction }) => {
     const { stylesPanelMode } = getStylesPanelInfo(app);
+    const selection = useAtomValue(textEditorSelectionAtom);
+    const range = getEditingTextRange(
+      appState,
+      elements,
+      selection,
+      "strokeColor",
+    );
     const target = resolveColorTarget(appState, elements, "strokeColor");
     // a note has no stroke: its "stroke" is the ink of its text and footer
-    const label =
-      target.kind === "sticky" ? t("labels.textColor") : t("labels.stroke");
+    const label = range
+      ? t("labels.rangeTextColor")
+      : target.kind === "sticky"
+      ? t("labels.textColor")
+      : t("labels.stroke");
+
+    const highlightRange = getEditingTextRange(
+      appState,
+      elements,
+      selection,
+      "backgroundColor",
+    );
+    const showHighlightPicker =
+      !!highlightRange &&
+      !hasBackground(appState.activeTool.type) &&
+      !hasBackground(
+        getColorTargetElement(
+          highlightRange.element,
+          "backgroundColor",
+          app.scene.getNonDeletedElementsMap(),
+        ).type,
+      );
 
     return (
       <>
@@ -425,18 +511,29 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
-            elements,
-            app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={
+            range
+              ? getUniformRangeStyle(
+                  range.element.styleRanges ?? [],
+                  range.start,
+                  range.end,
+                  "color",
+                ) ?? range.element.strokeColor
+              : getFormValue(
+                  elements,
+                  app,
+                  (element) => element.strokeColor,
+                  true,
+                  (hasSelection) =>
+                    !hasSelection ? target.currentValue : null,
+                )
+          }
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}
           updateData={updateData}
         />
+        {showHighlightPicker && renderAction("changeBackgroundColor")}
       </>
     );
   },
@@ -455,6 +552,17 @@ export const actionChangeBackgroundColor = register<
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
+    }
+    const bgRange = getEditingTextRange(
+      appState,
+      elements,
+      editorJotaiStore.get(textEditorSelectionAtom),
+      "backgroundColor",
+    );
+    if (bgRange) {
+      return applyRangeStylePick(elements, appState, appStateUpdates, bgRange, {
+        highlight: isTransparent(color) ? null : color,
+      });
     }
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     const elementsMap = arrayToMap(elements);
@@ -523,31 +631,49 @@ export const actionChangeBackgroundColor = register<
   },
   PanelComponent: ({ elements, appState, updateData, app }) => {
     const { stylesPanelMode } = getStylesPanelInfo(app);
+    const range = getEditingTextRange(
+      appState,
+      elements,
+      useAtomValue(textEditorSelectionAtom),
+      "backgroundColor",
+    );
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     // while editing a note's label the picker shows and sets the note's fill
     const elementsMap = app.scene.getNonDeletedElementsMap();
+    const label = range ? t("labels.rangeHighlight") : t("labels.background");
 
     return (
       <>
-        {stylesPanelMode === "full" && (
-          <h3 aria-hidden="true">{t("labels.background")}</h3>
-        )}
+        {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
         <ColorPicker
           topPicks={target.topPicks}
           palette={target.palette}
           customizableTopPicks={target.customizableTopPicks}
           excludedColors={target.excludedColors}
           type="elementBackground"
-          label={t("labels.background")}
-          color={getFormValue(
-            elements,
-            app,
-            (element) =>
-              getColorTargetElement(element, "backgroundColor", elementsMap)
-                .backgroundColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          label={label}
+          color={
+            range
+              ? getUniformRangeStyle(
+                  range.element.styleRanges ?? [],
+                  range.start,
+                  range.end,
+                  "highlight",
+                ) ?? range.element.backgroundColor
+              : getFormValue(
+                  elements,
+                  app,
+                  (element) =>
+                    getColorTargetElement(
+                      element,
+                      "backgroundColor",
+                      elementsMap,
+                    ).backgroundColor,
+                  true,
+                  (hasSelection) =>
+                    !hasSelection ? target.currentValue : null,
+                )
+          }
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

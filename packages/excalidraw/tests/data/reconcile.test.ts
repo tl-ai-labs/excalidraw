@@ -383,4 +383,69 @@ describe("elements reconciliation", () => {
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
   });
+
+  it("keeps text style ranges with the winning text", () => {
+    const localV2 = {
+      id: "T1",
+      type: "text",
+      version: 2,
+      versionNonce: 1,
+      index: "a0",
+      text: "hello",
+      originalText: "hello",
+      styleRanges: [{ start: 0, end: 5, color: "#ff0000" }],
+    } as unknown as OrderedExcalidrawElement;
+
+    const remoteV3 = {
+      id: "T1",
+      type: "text",
+      version: 3,
+      versionNonce: 2,
+      index: "a0",
+      text: "hello world",
+      originalText: "hello world",
+      styleRanges: [{ start: 6, end: 11, color: "#0000ff" }],
+    } as unknown as RemoteExcalidrawElement;
+
+    const localV3 = {
+      ...localV2,
+      version: 3,
+    } as unknown as OrderedExcalidrawElement;
+
+    const remoteV2 = {
+      ...remoteV3,
+      version: 2,
+    } as unknown as RemoteExcalidrawElement;
+
+    // remote v3 wins against local v2
+    const resRemoteWins = reconcileElements(
+      [localV2],
+      [remoteV3],
+      {} as AppState,
+    );
+    expect(resRemoteWins[0]).toMatchObject({
+      originalText: "hello world",
+      styleRanges: [{ start: 6, end: 11, color: "#0000ff" }],
+    });
+
+    // local v3 wins against remote v2
+    const resLocalWins = reconcileElements(
+      [localV3],
+      [remoteV2],
+      {} as AppState,
+    );
+    expect(resLocalWins[0]).toMatchObject({
+      originalText: "hello",
+      styleRanges: [{ start: 0, end: 5, color: "#ff0000" }],
+    });
+
+    // edited local text keeps ranges against newer remote
+    const resEditing = reconcileElements([localV2], [remoteV3], {
+      editingTextElement: localV2,
+    } as unknown as AppState);
+    expect(resEditing[0]).toMatchObject({
+      originalText: "hello",
+      styleRanges: [{ start: 0, end: 5, color: "#ff0000" }],
+    });
+  });
 });

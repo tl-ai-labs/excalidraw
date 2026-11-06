@@ -30,6 +30,10 @@ import {
 } from "./stickyNote";
 import { getBoundTextMaxWidth } from "./textElement";
 import { normalizeText, measureText } from "./textMeasurements";
+import {
+  getStyleRangesClampUpdate,
+  normalizeStyleRanges,
+} from "./textStyleRanges";
 import { wrapText } from "./textWrapping";
 
 import { isLineElement } from "./typeChecks";
@@ -347,6 +351,7 @@ export const newTextElement = (
     autoResize?: ExcalidrawTextElement["autoResize"];
     labelPosition?: ExcalidrawTextElement["labelPosition"];
     baseFontSize?: ExcalidrawTextElement["baseFontSize"];
+    styleRanges?: ExcalidrawTextElement["styleRanges"];
     renderEnvironment?: RenderEnvironment;
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawTextElement> => {
@@ -367,6 +372,10 @@ export const newTextElement = (
     metrics,
   );
 
+  const styleRanges = opts.styleRanges
+    ? normalizeStyleRanges(opts.styleRanges, (opts.originalText ?? text).length)
+    : [];
+
   const textElementProps: NonDeleted<ExcalidrawTextElement> = {
     ..._newElementBase<ExcalidrawTextElement>("text", opts),
     text,
@@ -384,6 +393,7 @@ export const newTextElement = (
     autoResize: opts.autoResize ?? true,
     lineHeight,
     labelPosition: opts.labelPosition ?? null,
+    ...(styleRanges.length ? { styleRanges } : {}),
   };
 
   const textElement: NonDeleted<ExcalidrawTextElement> = newElementWith(
@@ -554,6 +564,10 @@ export const refreshTextDimensions = (
   if (textElement.isDeleted) {
     return;
   }
+  const styleRangesUpdate =
+    text === textElement.text
+      ? {}
+      : getStyleRangesClampUpdate(textElement, text.length);
   if (
     maxWidth !== undefined &&
     !container &&
@@ -576,6 +590,7 @@ export const refreshTextDimensions = (
           maxWidth,
           renderEnvironment,
         ),
+        ...styleRangesUpdate,
       };
     }
   }
@@ -596,7 +611,7 @@ export const refreshTextDimensions = (
     undefined,
     renderEnvironment,
   );
-  return { text, ...dimensions };
+  return { text, ...dimensions, ...styleRangesUpdate };
 };
 
 export const newFreeDrawElement = (

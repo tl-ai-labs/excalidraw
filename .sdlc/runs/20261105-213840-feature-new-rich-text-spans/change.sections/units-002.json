@@ -1,0 +1,142 @@
+[
+  {
+    "id": "U08",
+    "path": "packages/excalidraw/actions/colorTargets.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Holds the text editor's selection in an editor-jotai atom and resolves the editing text range a colour pick targets.",
+    "rules": [
+      "1. Import `{ atom }` from \"../editor-jotai\" after the ../scene import, and add ExcalidrawTextElement to the existing element type import.",
+      "2. TextEditorSelection is `{ elementId: ExcalidrawTextElement[\"id\"]; start: number; end: number }`; textEditorSelectionAtom is `atom<TextEditorSelection | null>(null)`; it is UI-only state, never persisted or collaborated.",
+      "3. getEditingTextRange returns null unless appState.editingTextElement is set, selection is non-null with selection.elementId equal to its id, and the element with that id in `elements` is a non-deleted text element; then start = min(selection.start, originalText.length), end = min(selection.end, originalText.length); returns null when start >= end; a whole-text selection (start === 0 and end === originalText.length, which Enter-to-edit auto-selects) also returns null for property \"strokeColor\", and for \"backgroundColor\" when getColorTargetElement(element, \"backgroundColor\", arrayToMap(elements)) is not the element itself (a sticky label, whose pick colours the note), so those picks behave as today; else { element, start, end } with the scene's (latest) element."
+    ],
+    "exports": [
+      { "name": "TextEditorSelection", "kind": "type", "params": [], "returns": "{ elementId: ExcalidrawTextElement[\"id\"]; start: number; end: number }" },
+      { "name": "textEditorSelectionAtom", "kind": "const", "params": [], "returns": "PrimitiveAtom<TextEditorSelection | null>" },
+      { "name": "getEditingTextRange", "kind": "function", "params": [{ "name": "appState", "type": "Pick<AppState, \"editingTextElement\">" }, { "name": "elements", "type": "readonly ExcalidrawElement[]" }, { "name": "selection", "type": "TextEditorSelection | null" }, { "name": "property", "type": "ColorProperty" }], "returns": "{ element: ExcalidrawTextElement; start: number; end: number } | null" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 24, "to": 24, "first_line": "import type { ElementsMap, ExcalidrawElement } from \"@excalidraw/element/types\";", "rule": "Also import ExcalidrawTextElement (prettier may wrap the line)." },
+      { "id": "S2", "at": "insert_after", "from": 26, "to": 26, "first_line": "import { getSelectedElements } from \"../scene\";", "rule": "Insert `import { atom } from \"../editor-jotai\";`." },
+      { "id": "S3", "at": "insert_after", "from": 192, "to": 192, "first_line": "};", "rule": "Append a blank line, then TextEditorSelection, textEditorSelectionAtom and getEditingTextRange with JSDoc (rules 2 and 3)." }
+    ],
+    "uses": [{ "path": "packages/excalidraw/editor-jotai.ts", "reason": "atom export" }],
+    "depends_on": ["U01"],
+    "covers": ["FR-18", "FR-20"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U09",
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "The textarea editor publishes its selection to textEditorSelectionAtom and shifts the edited element's styleRanges on every value change in the same update as originalText.",
+    "rules": [
+      "1. Imports: `import { diffText, shiftStyleRanges } from \"@excalidraw/element\";` after the getWrappedTextLines import; `import { textEditorSelectionAtom } from \"../actions/colorTargets\";` and `import { editorJotaiStore } from \"../editor-jotai\";` after the actionCanvas import.",
+      "2. Right after `editable.value = element.originalText;` declare `let styleRangesText = element.originalText;` (the text the stored ranges are aligned to) and two helpers.",
+      "3. shiftRangesTo(nextText): edit = diffText(styleRangesText, nextText); set styleRangesText = nextText; return when edit is null; read the latest element with app.scene.getElement(element.id); return unless it is a text element with styleRanges?.length; else app.scene.mutateElement(latest, { styleRanges: shiftStyleRanges(latest.styleRanges, edit, nextText.length) }, { informMutation: false, isDragging: false }).",
+      "4. syncSelection(): when the editor is not destroyed, set textEditorSelectionAtom through editorJotaiStore to { elementId: element.id, start: editable.selectionStart, end: editable.selectionEnd }, skipping the set when the atom already holds the same three values.",
+      "5. oninput calls shiftRangesTo(editable.value) immediately before onChange(editable.value) and syncSelection() right after it, so the ranges are on the scene element that App.text.ts then updates with the new originalText.",
+      "6. indent and outdent call shiftRangesTo(value) after each single tab insertion or removal inside their loops, so each tab shifts ranges as its own edit and the input event dispatched afterwards finds nothing left to shift.",
+      "7. Next to `editable.onpointerdown = ...` register syncSelection for the textarea's select, keyup and pointerup events and the ownerDocument's selectionchange event; cleanup removes all four listeners and sets the atom to null through editorJotaiStore, so a colour pick after editing ends targets the element, not a range."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 43, "to": 43, "first_line": "import { getWrappedTextLines } from \"@excalidraw/element\";", "rule": "The @excalidraw/element import of rule 1." },
+      { "id": "S2", "at": "insert_after", "from": 74, "to": 74, "first_line": "} from \"../actions/actionCanvas\";", "rule": "The two parent imports of rule 1." },
+      { "id": "S3", "at": "insert_after", "from": 569, "to": 569, "first_line": "editable.value = element.originalText;", "rule": "Declare styleRangesText, shiftRangesTo and syncSelection (rules 2 to 4)." },
+      { "id": "S4", "at": "replace", "from": 863, "to": 863, "first_line": "onChange(editable.value);", "rule": "shiftRangesTo(editable.value); onChange(editable.value); syncSelection(); as three statements (rule 5)." },
+      { "id": "S5", "at": "insert_after", "from": 937, "to": 937, "first_line": "value = `${startValue}${TAB}${endValue}`;", "rule": "shiftRangesTo(value); (rule 6)." },
+      { "id": "S6", "at": "insert_after", "from": 962, "to": 962, "first_line": "value = `${startValue}${endValue}`;", "rule": "shiftRangesTo(value); (rule 6)." },
+      { "id": "S7", "at": "insert_after", "from": 1095, "to": 1095, "first_line": "editable.onkeydown = null;", "rule": "Remove the four selection listeners and reset the atom to null (rule 7)." },
+      { "id": "S8", "at": "insert_after", "from": 1320, "to": 1320, "first_line": "editable.onpointerdown = (event) => event.stopPropagation();", "rule": "Register the four selection listeners (rule 7)." }
+    ],
+    "uses": [
+      { "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx", "lines": [850, 990], "reason": "oninput, indent and outdent being extended" },
+      { "path": "packages/excalidraw/components/App.text.ts", "lines": [187, 240], "reason": "onChange's updateElement spreads the latest scene element, which carries the shifted ranges" }
+    ],
+    "depends_on": ["U03", "U08"],
+    "covers": ["FR-18", "FR-19", "FR-9", "NFR-6"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U10",
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Stroke and background colour picks apply to the editor's selected range as text colour and highlight, and the panels label and show range values while a range is selected.",
+    "rules": [
+      "1. Imports: `applyTextStyle`, `getUniformRangeStyle` and `hasBackground` join the `newElementWith` import from \"@excalidraw/element\"; `import { editorJotaiStore, useAtomValue } from \"../editor-jotai\";` after the ../i18n import; `getEditingTextRange` and `textEditorSelectionAtom` join the ./colorTargets import.",
+      "2. Both performs, after the `color === undefined` early return and before anything else: range = getEditingTextRange(appState, elements, editorJotaiStore.get(textEditorSelectionAtom), <the action's property: \"strokeColor\" or \"backgroundColor\">); when non-null return { elements: elements mapped so only range.element is replaced by newElementWith(range.element, { styleRanges: applyTextStyle(range.element.styleRanges ?? [], range.start, range.end, style, range.element.originalText.length) }), appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }; no strokeColor, backgroundColor, container or currentItem default is written.",
+      "3. Stroke style is { color: null } when color === range.element.strokeColor, else { color }; background style is { highlight: null } when isTransparent(color), else { highlight: color }.",
+      "4. Stroke PanelComponent: selection = useAtomValue(textEditorSelectionAtom); range = getEditingTextRange(appState, elements, selection, \"strokeColor\"); label is t(\"labels.rangeTextColor\") when range, else the existing sticky/stroke label; picker color is getUniformRangeStyle(range.element.styleRanges ?? [], range.start, range.end, \"color\") ?? range.element.strokeColor when range, else the existing getFormValue call.",
+      "5. Stroke PanelComponent also computes highlightRange = getEditingTextRange(appState, elements, selection, \"backgroundColor\") and renders renderAction(\"changeBackgroundColor\") after its ColorPicker when highlightRange is set and neither hasBackground(appState.activeTool.type) nor hasBackground(getColorTargetElement(highlightRange.element, \"backgroundColor\", app.scene.getNonDeletedElementsMap()).type) holds, so free and bound text get a highlight picker.",
+      "6. Background PanelComponent: range = getEditingTextRange(appState, elements, useAtomValue(textEditorSelectionAtom), \"backgroundColor\"); heading and label are t(\"labels.rangeHighlight\") when range, else t(\"labels.background\"); picker color is getUniformRangeStyle(..., \"highlight\") ?? range.element.backgroundColor when range, else the existing getFormValue call.",
+      "7. Without a range both actions behave exactly as today (FR-22); an element-level stroke pick leaves styleRanges untouched."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 45, "to": 45, "first_line": "import { newElementWith } from \"@excalidraw/element\";", "rule": "The widened @excalidraw/element import of rule 1." },
+      { "id": "S2", "at": "insert_after", "from": 160, "to": 160, "first_line": "import { getLanguage, t } from \"../i18n\";", "rule": "The editor-jotai import of rule 1." },
+      { "id": "S3", "at": "replace", "from": 175, "to": 178, "first_line": "import {", "last_line": "} from \"./colorTargets\";", "rule": "The widened ./colorTargets import of rule 1." },
+      { "id": "S4", "at": "insert_before", "from": 380, "to": 380, "first_line": "// resolved from the state the action runs against — never from the", "rule": "The stroke range branch (rules 2 and 3)." },
+      { "id": "S5", "at": "replace", "from": 411, "to": 442, "first_line": "PanelComponent: ({ elements, appState, updateData, app }) => {", "last_line": "},", "rule": "Stroke PanelComponent with renderAction in its props (rules 4 and 5); the ColorPicker props other than label and color stay as they are." },
+      { "id": "S6", "at": "insert_before", "from": 459, "to": 459, "first_line": "const target = resolveColorTarget(appState, elements, \"backgroundColor\");", "rule": "The background range branch (rules 2 and 3)." },
+      { "id": "S7", "at": "replace", "from": 524, "to": 558, "first_line": "PanelComponent: ({ elements, appState, updateData, app }) => {", "last_line": "},", "rule": "Background PanelComponent (rule 6); other ColorPicker props stay as they are." }
+    ],
+    "uses": [{ "path": "packages/excalidraw/actions/actionProperties.tsx", "lines": [366, 559], "reason": "the two colour actions being extended" }],
+    "depends_on": ["U03", "U08"],
+    "covers": ["FR-21", "FR-22", "FR-23", "FR-24", "FR-25", "FR-26"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "SVG export writes styled text lines as tspans with their own fill and highlight rects behind the line.",
+    "rules": [
+      "1. Imports: getFontString joins the @excalidraw/common list after getFontFamilyString; the getLineHeightInPx import from \"@excalidraw/element\" also imports getLineWidth, getStyledLines and getStyledRunPositions.",
+      "2. Without element.styleRanges?.length the per-line loop is unchanged (existing snapshots must not change).",
+      "3. With ranges, compute styledLines = getStyledLines(element.originalText, element.text, element.styleRanges) once; per line i: widths = runs measured with getLineWidth(run.text, getFontString(element), renderConfig.renderEnvironment); xs = getStyledRunPositions(widths, element.textAlign, element.width, direction === \"rtl\"); for every run with a highlight append to node a rect (createElementNS(SVG_NS, \"rect\")) with x xs[j], y i * lineHeightPx, width widths[j], height lineHeightPx and fill applyDarkModeFilter(run.highlight, dark).",
+      "4. Then append the line's text element with exactly today's attributes (x, y, font-family, font-size, fill, text-anchor, style, direction, dominant-baseline) but no textContent; it holds one tspan per run with textContent run.text and fill applyDarkModeFilter(run.color ?? element.strokeColor, dark), where dark is renderConfig.theme === THEME.DARK.",
+      "5. All attributes are set with setAttribute and text with textContent (NFR-7)."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 8, "to": 8, "first_line": "getFontFamilyString,", "rule": "getFontFamilyString, then getFontString, on its own line." },
+      { "id": "S2", "at": "replace", "from": 28, "to": 28, "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";", "rule": "The widened import of rule 1." },
+      { "id": "S3", "at": "replace", "from": 815, "to": 834, "first_line": "for (let i = 0; i < lines.length; i++) {", "last_line": "}", "rule": "Styled branch (rules 3 to 5) when the element has ranges, else the original loop verbatim." }
+    ],
+    "uses": [{ "path": "packages/excalidraw/renderer/staticSvgScene.ts", "lines": [778, 848], "reason": "text export block being extended" }],
+    "depends_on": ["U03"],
+    "covers": ["FR-27", "FR-28", "FR-29", "NFR-7"],
+    "checks": ["lint"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/locales/en.json",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the two range colour labels.",
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 33, "to": 33, "first_line": "\"textColor\": \"Text color\",", "rule": "Insert `\"rangeTextColor\": \"Selected text color\",` and `\"rangeHighlight\": \"Selected text highlight\",` at the same indent." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-25"],
+    "checks": ["format"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Unreleased feature entry for per-range text colour and highlight.",
+    "rules": [
+      "1. Heading `### Per-range text color and highlight (2026-11-05)` followed by bullets: selecting part of a text while editing and picking a stroke colour colours that part and a background colour highlights it; the new optional text element field `styleRanges` (`{ start, end, color?, highlight? }[]`, UTF-16 offsets into `originalText`, normalised); canvas and SVG export (`<tspan>` runs and highlight `<rect>`s) render it; text without styling serialises as before and older clients ignore the field; copy/paste styles never carries ranges."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 16, "to": 16, "first_line": "### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)", "rule": "Insert the new section (rule 1) followed by a blank line." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-30"],
+    "checks": ["format"]
+  }
+]

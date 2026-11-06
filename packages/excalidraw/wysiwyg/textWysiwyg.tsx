@@ -41,6 +41,7 @@ import { getLineWidth } from "@excalidraw/element";
 import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
+import { diffText, shiftStyleRanges } from "@excalidraw/element";
 import {
   isArrowElement,
   isBoundToContainer,
@@ -72,6 +73,8 @@ import {
   actionZoomIn,
   actionZoomOut,
 } from "../actions/actionCanvas";
+import { textEditorSelectionAtom } from "../actions/colorTargets";
+import { editorJotaiStore } from "../editor-jotai";
 
 import type { ParsedDataTranferList } from "../clipboard";
 
@@ -567,6 +570,52 @@ export const textWysiwyg = ({
     boxSizing: "content-box",
   });
   editable.value = element.originalText;
+  let styleRangesText = element.originalText;
+
+  const shiftRangesTo = (nextText: string) => {
+    const edit = diffText(styleRangesText, nextText);
+    styleRangesText = nextText;
+    if (!edit) {
+      return;
+    }
+    const latest = app.scene.getElement<ExcalidrawTextElement>(element.id);
+    if (!latest || !isTextElement(latest) || !latest.styleRanges?.length) {
+      return;
+    }
+    app.scene.mutateElement(
+      latest,
+      {
+        styleRanges: shiftStyleRanges(
+          latest.styleRanges,
+          edit,
+          nextText.length,
+        ),
+      },
+      { informMutation: true, isDragging: false },
+    );
+  };
+
+  const syncSelection = () => {
+    if (isDestroyed) {
+      return;
+    }
+    const current = editorJotaiStore.get(textEditorSelectionAtom);
+    const start = editable.selectionStart;
+    const end = editable.selectionEnd;
+    if (
+      current &&
+      current.elementId === element.id &&
+      current.start === start &&
+      current.end === end
+    ) {
+      return;
+    }
+    editorJotaiStore.set(textEditorSelectionAtom, {
+      elementId: element.id,
+      start,
+      end,
+    });
+  };
   updateWysiwygStyle();
 
   const getCaretIndexFromInitialSceneCoords = () => {
@@ -860,7 +909,9 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
+      shiftRangesTo(editable.value);
       onChange(editable.value);
+      syncSelection();
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -935,6 +986,7 @@ export const textWysiwyg = ({
       const endValue = value.slice(startIndex);
 
       value = `${startValue}${TAB}${endValue}`;
+      shiftRangesTo(value);
     });
 
     editable.value = value;
@@ -960,6 +1012,7 @@ export const textWysiwyg = ({
 
         // Delete a tab from the line
         value = `${startValue}${endValue}`;
+        shiftRangesTo(value);
         removedTabs.push(startIndex);
       }
     });
@@ -1093,6 +1146,11 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.removeEventListener("select", syncSelection);
+    editable.removeEventListener("keyup", syncSelection);
+    editable.removeEventListener("pointerup", syncSelection);
+    ownerDocument.removeEventListener("selectionchange", syncSelection);
+    editorJotaiStore.set(textEditorSelectionAtom, null);
 
     if (observer) {
       observer.disconnect();
@@ -1318,6 +1376,10 @@ export const textWysiwyg = ({
   }
 
   editable.onpointerdown = (event) => event.stopPropagation();
+  editable.addEventListener("select", syncSelection);
+  editable.addEventListener("keyup", syncSelection);
+  editable.addEventListener("pointerup", syncSelection);
+  ownerDocument.addEventListener("selectionchange", syncSelection);
 
   // rAF (+ capture to by doubly sure) so we don't catch te pointerdown that
   // triggered the wysiwyg
