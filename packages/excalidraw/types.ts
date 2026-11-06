@@ -39,6 +39,8 @@ import type {
   BindMode,
   ExcalidrawTextElement,
   StrokeVariability,
+  ExcalidrawPage,
+  PageViewport,
 } from "@excalidraw/element/types";
 
 import type {
@@ -96,6 +98,8 @@ export type Collaborator = Readonly<{
   isInCall?: boolean;
   isSpeaking?: boolean;
   isMuted?: boolean;
+  /** the page the collaborator is on; pointers render only for the local active page */
+  pageId?: string;
 }>;
 
 export type CollaboratorPointer = {
@@ -243,6 +247,7 @@ export type InteractiveCanvasAppState = Readonly<
     elementsToHighlight: AppState["elementsToHighlight"];
     // Collaborators
     collaborators: AppState["collaborators"];
+    activePageId: AppState["activePageId"];
     // SnapLines
     snapLines: AppState["snapLines"];
     zenModeEnabled: AppState["zenModeEnabled"];
@@ -588,11 +593,18 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  /** pages ordered by index, deleted pages kept as tombstones */
+  pages: readonly ExcalidrawPage[];
+  activePageId: ExcalidrawPage["id"];
+  /** saved viewports of the pages that are not active */
+  pageViewports: Readonly<Record<ExcalidrawPage["id"], PageViewport>>;
 }
 
 export type SearchMatch = {
   id: string;
   focus: boolean;
+  /** the page holding the matched element */
+  pageId: string;
   matchedLines: {
     offsetX: number;
     offsetY: number;
@@ -1232,6 +1244,7 @@ export type AppClassProperties = {
   onInsertElements: App["onInsertElements"];
   onExportImage: App["onExportImage"];
   viewport: App["viewport"];
+  setActivePage: App["setActivePage"];
   addFiles: App["addFiles"];
   addElementsFromPasteOrLibrary: App["addElementsFromPasteOrLibrary"];
   togglePenMode: App["togglePenMode"];
@@ -1391,6 +1404,11 @@ export interface ExcalidrawImperativeAPI {
   /** Whether the editor has been unmounted and the API is no longer usable. */
   isDestroyed: boolean;
   updateScene: InstanceType<typeof App>["updateScene"];
+  /**
+   * Switches to the given visible page and restores its viewport. Does
+   * nothing for an unknown id.
+   */
+  setActivePage: InstanceType<typeof App>["setActivePage"];
   applyDeltas: InstanceType<typeof App>["applyDeltas"];
   mutateElement: InstanceType<typeof App>["mutateElement"];
   updateLibrary: InstanceType<typeof Library>["updateLibrary"];

@@ -74,6 +74,29 @@ Every normalized element has a `created: number | null` field. A number is the c
 | Restore/open/import an existing scene | Preserve the carried value; missing values become `null` |
 | Edit, change type while retaining the ID, capture, undo, or redo | Preserve the value |
 
+### Pages
+
+A drawing can contain several pages. Each element carries an optional `pageId: string` naming the page it belongs to, and `appState` holds the page list and page-related state:
+
+| Attribute | Description | Value |
+| --- | --- | --- |
+| `elements[].pageId` | The id of the page the element belongs to | string (optional) |
+| `appState.pages` | The pages of the drawing, ordered by `index` (a fractional-index key); deleted pages are kept as tombstones with `isDeleted: true` | Array of `{ id, name, index, version, versionNonce, isDeleted }` |
+| `appState.activePageId` | The id of the page shown when the file is opened | string |
+| `appState.pageViewports` | The saved viewport of each non-active page | `{ [pageId]: { scrollX, scrollY, zoom } }` |
+
+When a file is restored, page data is repaired as follows:
+
+| Situation | Result |
+| --- | --- |
+| `appState.pages` is missing or empty | One default page with id `page-1` named "Page 1" |
+| Several pages share an id | The first page with that id is kept |
+| `activePageId` is missing or unknown | The first visible page becomes active |
+| An element has a missing or unknown `pageId` | The element moves to the active page |
+| A binding, bound text or frame membership crosses pages | The cross-page link is cut |
+
+The format `version` stays `2`; all page fields are optional and additive. Older readers ignore them and show every page's elements on one canvas.
+
 ## Excalidraw clipboard format
 
 When copying selected excalidraw elements to clipboard, the JSON schema is similar to `.excalidraw` format, except it differs in attributes.

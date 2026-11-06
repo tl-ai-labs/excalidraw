@@ -408,7 +408,16 @@ export {
   hashElementsVersion,
   hashString,
   getNonDeletedElements,
+  DEFAULT_PAGE_ID,
+  getActivePage,
+  getPageElements,
+  getPagesVersion,
+  getVisiblePages,
+  reconcilePages,
+  restorePages,
 } from "@excalidraw/element";
+
+export type { ExcalidrawPage, PageViewport } from "@excalidraw/element/types";
 
 export { getTextFromElements } from "@excalidraw/element";
 export { isInvisiblySmallElement } from "@excalidraw/element";
