@@ -2837,8 +2837,12 @@ class App extends React.Component<AppProps, AppState> {
       multiElement: null,
       selectedLinearElement: null,
     };
+    // a copy: the scene rebuilds its map in place, which would silently
+    // rewrite the store's baseline
     this.store.snapshot = StoreSnapshot.create(
-      this.scene.getAllElementsMapIncludingDeleted(),
+      new Map(
+        this.scene.getAllElementsMapIncludingDeleted(),
+      ) as SceneElementsMap,
       getObservedAppState({ ...this.state, ...nextState }),
     );
     this.setState(nextState);

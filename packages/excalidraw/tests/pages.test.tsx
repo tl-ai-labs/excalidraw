@@ -1,13 +1,15 @@
+import { vi } from "vitest";
+
 import { KEYS } from "@excalidraw/common";
 
 import { CaptureUpdateAction, Excalidraw } from "../index";
 import { serializeAsJSON } from "../data/json";
 import { restore } from "../data/restore";
-import { exportToSvg } from "../scene/export";
+import { exportScene } from "../scene/export";
 
 import { API } from "./helpers/api";
 import { Keyboard } from "./helpers/ui";
-import { fireEvent, render, waitFor } from "./test-utils";
+import { act, fireEvent, render, waitFor } from "./test-utils";
 
 import type { NormalizedZoomValue } from "../types";
 
@@ -26,19 +28,27 @@ const undo = () => {
   });
 };
 
+const run = <T,>(fn: () => T): T => {
+  let result!: T;
+  act(() => {
+    result = fn();
+  });
+  return result;
+};
+
 const activeIds = () => h.app.scene.getNonDeletedElements().map((el) => el.id);
 
 const allIds = () => h.app.getAllSceneElements().map((el) => el.id);
 
 describe("pages", () => {
   beforeEach(async () => {
-    await render(<Excalidraw />);
+    await render(<Excalidraw handleKeyboardGlobally={true} />);
   });
 
   it("AC-1: isolates elements and selection per active page", () => {
     addRect("r1");
     const page1 = h.state.activePageId;
-    const page2 = h.app.addPage();
+    const page2 = run(() => h.app.addPage());
     expect(h.state.pages.length).toBe(2);
     expect(h.state.activePageId).toBe(page2);
     addRect("r2");
@@ -51,7 +61,7 @@ describe("pages", () => {
     });
     expect(Object.keys(h.state.selectedElementIds)).toEqual(["r2"]);
 
-    h.app.switchPage(page1);
+    run(() => h.app.switchPage(page1));
     expect(activeIds()).toEqual(["r1"]);
     expect(allIds().sort()).toEqual(["r1", "r2"]);
   });
@@ -59,28 +69,32 @@ describe("pages", () => {
   it("AC-2: keeps per-page viewport and clears selection on switch", () => {
     addRect("r1");
     const page1 = h.state.activePageId;
-    h.setState({
-      scrollX: 100,
-      scrollY: 50,
-      zoom: { value: 2 as NormalizedZoomValue },
-      selectedElementIds: { r1: true },
-    });
+    run(() =>
+      h.setState({
+        scrollX: 100,
+        scrollY: 50,
+        zoom: { value: 2 as NormalizedZoomValue },
+        selectedElementIds: { r1: true },
+      }),
+    );
 
-    const page2 = h.app.addPage();
+    const page2 = run(() => h.app.addPage());
     expect(h.state.selectedElementIds).toEqual({});
-    h.setState({
-      scrollX: -30,
-      scrollY: -20,
-      zoom: { value: 0.5 as NormalizedZoomValue },
-    });
+    run(() =>
+      h.setState({
+        scrollX: -30,
+        scrollY: -20,
+        zoom: { value: 0.5 as NormalizedZoomValue },
+      }),
+    );
 
-    h.app.switchPage(page1);
+    run(() => h.app.switchPage(page1));
     expect(h.state.scrollX).toBe(100);
     expect(h.state.scrollY).toBe(50);
     expect(h.state.zoom.value).toBe(2);
     expect(h.state.selectedElementIds).toEqual({});
 
-    h.app.switchPage(page2);
+    run(() => h.app.switchPage(page2));
     expect(h.state.scrollX).toBe(-30);
     expect(h.state.scrollY).toBe(-20);
     expect(h.state.zoom.value).toBe(0.5);
@@ -95,20 +109,20 @@ describe("pages", () => {
     expect(document.querySelector(addButtonSelector)).not.toBeNull();
 
     addRect("r1");
-    const page2 = h.app.addPage();
+    const page2 = run(() => h.app.addPage());
     addRect("r2");
 
-    h.app.renamePage(page2, "SDK flow");
+    run(() => h.app.renamePage(page2, "SDK flow"));
     expect(h.state.pages.find((p) => p.id === page2)?.name).toBe("SDK flow");
 
-    h.app.reorderPages(1, 0);
+    run(() => h.app.reorderPages(1, 0));
     expect(h.state.pages.map((p) => p.id)).toEqual([page2, page1]);
 
     const versionBefore = h.app
       .getAllSceneElementsIncludingDeleted()
       .find((el) => el.id === "r2")!.version;
 
-    h.app.deletePage(page2);
+    run(() => h.app.deletePage(page2));
     expect(h.state.pages.length).toBe(1);
     expect(h.state.activePageId).toBe(page1);
 
@@ -119,14 +133,14 @@ describe("pages", () => {
     expect(deleted.version).toBeGreaterThan(versionBefore);
     expect(allIds()).toEqual(["r1"]);
 
-    h.app.deletePage(page1);
+    run(() => h.app.deletePage(page1));
     expect(h.state.pages.length).toBe(1);
   });
 
   it("AC-4: isolates undo history per page", () => {
     addRect("rect1");
     const page1 = h.state.activePageId;
-    const page2 = h.app.addPage();
+    const page2 = run(() => h.app.addPage());
     addRect("rect2");
 
     undo();
@@ -134,7 +148,7 @@ describe("pages", () => {
     expect(activeIds()).toEqual([]);
     expect(allIds()).toEqual(["rect1"]);
 
-    h.app.switchPage(page1);
+    run(() => h.app.switchPage(page1));
     undo();
     expect(h.state.activePageId).toBe(page1);
     expect(allIds()).toEqual([]);
@@ -142,27 +156,35 @@ describe("pages", () => {
 
   it("AC-5: exports active page visually, serializes all pages", async () => {
     addRect("r1");
-    h.app.addPage();
+    run(() => h.app.addPage());
     addRect("r2");
-    h.app.switchPage(h.state.pages[0].id);
+    run(() => h.app.switchPage(h.state.pages[0].id));
 
     const appState = { ...h.state, exportBackground: false };
-    const svgAll = await exportToSvg(
-      h.app.getAllSceneElements(),
-      appState,
-      h.app.files,
-    );
-    const svgActive = await exportToSvg(
-      h.app.scene.getNonDeletedElements(),
-      appState,
-      h.app.files,
-    );
+    const svgAll = await exportScene({
+      type: "svg",
+      data: {
+        elements: h.app.getAllSceneElements(),
+        appState,
+        files: h.app.files,
+      },
+      config: { canvasBackgroundColor: false },
+    });
+    const svgActive = await exportScene({
+      type: "svg",
+      data: {
+        elements: h.app.scene.getNonDeletedElements(),
+        appState,
+        files: h.app.files,
+      },
+      config: { canvasBackgroundColor: false },
+    });
     expect(svgAll.outerHTML.length).toBe(svgActive.outerHTML.length);
 
     for (const target of ["local", "database"] as const) {
       const json = JSON.parse(
         serializeAsJSON(
-          h.app.scene.getNonDeletedElements(),
+          h.app.getAllSceneElements(),
           h.state,
           h.app.files,
           target,
@@ -192,8 +214,14 @@ describe("pages", () => {
     const multi = restore(
       {
         elements: [
-          { ...API.createElement({ type: "rectangle", id: "a1" }), pageId: "a" },
-          { ...API.createElement({ type: "rectangle", id: "b1" }), pageId: "b" },
+          {
+            ...API.createElement({ type: "rectangle", id: "a1" }),
+            pageId: "a",
+          },
+          {
+            ...API.createElement({ type: "rectangle", id: "b1" }),
+            pageId: "b",
+          },
         ],
         appState: {
           pages: [
@@ -227,22 +255,23 @@ describe("pages", () => {
   });
 
   it("AC-7: search switches to the page of the match", async () => {
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
     API.updateScene({
       elements: [API.createElement({ type: "text", id: "t1", text: "Hello" })],
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
     const page1 = h.state.activePageId;
-    const page2 = h.app.addPage();
+    const page2 = run(() => h.app.addPage());
     API.updateScene({
       elements: [
         API.createElement({ type: "text", id: "t2", text: "PipelineNode" }),
       ],
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
-    h.app.switchPage(page1);
+    run(() => h.app.switchPage(page1));
     expect(h.state.activePageId).toBe(page1);
 
-    h.setState({ openSidebar: { name: "default", tab: "search" } });
+    run(() => h.setState({ openSidebar: { name: "default", tab: "search" } }));
 
     await waitFor(() => {
       expect(document.querySelector(".layer-ui__search input")).not.toBeNull();
