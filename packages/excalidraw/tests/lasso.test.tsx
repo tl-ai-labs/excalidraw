@@ -34,6 +34,10 @@ import { getLassoSelectedElementIds } from "../lasso/utils";
 
 import { act, render } from "./test-utils";
 
+import { API } from "./helpers/api";
+
+import type { BoxSelectionMode } from "../types";
+
 const { h } = window;
 
 beforeEach(async () => {
@@ -43,14 +47,28 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode?: BoxSelectionMode,
+  keepPreviousSelection = false,
+) => {
   act(() => {
-    h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
+    if (boxSelectionMode) {
+      h.state.boxSelectionMode = boxSelectionMode;
+    }
+
+    h.app.lassoTrail.startPath(
+      startPoint[0],
+      startPoint[1],
+      keepPreviousSelection,
+    );
 
     points.forEach((point) => {
       h.app.lassoTrail.addPointToPath(
         startPoint[0] + point[0],
         startPoint[1] + point[1],
+        keepPreviousSelection,
       );
     });
 
@@ -74,6 +92,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      ...(boxSelectionMode ? { boxSelectionMode } : {}),
     });
 
     act(() =>
@@ -1800,5 +1819,472 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso boxSelectionMode", () => {
+  it("selects partially overlapped rectangle in overlap mode but not in contain mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      id: "rect-partial",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    const startPoint = pointFrom<GlobalPoint>(-20, -20);
+    const points = [
+      [0, 0],
+      [60, 0],
+      [60, 60],
+      [0, 60],
+    ] as LocalPoint[];
+
+    updatePath(startPoint, points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual(
+      [],
+    );
+
+    updatePath(startPoint, points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("selects fully enclosed rectangle, diamond, ellipse, rotated shape, line, arrow, and freedraw in contain mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      id: "rect-full",
+      x: 10,
+      y: 10,
+      width: 40,
+      height: 40,
+    });
+    const diamond = API.createElement({
+      type: "diamond",
+      id: "diamond-full",
+      x: 70,
+      y: 10,
+      width: 40,
+      height: 40,
+    });
+    const ellipse = API.createElement({
+      type: "ellipse",
+      id: "ellipse-full",
+      x: 130,
+      y: 10,
+      width: 40,
+      height: 40,
+    });
+    const rotated = API.createElement({
+      type: "rectangle",
+      id: "rotated-full",
+      x: 20,
+      y: 80,
+      width: 40,
+      height: 40,
+      angle: 0.7 as Radians,
+    });
+    const line = API.createElement({
+      type: "line",
+      id: "line-full",
+      x: 90,
+      y: 80,
+      width: 40,
+      height: 30,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(40, 30)],
+    });
+    const arrow = API.createElement({
+      type: "arrow",
+      id: "arrow-full",
+      x: 150,
+      y: 80,
+      width: 40,
+      height: 30,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(40, 30)],
+    });
+    const freedraw = API.createElement({
+      type: "freedraw",
+      id: "freedraw-full",
+      x: 30,
+      y: 150,
+      width: 50,
+      height: 20,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(25, 20),
+        pointFrom<LocalPoint>(50, 5),
+      ],
+    });
+
+    API.setElements([rect, diamond, ellipse, rotated, line, arrow, freedraw]);
+
+    const startPoint = pointFrom<GlobalPoint>(-20, -20);
+    const points = [
+      [0, 0],
+      [250, 0],
+      [250, 230],
+      [0, 230],
+    ] as LocalPoint[];
+
+    updatePath(startPoint, points, "contain");
+
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(
+      [
+        rect.id,
+        diamond.id,
+        ellipse.id,
+        rotated.id,
+        line.id,
+        arrow.id,
+        freedraw.id,
+      ].sort(),
+    );
+  });
+
+  it("does not select element partially inside a concave lasso polygon in contain mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      id: "concave-rect",
+      x: 40,
+      y: 50,
+      width: 120,
+      height: 40,
+    });
+    API.setElements([rect]);
+
+    // U-shaped concave polygon: bounds [0, 0, 200, 150] fully cover rect [40, 50, 160, 90],
+    // but the notch [70, 20] -> [70, 110] -> [130, 110] -> [130, 20] cuts through the middle of rect.
+    const startPoint = pointFrom<GlobalPoint>(0, 0);
+    const points = [
+      [0, 0],
+      [70, 0],
+      [70, 110],
+      [130, 110],
+      [130, 0],
+      [200, 0],
+      [200, 150],
+      [0, 150],
+    ] as LocalPoint[];
+
+    updatePath(startPoint, points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual(
+      [],
+    );
+
+    updatePath(startPoint, points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("requires arrow bound text label to be enclosed in contain mode", () => {
+    const arrow = API.createElement({
+      type: "arrow",
+      id: "arrow-with-label",
+      x: 0,
+      y: 100,
+      width: 200,
+      height: 0,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      boundElements: [{ type: "text", id: "arrow-label" }],
+    });
+    const label = API.createElement({
+      type: "text",
+      id: "arrow-label",
+      x: 60,
+      y: 60,
+      width: 80,
+      height: 80,
+      containerId: arrow.id,
+      text: "Label\nLine2\nLine3",
+    });
+    API.setElements([arrow, label]);
+
+    // Encloses the horizontal arrow shaft y=100 (within y=[92, 108])
+    // but cuts through the tall 80px bound text centered at (100, 100) spanning y=[60, 140].
+    const shaftOnlyStart = pointFrom<GlobalPoint>(-20, 92);
+    const shaftOnlyPoints = [
+      [0, 0],
+      [240, 0],
+      [240, 16],
+      [0, 16],
+    ] as LocalPoint[];
+
+    updatePath(shaftOnlyStart, shaftOnlyPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual(
+      [],
+    );
+
+    // Encloses both the arrow and its bound text label
+    const bothStart = pointFrom<GlobalPoint>(-20, 20);
+    const bothPoints = [
+      [0, 0],
+      [240, 0],
+      [240, 160],
+      [0, 160],
+    ] as LocalPoint[];
+
+    updatePath(bothStart, bothPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      arrow.id,
+    ]);
+  });
+
+  it("ignores rectangle bound text label in contain mode while selecting container in overlap mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      id: "rect-container",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      boundElements: [{ type: "text", id: "rect-bound-text" }],
+    });
+    const boundText = API.createElement({
+      type: "text",
+      id: "rect-bound-text",
+      x: 70,
+      y: 80,
+      width: 60,
+      height: 40,
+      containerId: rect.id,
+      text: "Inside",
+    });
+    API.setElements([rect, boundText]);
+
+    // Lasso completely inside the 200x200 rectangle, enclosing only the bound text
+    const startPoint = pointFrom<GlobalPoint>(50, 60);
+    const points = [
+      [0, 0],
+      [100, 0],
+      [100, 80],
+      [0, 80],
+    ] as LocalPoint[];
+
+    updatePath(startPoint, points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual(
+      [],
+    );
+
+    updatePath(startPoint, points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("enforces top-level, nested, off-screen, locked, and bound-text group rules in contain and overlap modes", () => {
+    // 1. Two-member top-level group
+    const g1a = API.createElement({
+      type: "rectangle",
+      id: "g1a",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["g1"],
+    });
+    const g1b = API.createElement({
+      type: "rectangle",
+      id: "g1b",
+      x: 100,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["g1"],
+    });
+    API.setElements([g1a, g1b]);
+
+    const oneMemberStart = pointFrom<GlobalPoint>(-10, -10);
+    const oneMemberPoints = [
+      [0, 0],
+      [60, 0],
+      [60, 60],
+      [0, 60],
+    ] as LocalPoint[];
+
+    updatePath(oneMemberStart, oneMemberPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+    expect(h.state.selectedGroupIds).toEqual({});
+
+    updatePath(oneMemberStart, oneMemberPoints, "overlap");
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(["g1a", "g1b"]);
+    expect(h.state.selectedGroupIds).toEqual({ g1: true });
+
+    const allMembersStart = pointFrom<GlobalPoint>(-10, -10);
+    const allMembersPoints = [
+      [0, 0],
+      [170, 0],
+      [170, 70],
+      [0, 70],
+    ] as LocalPoint[];
+
+    updatePath(allMembersStart, allMembersPoints, "contain");
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(["g1a", "g1b"]);
+    expect(h.state.selectedGroupIds).toEqual({ g1: true });
+
+    // 2. Nested groups: enclosing only inner1 is not enough when outer also has inner2
+    const n1 = API.createElement({
+      type: "rectangle",
+      id: "n1",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["inner1", "outer"],
+    });
+    const n2 = API.createElement({
+      type: "rectangle",
+      id: "n2",
+      x: 100,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["inner2", "outer"],
+    });
+    API.setElements([n1, n2]);
+
+    updatePath(oneMemberStart, oneMemberPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+    expect(h.state.selectedGroupIds).toEqual({});
+
+    updatePath(allMembersStart, allMembersPoints, "contain");
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(["n1", "n2"]);
+    expect(h.state.selectedGroupIds.outer).toBe(true);
+
+    // 3. Off-screen group member blocks contain selection when only visible member is enclosed
+    const visibleMember = API.createElement({
+      type: "rectangle",
+      id: "vis",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["g-offscreen"],
+    });
+    const offscreenMember = API.createElement({
+      type: "rectangle",
+      id: "off",
+      x: 5000,
+      y: 5000,
+      width: 40,
+      height: 40,
+      groupIds: ["g-offscreen"],
+    });
+    API.setElements([visibleMember, offscreenMember]);
+
+    updatePath(oneMemberStart, oneMemberPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+    expect(h.state.selectedGroupIds).toEqual({});
+
+    // 4. Locked member and bound-text member outside lasso do not block group selection in contain mode
+    const unlockedContainer = API.createElement({
+      type: "rectangle",
+      id: "unlockedContainer",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["g-special"],
+      boundElements: [{ type: "text", id: "boundTextMember" }],
+    });
+    const boundTextMember = API.createElement({
+      type: "text",
+      id: "boundTextMember",
+      x: 300,
+      y: 300,
+      width: 30,
+      height: 20,
+      containerId: unlockedContainer.id,
+      groupIds: ["g-special"],
+      text: "T",
+    });
+    const lockedMember = API.createElement({
+      type: "rectangle",
+      id: "lockedMember",
+      x: 400,
+      y: 400,
+      width: 40,
+      height: 40,
+      locked: true,
+      groupIds: ["g-special"],
+    });
+    API.setElements([unlockedContainer, boundTextMember, lockedMember]);
+
+    updatePath(oneMemberStart, oneMemberPoints, "contain");
+    expect(h.state.selectedElementIds[unlockedContainer.id]).toBe(true);
+    expect(h.state.selectedGroupIds).toEqual({ "g-special": true });
+  });
+
+  it("preserves frame child exclusion and additive selection in contain mode", () => {
+    const preselected = API.createElement({
+      type: "rectangle",
+      id: "preselected",
+      x: 500,
+      y: 500,
+      width: 50,
+      height: 50,
+    });
+    const frame = API.createElement({
+      type: "frame",
+      id: "frame-contain",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    const child = API.createElement({
+      type: "rectangle",
+      id: "frame-child",
+      x: 20,
+      y: 20,
+      width: 60,
+      height: 60,
+      frameId: frame.id,
+    });
+    API.setElements([preselected, frame, child]);
+
+    const startPoint = pointFrom<GlobalPoint>(-20, -20);
+    const points = [
+      [0, 0],
+      [250, 0],
+      [250, 250],
+      [0, 250],
+    ] as LocalPoint[];
+
+    // Frame and child enclosed in contain mode -> only frame is selected
+    updatePath(startPoint, points, "contain", false);
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      frame.id,
+    ]);
+
+    // With keepPreviousSelection=true, previous selection is retained alongside newly enclosed frame
+    act(() => {
+      h.state.selectedElementIds = { [preselected.id]: true };
+    });
+    updatePath(startPoint, points, "contain", true);
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual([preselected.id, frame.id].sort());
   });
 });

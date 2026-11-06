@@ -153,7 +153,11 @@ describe("box-selection", () => {
 
 describe("lasso reselection", () => {
   beforeEach(async () => {
-    await render(<Excalidraw />);
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "overlap" } }}
+      />,
+    );
   });
 
   it("should allow ctrl+alt lasso reselection when starting inside the active common bounds", () => {
@@ -1457,5 +1461,450 @@ describe("deselecting", () => {
     expect(API.getSelectedElements()).toEqual([]);
     expect(h.state.editingGroupId).toBeNull();
     expect(h.state.selectedGroupIds).toEqual({});
+  });
+});
+
+describe("lasso selection modes", () => {
+  beforeAll(() => {
+    mockBoundingClientRect({
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+      width: 1920,
+      height: 1080,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+  });
+
+  afterAll(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
+  const renderWithBoxSelectionMode = async (
+    boxSelectionMode: "contain" | "overlap",
+  ) => {
+    await render(
+      <Excalidraw initialData={{ appState: { boxSelectionMode } }} />,
+    );
+    h.state.width = 1920;
+    h.state.height = 1080;
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+  };
+
+  const drawLasso = (points: [number, number][]) => {
+    if (h.state.activeTool.type !== "lasso") {
+      act(() => {
+        h.app.setActiveTool({ type: "lasso" });
+      });
+    }
+    const [first, ...rest] = points;
+    mouse.downAt(first[0], first[1]);
+    for (const [x, y] of rest) {
+      mouse.moveTo(x, y);
+    }
+    mouse.up();
+  };
+
+  it("does not select partially lassoed rectangle in contain mode and selects it in overlap mode", async () => {
+    await renderWithBoxSelectionMode("contain");
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+
+    API.setElements([rect]);
+
+    drawLasso([
+      [-20, -20],
+      [50, -20],
+      [50, 50],
+      [-20, 50],
+    ]);
+
+    assertSelectedElements([]);
+
+    unmountComponent();
+    await renderWithBoxSelectionMode("overlap");
+
+    API.setElements([rect]);
+
+    drawLasso([
+      [-20, -20],
+      [50, -20],
+      [50, 50],
+      [-20, 50],
+    ]);
+
+    assertSelectedElements([rect.id]);
+  });
+
+  it("selects fully enclosed shapes and respects concave lasso polygon in contain mode", async () => {
+    await renderWithBoxSelectionMode("contain");
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+    });
+    const diamond = API.createElement({
+      type: "diamond",
+      x: 60,
+      y: 0,
+      width: 40,
+      height: 40,
+    });
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 120,
+      y: 0,
+      width: 40,
+      height: 40,
+    });
+    const rotatedRect = API.createElement({
+      type: "rectangle",
+      x: 180,
+      y: 0,
+      width: 40,
+      height: 40,
+      angle: Math.PI / 4,
+    });
+    const arrow = API.createElement({
+      type: "arrow",
+      x: 240,
+      y: 10,
+      width: 40,
+      height: 20,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(40, 20)],
+    });
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 300,
+      y: 10,
+      width: 30,
+      height: 20,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(15, 10),
+        pointFrom<LocalPoint>(30, 20),
+      ],
+    });
+
+    API.setElements([rect, diamond, ellipse, rotatedRect, arrow, freedraw]);
+
+    drawLasso([
+      [-30, -30],
+      [360, -30],
+      [360, 70],
+      [-30, 70],
+    ]);
+
+    assertSelectedElements([
+      rect.id,
+      diamond.id,
+      ellipse.id,
+      rotatedRect.id,
+      arrow.id,
+      freedraw.id,
+    ]);
+
+    const concaveTarget = API.createElement({
+      type: "rectangle",
+      x: 10,
+      y: 10,
+      width: 80,
+      height: 80,
+    });
+
+    API.setElements([concaveTarget]);
+
+    // C-shaped concave lasso whose bounding box covers [0..100, 0..100],
+    // but the notch indents over the right half of concaveTarget
+    drawLasso([
+      [0, 0],
+      [100, 0],
+      [100, 20],
+      [40, 20],
+      [40, 80],
+      [100, 80],
+      [100, 100],
+      [0, 100],
+    ]);
+
+    assertSelectedElements([]);
+  });
+
+  it("respects arrow bound label enclosure and ignores container bound label in contain mode", async () => {
+    await renderWithBoxSelectionMode("contain");
+
+    const arrow = API.createElement({
+      type: "arrow",
+      id: "arrow-with-label",
+      x: 0,
+      y: 50,
+      width: 100,
+      height: 0,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)],
+      boundElements: [{ type: "text", id: "arrow-label" }],
+    });
+    const arrowLabel = API.createElement({
+      type: "text",
+      id: "arrow-label",
+      x: 30,
+      y: 10,
+      width: 40,
+      height: 80,
+      containerId: arrow.id,
+      text: "label",
+    });
+
+    API.setElements([arrow, arrowLabel]);
+
+    // Enclose arrow shaft (y=50) closely at y=[35..65], leaving tall label (y=10..90) partially outside
+    drawLasso([
+      [-20, 35],
+      [120, 35],
+      [120, 65],
+      [-20, 65],
+    ]);
+
+    assertSelectedElements([]);
+
+    // Enclose both arrow shaft and its bound label
+    drawLasso([
+      [-20, -10],
+      [120, -10],
+      [120, 110],
+      [-20, 110],
+    ]);
+
+    assertSelectedElements([arrow.id]);
+
+    // Container with bound text
+    const container = API.createElement({
+      type: "rectangle",
+      id: "rect-container",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      boundElements: [{ type: "text", id: "rect-label" }],
+    });
+    const containerLabel = API.createElement({
+      type: "text",
+      id: "rect-label",
+      x: 80,
+      y: 80,
+      width: 40,
+      height: 20,
+      containerId: container.id,
+      text: "inside",
+    });
+
+    API.setElements([container, containerLabel]);
+
+    // Lasso encloses only the bound text inside the rectangle
+    drawLasso([
+      [70, 70],
+      [130, 70],
+      [130, 110],
+      [70, 110],
+    ]);
+
+    assertSelectedElements([]);
+
+    unmountComponent();
+    await renderWithBoxSelectionMode("overlap");
+
+    API.setElements([container, containerLabel]);
+
+    drawLasso([
+      [70, 70],
+      [130, 70],
+      [130, 110],
+      [70, 110],
+    ]);
+
+    assertSelectedElements([container.id]);
+  });
+
+  it("enforces group containment across visible, off-screen, locked, and bound-text members and preserves frame/shift behaviour", async () => {
+    await renderWithBoxSelectionMode("contain");
+
+    const groupRect1 = API.createElement({
+      type: "rectangle",
+      id: "group-rect-1",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["G1"],
+    });
+    const groupRect2 = API.createElement({
+      type: "rectangle",
+      id: "group-rect-2",
+      x: 100,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["G1"],
+    });
+
+    API.setElements([groupRect1, groupRect2]);
+
+    // Enclosing only one member of G1 in contain mode selects nothing
+    drawLasso([
+      [-10, -10],
+      [60, -10],
+      [60, 60],
+      [-10, 60],
+    ]);
+
+    assertSelectedElements([]);
+    expect(h.state.selectedGroupIds).toEqual({});
+
+    // Off-screen selectable member in G1 blocks selection even when visible member is enclosed
+    const offscreenGroupRect = API.createElement({
+      type: "rectangle",
+      id: "group-rect-offscreen",
+      x: 5000,
+      y: 5000,
+      width: 40,
+      height: 40,
+      groupIds: ["G1"],
+    });
+
+    API.setElements([groupRect1, offscreenGroupRect]);
+
+    drawLasso([
+      [-10, -10],
+      [60, -10],
+      [60, 60],
+      [-10, 60],
+    ]);
+
+    assertSelectedElements([]);
+
+    // Locked member outside and bound-text member do not block group selection when all selectable members are enclosed
+    const groupContainer = API.createElement({
+      type: "rectangle",
+      id: "group-container",
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      groupIds: ["G2"],
+      boundElements: [{ type: "text", id: "group-bound-text" }],
+    });
+    const groupBoundText = API.createElement({
+      type: "text",
+      id: "group-bound-text",
+      x: 5,
+      y: 5,
+      width: 30,
+      height: 20,
+      containerId: groupContainer.id,
+      groupIds: ["G2"],
+    });
+    const groupLockedMember = API.createElement({
+      type: "rectangle",
+      id: "group-locked",
+      x: 300,
+      y: 0,
+      width: 40,
+      height: 40,
+      locked: true,
+      groupIds: ["G2"],
+    });
+
+    API.setElements([groupContainer, groupBoundText, groupLockedMember]);
+
+    drawLasso([
+      [-10, -10],
+      [60, -10],
+      [60, 60],
+      [-10, 60],
+    ]);
+
+    expect(h.state.selectedElementIds[groupContainer.id]).toBe(true);
+    expect(h.state.selectedGroupIds).toEqual({ G2: true });
+
+    // Frame and child: enclosing both selects only the frame
+    const frame = API.createElement({
+      type: "frame",
+      id: "frame-1",
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 120,
+    });
+    const framedRect = API.createElement({
+      type: "rectangle",
+      id: "framed-rect",
+      x: 20,
+      y: 20,
+      width: 40,
+      height: 40,
+      frameId: frame.id,
+    });
+    const standaloneRect = API.createElement({
+      type: "rectangle",
+      id: "standalone-rect",
+      x: 200,
+      y: 20,
+      width: 40,
+      height: 40,
+    });
+
+    API.setElements([frame, framedRect, standaloneRect]);
+
+    drawLasso([
+      [-10, -10],
+      [140, -10],
+      [140, 140],
+      [-10, 140],
+    ]);
+
+    assertSelectedElements([frame.id]);
+
+    // Shift + lasso adds to existing selection
+    Keyboard.withModifierKeys({ shift: true }, () => {
+      drawLasso([
+        [190, 10],
+        [250, 10],
+        [250, 70],
+        [190, 70],
+      ]);
+    });
+
+    assertSelectedElements([frame.id, standaloneRect.id]);
+
+    // In overlap mode, touching one member of a group selects the entire group
+    unmountComponent();
+    await renderWithBoxSelectionMode("overlap");
+
+    API.setElements([groupRect1, groupRect2]);
+
+    drawLasso([
+      [-10, -10],
+      [20, -10],
+      [20, 20],
+      [-10, 20],
+    ]);
+
+    assertSelectedElements([groupRect1.id, groupRect2.id]);
+    expect(h.state.selectedGroupIds).toEqual({ G1: true });
   });
 });
