@@ -72,6 +72,9 @@ type _ExcalidrawElementBase = Readonly<{
       Ordered from deepest to shallowest. */
   groupIds: readonly GroupId[];
   frameId: string | null;
+  /** Id of the page the element belongs to.
+      Elements without it belong to the active page. */
+  pageId?: string;
   /** other elements that are bound to this element */
   boundElements: readonly BoundElement[] | null;
   /** epoch (ms) timestamp of last element update */
@@ -494,3 +497,25 @@ export type ExcalidrawLinearElementSubType =
 export type ConvertibleGenericTypes = "rectangle" | "diamond" | "ellipse";
 export type ConvertibleLinearTypes = ExcalidrawLinearElementSubType;
 export type ConvertibleTypes = ConvertibleGenericTypes | ConvertibleLinearTypes;
+
+export type ExcalidrawPage = Readonly<{
+  /** Unique page id. */
+  id: string;
+  /** User-visible page name. */
+  name: string;
+  /** Fractional-index order key determining the page's position. */
+  index: string;
+  /** Integer incremented on each change; reconciles like element versions. */
+  version: number;
+  /** Random integer regenerated on each change; breaks version ties during
+      reconciliation like element versionNonce. */
+  versionNonce: number;
+  /** Tombstone flag; deleted pages are kept for reconciliation. */
+  isDeleted: boolean;
+}>;
+
+export type PageViewport = Readonly<{
+  scrollX: number;
+  scrollY: number;
+  zoom: number;
+}>;

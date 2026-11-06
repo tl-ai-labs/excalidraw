@@ -167,6 +167,7 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages: this.collab.excalidrawAPI.getAppState().pages,
       },
     };
 
@@ -212,6 +213,7 @@ class Portal {
           button: payload.button || "up",
           selectedElementIds:
             this.collab.excalidrawAPI.getAppState().selectedElementIds,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
           username: this.collab.state.username,
         },
       };

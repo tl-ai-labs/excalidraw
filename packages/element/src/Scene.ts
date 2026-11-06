@@ -13,6 +13,7 @@ import { isFrameLikeElement } from "@excalidraw/element";
 import { getElementsInGroup } from "@excalidraw/element";
 
 import {
+  orderByFractionalIndex,
   syncInvalidIndices,
   syncMovedIndices,
   validateFractionalIndices,
@@ -123,6 +124,13 @@ export class Scene {
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
+  // id of the page whose elements the regular getters return (null = no page scoping)
+  private activePageId: string | null = null;
+  // elements of every page except the active one (element id to element)
+  private otherPagesElements: Map<string, OrderedExcalidrawElement> = new Map();
+  // lazily built all-pages caches, reset on every change
+  private allPagesElements: readonly OrderedExcalidrawElement[] | null = null;
+  private allPagesElementsMap: SceneElementsMap | null = null;
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
     elements: readonly NonDeletedExcalidrawElement[] | null;
@@ -162,6 +170,66 @@ export class Scene {
 
   getFramesIncludingDeleted() {
     return this.frames;
+  }
+
+  /** Returns the id of the active page, or null when the scene is not page-scoped. */
+  getActivePageId(): string | null {
+    return this.activePageId;
+  }
+
+  /** Returns the elements of every page (other pages first, then the active page). */
+  getAllPagesElementsIncludingDeleted(): readonly OrderedExcalidrawElement[] {
+    if (this.activePageId === null || this.otherPagesElements.size === 0) {
+      return this.elements;
+    }
+    if (!this.allPagesElements) {
+      this.allPagesElements = [
+        ...this.otherPagesElements.values(),
+        ...this.elements,
+      ];
+    }
+    return this.allPagesElements;
+  }
+
+  /** Returns a map of the elements of every page. */
+  getAllPagesElementsMapIncludingDeleted(): SceneElementsMap {
+    if (this.activePageId === null || this.otherPagesElements.size === 0) {
+      return this.elementsMap;
+    }
+    if (!this.allPagesElementsMap) {
+      this.allPagesElementsMap = toBrandedType<SceneElementsMap>(
+        arrayToMap(this.getAllPagesElementsIncludingDeleted()),
+      );
+    }
+    return this.allPagesElementsMap;
+  }
+
+  /** Makes `pageId` the active page and re-partitions the elements. */
+  setActivePage(pageId: string): void {
+    if (pageId === this.activePageId) {
+      return;
+    }
+    const allElements = this.getAllPagesElementsIncludingDeleted();
+    this.activePageId = pageId;
+    this.otherPagesElements = new Map();
+    this.allPagesElements = null;
+    this.allPagesElementsMap = null;
+    const pageElements: OrderedExcalidrawElement[] = [];
+    for (const element of allElements) {
+      if (element.pageId === undefined) {
+        (element as Mutable<ExcalidrawElement>).pageId = pageId;
+      }
+      if (element.pageId === pageId) {
+        pageElements.push(element);
+      } else {
+        this.otherPagesElements.set(element.id, element);
+      }
+    }
+    orderByFractionalIndex(pageElements);
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
+    this.replaceAllElements(pageElements, { skipValidation: true });
   }
 
   constructor(
@@ -272,11 +340,42 @@ export class Scene {
     nextElements: ElementsMapOrArray,
     options?: {
       skipValidation?: true;
+      allPages?: true;
     },
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
-    const _nextElements = toArray(nextElements);
+    const inputElements = toArray(nextElements);
     const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+    const activePageId = this.activePageId;
+
+    this.allPagesElements = null;
+    this.allPagesElementsMap = null;
+
+    let _nextElements = inputElements;
+    if (activePageId !== null) {
+      if (options?.allPages) {
+        this.otherPagesElements.clear();
+      }
+      const activeElements: ExcalidrawElement[] = [];
+      for (const element of inputElements) {
+        if (element.pageId === undefined) {
+          (element as Mutable<ExcalidrawElement>).pageId = activePageId;
+        }
+        if (element.pageId !== activePageId) {
+          this.otherPagesElements.set(
+            element.id,
+            element as OrderedExcalidrawElement,
+          );
+        } else {
+          this.otherPagesElements.delete(element.id);
+          activeElements.push(element);
+        }
+      }
+      _nextElements = activeElements;
+      if (options?.allPages && this.otherPagesElements.size > 0) {
+        syncInvalidIndices(Array.from(this.otherPagesElements.values()));
+      }
+    }
 
     if (!options?.skipValidation) {
       validateIndicesThrottled(_nextElements);
@@ -329,6 +428,10 @@ export class Scene {
     this.nonDeletedFramesLikes = [];
     this.frames = [];
     this.elementsMap.clear();
+    this.otherPagesElements.clear();
+    this.allPagesElements = null;
+    this.allPagesElementsMap = null;
+    this.activePageId = null;
     this.selectedElementsCache.selectedElementIds = null;
     this.selectedElementsCache.elements = null;
     this.selectedElementsCache.cache.clear();

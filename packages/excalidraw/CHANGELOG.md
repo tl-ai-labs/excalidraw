@@ -13,6 +13,17 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Pages in a drawing
+
+- A drawing can hold several pages, shown as tabs in a footer tab bar: create, rename, move (left/right), delete and switch pages. In view mode the tab bar only switches pages; in zen mode it is hidden.
+- New AppState keys `pages` (the page list, deleted pages kept as tombstones), `activePageId` and `pageViewports` (each page's scroll and zoom, kept locally), and a new optional element field `pageId` assigning each element to a page.
+- New `excalidrawAPI.setActivePage(pageId)` switches the active page, as the tab bar does.
+- `onChange` and `getSceneElementsIncludingDeleted()` now return every page's elements, while `getSceneElements()` stays the active page's non-deleted elements. `updateScene({ elements })` keeps other pages' elements unless they're passed.
+- Undo/redo act on the active page only; switching, creating, renaming, moving and deleting pages are not recorded.
+- PNG/SVG/clipboard export covers the active page, while `.excalidraw` saves keep every page.
+- Files without pages load onto one default page (`VERSIONS.excalidraw` stays 2; the new fields are optional and additive).
+- New exports `DEFAULT_PAGE_ID`, `getActivePage`, `getPageElements`, `getPagesVersion`, `getVisiblePages`, `reconcilePages`, `restorePages`, and types `ExcalidrawPage`, `PageViewport`.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.
