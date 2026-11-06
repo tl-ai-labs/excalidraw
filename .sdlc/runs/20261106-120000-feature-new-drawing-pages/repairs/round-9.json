@@ -1,0 +1,351 @@
+[
+  {
+    "id": "tp_debug_r9_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "instruction": "Fix `packages/excalidraw/history.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 reviewer, verbatim: \"per-page undo doesn't work: an edit on page 2 never reaches page 2's undo stack, and the store raises \\\"ElementsDelta invariant broken for element rect2\\\"; History.record in packages/excalidraw/history.ts filters the previous snapshot to the active page, which breaks how the store computes the change (AC-4).\" Reproduction: render(<Excalidraw handleKeyboardGlobally={true} />), add rect1 via API.updateScene with CaptureUpdateAction.IMMEDIATELY, act(() => h.app.addPage()), add rect2 the same way -> h.history.undoStackByPage is [[\"page-1\",1],[\"<page2>\",0]], rect2.pageId is the page-2 id, and the store logs `ElementsDelta invariant broken for element \"rect2\"`. Fix: remove the active-page filtering of the store snapshot / elements in History (perform around lines 229-245, and any in record): the store's snapshot always holds ALL pages' elements (App.tsx is changed in this round to commit scene.getAllElementsMapIncludingDeleted() to the store), so every recorded StoreDelta contains only the elements actually changed, and it is pushed onto the active page's undo stack; undo/redo apply the popped delta to the all-pages elements map without filtering. Result: undo on page 2 reverts rect2 and never touches page 1; switching pages keeps each page's stacks.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. (A) Per-page undo (AC-4), paired with the history.ts fix in this round: the store must see all pages' elements, else an element on the other page looks removed and the store raises `ElementsDelta invariant broken for element \"rect2\"`. Change every `this.store.commit(...)` (lines ~2806 and ~4685) and any other elements map given to the store/history (history.undo/redo calls, scheduleMicroAction around page switches) to use `this.scene.getAllElementsMapIncludingDeleted()` instead of the active-page `getElementsMapIncludingDeleted()`, and apply the elements history returns with replaceAllElements(..., { allPages: true }) when they span pages. (B) Security finding (Low), verbatim location: `packages/excalidraw/components/App.tsx:2804` - `pageViewports[pageId]` is indexed by an unvalidated page id, so `__proto__`, `constructor` or `toString` resolve to Object.prototype properties. Read it only when `Object.prototype.hasOwnProperty.call(pageViewports, pageId)`, and never write a page id that is `__proto__`, `constructor` or `prototype`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6026
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6027,
+          11703
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "instruction": "Fix `packages/element/src/Scene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 reviewer, verbatim: \"Default-page elements get pageId: null instead of no pageId, as the plan specifies.\" (reproduced: after addPage, rect1 on page-1 has pageId null). In withElementPageId the early return `getElementPageId(element) === pageId && (!element.pageId || pageId !== DEFAULT_PAGE_ID)` keeps an element whose own pageId is null/undefined unchanged. On the default page an element must have no own `pageId` property at all: when pageId === DEFAULT_PAGE_ID and `\"pageId\" in element` (any value, including null/undefined), return a copy without the property; only return the element unchanged when it has no own pageId. Keep the non-default branch as is.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security findings, verbatim: (Medium) `excalidraw-app/collab/Collab.tsx:833` (`handleRemoteSceneUpdate`): `remotePages` received from WebSocket (`decryptedData.payload.pages`) is written directly into `appState.pages` via `updateScene` without schema/type validation, allowing a malformed peer payload (non-array `pages`, null entries, or non-string `id`/`name`) to crash collaborators during render. Validate and normalize incoming remotePages (an array of `{ id: string, name: string }` with non-empty unique string ids and string names; drop invalid entries; ignore a non-array; ignore ids `__proto__`, `constructor`, `prototype`) before calling this.excalidrawAPI.updateScene, and keep the current pages when nothing valid remains. (Low) `Collab.tsx:853`: guard `pageViewports[pageId]` lookups with `Object.prototype.hasOwnProperty.call`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "excalidraw-app/data/firebase.ts",
+    "instruction": "Fix `excalidraw-app/data/firebase.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security finding (Medium), verbatim location: `excalidraw-app/data/firebase.ts:125` (`decryptElements`): `parsed.pages` from Firebase is passed on unchecked. Return pages only when `Array.isArray(parsed.pages)`, keeping only entries that are objects with a non-empty string `id` (not `__proto__`, `constructor`, `prototype`), a string `name`, and unique ids; and guard `Array.isArray(parsed?.elements)` (a legacy payload is a plain array; anything else yields no elements rather than a crash).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/firebase.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/firebase.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security finding (Low), verbatim location: `packages/excalidraw/data/restore.ts:1352` (restoreAppState page / pageViewports normalization): `pageViewports` is a plain object indexed by unvalidated `pageId`, so an imported page id such as `__proto__`, `constructor` or `toString` resolves to Object.prototype properties and can spread undefined scrollX/scrollY/zoom into AppState or mutate prototype state during restore. Reject page ids `__proto__`, `constructor`, `prototype` when restoring pages, iterate supplied viewports with Object.prototype.hasOwnProperty checks, and build the restored pageViewports without inheriting from Object.prototype (or filter those keys).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 reviewer, verbatim: \"The check is red: pages.test.tsx has a typecheck error (exportToSvg isn't exported by ../scene/export), two prettier warnings, and failing tests for AC-1, AC-2, AC-3, AC-5 and AC-7 as well as AC-4.\" Fix in the test, keeping every assertion: (1) render `<Excalidraw handleKeyboardGlobally={true} />` as history.test.tsx:148 does; (2) wrap every h.app.addPage/switchPage/renamePage/reorderPages/deletePage and h.setState call in `act(() => { ... })` from ./test-utils, capturing return values; (3) replace exportToSvg (TS2459 at line 6) with the exported `exportScene({ type: \"svg\", ... })` from ../scene/export as export.test.ts does; (4) prettier at 195:12 and 196:12: put `...API.createElement({ type: \"rectangle\", id: \"a1\" }),` and `pageId: \"a\",` on separate lines (same for b1/\"b\"); (5) in AC-7 set `window.HTMLElement.prototype.scrollIntoView = vi.fn()` before opening search (earlier attempts hit `TypeError: ref?.scrollIntoView is not a function`). AC-4's undo is fixed in history.ts and App.tsx in this same round.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/search.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U20 is still not applied: the file is unchanged from before the run, so this fix must make the whole U20 change from its brief (briefs/U20, sites S1-S10) and pass `yarn eslint --max-warnings 0 packages/excalidraw/components/App.tsx`. The previous fix round's last attempt (Sonnet) applied cleanly within its sites and failed ONLY on these 3 prettier/prettier warnings, verbatim:\n 2916:41 warning Replace `⏎······(page)·=>·page.id·!==·pageId,⏎····` with `(page)·=>·page.id·!==·pageId` prettier/prettier\n 5214:33 warning Replace `appState·as·Partial<AppState>·|·null·|·undefined)` with `⏎········appState·as·Partial<AppState>·|·null·|·undefined` prettier/prettier\n 5215:7 warning Replace `··` with `)` prettier/prettier\nSo: (a) the .filter callback near the deletePage code must stay on ONE line: `.filter((page) => page.id !== pageId)`; (b) the cast in updateScene must wrap as prettier prints it: the call argument `appState as Partial<AppState> | null | undefined` goes on its own line, indented, with the closing `)` on the next line. Prettier printWidth 80, trailingComma all. Earlier attempts also failed by (1) an edit search text that appears 0 times in the file - copy every search string exactly from the current file; (2) adding lines outside the planned sites (after lines 209 and 10966) - put every new import inside S1 (lines 90-106) and nothing before S10 (line 10968); (3) unused imports DEFAULT_PAGE_NAME and getElementPageId - import only names the code uses.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6025
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6026,
+          11494
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

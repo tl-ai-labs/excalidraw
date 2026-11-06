@@ -89,6 +89,8 @@ import {
   type StylesPanelMode,
   loadDesktopUIModePreference,
   setDesktopUIMode,
+  DEFAULT_PAGE_ID,
+  randomId,
   isSelectionLikeTool,
   oneOf,
   getStrokeWidthByKey,
@@ -104,6 +106,7 @@ import {
   LinearElementEditor,
   newElementWith,
   newFrameElement,
+  withElementPageId,
   newFreeDrawElement,
   newEmbeddableElement,
   newMagicFrameElement,
@@ -191,6 +194,7 @@ import {
   isLineElement,
   isSimpleArrow,
   StoreDelta,
+  StoreSnapshot,
   type ApplyToOptions,
   positionElementsOnGrid,
   calculateFixedPointForNonElbowArrowBinding,
@@ -796,6 +800,14 @@ class App extends React.Component<AppProps, AppState> {
       addFiles: this.addFiles,
       resetScene: this.resetScene,
       getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
+      getAllSceneElements: this.getAllSceneElements,
+      getAllSceneElementsIncludingDeleted:
+        this.getAllSceneElementsIncludingDeleted,
+      addPage: this.addPage,
+      switchPage: this.switchPage,
+      renamePage: this.renamePage,
+      reorderPages: this.reorderPages,
+      deletePage: this.deletePage,
       getSceneElementsMapIncludingDeleted:
         this.getSceneElementsMapIncludingDeleted,
       history: {
@@ -2770,6 +2782,165 @@ class App extends React.Component<AppProps, AppState> {
     return this.scene.getNonDeletedElements();
   };
 
+  public getAllSceneElements = () => {
+    return this.scene.getAllNonDeletedElements();
+  };
+
+  public getAllSceneElementsIncludingDeleted = () => {
+    return this.scene.getAllElementsIncludingDeleted();
+  };
+
+  private getDefaultPageViewport = () => ({
+    scrollX: 0,
+    scrollY: 0,
+    zoom: { value: getNormalizedZoom(1) },
+  });
+
+  private activatePage = (
+    pageId: string,
+    pages: AppState["pages"],
+    pageViewports: AppState["pageViewports"],
+  ) => {
+    const unsafePageIds = ["__proto__", "constructor", "prototype"];
+    const safeViewports: AppState["pageViewports"] = Object.fromEntries(
+      Object.entries(pageViewports).filter(
+        ([id]) => !unsafePageIds.includes(id),
+      ),
+    );
+    const viewport =
+      !unsafePageIds.includes(pageId) &&
+      Object.prototype.hasOwnProperty.call(safeViewports, pageId)
+        ? safeViewports[pageId]
+        : this.getDefaultPageViewport();
+    // commit pending changes on the outgoing page first
+    this.store.commit(
+      this.scene.getAllElementsMapIncludingDeleted(),
+      this.state,
+    );
+    this.scene.setActivePageId(pageId, { triggerUpdate: false });
+    this.history.setActivePageId(pageId);
+    const nextState = {
+      pages,
+      activePageId: pageId,
+      pageViewports: safeViewports,
+      scrollX: viewport.scrollX,
+      scrollY: viewport.scrollY,
+      zoom: viewport.zoom,
+      selectedElementIds: {},
+      hoveredElementIds: {},
+      selectedGroupIds: {},
+      editingTextElement: null,
+      editingGroupId: null,
+      editingFrame: null,
+      activeEmbeddable: null,
+      selectionElement: null,
+      multiElement: null,
+      selectedLinearElement: null,
+    };
+    // a copy: the scene rebuilds its map in place, which would silently
+    // rewrite the store's baseline
+    this.store.snapshot = StoreSnapshot.create(
+      new Map(
+        this.scene.getAllElementsMapIncludingDeleted(),
+      ) as SceneElementsMap,
+      getObservedAppState({ ...this.state, ...nextState }),
+    );
+    this.setState(nextState);
+  };
+
+  public addPage = (name?: string): string => {
+    const trimmedName = name?.trim();
+    const page = {
+      id: randomId(),
+      name:
+        trimmedName ||
+        t("pages.defaultPageName", {
+          pageNumber: this.state.pages.length + 1,
+        }),
+    };
+    const pageViewports = {
+      ...this.state.pageViewports,
+      [this.state.activePageId]: {
+        scrollX: this.state.scrollX,
+        scrollY: this.state.scrollY,
+        zoom: this.state.zoom,
+      },
+    };
+    this.activatePage(page.id, [...this.state.pages, page], pageViewports);
+    return page.id;
+  };
+
+  public switchPage = (pageId: string): void => {
+    if (
+      pageId === this.state.activePageId ||
+      !this.state.pages.some((page) => page.id === pageId)
+    ) {
+      return;
+    }
+    const pageViewports = {
+      ...this.state.pageViewports,
+      [this.state.activePageId]: {
+        scrollX: this.state.scrollX,
+        scrollY: this.state.scrollY,
+        zoom: this.state.zoom,
+      },
+    };
+    this.activatePage(pageId, this.state.pages, pageViewports);
+  };
+
+  public renamePage = (pageId: string, name: string): void => {
+    const index = this.state.pages.findIndex((page) => page.id === pageId);
+    if (index === -1) {
+      return;
+    }
+    const nextName =
+      name.trim() || t("pages.defaultPageName", { pageNumber: index + 1 });
+    this.setState({
+      pages: this.state.pages.map((page, i) =>
+        i === index ? { ...page, name: nextName } : page,
+      ),
+    });
+  };
+
+  public reorderPages = (fromIndex: number, toIndex: number): void => {
+    const { pages } = this.state;
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= pages.length ||
+      toIndex >= pages.length
+    ) {
+      return;
+    }
+    const nextPages = [...pages];
+    const [moved] = nextPages.splice(fromIndex, 1);
+    nextPages.splice(toIndex, 0, moved);
+    this.setState({ pages: nextPages });
+  };
+
+  public deletePage = (pageId: string): void => {
+    const deletedIndex = this.state.pages.findIndex(
+      (page) => page.id === pageId,
+    );
+    if (this.state.pages.length <= 1 || deletedIndex === -1) {
+      return;
+    }
+    const pages = this.state.pages.filter((page) => page.id !== pageId);
+    const pageViewports = { ...this.state.pageViewports };
+    delete pageViewports[pageId];
+
+    this.scene.deletePageElements(pageId);
+    this.history.deletePageHistory(pageId);
+
+    if (pageId === this.state.activePageId) {
+      const nextPage = pages[Math.min(deletedIndex, pages.length - 1)];
+      this.activatePage(nextPage.id, pages, pageViewports);
+    } else {
+      this.setState({ pages, pageViewports });
+    }
+  };
+
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
     this.addElementsFromPasteOrLibrary({
       elements,
@@ -3136,8 +3307,23 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    const nextPageId = actionResult.appState?.activePageId;
+    const allPages =
+      !!nextPageId ||
+      !!actionResult.elements?.some(
+        (el) => !!el.pageId && el.pageId !== this.scene.getActivePageId(),
+      );
+    if (nextPageId && nextPageId !== this.scene.getActivePageId()) {
+      this.scene.setActivePageId(nextPageId, {
+        triggerUpdate: !actionResult.elements,
+      });
+      this.history.setActivePageId(nextPageId);
+      if (!actionResult.elements) {
+        didUpdate = true;
+      }
+    }
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      this.scene.replaceAllElements(actionResult.elements, { allPages });
       didUpdate = true;
     }
 
@@ -3554,7 +3740,9 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
-      this.scene.replaceAllElements([]);
+      this.scene.setActivePageId(DEFAULT_PAGE_ID, { triggerUpdate: false });
+      this.scene.replaceAllElements([], { allPages: true });
+      this.history.setActivePageId(DEFAULT_PAGE_ID);
       this.setState((state) => ({
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
@@ -3692,6 +3880,10 @@ class App extends React.Component<AppProps, AppState> {
 
     this.resetStore();
     this.resetHistory();
+    this.scene.setActivePageId(restoredAppState.activePageId, {
+      triggerUpdate: false,
+    });
+    this.history.setActivePageId(restoredAppState.activePageId);
     this.syncActionResult({
       elements: restoredElements,
       appState: restoredAppState,
@@ -4318,7 +4510,6 @@ class App extends React.Component<AppProps, AppState> {
 
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
-    const elementsMap = this.scene.getElementsMapIncludingDeleted();
 
     const shouldExportWithDarkMode =
       (this.sessionExportThemeOverride ?? this.state.theme) === THEME.DARK;
@@ -4494,7 +4685,23 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ scrolledOutside });
     }
 
-    this.store.commit(elementsMap, this.state);
+    Object.defineProperties(this.state, {
+      __allElements: {
+        configurable: true,
+        enumerable: false,
+        get: () => this.scene.getAllElementsIncludingDeleted(),
+      },
+      __activeElements: {
+        configurable: true,
+        enumerable: false,
+        get: () => this.scene.getElementsIncludingDeleted(),
+      },
+    });
+
+    this.store.commit(
+      this.scene.getAllElementsMapIncludingDeleted(),
+      this.state,
+    );
 
     // Do not notify consumers if we're still loading the scene. Among other
     // potential issues, this fixes a case where the tab isn't focused during
@@ -4622,9 +4829,12 @@ class App extends React.Component<AppProps, AppState> {
     fit?: SetViewportOptions["fit"];
     preserveFrameChildrenOrder?: boolean;
   }) => {
-    const elements = restoreElements(opts.elements, null, {
+    const restoredElements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
     });
+    const elements = restoredElements.map((element) =>
+      withElementPageId(element, this.state.activePageId),
+    );
     const clientX =
       typeof opts.position === "object"
         ? opts.position.clientX
@@ -4991,8 +5201,20 @@ class App extends React.Component<AppProps, AppState> {
     }) => {
       const { elements, appState, collaborators, captureUpdate } = sceneData;
 
+      const nextPageId = (appState as Partial<AppState> | null | undefined)
+        ?.activePageId;
+      if (nextPageId && nextPageId !== this.scene.getActivePageId()) {
+        this.scene.setActivePageId(nextPageId, { triggerUpdate: false });
+        this.history.setActivePageId(nextPageId);
+      }
+      const normalizedElements = elements
+        ? elements.map((el) =>
+            withElementPageId(el, el.pageId ?? this.scene.getActivePageId()),
+          )
+        : undefined;
+
       if (captureUpdate) {
-        const nextElements = elements ? elements : undefined;
+        const nextElements = normalizedElements;
         const observedAppState = appState
           ? getObservedAppState({
               ...this.store.snapshot.appState,
@@ -5011,8 +5233,8 @@ class App extends React.Component<AppProps, AppState> {
         this.setState(appState as Pick<AppState, K> | null);
       }
 
-      if (elements) {
-        this.scene.replaceAllElements(elements);
+      if (normalizedElements) {
+        this.scene.replaceAllElements(normalizedElements);
       }
 
       if (collaborators) {
@@ -10972,9 +11194,15 @@ class App extends React.Component<AppProps, AppState> {
         // otherwise we would end up with duplicated fractional indices on undo
         this.store.scheduleMicroAction({
           action: CaptureUpdateAction.NEVER,
-          elements,
+          elements: this.scene.getAllElementsIncludingDeleted(),
           appState: undefined,
         });
+
+        const loadedPageId = ret.data.appState?.activePageId;
+        if (loadedPageId) {
+          this.scene.setActivePageId(loadedPageId, { triggerUpdate: false });
+          this.history.setActivePageId(loadedPageId);
+        }
 
         this.setState({ isLoading: true });
         this.syncActionResult({

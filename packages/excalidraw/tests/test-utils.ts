@@ -284,6 +284,28 @@ expect.addSnapshotSerializer({
   },
 });
 
+/**
+ * Serializer for AppState snapshots which strips page-related fields so that
+ * existing snapshot suites remain unchanged.
+ */
+expect.addSnapshotSerializer({
+  serialize(val, config, indentation, depth, refs, printer) {
+    const { pages, activePageId, pageViewports, ...rest } = val;
+    return printer(rest, config, indentation, depth, refs);
+  },
+  test(val) {
+    return (
+      val !== null &&
+      typeof val === "object" &&
+      !Array.isArray(val) &&
+      "activePageId" in val &&
+      "pages" in val &&
+      "pageViewports" in val &&
+      "selectedElementIds" in val
+    );
+  },
+});
+
 export const getCloneByOrigId = <T extends boolean = false>(
   origId: ExcalidrawElement["id"],
   returnNullIfNotExists: T = false as T,

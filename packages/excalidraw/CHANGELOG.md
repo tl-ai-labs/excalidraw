@@ -13,6 +13,19 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Multi-page drawings (Page Tabs) (2026-11-06)
+
+A drawing can now contain multiple pages, switched through a new page tab bar.
+
+- New `PageTabs` UI bar in the footer to add, switch, rename, reorder and delete pages. A drawing always keeps at least one page.
+- Each page keeps its own viewport (`scrollX`, `scrollY`, `zoom`), restored when you switch back to it. Pages that were never visited open at the default viewport.
+- Undo/redo history is per page: undo and redo only affect the active page and never change elements on other pages.
+- Search covers elements across all pages; selecting a match on another page switches to that page.
+- Single-file serialization: `.excalidraw` files keep one top-level `elements` array, with page membership stored as an optional `pageId` on elements and the ordered page list in `appState.pages`. Elements on the default page (`page-1`) omit `pageId`, so existing single-page files and loaders keep working unchanged.
+- Collaboration: the page list is synced with the scene (end-to-end encrypted), while each collaborator keeps their own active page and per-page viewports.
+- New `appState` fields: `pages`, `activePageId` and `pageViewports`.
+- New imperative API methods: `addPage(name?)` (returns the new page id), `switchPage(pageId)`, `renamePage(pageId, name)`, `reorderPages(fromIndex, toIndex)`, `deletePage(pageId)`, `getAllSceneElements()` and `getAllSceneElementsIncludingDeleted()`. `getSceneElements()` and `getSceneElementsIncludingDeleted()` continue to return only the active page's elements; use the new `getAllSceneElements*` methods to read every page.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

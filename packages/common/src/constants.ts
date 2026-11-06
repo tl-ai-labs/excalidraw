@@ -548,6 +548,9 @@ export const LIBRARY_DISABLED_TYPES = new Set([
   "image",
 ] as const);
 
+export const DEFAULT_PAGE_ID = "page-1";
+export const DEFAULT_PAGE_NAME = "Page 1";
+
 // use these constants to easily identify reference sites
 export const TOOL_TYPE = {
   selection: "selection",

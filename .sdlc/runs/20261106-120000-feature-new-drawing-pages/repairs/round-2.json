@@ -1,0 +1,57 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U20 was never applied: all 3 attempts failed and the file is unchanged from before the run, so this fix must make the whole U20 change from its brief (briefs/U20, sites S1-S10) and pass `yarn eslint --max-warnings 0 packages/excalidraw/components/App.tsx`. Failures, verbatim: attempt 1 (closest): `93:3 'DEFAULT_PAGE_NAME' is defined but never used @typescript-eslint/no-unused-vars`; `109:3 'getElementPageId' is defined but never used`; `2908:52 prettier: Replace (page)·=>·page.id·!==·pageId with ⏎······(page)·=>·page.id·!==·pageId,⏎····` (the .filter callback must wrap onto its own line with a trailing comma); `4826:24 prettier: Replace ⏎······withElementPageId(element,·this.state.activePageId),⏎···· with ·withElementPageId(element,·this.state.activePageId)` (keep on one line); `5213:13 prettier: Replace nextActivePageId·&&·nextActivePageId·!==·this.scene.getActivePageId() with ⏎··········nextActivePageId·&&⏎··········nextActivePageId·!==·this.scene.getActivePageId()⏎········` (wrap the if condition one operand per line). Attempt 2: `edit 10: its search text appears 0 times in the current text` - copy every search string exactly from the current file. Attempt 3: `the answer changes lines outside its sites: new lines after 209, new lines after 10966` - put every new import inside S1 (lines 90-106, the existing @excalidraw/common and @excalidraw/element import lists) and add no import lines anywhere else; S10 starts at line 10968, add nothing before it. Only import names the code actually uses (drop DEFAULT_PAGE_NAME / getElementPageId unless used). Prettier printWidth is 80, trailing commas 'all'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6025
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6026,
+          11494
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

@@ -1,0 +1,124 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Still failing after one fix round (the previous fix was rejected by its own vitest run and not written). (1) yarn test:typecheck: `pages.test.tsx(6,10): error TS2459: Module '\"../scene/export\"' declares 'exportToSvg' locally, but it is not exported.` and AC-5 `TypeError: (0 , exportToSvg) is not a function`: import and use the exported `exportScene` with `type: \"svg\"` as export.test.ts does. (2) Root cause of AC-1/AC-2/AC-3/AC-4/AC-7 (`expected 1 to be 2` at line 42 right after h.app.addPage(); `expected 'Page 2' to be 'SDK flow'` after h.app.renamePage; `expected 'id36' to be 'page-1'` after h.app.switchPage): the test calls App methods and h.setState directly, outside React's act(), so the setState is not flushed before the next expect. Wrap every direct h.app.addPage/switchPage/renamePage/reorderPages/deletePage and h.setState call in `act(() => { ... })` (act is re-exported from ./test-utils; see appStateHooks.test.tsx), capturing return values (e.g. `let page2!: string; act(() => { page2 = h.app.addPage(); });`). Keep every assertion. (3) yarn test:code prettier at 195:12 and 196:12: wrap `{ ...API.createElement({ type: \"rectangle\", id: \"a1\" }), pageId: \"a\" }` one property per line with trailing comma (same for b1/\"b\").\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U27.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/appStateHooks.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Partly fixed in round 1 (history, linearElementEditor and export tests now pass) but 50 existing tests still fail that passed before the run: contextmenu (29), dragCreate (5), move (3), multiPointCreate (2), regressionTests (6), selection (5). Two symptoms on a plain single default page: (a) element seed/versionNonce shifted, e.g. dragCreate rectangle `- \"seed\": 1278240551, + \"seed\": 449462985` and `- \"versionNonce\": 401146281, + \"versionNonce\": 2019559783` -> the PRNG (randomInteger, packages/common/src/random.ts) is consumed a different number of times than before the run between reseed and element creation (look for any element re-creation, newElementWith/mutateElement/bumpVersion, restoreElements, or newElement call that the page code added on the single-page path: pointer-down/up, scene updates, componentDidUpdate, PageTabs mount); (b) 13 `[end of test] number of renders` snapshots changed (Expected/Received: ) -> extra setState/re-renders on the single-page path (setState of pages/pageViewports/activePageId when nothing changed, or forceUpdate via scene.triggerUpdate). On a single default page the page code must do no extra setState and consume no extra random numbers, so these snapshots match exactly. Do not change any test or snapshot.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U20.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/dragCreate.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/PageTabs.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6027
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6028,
+          11685
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

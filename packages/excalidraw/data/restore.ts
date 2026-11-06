@@ -34,6 +34,8 @@ import {
   type StrokeWidthKey,
   isTransparent,
   DEFAULT_ZOOM,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
 } from "@excalidraw/common";
 import {
   calculateFixedPointForNonElbowArrowBinding,
@@ -45,6 +47,7 @@ import {
   isNonDeletedElement,
 } from "@excalidraw/element";
 import { normalizeFixedPoint } from "@excalidraw/element";
+import { withElementPageId } from "@excalidraw/element";
 import {
   updateElbowArrowPoints,
   validateElbowPoints,
@@ -448,8 +451,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -519,6 +523,11 @@ const restoreElementWithProperties = <
       "customData" in extra ? extra.customData : element.customData;
   }
 
+  const pageId = (extra as { pageId?: unknown }).pageId ?? element.pageId;
+  if (typeof pageId === "string" && pageId) {
+    (base as { pageId?: string }).pageId = pageId;
+  }
+
   const ret = {
     // spread the original element properties to not lose unknown ones
     // for forward-compatibility
@@ -534,6 +543,9 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+  if (typeof ret.pageId !== "string" || !ret.pageId) {
+    delete ret.pageId;
+  }
 
   return ret;
 };
@@ -1331,6 +1343,85 @@ export const restoreAppState = (
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
 
+  const forbiddenPageIds = new Set(["__proto__", "constructor", "prototype"]);
+  const pages: { id: string; name: string }[] = [];
+  const pageIds = new Set<string>();
+  const suppliedPages: readonly any[] = Array.isArray(nextAppState.pages)
+    ? nextAppState.pages
+    : [];
+  suppliedPages.forEach((page, index) => {
+    let id = typeof page?.id === "string" ? page.id : "";
+    if (
+      !id ||
+      forbiddenPageIds.has(id) ||
+      id in Object.prototype ||
+      pageIds.has(id)
+    ) {
+      id = randomId();
+    }
+    const name = typeof page?.name === "string" ? page.name.trim() : "";
+    pageIds.add(id);
+    pages.push({ id, name: name || `Page ${index + 1}` });
+  });
+  if (!pages.length) {
+    pages.push({ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME });
+    pageIds.add(DEFAULT_PAGE_ID);
+  }
+  nextAppState.pages = pages;
+
+  if (!pageIds.has(nextAppState.activePageId)) {
+    nextAppState.activePageId = pages[0].id;
+  }
+
+  const pageViewports: Mutable<AppState["pageViewports"]> = {};
+  const suppliedViewports =
+    nextAppState.pageViewports && typeof nextAppState.pageViewports === "object"
+      ? nextAppState.pageViewports
+      : {};
+  for (const pageId of Object.keys(suppliedViewports)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(suppliedViewports, pageId) ||
+      forbiddenPageIds.has(pageId) ||
+      !pageIds.has(pageId)
+    ) {
+      continue;
+    }
+    const viewport = suppliedViewports[pageId];
+    if (!viewport || typeof viewport !== "object") {
+      continue;
+    }
+    const { scrollX, scrollY } = viewport;
+    const zoomValue = viewport.zoom?.value;
+    if (
+      isFiniteNumber(scrollX) &&
+      isFiniteNumber(scrollY) &&
+      isFiniteNumber(zoomValue)
+    ) {
+      pageViewports[pageId] = {
+        scrollX,
+        scrollY,
+        zoom: { value: getNormalizedZoom(zoomValue) },
+      };
+    }
+  }
+  nextAppState.pageViewports = pageViewports;
+
+  const activeViewport = Object.prototype.hasOwnProperty.call(
+    pageViewports,
+    nextAppState.activePageId,
+  )
+    ? pageViewports[nextAppState.activePageId]
+    : undefined;
+  if (activeViewport && appState.scrollX === undefined) {
+    nextAppState.scrollX = activeViewport.scrollX;
+  }
+  if (activeViewport && appState.scrollY === undefined) {
+    nextAppState.scrollY = activeViewport.scrollY;
+  }
+  if (activeViewport && appState.zoom === undefined) {
+    appState = { ...appState, zoom: activeViewport.zoom };
+  }
+
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {
     nextAppState.currentItemStrokeWidthKey =
@@ -1383,6 +1474,35 @@ export const restoreAppState = (
     ),
     editingFrame: null,
   };
+};
+
+export const restore = (
+  data: ImportedDataState | null,
+  localAppState?: Partial<AppState> | null,
+  localElements?: readonly ExcalidrawElement[] | null,
+  elementsConfig?: {
+    refreshDimensions?: boolean;
+    repairBindings?: boolean;
+    deleteInvisibleElements?: boolean;
+  },
+): RestoredDataState => {
+  const appState = restoreAppState(data?.appState, localAppState || null);
+  const pageIds = new Set(appState.pages.map((page) => page.id));
+  const defaultPageId = appState.pages[0].id;
+  const restoredElements = restoreElements(
+    data?.elements,
+    localElements,
+    elementsConfig,
+  );
+  const elements = restoredElements.map((element) => {
+    const pageId =
+      element.pageId && pageIds.has(element.pageId)
+        ? element.pageId
+        : defaultPageId;
+    return withElementPageId(element, pageId);
+  });
+
+  return { elements, appState, files: data?.files || {} };
 };
 
 const restoreLibraryItem = (libraryItem: LibraryItem): LibraryItem | null => {

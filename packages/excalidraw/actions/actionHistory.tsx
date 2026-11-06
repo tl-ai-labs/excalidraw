@@ -72,10 +72,13 @@ export const createUndoAction: ActionCreator = (history) => ({
   icon: UndoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState, value, app) =>
+  perform: (_elements, appState, value, app) =>
     executeHistoryAction(app, appState, () =>
+      // every page: history compares against the store's all-pages snapshot
       history.undo(
-        arrayToMap(elements) as SceneElementsMap,
+        arrayToMap(
+          app.scene.getAllElementsIncludingDeleted(),
+        ) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),
@@ -115,10 +118,12 @@ export const createRedoAction: ActionCreator = (history) => ({
   icon: RedoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState, __, app) =>
+  perform: (_elements, appState, __, app) =>
     executeHistoryAction(app, appState, () =>
       history.redo(
-        arrayToMap(elements) as SceneElementsMap,
+        arrayToMap(
+          app.scene.getAllElementsIncludingDeleted(),
+        ) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),

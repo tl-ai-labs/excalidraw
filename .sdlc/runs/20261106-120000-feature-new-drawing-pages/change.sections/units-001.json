@@ -1,0 +1,300 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/common/src/constants.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Export default page ID and default page name constants for multi-page drawings.",
+    "rules": [
+      "1. Export DEFAULT_PAGE_ID = \"page-1\" and DEFAULT_PAGE_NAME = \"Page 1\" at the end of packages/common/src/constants.ts so all packages share a deterministic default page identifier."
+    ],
+    "exports": [
+      {
+        "name": "DEFAULT_PAGE_ID",
+        "kind": "const",
+        "params": [],
+        "returns": "string"
+      },
+      {
+        "name": "DEFAULT_PAGE_NAME",
+        "kind": "const",
+        "params": [],
+        "returns": "string"
+      }
+    ],
+    "import_line": "import { DEFAULT_PAGE_ID, DEFAULT_PAGE_NAME } from \"@excalidraw/common\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 549,
+        "to": 549,
+        "first_line": "] as const);",
+        "rule": "Append export const DEFAULT_PAGE_ID = \"page-1\"; and export const DEFAULT_PAGE_NAME = \"Page 1\";."
+      }
+    ],
+    "depends_on": [],
+    "covers": [
+      "FR-1",
+      "FR-3",
+      "NFR-2"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Add optional pageId field to _ExcalidrawElementBase so every ExcalidrawElement can be associated with a page.",
+    "rules": [
+      "1. Add pageId?: string; to _ExcalidrawElementBase after customData?: Record<string, any>; so elements carry their page membership while remaining backward-compatible with legacy single-page elements."
+    ],
+    "exports": [],
+    "import_line": "import type { ExcalidrawElement } from \"@excalidraw/element/types\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 86,
+        "to": 87,
+        "first_line": "customData?: Record<string, any>;",
+        "last_line": "}>;",
+        "rule": "Add pageId?: string; after customData?: Record<string, any>; inside _ExcalidrawElementBase."
+      }
+    ],
+    "depends_on": [
+      "U01"
+    ],
+    "covers": [
+      "FR-1",
+      "NFR-1"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Allow ElementConstructorOpts and _newElementBase to accept an optional pageId and attach it when non-default.",
+    "rules": [
+      "1. Import DEFAULT_PAGE_ID from @excalidraw/common.",
+      "2. Add \"pageId\" to the MarkOptional union in ElementConstructorOpts.",
+      "3. In _newElementBase, spread ...(rest.pageId && rest.pageId !== DEFAULT_PAGE_ID ? { pageId: rest.pageId } : {}) into the created element object so non-default page elements store pageId while default-page elements omit the property for snapshot compatibility."
+    ],
+    "exports": [],
+    "import_line": "import { newElement } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1,
+        "to": 16,
+        "first_line": "import {",
+        "last_line": "} from \"@excalidraw/common\";",
+        "rule": "Add DEFAULT_PAGE_ID to the @excalidraw/common import list."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 85,
+        "to": 87,
+        "first_line": "| \"customData\"",
+        "last_line": ">;",
+        "rule": "Add | \"pageId\" to ElementConstructorOpts MarkOptional union."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 170,
+        "to": 173,
+        "first_line": "locked,",
+        "last_line": "return element;",
+        "rule": "Conditionally include pageId: rest.pageId on element when rest.pageId is truthy and not equal to DEFAULT_PAGE_ID."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02"
+    ],
+    "covers": [
+      "FR-2",
+      "NFR-3"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/fractionalIndex.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Scope fractional index validation, sorting, and synchronization per page when an element list spans multiple pages.",
+    "rules": [
+      "1. Import DEFAULT_PAGE_ID from @excalidraw/common and define helper getPageKey(el: ExcalidrawElement) returning el.pageId || DEFAULT_PAGE_ID.",
+      "2. In validateFractionalIndices, if elements contain more than one distinct page key, group elements by getPageKey(el) and run validateFractionalIndices on each page group independently so per-page fractional indices (e.g. a0 on Page 1 and a0 on Page 2) never trigger InvalidFractionalIndexError.",
+      "3. In orderByFractionalIndex, when elements contain multiple page keys, preserve relative page grouping or compare fractional indices within the same page key first, breaking cross-page ties by first-seen page order and intra-page ties by index then id.",
+      "4. In syncInvalidIndices and syncInvalidIndicesImmutable, when elements contain more than one distinct page key, group elements by getPageKey(el), synchronize invalid indices within each page slice independently, and write the updated indices back to the original array / SceneElementsMap."
+    ],
+    "exports": [],
+    "import_line": "import { syncInvalidIndices, syncMovedIndices, validateFractionalIndices, orderByFractionalIndex } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1,
+        "to": 1,
+        "first_line": "import { arrayToMap } from \"@excalidraw/common\";",
+        "rule": "Import arrayToMap and DEFAULT_PAGE_ID from @excalidraw/common."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 49,
+        "to": 169,
+        "first_line": "export const validateFractionalIndices = (",
+        "last_line": "};",
+        "rule": "Group by el.pageId || DEFAULT_PAGE_ID in validateFractionalIndices when multiple pages exist, and order per page group in orderByFractionalIndex."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 223,
+        "to": 254,
+        "first_line": "export const syncInvalidIndices = <T extends ExcalidrawElement>(",
+        "last_line": "};",
+        "rule": "Group by el.pageId || DEFAULT_PAGE_ID in syncInvalidIndices and syncInvalidIndicesImmutable when elements span multiple pages."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02"
+    ],
+    "covers": [
+      "FR-2",
+      "NFR-3"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/Scene.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Maintain all pages' elements in Scene while filtering active-page element, map, and frame queries by activePageId and tombstoning deleted page elements with version bumps.",
+    "rules": [
+      "1. Import DEFAULT_PAGE_ID from @excalidraw/common and newElementWith from @excalidraw/element.",
+      "2. Export getElementPageId(element: Pick<ExcalidrawElement, \"pageId\">, fallbackPageId: string = DEFAULT_PAGE_ID): string returning element.pageId || fallbackPageId, and export withElementPageId<T extends ExcalidrawElement>(element: T, pageId: string): T returning element unchanged when getElementPageId(element) === pageId and (!element.pageId || pageId !== DEFAULT_PAGE_ID), stripping pageId when pageId === DEFAULT_PAGE_ID, or returning { ...element, pageId } when pageId !== DEFAULT_PAGE_ID.",
+      "3. Track private activePageId: string = DEFAULT_PAGE_ID, private allElements: readonly OrderedExcalidrawElement[] = [], private allElementsMap = toBrandedType<SceneElementsMap>(new Map()), and private allNonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] = [] alongside the active-page caches (elements, elementsMap, nonDeletedElements, nonDeletedElementsMap, frames, nonDeletedFramesLikes).",
+      "4. Expose getActivePageId(): string, setActivePageId(pageId: string, options?: { triggerUpdate?: boolean }): void, getAllElementsIncludingDeleted(): readonly OrderedExcalidrawElement[], getAllNonDeletedElements(): readonly Ordered<NonDeletedExcalidrawElement>[], getAllElementsMapIncludingDeleted(): SceneElementsMap, and deletePageElements(pageId: string): void, where deletePageElements tombstones every element in this.allElements belonging to pageId (getElementPageId(el) === pageId && !el.isDeleted) via newElementWith(el, { isDeleted: true }) so version and versionNonce bump per NFR-3 and deleted page elements stay deleted during collaboration reconciliation against a peer's stale copy rather than being removed from this.allElements, then rebuilds allElements and active-page caches and calls this.triggerUpdate().",
+      "5. In replaceAllElements(nextElements: ElementsMapOrArray, options?: { skipValidation?: true; allPages?: boolean }), determine each element's pageId via el.pageId ?? (this.allElementsMap.has(el.id) ? getElementPageId(this.allElementsMap.get(el.id)!) : options?.allPages ? DEFAULT_PAGE_ID : this.activePageId) and normalize with withElementPageId; when options?.allPages is true or normalized elements include a pageId !== this.activePageId, replace allElements with the synced multi-page list, otherwise keep inactive pages' elements from this.allElements and replace only the active page's elements; then rebuild both allElements caches and active-page caches filtered by getElementPageId(el) === this.activePageId.",
+      "6. In insertElementsAtIndex, normalize inserted elements to the active page using withElementPageId(el, this.activePageId) before syncing moved indices and calling replaceAllElements; in destroy(), reset allElements, allNonDeletedElements, allElementsMap, and activePageId = DEFAULT_PAGE_ID."
+    ],
+    "exports": [
+      {
+        "name": "getElementPageId",
+        "kind": "function",
+        "params": [
+          {
+            "name": "element",
+            "type": "Pick<ExcalidrawElement, \"pageId\">"
+          },
+          {
+            "name": "fallbackPageId",
+            "type": "string"
+          }
+        ],
+        "returns": "string"
+      },
+      {
+        "name": "withElementPageId",
+        "kind": "function",
+        "params": [
+          {
+            "name": "element",
+            "type": "T"
+          },
+          {
+            "name": "pageId",
+            "type": "string"
+          }
+        ],
+        "returns": "T"
+      },
+      {
+        "name": "Scene",
+        "kind": "class",
+        "params": [],
+        "returns": "Scene"
+      }
+    ],
+    "import_line": "import { Scene, getElementPageId, withElementPageId } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 3,
+        "to": 23,
+        "first_line": "import {",
+        "last_line": "import { mutateElement, type ElementUpdate } from \"@excalidraw/element\";",
+        "rule": "Add DEFAULT_PAGE_ID to the @excalidraw/common import and newElementWith to the @excalidraw/element import."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 48,
+        "to": 48,
+        "first_line": "type SelectionHash = string & { __brand: \"selectionHash\" };",
+        "rule": "Export getElementPageId and withElementPageId helpers."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 115,
+        "to": 176,
+        "first_line": "private nonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =",
+        "last_line": "}",
+        "rule": "Add activePageId, allElements, allElementsMap, allNonDeletedElements fields and getActivePageId, setActivePageId, getAllElementsIncludingDeleted, getAllNonDeletedElements, getAllElementsMapIncludingDeleted, and deletePageElements (tombstoning via newElementWith(el, { isDeleted: true })) methods."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 271,
+        "to": 301,
+        "first_line": "replaceAllElements(",
+        "last_line": "}",
+        "rule": "Update replaceAllElements to accept options?: { skipValidation?: true; allPages?: boolean }, preserve inactive pages' elements on active-page updates, and rebuild both allElements caches and active-page caches."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 326,
+        "to": 370,
+        "first_line": "destroy() {",
+        "last_line": "}",
+        "rule": "Reset allElements, allNonDeletedElements, allElementsMap, and activePageId in destroy(), and normalize inserted elements with withElementPageId(el, this.activePageId) in insertElementsAtIndex."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U04"
+    ],
+    "covers": [
+      "FR-1",
+      "FR-2",
+      "NFR-3"
+    ],
+    "checks": [
+      "eslint"
+    ]
+  }
+]

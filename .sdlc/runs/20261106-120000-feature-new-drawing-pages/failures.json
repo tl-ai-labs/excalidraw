@@ -1,0 +1,9 @@
+[
+  {
+    "path": "packages/excalidraw/history.ts",
+    "context_paths": [
+      "packages/element/src/store.ts"
+    ],
+    "problem": "Gate 3 reviewer, verbatim: \"per-page undo doesn't work: an edit on page 2 never reaches page 2's undo stack, and the store raises \\\"ElementsDelta invariant broken for element rect2\\\"; History.record in packages/excalidraw/history.ts filters the previous snapshot to the active page, which breaks how the store computes the change (AC-4).\" Reproduction: render(<Excalidraw handleKeyboardGlobally={true} />), add rect1 via API.updateScene with CaptureUpdateAction.IMMEDIATELY, act(() => h.app.addPage()), add rect2 the same way -> h.history.undoStackByPage is [[\"page-1\",1],[\"<page2>\",0]], rect2.pageId is the page-2 id, and the store logs `ElementsDelta invariant broken for element \"rect2\"`. Fix: remove the active-page filtering of the store snapshot / elements in History (perform around lines 229-245, and any in record): the store's snapshot always holds ALL pages' elements (App.tsx is changed in this round to commit scene.getAllElementsMapIncludingDeleted() to the store), so every recorded StoreDelta contains only the elements actually changed, and it is pushed onto the active page's undo stack; undo/redo apply the popped delta to the all-pages elements map without filtering. Result: undo on page 2 reverts rect2 and never touches page 1; switching pages keeps each page's stacks. (App.tsx has already been changed in this round to commit scene.getAllElementsMapIncludingDeleted() to the store and to pass all pages elements to history.undo/redo.)"
+  }
+]

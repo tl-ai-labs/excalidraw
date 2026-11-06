@@ -1,5 +1,6 @@
 import {
   DEFAULT_ELEMENT_PROPS,
+  DEFAULT_PAGE_ID,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
   DEFAULT_TEXT_ALIGN,
@@ -83,6 +84,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "locked"
   | "opacity"
   | "customData"
+  | "pageId"
   | "created"
 >;
 
@@ -169,6 +171,9 @@ const _newElementBase = <T extends ExcalidrawElement>(
     link,
     locked,
     customData: rest.customData,
+    ...(rest.pageId && rest.pageId !== DEFAULT_PAGE_ID
+      ? { pageId: rest.pageId }
+      : {}),
   };
   return element;
 };

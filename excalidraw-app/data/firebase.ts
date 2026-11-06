@@ -19,6 +19,7 @@ import type {
   BinaryFileData,
   BinaryFileMetadata,
   DataURL,
+  ExcalidrawPage,
 } from "@excalidraw/excalidraw/types";
 
 import { FILE_CACHE_MAX_AGE_SEC } from "../app_constants";
@@ -92,8 +93,11 @@ type FirebaseStoredScene = {
 const encryptElements = async (
   key: string,
   elements: readonly ExcalidrawElement[],
+  pages?: readonly ExcalidrawPage[],
 ): Promise<{ ciphertext: ArrayBuffer; iv: Uint8Array }> => {
-  const json = JSON.stringify(elements);
+  const json = pages
+    ? JSON.stringify({ elements, pages })
+    : JSON.stringify(elements);
   const encoded = new TextEncoder().encode(json);
   const { encryptedBuffer, iv } = await encryptData(key, encoded);
 
@@ -111,7 +115,60 @@ const decryptElements = async (
   const decodedData = new TextDecoder("utf-8").decode(
     new Uint8Array(decrypted),
   );
-  return JSON.parse(decodedData);
+  const parsed = JSON.parse(decodedData);
+
+  // legacy single-page document without pages
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+
+  const elements: ExcalidrawElement[] = Array.isArray(parsed?.elements)
+    ? parsed.elements
+    : [];
+
+  if (Array.isArray(parsed?.pages)) {
+    const seenIds = new Set<string>();
+    const pages: ExcalidrawPage[] = [];
+    for (const page of parsed.pages) {
+      if (
+        page &&
+        typeof page === "object" &&
+        typeof page.id === "string" &&
+        page.id.trim().length > 0 &&
+        page.id !== "__proto__" &&
+        page.id !== "constructor" &&
+        page.id !== "prototype" &&
+        typeof page.name === "string" &&
+        !seenIds.has(page.id)
+      ) {
+        seenIds.add(page.id);
+        pages.push({ id: page.id, name: page.name });
+      }
+    }
+    if (pages.length > 0) {
+      Object.defineProperty(elements, "__pages", {
+        value: pages,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+  }
+  return elements;
+};
+
+const copyPages = <T extends readonly unknown[]>(
+  target: T,
+  source: readonly unknown[],
+): T => {
+  const pages = (source as any).__pages;
+  if (pages) {
+    Object.defineProperty(target, "__pages", {
+      value: pages,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return target;
 };
 
 class FirebaseSceneVersionCache {
@@ -176,9 +233,10 @@ export const saveFilesToFirebase = async ({
 const createFirebaseSceneDocument = async (
   elements: readonly SyncableExcalidrawElement[],
   roomKey: string,
+  pages?: readonly ExcalidrawPage[],
 ) => {
   const sceneVersion = getSceneVersion(elements);
-  const { ciphertext, iv } = await encryptElements(roomKey, elements);
+  const { ciphertext, iv } = await encryptElements(roomKey, elements, pages);
   const { Bytes } = await _loadFirestore();
   return {
     sceneVersion,
@@ -210,7 +268,11 @@ export const saveToFirebase = async (
     const snapshot = await transaction.get(docRef);
 
     if (!snapshot.exists()) {
-      const storedScene = await createFirebaseSceneDocument(elements, roomKey);
+      const storedScene = await createFirebaseSceneDocument(
+        elements,
+        roomKey,
+        appState.pages,
+      );
 
       transaction.set(docRef, storedScene);
 
@@ -232,6 +294,7 @@ export const saveToFirebase = async (
     const storedScene = await createFirebaseSceneDocument(
       reconciledElements,
       roomKey,
+      appState.pages,
     );
 
     transaction.update(docRef, storedScene);
@@ -240,8 +303,10 @@ export const saveToFirebase = async (
     return storedScene;
   });
 
-  const storedElements = getSyncableElements(
-    restoreElements(await decryptElements(storedScene, roomKey), null),
+  const decryptedStoredElements = await decryptElements(storedScene, roomKey);
+  const storedElements = copyPages(
+    getSyncableElements(restoreElements(decryptedStoredElements, null)),
+    decryptedStoredElements,
   );
 
   FirebaseSceneVersionCache.set(socket, storedElements);
@@ -261,10 +326,14 @@ export const loadFromFirebase = async (
     return null;
   }
   const storedScene = docSnap.data() as FirebaseStoredScene;
-  const elements = getSyncableElements(
-    restoreElements(await decryptElements(storedScene, roomKey), null, {
-      deleteInvisibleElements: true,
-    }),
+  const decryptedElements = await decryptElements(storedScene, roomKey);
+  const elements = copyPages(
+    getSyncableElements(
+      restoreElements(decryptedElements, null, {
+        deleteInvisibleElements: true,
+      }),
+    ),
+    decryptedElements,
   );
 
   if (socket) {

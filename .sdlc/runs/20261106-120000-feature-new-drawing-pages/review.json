@@ -1,0 +1,43 @@
+{
+  "module": "drawing-pages",
+  "verdict": "needs_changes",
+  "tool_calls": 59,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/element/src/Scene.ts",
+      "line": 207,
+      "issue": "Scene.setActivePageId unconditionally runs rebuildCaches() and triggerUpdate() (which calls this.sceneNonce = randomInteger() at line 418 and fires all scene update callbacks) even when this.activePageId === pageId. On every single-page <Excalidraw /> mount, App.initializeScene calls setActivePageId('page-1') when activePageId is already 'page-1', consuming one extra PRNG integer from reseed(7) and firing an extra render before any user interaction—which shifts every element seed/versionNonce snapshot across contextmenu, dragCreate, move, multiPointCreate, regressionTests, and selection, and causes 13 'number of renders' snapshot failures.",
+      "fix": "In Scene.setActivePageId(pageId: string, options?: { triggerUpdate?: boolean }), return early immediately if (this.activePageId === pageId) before rebuilding caches or calling triggerUpdate()."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/components/App.tsx",
+      "line": 3860,
+      "issue": "initializeScene (line 3860), resetScene (line 3720), and loadFileToCanvas (line 11169) call this.scene.setActivePageId(...) without { triggerUpdate: false } immediately before syncActionResult / replaceAllElements (which already calls triggerUpdate()), causing redundant sceneNonce PRNG consumption and renders; additionally, syncActionResult (line 3292) computes const allPages = !!nextPageId && nextPageId !== this.state.activePageId, which is false when restoring a multi-page scene whose activePageId equals the initial this.state.activePageId ('page-1'), dropping elements on non-active pages.",
+      "fix": "Pass { triggerUpdate: false } to this.scene.setActivePageId(...) in resetScene (line 3720), initializeScene (line 3860), and loadFileToCanvas (line 11169), and update syncActionResult (line 3292) so allPages is true whenever nextPageId is present or res.elements contains elements with a pageId different from this.scene.getActivePageId()."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/components/App.tsx",
+      "line": 2804,
+      "issue": "Per-page undo history (AC-4) fails because: (1) activatePage (lines 2804-2828) switches this.scene.setActivePageId(pageId) before committing pending store actions for the outgoing page and then calls scheduleMicroAction(NEVER), which causes StoreSnapshot to treat previous-page elements still in this.store.snapshot.elements as deleted (isDeleted: true, version + 1); and (2) updateScene (lines 5177-5204) calls this.store.scheduleMicroAction before updating activePageId and without normalizing elements with withElementPageId, leaving pageId undefined in StoreSnapshot while Scene.replaceAllElements stamps pageId on scene elements.",
+      "fix": "In activatePage, first commit pending changes on the outgoing page via this.store.commit(this.scene.getElementsMapIncludingDeleted(), this.state), then call this.scene.setActivePageId(pageId) and this.history.setActivePageId(pageId), and reset this.store.snapshot = StoreSnapshot.create(this.scene.getElementsMapIncludingDeleted(), getObservedAppState({ ...this.state, ...nextState })) instead of calling scheduleMicroAction; in updateScene (lines 5177-5204), apply any appState.activePageId switch first and normalize elements with withElementPageId(el, el.pageId ?? this.scene.getActivePageId()) before passing them to scheduleMicroAction and replaceAllElements."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/history.ts",
+      "line": 139,
+      "issue": "History.setActivePageId (lines 139-145) does not early-return when nextPageId === this.activePageId, and History.perform (line 242) computes prevSnapshot.maybeClone(action, nextElements, nextAppState) against this.store.snapshot even if this.store.snapshot.elements contains elements from another page, which synthesizes false isDeleted: true changes for non-active-page elements and corrupts HistoryDelta.applyLatestChanges during per-page undo/redo.",
+      "fix": "Return early in History.setActivePageId when nextPageId === this.activePageId, and in History.perform ensure prevSnapshot only contains elements belonging to this.activePageId (using getElementPageId(el) === this.activePageId) before calling prevSnapshot.maybeClone."
+    },
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/pages.test.tsx",
+      "line": 6,
+      "issue": "pages.test.tsx fails typecheck (TS2459 at line 6: exportToSvg is not exported from ../scene/export), fails yarn test:code with 2 Prettier warnings at lines 195-196, renders <Excalidraw /> at line 35 without handleKeyboardGlobally={true} (so Keyboard.keyPress(KEYS.Z) in undo() and Keyboard.keyPress(KEYS.A) in AC-1 dispatch keydown on document and never reach App.onKeyDown), and invokes h.app.addPage/switchPage/renamePage/reorderPages/deletePage and h.setState outside act(...).",
+      "fix": "Import exportScene (instead of exportToSvg) from '../scene/export' and call await exportScene({ type: 'svg', data: { elements, appState, files: h.app.files } }) in AC-5; render <Excalidraw handleKeyboardGlobally={true} /> in beforeEach; wrap all h.app.* and h.setState(...) mutations in act(() => { ... }); and format lines 195-196 with Prettier."
+    }
+  ],
+  "refinement_packets": []
+}

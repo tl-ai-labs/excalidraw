@@ -717,14 +717,17 @@ const ExcalidrawWrapper = () => {
     appState: AppState,
     files: BinaryFiles,
   ) => {
+    const allElements =
+      excalidrawAPI?.getAllSceneElementsIncludingDeleted() ?? elements;
+
     if (collabAPI?.isCollaborating()) {
-      collabAPI.syncElements(elements);
+      collabAPI.syncElements(allElements);
     }
 
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
-      LocalData.save(elements, appState, files, () => {
+      LocalData.save(allElements, appState, files, () => {
         if (excalidrawAPI) {
           let didChange = false;
 
@@ -1055,7 +1058,7 @@ const ExcalidrawWrapper = () => {
               actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
               onClick={() => {
                 exportToExcalidrawPlus(
-                  excalidrawAPI.getSceneElements(),
+                  excalidrawAPI.getAllSceneElements(),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                   excalidrawAPI.getName(),
@@ -1097,7 +1100,7 @@ const ExcalidrawWrapper = () => {
             if (excalidrawAPI) {
               try {
                 await onExportToBackend(
-                  excalidrawAPI.getSceneElements(),
+                  excalidrawAPI.getAllSceneElements(),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                 );
@@ -1273,7 +1276,7 @@ const ExcalidrawWrapper = () => {
               perform: () => {
                 if (excalidrawAPI) {
                   exportToExcalidrawPlus(
-                    excalidrawAPI.getSceneElements(),
+                    excalidrawAPI.getAllSceneElements(),
                     excalidrawAPI.getAppState(),
                     excalidrawAPI.getFiles(),
                     excalidrawAPI.getName(),

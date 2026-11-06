@@ -74,6 +74,46 @@ Every normalized element has a `created: number | null` field. A number is the c
 | Restore/open/import an existing scene | Preserve the carried value; missing values become `null` |
 | Edit, change type while retaining the ID, capture, undo, or redo | Preserve the value |
 
+### Multi-page drawings
+
+A drawing can contain multiple pages. The file keeps a single top-level `elements` array containing the elements of all pages, and page membership is stored on each element. Page metadata is stored in `appState`.
+
+| Property | Location | Description | Value |
+| --- | --- | --- | --- |
+| `pageId` | element | Optional ID of the page the element belongs to. Omitted when the element belongs to the default page (`"page-1"`). | string |
+| `pages` | `appState` | Ordered list of pages | Array of `{ id: string, name: string }` |
+| `activePageId` | `appState` | ID of the page that is active when the file is opened | string |
+| `pageViewports` | `appState` | Last scroll position and zoom of each page, keyed by page ID | Object of `{ scrollX: number, scrollY: number, zoom: { value: number } }` |
+
+The default page has the ID `"page-1"` and the name `"Page 1"`. Single-page drawings that were never changed from the default page do not write `pageId`, `pages`, `activePageId`, or `pageViewports`, so their files are identical to files saved before pages were introduced.
+
+#### Backward compatibility
+
+- Files without page metadata (`pages`, `activePageId`, `pageViewports`, or element `pageId`) are loaded as a single drawing with one default page, and all elements are assigned to it.
+- Elements without `pageId` belong to the default page (`"page-1"`).
+- Loaders that do not support pages ignore the unknown properties and show all elements together on one canvas.
+
+```json
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [
+    { "id": "a1", "type": "rectangle" /* on the default page, no pageId */ },
+    { "id": "b2", "type": "ellipse", "pageId": "page-2" }
+  ],
+  "appState": {
+    "pages": [
+      { "id": "page-1", "name": "Page 1" },
+      { "id": "page-2", "name": "Page 2" }
+    ],
+    "activePageId": "page-2",
+    "pageViewports": {
+      "page-2": { "scrollX": 0, "scrollY": 0, "zoom": { "value": 1 } }
+    }
+  }
+}
+```
+
 ## Excalidraw clipboard format
 
 When copying selected excalidraw elements to clipboard, the JSON schema is similar to `.excalidraw` format, except it differs in attributes.
