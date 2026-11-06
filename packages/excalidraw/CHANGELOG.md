@@ -13,6 +13,8 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+- Lasso tool now honours the `boxSelectionMode` (`"contain"` / `"overlap"`) preference.
+
 ## Excalidraw API
 
 ### Host-controlled active tool (2026-07-14) [#11665](https://github.com/excalidraw/excalidraw/pull/11665)

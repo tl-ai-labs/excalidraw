@@ -32,6 +32,8 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
+
 import { act, render } from "./test-utils";
 
 const { h } = window;
@@ -43,7 +45,11 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode?: "contain" | "overlap",
+) => {
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +80,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode,
     });
 
     act(() =>
@@ -1800,5 +1807,294 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("boxSelectionMode (contain vs overlap)", () => {
+  const fullBoxPoints: LocalPoint[] = [
+    [0, 0],
+    [250, 0],
+    [250, 250],
+    [0, 250],
+    [0, 0],
+  ] as LocalPoint[];
+
+  const partialBoxPoints: LocalPoint[] = [
+    [0, 0],
+    [80, 0],
+    [80, 80],
+    [0, 80],
+    [0, 0],
+  ] as LocalPoint[];
+
+  it("rectangle in contain vs overlap mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    act(() => {
+      h.elements = [rect];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("diamond in contain vs overlap mode", () => {
+    const diamond = API.createElement({
+      type: "diamond",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    act(() => {
+      h.elements = [diamond];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      diamond.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      diamond.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      diamond.id,
+    ]);
+  });
+
+  it("ellipse in contain vs overlap mode", () => {
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    act(() => {
+      h.elements = [ellipse];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      ellipse.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      ellipse.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      ellipse.id,
+    ]);
+  });
+
+  it("rotated shape in contain vs overlap mode", () => {
+    const rotatedRect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      angle: 0.7853981633974483 as Radians,
+    });
+    act(() => {
+      h.elements = [rotatedRect];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rotatedRect.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rotatedRect.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rotatedRect.id,
+    ]);
+  });
+
+  it("line and arrow in contain vs overlap mode", () => {
+    const line = API.createElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 100)],
+    });
+    const arrow = API.createElement({
+      type: "arrow",
+      x: 0,
+      y: 20,
+      width: 100,
+      height: 100,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 100)],
+    });
+    act(() => {
+      h.elements = [line, arrow];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      line.id,
+      arrow.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      line.id,
+      arrow.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      line.id,
+      arrow.id,
+    ]);
+  });
+
+  it("freedraw stroke in contain vs overlap mode", () => {
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(50, 50),
+        pointFrom<LocalPoint>(100, 100),
+      ],
+    });
+    act(() => {
+      h.elements = [freedraw];
+    });
+
+    const startPartial = pointFrom<GlobalPoint>(-20, -20);
+    updatePath(startPartial, partialBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      freedraw.id,
+    ]);
+
+    updatePath(startPartial, partialBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    const startFull = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(startFull, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      freedraw.id,
+    ]);
+
+    updatePath(startFull, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      freedraw.id,
+    ]);
+  });
+
+  it("bound text follows its container in contain vs overlap mode", () => {
+    const container = API.createElement({
+      type: "rectangle",
+      id: "container-rect",
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 120,
+      boundElements: [{ id: "bound-text", type: "text" }],
+    });
+    const boundText = API.createElement({
+      type: "text",
+      id: "bound-text",
+      x: 40,
+      y: 40,
+      width: 40,
+      height: 20,
+      text: "hello",
+      containerId: container.id,
+    });
+    act(() => {
+      h.elements = [container, boundText];
+    });
+
+    // Lasso enclosing only the bound text inside the container
+    const innerStart = pointFrom<GlobalPoint>(30, 30);
+    const innerPoints: LocalPoint[] = [
+      [0, 0],
+      [60, 0],
+      [60, 40],
+      [0, 40],
+      [0, 0],
+    ] as LocalPoint[];
+
+    updatePath(innerStart, innerPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    updatePath(innerStart, innerPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      container.id,
+    ]);
+
+    // Lasso enclosing the entire container
+    const fullStart = pointFrom<GlobalPoint>(-50, -50);
+    updatePath(fullStart, fullBoxPoints, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      container.id,
+    ]);
+
+    updatePath(fullStart, fullBoxPoints, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      container.id,
+    ]);
   });
 });

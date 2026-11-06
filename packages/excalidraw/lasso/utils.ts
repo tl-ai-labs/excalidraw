@@ -14,6 +14,7 @@ import {
   getBoundTextElement,
   getElementBounds,
   intersectElementWithLineSegment,
+  isBoundToContainer,
 } from "@excalidraw/element";
 
 import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
@@ -27,6 +28,7 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  boxSelectionMode?: "contain" | "overlap";
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +40,7 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "overlap",
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -60,23 +63,58 @@ export const getLassoSelectedElementIds = (input: {
     [Infinity, Infinity, -Infinity, -Infinity],
   ) as Bounds;
   for (const element of unlockedElements) {
+    if (isBoundToContainer(element) && elementsMap.has(element.containerId)) {
+      continue;
+    }
+
     // First check if the lasso segment intersects the element's axis-aligned
     // bounding box as it is much faster than checking intersection against
     // the element's shape
     const elementBounds = getElementBounds(element, elementsMap);
+    const boundTextElement = getBoundTextElement(element, elementsMap);
+
+    const boundsIntersect =
+      doBoundsIntersect(lassoBounds, elementBounds) ||
+      (boxSelectionMode !== "contain" &&
+        !!boundTextElement &&
+        doBoundsIntersect(
+          lassoBounds,
+          getElementBounds(boundTextElement, elementsMap),
+        ));
 
     if (
-      doBoundsIntersect(lassoBounds, elementBounds) &&
+      boundsIntersect &&
       !intersectedElements.has(element.id) &&
       !enclosedElements.has(element.id)
     ) {
-      const enclosed = enclosureTest(path, element, elementsSegments);
-      if (enclosed) {
-        enclosedElements.add(element.id);
+      if (boxSelectionMode === "contain") {
+        if (
+          enclosureTest(
+            path,
+            element,
+            elementsSegments,
+            elementsMap,
+            boxSelectionMode,
+          ) &&
+          !intersectionTest(path, element, elementsMap)
+        ) {
+          enclosedElements.add(element.id);
+        }
       } else {
-        const intersects = intersectionTest(path, element, elementsMap);
-        if (intersects) {
-          intersectedElements.add(element.id);
+        const enclosed = enclosureTest(
+          path,
+          element,
+          elementsSegments,
+          elementsMap,
+          boxSelectionMode,
+        );
+        if (enclosed) {
+          enclosedElements.add(element.id);
+        } else {
+          const intersects = intersectionTest(path, element, elementsMap);
+          if (intersects) {
+            intersectedElements.add(element.id);
+          }
         }
       }
     }
@@ -93,18 +131,53 @@ const enclosureTest = (
   lassoPath: GlobalPoint[],
   element: ExcalidrawElement,
   elementsSegments: ElementsSegmentsMap,
+  elementsMap: ElementsMap,
+  boxSelectionMode: "contain" | "overlap" = "overlap",
 ): boolean => {
   const lassoPolygon = polygonFromPoints(lassoPath);
   const segments = elementsSegments.get(element.id);
-  if (!segments) {
+  if (!segments || segments.length === 0) {
     return false;
   }
 
-  return segments.some((segment) => {
-    return segment.some((point) =>
-      polygonIncludesPointNonZero(point, lassoPolygon),
+  const boundTextElement = getBoundTextElement(element, elementsMap);
+  const boundTextSegments = boundTextElement
+    ? elementsSegments.get(boundTextElement.id)
+    : null;
+
+  if (boxSelectionMode === "contain") {
+    const elementEnclosed = segments.every((segment) =>
+      segment.every((point) =>
+        polygonIncludesPointNonZero(point, lassoPolygon),
+      ),
     );
-  });
+
+    if (!elementEnclosed) {
+      return false;
+    }
+
+    if (boundTextSegments && boundTextSegments.length > 0) {
+      return boundTextSegments.every((segment) =>
+        segment.every((point) =>
+          polygonIncludesPointNonZero(point, lassoPolygon),
+        ),
+      );
+    }
+
+    return true;
+  }
+
+  return (
+    segments.some((segment) =>
+      segment.some((point) => polygonIncludesPointNonZero(point, lassoPolygon)),
+    ) ||
+    (!!boundTextSegments &&
+      boundTextSegments.some((segment) =>
+        segment.some((point) =>
+          polygonIncludesPointNonZero(point, lassoPolygon),
+        ),
+      ))
+  );
 };
 
 const intersectionTest = (

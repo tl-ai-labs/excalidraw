@@ -184,15 +184,131 @@ describe("lasso reselection", () => {
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
       mouse.downAt(110, 50);
-      mouse.moveTo(50, -20);
+      mouse.moveTo(110, -20);
 
       expect(h.app.lassoTrail.hasCurrentTrail).toBe(true);
 
-      mouse.moveTo(-20, 50);
-      mouse.moveTo(50, 120);
+      mouse.moveTo(-20, -20);
+      mouse.moveTo(-20, 120);
+      mouse.moveTo(110, 120);
       mouse.moveTo(110, 50);
       mouse.up();
     });
+
+    assertSelectedElements([rectA.id]);
+  });
+
+  it("lasso tool in contain mode ignores partially touched element and selects fully enclosed element", () => {
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+    const rectB = API.createElement({
+      type: "rectangle",
+      x: 220,
+      y: 0,
+      width: 100,
+      height: 100,
+      backgroundColor: "blue",
+      fillStyle: "solid",
+    });
+
+    API.setElements([rectA, rectB]);
+    API.setAppState({ boxSelectionMode: "contain" });
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    mouse.downAt(50, -20);
+    mouse.moveTo(-20, 50);
+    mouse.moveTo(50, 120);
+    mouse.moveTo(110, 50);
+    mouse.moveTo(50, -20);
+    mouse.up();
+
+    assertSelectedElements([]);
+
+    mouse.downAt(-20, -20);
+    mouse.moveTo(120, -20);
+    mouse.moveTo(120, 120);
+    mouse.moveTo(-20, 120);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+
+    assertSelectedElements([rectA.id]);
+  });
+
+  it("lasso tool in overlap mode selects partially touched element", () => {
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+    const rectB = API.createElement({
+      type: "rectangle",
+      x: 220,
+      y: 0,
+      width: 100,
+      height: 100,
+      backgroundColor: "blue",
+      fillStyle: "solid",
+    });
+
+    API.setElements([rectA, rectB]);
+    API.setAppState({ boxSelectionMode: "overlap" });
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    mouse.downAt(50, -20);
+    mouse.moveTo(-20, 50);
+    mouse.moveTo(50, 120);
+    mouse.moveTo(110, 50);
+    mouse.moveTo(50, -20);
+    mouse.up();
+
+    assertSelectedElements([rectA.id]);
+  });
+
+  it("rectangle box-selection regression across contain and overlap modes", () => {
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+      backgroundColor: "red",
+      fillStyle: "solid",
+    });
+
+    API.setElements([rectA]);
+    API.setAppState({ boxSelectionMode: "contain" });
+    act(() => {
+      h.app.setActiveTool({ type: "selection" });
+    });
+
+    mouse.downAt(25, -20);
+    mouse.move(-1000, -1000);
+    mouse.moveTo(75, 70);
+    mouse.up();
+
+    assertSelectedElements([]);
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+
+    mouse.downAt(25, -20);
+    mouse.move(-1000, -1000);
+    mouse.moveTo(75, 70);
+    mouse.up();
 
     assertSelectedElements([rectA.id]);
   });
