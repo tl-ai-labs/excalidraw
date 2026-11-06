@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  reverseDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -212,6 +213,62 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("reverseDarkModeFilter", () => {
+  const roundTripFailures = (colors: string[]) =>
+    colors.filter(
+      (c) =>
+        applyDarkModeFilter(reverseDarkModeFilter(applyDarkModeFilter(c))) !==
+        applyDarkModeFilter(c),
+    );
+
+  it("round-trips every COLOR_PALETTE color", () => {
+    const paletteColors = Object.values(COLOR_PALETTE)
+      .flat()
+      .filter((c) => c !== "transparent");
+    expect(roundTripFailures(paletteColors)).toEqual([]);
+  });
+
+  it("round-trips saturated colors", () => {
+    const saturated = [
+      "#ff00ff",
+      "#00ff00",
+      "#0000ff",
+      "#ff0000",
+      "#000000",
+      "#ffffff",
+    ];
+    expect(roundTripFailures(saturated)).toEqual([]);
+  });
+
+  it("round-trips a deterministic sample across the RGB cube", () => {
+    const cubeColors: string[] = [];
+    for (let r = 0; r <= 255; r += 15) {
+      for (let g = 0; g <= 255; g += 15) {
+        for (let b = 0; b <= 255; b += 15) {
+          cubeColors.push(rgbToHex(r, g, b));
+        }
+      }
+    }
+    expect(roundTripFailures(cubeColors)).toEqual([]);
+  });
+
+  it("returns the original color where the filter is injective", () => {
+    for (const c of ["#000000", "#808080", "#ffffff"]) {
+      expect(reverseDarkModeFilter(applyDarkModeFilter(c))).toBe(c);
+    }
+  });
+
+  it("does not change applyDarkModeFilter results", () => {
+    reverseDarkModeFilter("#ff9090");
+    reverseDarkModeFilter("#ededed");
+    reverseDarkModeFilter("#ff70ff");
+
+    expect(applyDarkModeFilter("#ff0000")).toBe("#ff9090");
+    expect(applyDarkModeFilter("#000000")).toBe("#ededed");
+    expect(applyDarkModeFilter("#ff00ff")).toBe("#ff70ff");
   });
 });
 

@@ -1,0 +1,39 @@
+{
+  "module": "eyedropper-dark-mode (packages/common colors + packages/excalidraw EyeDropper)",
+  "mode": "brownfield",
+  "intent": "bugfix",
+  "verdict": "approved",
+  "tool_calls": 5,
+  "passing_checks": [
+    "Correctness: reverseDarkModeFilter matches change_plan U03 (canonical centre, 27-candidate bound, first exact match else nearest, lazy smallest-x invert table, alpha kept, invalid input returned unchanged, no cache, cssInvert/cssHueRotate/applyDarkModeFilter untouched).",
+    "Correctness: EyeDropper matches U04 (light theme unchanged, topmost hit via hitElementItself, candidate order bg/stroke/viewBackground, single reverse fallback, swatch=screenColor, onChange/onSelect=pickedColor, effect deps unchanged).",
+    "Invert table covers every v in 18..237 (step 0.86 < 1), so table[v] is defined for all clamped candidates.",
+    "Type safety: no any; typecheck green.",
+    "Tests: red/green confirmed for both new suites; light-theme regression case present; no snapshot changes.",
+    "Env fixtures: skipped (bugfix intent). No sensitive files touched."
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/common/src/colors.ts",
+      "line": 116,
+      "issue": "V_MIN/V_MAX are hard-coded 18/237, whereas change_plan U03 rule 2 derives them from cssInvert(255,255,255,93).r and cssInvert(0,0,0,93).r. The hard-coding was likely chosen to avoid the module-load clamp import cycle, but the constants are now silently coupled to the 93% invert in applyDarkModeFilter.",
+      "fix": "Add a one-line comment tying 18/237 to cssInvert(255|0, 93), or compute them inside getInvertPreimageTable lazily alongside the table."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/EyeDropper.tsx",
+      "line": 149,
+      "issue": "`let hitElement = null;` relies on TypeScript's evolving-let inference; intent is clearer with an explicit type. `pointFrom(x, y)` is also re-created on every loop iteration.",
+      "fix": "Declare `let hitElement: NonDeletedExcalidrawElement | null = null;` and hoist `const point = pointFrom(x, y);` above the loop."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "line": 598,
+      "issue": "The dark-theme tests cover only the backgroundColor match. The reverseDarkModeFilter fallback (no element hit or no candidate matching), the strokeColor/viewBackgroundColor candidates, and FR-5 (swatch shows screenColor while the callback gets pickedColor) have no tests. The plan did not require these tests.",
+      "fix": "Optionally add a dark-theme case that stubs a pixel over empty canvas that does not equal applyDarkModeFilter(viewBackgroundColor), and assert the picked colour equals reverseDarkModeFilter(pixel)."
+    }
+  ],
+  "refinement_packets": []
+}

@@ -1,9 +1,24 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  applyDarkModeFilter,
+  EVENT,
+  KEYS,
+  reverseDarkModeFilter,
+  rgbToHex,
+  THEME,
+  viewportCoordsToSceneCoords,
+} from "@excalidraw/common";
+import { hitElementItself } from "@excalidraw/element";
+import { pointFrom } from "@excalidraw/math";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
+import type { GlobalPoint } from "@excalidraw/math";
+
+import type {
+  ExcalidrawElement,
+  NonDeletedExcalidrawElement,
+} from "@excalidraw/element/types";
 
 import { useUIAppState } from "../context/ui-appState";
 import { atom } from "../editor-jotai";
@@ -91,7 +106,53 @@ export const EyeDropper: React.FC<{
         1,
       ).data;
 
-      return rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const screenColor = rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const { app } = stableProps;
+
+      if (app.state.theme !== THEME.DARK) {
+        return { screenColor, pickedColor: screenColor };
+      }
+
+      const { x, y } = viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        app.state,
+      );
+      const elementsMap = app.scene.getNonDeletedElementsMap();
+      const elements = app.scene.getNonDeletedElements();
+
+      let hitElement: NonDeletedExcalidrawElement | null = null;
+      const point = pointFrom<GlobalPoint>(x, y);
+      for (let i = elements.length - 1; i >= 0; i--) {
+        const element = elements[i];
+        if (
+          hitElementItself({
+            point,
+            element,
+            threshold: element.strokeWidth / 2 + 0.1,
+            elementsMap,
+          })
+        ) {
+          hitElement = element;
+          break;
+        }
+      }
+
+      const candidates = [
+        hitElement?.backgroundColor,
+        hitElement?.strokeColor,
+        app.state.viewBackgroundColor,
+      ].filter((color): color is string => Boolean(color));
+
+      for (const candidate of candidates) {
+        if (applyDarkModeFilter(candidate) === screenColor) {
+          return { screenColor, pickedColor: candidate };
+        }
+      }
+
+      return {
+        screenColor,
+        pickedColor: reverseDarkModeFilter(screenColor),
+      };
     };
 
     const mouseMoveListener = ({
@@ -116,18 +177,21 @@ export const EyeDropper: React.FC<{
       colorPreviewDiv.style.top = `${top}px`;
       colorPreviewDiv.style.left = `${left}px`;
 
-      const currentColor = getCurrentColor({ clientX, clientY });
+      const { screenColor, pickedColor } = getCurrentColor({
+        clientX,
+        clientY,
+      });
 
       if (isHoldingPointerDown) {
         stableProps.onChange(
           colorPickerType,
-          currentColor,
+          pickedColor,
           stableProps.selectedElements,
           { altKey },
         );
       }
 
-      colorPreviewDiv.style.background = currentColor;
+      colorPreviewDiv.style.background = screenColor;
     };
 
     const onCancel = () => {
@@ -158,7 +222,7 @@ export const EyeDropper: React.FC<{
       event.stopImmediatePropagation();
       event.preventDefault();
 
-      onSelect(getCurrentColor(event), event);
+      onSelect(getCurrentColor(event).pickedColor, event);
     };
 
     const keyDownListener = (event: KeyboardEvent) => {

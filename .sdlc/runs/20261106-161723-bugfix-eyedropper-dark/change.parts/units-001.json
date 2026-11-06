@@ -1,0 +1,328 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/common/src/colors.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Adds a `reverseDarkModeFilter` describe block with round-trip tests that fail until the inverse helper exists.",
+      "rules": [
+        "1. Import `reverseDarkModeFilter` alongside the existing named imports from \"@excalidraw/common\" (order: applyDarkModeFilter, COLOR_PALETTE, reverseDarkModeFilter, rgbToHex).",
+        "2. Inside the new describe, define `const roundTripFailures = (colors: string[]) => colors.filter((c) => applyDarkModeFilter(reverseDarkModeFilter(applyDarkModeFilter(c))) !== applyDarkModeFilter(c));` and assert each round-trip case with `expect(roundTripFailures(list)).toEqual([])` so a failure lists the offending colours.",
+        "3. The palette list is `Object.values(COLOR_PALETTE).flat()` with \"transparent\" removed.",
+        "4. The saturated list is exactly [\"#ff00ff\", \"#00ff00\", \"#0000ff\", \"#ff0000\", \"#000000\", \"#ffffff\"].",
+        "5. The cube sample is every rgbToHex(r, g, b) with r, g and b each stepping from 0 to 255 by 15 (18 levels, 5832 colours, both faces 0 and 255 included), built with nested loops.",
+        "6. The injective case asserts `reverseDarkModeFilter(applyDarkModeFilter(c))` toBe c for each of \"#000000\", \"#808080\", \"#ffffff\" (each grey level has a single pre-image under the filter).",
+        "7. The cache case first calls reverseDarkModeFilter on \"#ff9090\", \"#ededed\" and \"#ff70ff\", then asserts applyDarkModeFilter(\"#ff0000\") toBe \"#ff9090\", applyDarkModeFilter(\"#000000\") toBe \"#ededed\" and applyDarkModeFilter(\"#ff00ff\") toBe \"#ff70ff\".",
+        "8. No snapshot is used; the snapshot file is not touched."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 5,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Same import statement with `reverseDarkModeFilter` added between COLOR_PALETTE and rgbToHex."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 218,
+          "to": 218,
+          "first_line": "describe(\"rgbToHex\", () => {",
+          "rule": "Insert the top-level `describe(\"reverseDarkModeFilter\", () => { ... });` block holding the five cases, followed by one blank line."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.test.ts",
+        "lines": [
+          13,
+          44
+        ],
+        "reason": "Describe/it layout and assertion style of the existing applyDarkModeFilter tests."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-4",
+        "NFR-1",
+        "AC-5"
+      ],
+      "tests": [
+        {
+          "name": "round-trips every COLOR_PALETTE color",
+          "given": "every non-transparent colour of COLOR_PALETTE",
+          "expect": "applyDarkModeFilter(reverseDarkModeFilter(applyDarkModeFilter(c))) equals applyDarkModeFilter(c) for all of them"
+        },
+        {
+          "name": "round-trips saturated colors",
+          "given": "#ff00ff, #00ff00, #0000ff, #ff0000, #000000, #ffffff",
+          "expect": "the round-trip property holds for each, including the clamped #ff00ff"
+        },
+        {
+          "name": "round-trips a deterministic sample across the RGB cube",
+          "given": "the 5832 colours with each channel stepping from 0 to 255 by 15",
+          "expect": "no colour fails the round-trip property"
+        },
+        {
+          "name": "returns the original color where the filter is injective",
+          "given": "#000000, #808080 and #ffffff",
+          "expect": "reverseDarkModeFilter(applyDarkModeFilter(c)) is exactly c"
+        },
+        {
+          "name": "does not change applyDarkModeFilter results",
+          "given": "reverseDarkModeFilter has been called on #ff9090, #ededed and #ff70ff",
+          "expect": "applyDarkModeFilter still maps #ff0000 to #ff9090, #000000 to #ededed and #ff00ff to #ff70ff"
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "red-colors-reverse"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Adds eyedropper tests that pick a magenta rectangle in dark and light theme with a stubbed canvas pixel; the dark-theme case fails on the current code.",
+      "rules": [
+        "1. Add imports: `THEME`, `applyDarkModeFilter` from \"@excalidraw/common\"; `CaptureUpdateAction` from \"@excalidraw/element\"; `API` from \"./helpers/api\"; `act` added to the existing ./test-utils import.",
+        "2. The new top-level describe is named \"eye dropper picked color\" and starts with `const { h } = window;` and `afterEach(() => { vi.restoreAllMocks(); });`.",
+        "3. A local helper `pickAt(stored: string)`, used by both cases: seed `API.createElement({ type: \"rectangle\", x: 20, y: 20, width: 120, height: 100, backgroundColor: stored, fillStyle: \"solid\", strokeColor: \"#1e1e1e\", roundness: null })` via `act(() => h.app.updateScene({ elements: [rect], captureUpdate: CaptureUpdateAction.IMMEDIATELY }))`.",
+        "4. In pickAt, derive the pixel bytes by parsing `applyDarkModeFilter(stored)` hex pairs with `parseInt(hex.slice(i, i + 2), 16)`; take `const ctx = h.app.canvas.getContext(\"2d\")!`, `vi.spyOn(ctx, \"getImageData\").mockReturnValue({ data: Uint8ClampedArray.of(r, g, b, 255) } as ImageData)` and `vi.spyOn(h.app.canvas, \"getContext\").mockReturnValue(ctx)`, all before the key press.",
+        "5. In pickAt, then `Keyboard.keyPress(\"i\")`, `await waitFor` until `.excalidraw-eye-dropper-backdrop` exists in GlobalTestState.renderResult.container, and fire `fireEvent.pointerDown` then `fireEvent.pointerUp` on that backdrop, both with `{ clientX: 80, clientY: 70 }` (scene point 80,70 is inside the rectangle).",
+        "6. The dark case renders `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} theme={THEME.DARK} />`; the light case renders the same without `theme`.",
+        "7. Each case asserts with `await waitFor(() => expect(h.state.currentItemBackgroundColor).toBe(expected))`.",
+        "8. The dark case name contains \"dark theme\" and the light case name must not, so the red check filter selects only the dark case."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 6,
+          "first_line": "import React from \"react\";",
+          "last_line": "import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";",
+          "rule": "Import block with the additions of rule 1, grouped as packages, blank line, ../index, blank line, ./helpers and ./test-utils."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 50,
+          "to": 50,
+          "first_line": "});",
+          "rule": "After one blank line, append the `describe(\"eye dropper picked color\", () => { ... });` block with its helper and the two cases."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/bucketFill.test.tsx",
+        "lines": [
+          1,
+          75
+        ],
+        "reason": "Imports, `const { h } = window;`, and seeding a rectangle through API.createElement + updateScene inside act."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/EyeDropper.tsx",
+          "lines": [
+            69,
+            195
+          ],
+          "reason": "Where the eyedropper reads the pixel and which element receives the pointer listeners."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "tests": [
+        {
+          "name": "returns the stored scene color in dark theme",
+          "given": "theme dark, a solid rectangle with backgroundColor #ff00ff under the cursor, and the canvas pixel stubbed to applyDarkModeFilter(\"#ff00ff\")",
+          "expect": "after pointer down and up, h.state.currentItemBackgroundColor is exactly #ff00ff"
+        },
+        {
+          "name": "returns the on-screen pixel as-is in light theme",
+          "given": "light theme, the same rectangle and the same stubbed pixel",
+          "expect": "h.state.currentItemBackgroundColor is applyDarkModeFilter(\"#ff00ff\"), the pixel colour unchanged"
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "red-eyedropper-dark"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/common/src/colors.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds `reverseDarkModeFilter`, which maps a dark-mode rendered colour to a light-theme colour that renders back to it, exact where the filter is injective.",
+      "rules": [
+        "1. No result cache of any kind: reverseDarkModeFilter is pure and does the same bounded work on every call.",
+        "2. A private lazily built `number[]` table maps each invert-space value v to the smallest x in 0..255 with `cssInvert(x, x, x, 93).r === v`, filled once on first use by iterating x from 0 to 255; V_MIN is `cssInvert(255, 255, 255, 93).r` (18) and V_MAX is `cssInvert(0, 0, 0, 93).r` (237).",
+        "3. `reverseDarkModeFilter(color)`: `const tc = tinycolor(color)`; if `!tc.isValid()` return `color`; read `{ r, g, b }` from `tc.toRgb()` and `alpha` from `tc.getAlpha()`.",
+        "4. Canonical centre, solved from the hue matrix's linear relations (no search): `const vG0 = Math.round(0.426 * r + 0.43 * g + 0.144 * b)`, then `vR0 = vG0 + g - r` and `vB0 = vG0 + g - b` as exact integer offsets (never rounded separately); clamp each of the three to [V_MIN, V_MAX] with `clamp`.",
+        "5. Candidates, in this order: the centre first, then the other 26 points of its +/-1 neighbourhood looping dR, dG, dB each over -1, 0, 1 (red outermost, centre skipped); skip a candidate with any coordinate outside [V_MIN, V_MAX]; for each, `const out = cssHueRotate(vR, vG, vB, 180 as Degrees)`.",
+        "6. Return at the first candidate whose out equals (r, g, b); otherwise use the candidate with the smallest squared distance between out and (r, g, b), the earlier one winning ties.",
+        "7. Bound (NFR-3): at most 27 cssHueRotate evaluations per call and no other loop over colour space; there is no fallback sweep, the result for clamped pixels (a 0 or 255 red or blue channel) comes from the same centre and neighbourhood.",
+        "8. The result is `rgbToHex(table[vR], table[vG], table[vB], alpha)` for the chosen candidate.",
+        "9. Never call applyDarkModeFilter and never read or write DARK_MODE_COLORS_CACHE; cssInvert, cssHueRotate and applyDarkModeFilter stay byte-for-byte unchanged.",
+        "10. A short JSDoc above the export states the round-trip guarantee `applyDarkModeFilter(reverseDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c)` and that the work is at most 27 hue-rotate evaluations."
+      ],
+      "exports": [
+        {
+          "name": "reverseDarkModeFilter",
+          "kind": "function",
+          "params": [
+            {
+              "name": "color",
+              "type": "string"
+            }
+          ],
+          "returns": "string"
+        }
+      ],
+      "import_line": "import { reverseDarkModeFilter } from \"@excalidraw/common\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 114,
+          "to": 114,
+          "first_line": "};",
+          "rule": "After one blank line, add the V_MIN/V_MAX constants, the pre-image table helper and the exported `reverseDarkModeFilter` per rules 1-10."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          12,
+          114
+        ],
+        "reason": "Browser-only cache guard, private helpers and the applyDarkModeFilter shape to mirror."
+      },
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-4",
+        "NFR-1",
+        "NFR-3"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/excalidraw/components/EyeDropper.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "In dark theme the eyedropper returns the stored scene colour that renders to the sampled pixel, falling back to reverseDarkModeFilter; light theme is unchanged and the swatch keeps showing the on-screen pixel.",
+      "rules": [
+        "1. `getCurrentColor` returns `{ screenColor: string; pickedColor: string }`; screenColor is `rgbToHex(pixel[0], pixel[1], pixel[2])` read exactly as today.",
+        "2. `const { app } = stableProps;` if `app.state.theme !== THEME.DARK`, return `{ screenColor, pickedColor: screenColor }`.",
+        "3. Otherwise get `{ x, y }` from `viewportCoordsToSceneCoords({ clientX, clientY }, app.state)` and `const elementsMap = app.scene.getNonDeletedElementsMap()`.",
+        "4. Find the topmost hit: walk `app.scene.getNonDeletedElements()` from the last index down and stop at the first element for which `hitElementItself({ point: pointFrom(x, y), element, threshold: element.strokeWidth / 2 + 0.1, elementsMap })` is true.",
+        "5. Candidates in order: the hit element's backgroundColor, its strokeColor (both only when an element was hit), then `app.state.viewBackgroundColor`.",
+        "6. pickedColor is the first candidate whose `applyDarkModeFilter(candidate)` equals screenColor, returned as stored; when none matches it is `reverseDarkModeFilter(screenColor)`, called at most once per event and never memoised here (its own cost is bounded by U03).",
+        "7. The pointermove handler passes pickedColor to `stableProps.onChange` and sets `colorPreviewDiv.style.background` to screenColor; the pointerup handler passes `getCurrentColor(event).pickedColor` to onSelect.",
+        "8. The effect's dependency array, listeners and preview positioning are unchanged."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 4,
+          "to": 4,
+          "first_line": "import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";",
+          "rule": "Import `applyDarkModeFilter, EVENT, KEYS, reverseDarkModeFilter, rgbToHex, THEME, viewportCoordsToSceneCoords` from \"@excalidraw/common\", then `import { hitElementItself } from \"@excalidraw/element\";` and `import { pointFrom } from \"@excalidraw/math\";` on the next lines."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 80,
+          "to": 95,
+          "first_line": "const getCurrentColor = ({",
+          "last_line": "};",
+          "rule": "The new getCurrentColor per rules 1-6, same parameter shape."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 119,
+          "to": 130,
+          "first_line": "const currentColor = getCurrentColor({ clientX, clientY });",
+          "last_line": "colorPreviewDiv.style.background = currentColor;",
+          "rule": "Destructure `{ screenColor, pickedColor }` from getCurrentColor; onChange receives pickedColor; the swatch background is screenColor."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 161,
+          "to": 161,
+          "first_line": "onSelect(getCurrentColor(event), event);",
+          "rule": "`onSelect(getCurrentColor(event).pickedColor, event);`"
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/element/src/collision.ts",
+          "lines": [
+            104,
+            139
+          ],
+          "reason": "HitTestArgs and the hitElementItself signature."
+        },
+        {
+          "path": "packages/common/src/utils.ts",
+          "lines": [
+            288,
+            305
+          ],
+          "reason": "viewportCoordsToSceneCoords parameters."
+        }
+      ],
+      "depends_on": [
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "NFR-2",
+        "NFR-3",
+        "AC-1",
+        "AC-2",
+        "AC-4"
+      ],
+      "checks": [
+        "lint"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/common/src/colors.test.ts": "4c5a9e009079fb6ee1885ace23a095774ad9745dcaca366ecd397f5e6f617773",
+    "packages/excalidraw/tests/eyeDropper.test.tsx": "3c6af1e604c40b92b07ad1cc62c9a6dfe3503b333728eaaeb061eae4adf56487",
+    "packages/excalidraw/tests/bucketFill.test.tsx": "a5b4f7c3cd8771a460184146e927625a5507159be92a87d300c3d84bb9503ea9",
+    "packages/excalidraw/components/EyeDropper.tsx": "2757317b691cb51c0452e2a8a0de7fc03dbcc1819fb8d02c6bb335585d623b7c",
+    "packages/common/src/colors.ts": "d8456369b85b82484261b66b0f909d3cbb1f7e3a57d4afacadaeae413f87a90a",
+    "packages/element/src/collision.ts": "34716dc5a0a87ff38a9c682564f8091de9632b00c14e15469307b336485302f2",
+    "packages/common/src/utils.ts": "18dfe62997f052cf58cdc622b95de37ac7632116ff3d874222b3279470fb3132"
+  }
+}

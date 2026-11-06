@@ -113,6 +113,96 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   return result;
 };
 
+// V_MIN = cssInvert(255, 255, 255, 93).r (18), V_MAX = cssInvert(0, 0, 0, 93).r (237)
+const V_MIN = 18;
+const V_MAX = 237;
+
+let invertPreimageTable: number[] | null = null;
+const getInvertPreimageTable = (): number[] => {
+  if (!invertPreimageTable) {
+    invertPreimageTable = [];
+    for (let x = 0; x <= 255; x++) {
+      const v = cssInvert(x, x, x, 93).r;
+      if (invertPreimageTable[v] === undefined) {
+        invertPreimageTable[v] = x;
+      }
+    }
+  }
+  return invertPreimageTable;
+};
+
+/**
+ * Maps a dark-mode rendered color back to a light-theme color such that
+ * applyDarkModeFilter(reverseDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c).
+ * Bounded to at most 27 hue-rotate evaluations.
+ */
+export const reverseDarkModeFilter = (color: string): string => {
+  const tc = tinycolor(color);
+  if (!tc.isValid()) {
+    return color;
+  }
+
+  const { r, g, b } = tc.toRgb();
+  const alpha = tc.getAlpha();
+
+  const vG0 = clamp(Math.round(0.426 * r + 0.43 * g + 0.144 * b), V_MIN, V_MAX);
+  const vR0 = clamp(vG0 + g - r, V_MIN, V_MAX);
+  const vB0 = clamp(vG0 + g - b, V_MIN, V_MAX);
+
+  const candidates: [number, number, number][] = [[vR0, vG0, vB0]];
+  for (let dR = -1; dR <= 1; dR++) {
+    for (let dG = -1; dG <= 1; dG++) {
+      for (let dB = -1; dB <= 1; dB++) {
+        if (dR === 0 && dG === 0 && dB === 0) {
+          continue;
+        }
+        const candR = vR0 + dR;
+        const candG = vG0 + dG;
+        const candB = vB0 + dB;
+        if (
+          candR >= V_MIN &&
+          candR <= V_MAX &&
+          candG >= V_MIN &&
+          candG <= V_MAX &&
+          candB >= V_MIN &&
+          candB <= V_MAX
+        ) {
+          candidates.push([candR, candG, candB]);
+        }
+      }
+    }
+  }
+
+  let bestCandidate = candidates[0];
+  let minDistanceSq = Infinity;
+
+  for (const [candR, candG, candB] of candidates) {
+    const out = cssHueRotate(candR, candG, candB, 180 as Degrees);
+    const diffR = out.r - r;
+    const diffG = out.g - g;
+    const diffB = out.b - b;
+    const distSq = diffR * diffR + diffG * diffG + diffB * diffB;
+
+    if (distSq === 0) {
+      bestCandidate = [candR, candG, candB];
+      break;
+    }
+
+    if (distSq < minDistanceSq) {
+      minDistanceSq = distSq;
+      bestCandidate = [candR, candG, candB];
+    }
+  }
+
+  const table = getInvertPreimageTable();
+  return rgbToHex(
+    table[bestCandidate[0]],
+    table[bestCandidate[1]],
+    table[bestCandidate[2]],
+    alpha,
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Color palette
 // ---------------------------------------------------------------------------

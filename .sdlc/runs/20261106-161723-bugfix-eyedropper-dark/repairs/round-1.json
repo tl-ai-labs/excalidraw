@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-161723-bugfix-eyedropper-dark",
+    "artifact_path": "packages/common/src/colors.ts",
+    "instruction": "Fix `packages/common/src/colors.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false: 18 test files fail to load (e.g. packages/common/src/appEventBus.test.ts, packages/element/tests/bounds.test.ts, packages/utils/tests/geometry.test.ts) with `TypeError: (0 , clamp) is not a function` at `cssInvert packages/common/src/colors.ts:65:13`, called from `packages/common/src/colors.ts:116:15` during module evaluation (`packages/common/src/index.ts:3:1`). The new code runs cssInvert at import time (top-level evaluation, e.g. building the invert pre-image table eagerly). `clamp` comes from `@excalidraw/math`, which imports `@excalidraw/common` back, so in that import cycle clamp is not yet initialised when colors.ts is evaluated. Fix: nothing in colors.ts may call cssInvert, clamp or any @excalidraw/math export at module top level; build the pre-image table lazily on the first reverseDarkModeFilter call (memoised in a module-level `let`), keeping the function's behaviour and its constant bound unchanged. Before this run, all 121 test files loaded and passed.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/colors.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/colors.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-161723-bugfix-eyedropper-dark/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-161723-bugfix-eyedropper-dark/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]
