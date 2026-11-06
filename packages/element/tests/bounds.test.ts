@@ -23,6 +23,7 @@ import { ShapeCache } from "../src/shape";
 
 import type {
   Arrowhead,
+  ArrowheadSize,
   ExcalidrawElement,
   ExcalidrawLinearElement,
 } from "../src/types";
@@ -239,14 +240,16 @@ describe("getArrowheadPoints()", () => {
       roundness = null,
       part = endArrowhead,
       offsetMultiplier,
+      arrowheadSize,
     }: {
       roundness?: ExcalidrawLinearElement["roundness"];
       /** the part of a composite marker to get */
       part?: Arrowhead;
       offsetMultiplier?: number;
+      arrowheadSize?: ArrowheadSize;
     } = {},
   ) => {
-    const arrow = API.createElement({
+    const created = API.createElement({
       type: "arrow",
       points: [prevSegment[0], prevSegment[1], tip],
       endArrowhead,
@@ -254,6 +257,8 @@ describe("getArrowheadPoints()", () => {
       roughness: 0,
       strokeWidth: 2,
     });
+    const arrow =
+      arrowheadSize !== undefined ? { ...created, arrowheadSize } : created;
 
     return getArrowheadPoints(
       arrow,
@@ -374,5 +379,129 @@ describe("getArrowheadPoints()", () => {
     expect(
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
+  });
+
+  it("scales sideways half-width by arrowheadSize while keeping head angle unchanged on a long straight segment", () => {
+    const arrowheads: Arrowhead[] = [
+      "arrow",
+      "bar",
+      "circle",
+      "circle_outline",
+      "triangle",
+      "triangle_outline",
+      "diamond",
+      "diamond_outline",
+      "cardinality_one",
+      "cardinality_many",
+      "cardinality_one_or_many",
+      "cardinality_exactly_one",
+      "cardinality_zero_or_one",
+      "cardinality_zero_or_many",
+    ];
+
+    const getMetricsOnLongSegment = (
+      endArrowhead: Arrowhead,
+      arrowheadSize?: ArrowheadSize,
+    ) => {
+      const created = API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead,
+        roughness: 0,
+        strokeWidth: 2,
+      });
+      const arrow =
+        arrowheadSize !== undefined ? { ...created, arrowheadSize } : created;
+      const pts = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        endArrowhead,
+      )!;
+
+      if (endArrowhead === "circle" || endArrowhead === "circle_outline") {
+        const [, , diameter] = pts;
+        return { halfWidth: diameter / 2, angle: 0 };
+      }
+
+      if (endArrowhead === "diamond" || endArrowhead === "diamond_outline") {
+        const [tipX, tipY, x3, y3, , , , y4] = pts;
+        const halfWidth = Math.abs(y3 - y4) / 2;
+        const angle = Math.atan2(Math.abs(y3 - tipY), Math.abs(tipX - x3));
+        return { halfWidth, angle };
+      }
+
+      const [anchorX, anchorY, x3, y3, , y4] = pts;
+      const halfWidth = Math.abs(y3 - y4) / 2;
+      const angle = Math.atan2(Math.abs(y3 - anchorY), Math.abs(anchorX - x3));
+      return { halfWidth, angle };
+    };
+
+    for (const arrowhead of arrowheads) {
+      const base = getMetricsOnLongSegment(arrowhead, 1);
+      for (const scale of [0.5, 1.5] as const) {
+        const scaled = getMetricsOnLongSegment(arrowhead, scale);
+        expect(scaled.halfWidth).toBeCloseTo(base.halfWidth * scale);
+        expect(scaled.angle).toBeCloseTo(base.angle);
+      }
+    }
+  });
+
+  it("keeps Small (0.5) arrow arrowhead angle at 20 degrees when not shortened", () => {
+    const created = API.createElement({
+      type: "arrow",
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      endArrowhead: "arrow",
+      roughness: 0,
+      strokeWidth: 2,
+    });
+    const arrow = { ...created, arrowheadSize: 0.5 };
+    const [tipX, tipY, x3, y3] = getArrowheadPoints(
+      arrow,
+      ShapeCache.generateElementShape(arrow, null),
+      "end",
+      "arrow",
+    )!;
+    const halfAngleDeg =
+      (Math.atan2(Math.abs(y3 - tipY), Math.abs(tipX - x3)) * 180) / Math.PI;
+    expect(halfAngleDeg).toBeCloseTo(20);
+  });
+
+  it("applies short-segment shrinking and growing beyond last segment for non-default arrowheadSize", () => {
+    for (const arrowheadSize of [0.5, 1.5] as const) {
+      const [, tipY, x1, y1, x2, y2] = getEndArrowheadPoints("arrow", {
+        arrowheadSize,
+      });
+      expect(tipY - (y1 + y2) / 2).toBeGreaterThan(lastSegmentLength * 0.5);
+      for (const sideEnd of [pointFrom(x1, y1), pointFrom(x2, y2)]) {
+        expect(distanceToLineSegment(sideEnd, prevSegment)).toBeGreaterThan(2);
+      }
+
+      const [apexX, apexY] = getEndArrowheadPoints("cardinality_one_or_many", {
+        part: "cardinality_many",
+        arrowheadSize,
+      });
+      const [, , barX1, barY1, barX2, barY2] = getEndArrowheadPoints(
+        "cardinality_one_or_many",
+        {
+          part: "cardinality_one",
+          offsetMultiplier: CARDINALITY_ONE_OR_MANY_BAR_OFFSET,
+          arrowheadSize,
+        },
+      );
+      const crowsFootLength = pointDistance(pointFrom(apexX, apexY), tip);
+      const barLength = pointDistance(
+        pointFrom(barX1, barY1),
+        pointFrom(barX2, barY2),
+      );
+
+      expect(crowsFootLength).toBeLessThanOrEqual(lastSegmentLength);
+      expect(barLength / crowsFootLength).toBeCloseTo(
+        (2 *
+          getArrowheadSize("cardinality_one", arrowheadSize) *
+          Math.sin(degreesToRadians(getArrowheadAngle("cardinality_one")))) /
+          getArrowheadSize("cardinality_many", arrowheadSize),
+      );
+    }
   });
 });

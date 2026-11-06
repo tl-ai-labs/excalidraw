@@ -43,6 +43,8 @@ import {
   isValidPolygon,
   projectFixedPointOntoDiagonal,
   isNonDeletedElement,
+  DEFAULT_ARROWHEAD_SIZE,
+  isValidArrowheadSize,
 } from "@excalidraw/element";
 import { normalizeFixedPoint } from "@excalidraw/element";
 import {
@@ -450,6 +452,7 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 const restoreElementWithProperties = <
   T extends Required<Omit<ExcalidrawElement, "customData">> & {
     customData?: ExcalidrawElement["customData"];
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -457,7 +460,10 @@ const restoreElementWithProperties = <
     /** @deprecated `movePoints()` option wrongly persisted on linear elements */
     moveMidPointsWithElement?: boolean | null;
   },
-  K extends Pick<T, keyof Omit<Required<T>, keyof ExcalidrawElement>>,
+  K extends Pick<
+    T,
+    keyof Omit<Required<T>, keyof ExcalidrawElement | "arrowheadSize">
+  >,
 >(
   element: T,
   extra: Pick<
@@ -627,6 +633,13 @@ export const restoreElement = (
     // @ts-ignore LEGACY type
     // eslint-disable-next-line no-fallthrough
     case "draw":
+      if (
+        !isValidArrowheadSize(element.arrowheadSize) ||
+        element.arrowheadSize === DEFAULT_ARROWHEAD_SIZE
+      ) {
+        delete (element as Mutable<typeof element>).arrowheadSize;
+      }
+
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead = normalizeArrowhead(element.endArrowhead);
       let x = element.x;
@@ -668,6 +681,13 @@ export const restoreElement = (
 
       return handleOversizedLinearElements(restoredLine);
     case "arrow": {
+      if (
+        !isValidArrowheadSize(element.arrowheadSize) ||
+        element.arrowheadSize === DEFAULT_ARROWHEAD_SIZE
+      ) {
+        delete (element as Mutable<typeof element>).arrowheadSize;
+      }
+
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
         element.endArrowhead === undefined
@@ -1381,6 +1401,11 @@ export const restoreAppState = (
     currentItemStickynoteBackgroundColor: normalizeStickyNoteBackgroundColor(
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
+    currentItemArrowheadSize: isValidArrowheadSize(
+      nextAppState.currentItemArrowheadSize,
+    )
+      ? nextAppState.currentItemArrowheadSize
+      : DEFAULT_ARROWHEAD_SIZE,
     editingFrame: null,
   };
 };

@@ -1614,6 +1614,27 @@ export const ArrowheadCardinalityZeroOrManyIcon = React.memo(
     ),
 );
 
+export const ArrowheadSizeSmallIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path d="M4.167 10h11.666M13.333 7.5l2.5 2.5-2.5 2.5" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
+export const ArrowheadSizeMediumIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path d="M4.167 10h11.666M11.667 5.833 15.833 10l-4.166 4.167" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
+export const ArrowheadSizeLargeIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path d="M4.167 10h11.666M10 4.167 15.833 10 10 15.833" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
 export const FontSizeSmallIcon = createIcon(
   <>
     <g clipPath="url(#a)">

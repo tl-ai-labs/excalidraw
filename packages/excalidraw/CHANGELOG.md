@@ -13,6 +13,10 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Per-element arrowhead size (2026-11-06)
+
+- Per-element arrowhead size: support Small, Medium, Large arrowhead size presets on arrows and lines.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

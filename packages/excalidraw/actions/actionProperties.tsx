@@ -42,7 +42,11 @@ import {
 
 import { LinearElementEditor } from "@excalidraw/element";
 
-import { newElementWith } from "@excalidraw/element";
+import {
+  ARROWHEAD_SIZES,
+  DEFAULT_ARROWHEAD_SIZE,
+  newElementWith,
+} from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
 
 import {
@@ -83,6 +87,7 @@ import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
   Arrowhead,
+  ArrowheadSize,
   ElementsMap,
   ExcalidrawBindableElement,
   ExcalidrawElement,
@@ -152,6 +157,9 @@ import {
   ArrowheadCardinalityOneOrManyIcon,
   ArrowheadCardinalityZeroOrManyIcon,
   ArrowheadCardinalityZeroOrOneIcon,
+  ArrowheadSizeSmallIcon,
+  ArrowheadSizeMediumIcon,
+  ArrowheadSizeLargeIcon,
   strokeVariabilityConstantIcon,
   strokeVariabilityVariableIcon,
 } from "../components/icons";
@@ -2055,6 +2063,92 @@ export const actionChangeArrowhead = register<{
   },
 });
 
+export const actionChangeArrowheadSize = register<ArrowheadSize>({
+  name: "changeArrowheadSize",
+  label: "labels.arrowheadSize",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    invariant(value, "actionChangeArrowheadSize: value must be defined");
+
+    return {
+      elements: changeProperty(elements, appState, (el) => {
+        if (isLinearElement(el)) {
+          let element: ExcalidrawLinearElement;
+          if (value === DEFAULT_ARROWHEAD_SIZE) {
+            if (!("arrowheadSize" in el)) {
+              return el;
+            }
+            const { arrowheadSize: _arrowheadSize, ...rest } = el;
+            element = newElementWith(rest as typeof el, {}, true);
+          } else {
+            element = newElementWith(el, { arrowheadSize: value });
+          }
+          return isElbowArrow(element)
+            ? newElementWith(
+                element,
+                updateElbowArrowRoute(
+                  element,
+                  app.scene.getNonDeletedElementsMap(),
+                ),
+              )
+            : element;
+        }
+
+        return el;
+      }),
+      appState: {
+        ...appState,
+        currentItemArrowheadSize: value,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    return (
+      <fieldset>
+        <legend>{t("labels.arrowheadSize")}</legend>
+        <div className="buttonList">
+          <RadioSelection<ArrowheadSize>
+            group="arrowhead-size"
+            options={[
+              {
+                value: ARROWHEAD_SIZES.small,
+                text: t("labels.small"),
+                icon: ArrowheadSizeSmallIcon,
+                testId: "arrowheadSize-small",
+              },
+              {
+                value: ARROWHEAD_SIZES.medium,
+                text: t("labels.medium"),
+                icon: ArrowheadSizeMediumIcon,
+                testId: "arrowheadSize-medium",
+              },
+              {
+                value: ARROWHEAD_SIZES.large,
+                text: t("labels.large"),
+                icon: ArrowheadSizeLargeIcon,
+                testId: "arrowheadSize-large",
+              },
+            ]}
+            value={getFormValue<ArrowheadSize>(
+              elements,
+              app,
+              (element) =>
+                isLinearElement(element) && canHaveArrowheads(element.type)
+                  ? element.arrowheadSize ?? DEFAULT_ARROWHEAD_SIZE
+                  : appState.currentItemArrowheadSize,
+              (element) =>
+                isLinearElement(element) && canHaveArrowheads(element.type),
+              appState.currentItemArrowheadSize,
+            )}
+            onChange={(value) => updateData(value)}
+          />
+        </div>
+      </fieldset>
+    );
+  },
+});
+
 export const actionChangeArrowProperties = register({
   name: "changeArrowProperties",
   label: "Change arrow properties",
@@ -2068,6 +2162,7 @@ export const actionChangeArrowProperties = register({
     return (
       <div className="selected-shape-actions">
         {renderAction("changeArrowhead")}
+        {renderAction("changeArrowheadSize")}
         {renderAction("changeArrowType")}
       </div>
     );

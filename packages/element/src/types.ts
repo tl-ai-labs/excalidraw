@@ -366,6 +366,8 @@ export type Arrowhead =
 
 export type AnyArrowhead = Arrowhead | ArrowheadLegacy;
 
+export type ArrowheadSize = number;
+
 export type ExcalidrawLinearElement = _ExcalidrawElementBase &
   Readonly<{
     type: "line" | "arrow";
@@ -374,6 +376,7 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    arrowheadSize?: ArrowheadSize;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &

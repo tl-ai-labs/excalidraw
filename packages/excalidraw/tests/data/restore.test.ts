@@ -1031,6 +1031,51 @@ describe("restoreElements", () => {
     );
     expect(restoredElements[0].version).toBe(modified_rectangle_2.version + 1);
   });
+
+  it("preserves valid non-default arrowheadSize and strips default or invalid values on restore", () => {
+    const validSizes = [0.5, 0.75, 1.5] as const;
+    const strippedSizes = [
+      1,
+      undefined,
+      0.4,
+      1.6,
+      0,
+      -1,
+      NaN,
+      "large",
+      null,
+      Infinity,
+    ];
+
+    for (const type of ["arrow", "line"] as const) {
+      // (a) valid non-default values in [0.5, 1.5] are preserved
+      for (const size of validSizes) {
+        const element = {
+          ...API.createElement({ type }),
+          arrowheadSize: size,
+        } as any;
+        const [restored] = restore.restoreElements([element], null);
+        expect((restored as ExcalidrawLinearElement).arrowheadSize).toBe(size);
+        expect("arrowheadSize" in restored).toBe(true);
+      }
+
+      // (b) elements without arrowheadSize restore with key omitted
+      const legacy = API.createElement({ type }) as any;
+      delete legacy.arrowheadSize;
+      const [restoredLegacy] = restore.restoreElements([legacy], null);
+      expect("arrowheadSize" in restoredLegacy).toBe(false);
+
+      // (c) default (1), undefined, out-of-range, and invalid values have key stripped
+      for (const size of strippedSizes) {
+        const element = {
+          ...API.createElement({ type }),
+          arrowheadSize: size,
+        } as any;
+        const [restored] = restore.restoreElements([element], null);
+        expect("arrowheadSize" in restored).toBe(false);
+      }
+    }
+  });
 });
 
 describe("restoreAppState", () => {
@@ -1279,6 +1324,31 @@ describe("restoreAppState", () => {
         null,
       ).openSidebar,
     ).toEqual({ name: DEFAULT_SIDEBAR.name, tab: "ola" });
+  });
+
+  it("validates currentItemArrowheadSize in restoreAppState", () => {
+    // Preserves valid values in [0.5, 1.5]
+    for (const validSize of [0.5, 0.75, 1, 1.5]) {
+      const restored = restore.restoreAppState(
+        { currentItemArrowheadSize: validSize } as any,
+        null,
+      );
+      expect(restored.currentItemArrowheadSize).toBe(validSize);
+    }
+
+    // Missing falls back to 1
+    expect(
+      restore.restoreAppState({} as any, null).currentItemArrowheadSize,
+    ).toBe(1);
+
+    // Outside [0.5, 1.5] and invalid values fall back to 1
+    for (const invalidSize of [0.4, 1.6, 0, -1, NaN, "large", null]) {
+      const restored = restore.restoreAppState(
+        { currentItemArrowheadSize: invalidSize } as any,
+        null,
+      );
+      expect(restored.currentItemArrowheadSize).toBe(1);
+    }
   });
 });
 
