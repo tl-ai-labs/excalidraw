@@ -1,0 +1,59 @@
+[
+  {
+    "id": "tp_debug_r8_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false fails one of the new Gate 3 tests:\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > renders only the active page's elements in renderStaticScene (AC-2)\nAssertionError: expected [] to include 'render-rect-page-b'\n ❯ packages/excalidraw/tests/pages.test.tsx:775:24\n    773|     const elementsMapKeys = Array.from(lastRenderConfig.elementsMap.ke…\n    774| \n    775|     expect(visibleIds).toContain(rectPageB.id);\n       |                        ^\n    776|     expect(visibleIds).not.toContain(rectPageA.id);\n    777|     expect(elementsMapKeys).toContain(rectPageB.id);\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\nThe test (renders only the active page's elements in renderStaticScene, AC-2) reads renderStaticScene.mock.lastCall right after `await waitFor(() => expect(renderStaticScene).toHaveBeenCalled())`, so it can read a render that happened before page B's element reached the scene, or a render throttled from the earlier page switch. Scene.replaceAllElements with replaceAllPages (packages/element/src/Scene.ts ~line 370-455) keeps both elements and filters this.elements to the active page, so page B's element should be visible once the scene re-renders. Fix the test, not the source: wait until a render whose visibleElements contains page B's element id (e.g. waitFor(() => expect(renderStaticScene.mock.lastCall?.[0].visibleElements.map(e => e.id)).toContain(rectPageB.id))) and then assert that same config excludes page A's id from visibleElements and from elementsMap keys. Also check the elements sit inside the viewport (page B starts at scrollX/scrollY 0, zoom 1). If, after waiting, page B's element never reaches visibleElements, say so by leaving an assertion that fails with a clear message rather than weakening the isolation assertions. Leave all other tests unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

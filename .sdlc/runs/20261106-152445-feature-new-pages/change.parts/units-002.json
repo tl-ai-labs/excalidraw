@@ -1,0 +1,640 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U06",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Define ExcalidrawPage with numeric scrollX and scrollY, add pages and activePageId to AppState, and expose history and actionManager on AppClassProperties.",
+      "rules": [
+        "1. Export type ExcalidrawPage = { id: string; name: string; scrollX: number; scrollY: number; zoom: Zoom; } before export interface AppState.",
+        "2. Add pages: readonly ExcalidrawPage[]; and activePageId: string; to AppState.",
+        "3. In AppClassProperties, add history: App[\"history\"]; and actionManager: App[\"actionManager\"]; alongside scene and syncActionResult."
+      ],
+      "exports": [
+        {
+          "name": "ExcalidrawPage",
+          "kind": "type",
+          "params": [],
+          "returns": "{ id: string; name: string; scrollX: number; scrollY: number; zoom: Zoom }"
+        },
+        {
+          "name": "AppState",
+          "kind": "interface",
+          "params": [],
+          "returns": "AppState"
+        }
+      ],
+      "import_line": "import type { AppState, ExcalidrawPage } from \"./types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 330,
+          "to": 336,
+          "first_line": "export type ExcalidrawPage = {",
+          "last_line": "};",
+          "rule": "Set scrollX: number; and scrollY: number; on ExcalidrawPage."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1236,
+          "to": 1240,
+          "first_line": "editorInterface: App[\"editorInterface\"];",
+          "last_line": "clipboard: App[\"clipboard\"];",
+          "rule": "Add history: App[\"history\"]; and actionManager: App[\"actionManager\"]; to AppClassProperties."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-17"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/excalidraw/appState.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Initialize default AppState with the single fixed-ID default page, configure storage flags for pages and activePageId, and sync live active-page viewport into exported pages in cleanAppStateForExport.",
+      "rules": [
+        "1. Remove FlooredNumber from the ./types import in packages/excalidraw/appState.ts.",
+        "2. In getDefaultAppState(), set pages: [{ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME, scrollX: 0, scrollY: 0, zoom: { value: 1 as NormalizedZoomValue } }] and activePageId: DEFAULT_PAGE_ID without calling randomId().",
+        "3. In cleanAppStateForExport, after calling _clearAppStateForStorage(appState, \"export\"), if Array.isArray(stateForExport.pages) && stateForExport.pages.length > 0, map stateForExport.pages so the entry matching stateForExport.activePageId ?? stateForExport.pages[0].id updates scrollX: typeof appState.scrollX === \"number\" ? Math.floor(appState.scrollX) : page.scrollX, scrollY: typeof appState.scrollY === \"number\" ? Math.floor(appState.scrollY) : page.scrollY, and zoom: appState.zoom ?? page.zoom."
+      ],
+      "exports": [
+        {
+          "name": "getDefaultAppState",
+          "kind": "function",
+          "params": [],
+          "returns": "Omit<AppState, \"offsetTop\" | \"offsetLeft\" | \"width\" | \"height\">"
+        }
+      ],
+      "import_line": "import { getDefaultAppState, cleanAppStateForExport, clearAppStateForLocalStorage } from \"./appState\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 20,
+          "to": 25,
+          "first_line": "import type {",
+          "last_line": "} from \"./types\";",
+          "rule": "Remove FlooredNumber from ./types import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 159,
+          "to": 169,
+          "first_line": "pages: [",
+          "last_line": "],",
+          "rule": "Use scrollX: 0 and scrollY: 0 without as FlooredNumber."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 348,
+          "to": 350,
+          "first_line": "export const cleanAppStateForExport = (appState: Partial<AppState>) => {",
+          "last_line": "};",
+          "rule": "Sync top-level scrollX, scrollY, and zoom into the active page entry of stateForExport.pages in cleanAppStateForExport."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U06"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-9",
+        "FR-12",
+        "FR-15",
+        "FR-16",
+        "NFR-5",
+        "AC-1",
+        "AC-4",
+        "AC-8"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/history.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Scope History undo and redo stacks per page ID and file each recorded undo entry by the page of the elements it changes rather than the page active when Store commits.",
+      "rules": [
+        "1. Import getElementPageId from @excalidraw/element.",
+        "2. Add private getUndoStackForPage(pageId: string): HistoryDelta[] and private getRedoStackForPage(pageId: string): HistoryDelta[] helpers, and add private resolveDeltaPageId(delta: StoreDelta): string that inspects delta.elements.added, delta.elements.updated, and delta.elements.removed in order (resolving pageId from entry.inserted?.pageId ?? entry.deleted?.pageId ?? this.store.snapshot.elements.get(id)?.pageId and returning getElementPageId({ pageId })), then inspects selectedElementIds in delta.appState.delta against this.store.snapshot.elements, and falls back to this.activePageId only when no element is referenced.",
+        "3. In record(delta: StoreDelta), resolve const targetPageId = this.resolveDeltaPageId(delta); push historyDelta onto this.getUndoStackForPage(targetPageId); and when !historyDelta.elements.isEmpty(), clear this.getRedoStackForPage(targetPageId)."
+      ],
+      "exports": [
+        {
+          "name": "History",
+          "kind": "class",
+          "params": [
+            {
+              "name": "store",
+              "type": "Store"
+            }
+          ],
+          "returns": "History"
+        }
+      ],
+      "import_line": "import { History, HistoryChangedEvent } from \"./history\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 3,
+          "to": 7,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Import getElementPageId from @excalidraw/element."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 170,
+          "to": 194,
+          "first_line": "/**",
+          "last_line": "}",
+          "rule": "Add getUndoStackForPage, getRedoStackForPage, and resolveDeltaPageId, and file recorded historyDelta entries into the undo stack of the page whose elements the delta changes."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U04",
+        "U05"
+      ],
+      "covers": [
+        "FR-10",
+        "AC-5"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Restore and normalize multi-page AppState and element pageId properties with backward-compatible legacy fallback, cross-page binding sanitization, and clean TypeScript types.",
+      "rules": [
+        "1. Remove FlooredNumber from the ../types import in packages/excalidraw/data/restore.ts.",
+        "2. In restoreAppState, set const rawPages = _appState ? appState.pages : localAppState?.pages; and const rawActivePageId = typeof appState.activePageId === \"string\" && appState.activePageId.trim() ? appState.activePageId.trim() : !_appState && typeof localAppState?.activePageId === \"string\" && localAppState.activePageId.trim() ? localAppState.activePageId.trim() : undefined; so importing a legacy single-page payload when localAppState has multiple pages synthesizes the single default page.",
+        "3. Type rawPage in the rawPages loop as Partial<ExcalidrawPage> & { zoom?: ExcalidrawPage[\"zoom\"] | number } | null | undefined, extract rawZoomValue = isFiniteNumber(rawPage.zoom) ? rawPage.zoom : typeof rawPage.zoom === \"object\" && rawPage.zoom !== null && isFiniteNumber(rawPage.zoom.value) ? rawPage.zoom.value : defaultAppState.zoom.value, and remove all as FlooredNumber casts."
+      ],
+      "exports": [
+        {
+          "name": "restoreElements",
+          "kind": "function",
+          "params": [
+            {
+              "name": "targetElements",
+              "type": "readonly T[] | undefined | null"
+            },
+            {
+              "name": "existingElements",
+              "type": "Readonly<ElementsMapOrArray> | null | undefined"
+            },
+            {
+              "name": "opts",
+              "type": "{ refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean; validPageIds?: readonly string[]; defaultPageId?: string } | undefined"
+            }
+          ],
+          "returns": "CombineBrandsIfNeeded<T, OrderedExcalidrawElement>"
+        },
+        {
+          "name": "restoreAppState",
+          "kind": "function",
+          "params": [
+            {
+              "name": "appState",
+              "type": "ImportedDataState[\"appState\"]"
+            },
+            {
+              "name": "localAppState",
+              "type": "Partial<AppState> | null | undefined"
+            }
+          ],
+          "returns": "RestoredAppState"
+        },
+        {
+          "name": "restore",
+          "kind": "function",
+          "params": [
+            {
+              "name": "data",
+              "type": "ImportedDataState | null"
+            },
+            {
+              "name": "localAppState",
+              "type": "Partial<AppState> | null | undefined"
+            },
+            {
+              "name": "localElements",
+              "type": "Readonly<ElementsMapOrArray> | null | undefined"
+            },
+            {
+              "name": "opts",
+              "type": "{ refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean } | undefined"
+            }
+          ],
+          "returns": "RestoredDataState"
+        }
+      ],
+      "import_line": "import { restore, restoreAppState, restoreElement, restoreElements, restoreLibraryItems } from \"./data/restore\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 121,
+          "to": 127,
+          "first_line": "import type {",
+          "last_line": "} from \"../types\";",
+          "rule": "Remove FlooredNumber from ../types import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1412,
+          "to": 1530,
+          "first_line": "const rawPages = appState.pages ?? localAppState?.pages;",
+          "last_line": "}",
+          "rule": "Type rawPage safely, remove all as FlooredNumber casts, and only fall back to localAppState?.pages when !_appState."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U04",
+        "U06",
+        "U07"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-8",
+        "FR-9",
+        "FR-12",
+        "FR-13",
+        "FR-17",
+        "NFR-4",
+        "NFR-5",
+        "AC-1",
+        "AC-8",
+        "AC-9"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/scene/export.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Filter visual exports (PNG, SVG, canvas, clipboard) to the active page and omit multi-page metadata and other pages' elements from embedded SVG/PNG scene payloads.",
+      "rules": [
+        "1. In exportToSvg (when config?.embedScene is true), strip pageId from each element in elements and omit pages and activePageId from appState before passing them to serializeAsJSON(..., \"local\").",
+        "2. In exportToBlob (when opts.type === \"png\" && opts.config?.embedScene is true), filter restored elements to the exported page via filterElementsToActivePage(restoreElements(data.elements, null), data.appState?.activePageId, data.appState?.pages), strip pageId from each element, and omit pages and activePageId from data.appState ?? {} before passing them to serializeAsJSON(..., \"local\")."
+      ],
+      "exports": [],
+      "import_line": "import { exportScene, exportToClipboard } from \"./scene/export\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1053,
+          "to": 1067,
+          "first_line": "if (config?.embedScene) {",
+          "last_line": "}",
+          "rule": "In exportToSvg embedScene, strip pageId from elements and omit pages and activePageId from appState passed to serializeAsJSON."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1329,
+          "to": 1342,
+          "first_line": "if (opts.type === \"png\" && opts.config?.embedScene) {",
+          "last_line": "}",
+          "rule": "In exportToBlob PNG embedScene, filter elements to the exported page, strip pageId from elements, and omit pages and activePageId from appState passed to serializeAsJSON."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U04",
+        "U09"
+      ],
+      "covers": [
+        "FR-11",
+        "NFR-5",
+        "AC-6"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add English translation strings for the page tab bar and page management actions.",
+      "rules": [
+        "1. Add a top-level \"pages\" object at the end of packages/excalidraw/locales/en.json with keys \"title\": \"Pages\", \"addPage\": \"Add page\", \"renamePage\": \"Rename page\", \"deletePage\": \"Delete page\", \"moveLeft\": \"Move page left\", \"moveRight\": \"Move page right\", and \"pageName\": \"Page name\"."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 784,
+          "to": 795,
+          "first_line": "\"mmb\": \"Scroll wheel\"",
+          "last_line": "}",
+          "rule": "Add top-level pages localization object after keys."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-19"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add replaceAllPages option to ActionResult and page management action names to ActionName.",
+      "rules": [
+        "1. Add optional replaceAllPages?: boolean; to the object branch of ActionResult.",
+        "2. Add \"createPage\" | \"switchPage\" | \"renamePage\" | \"reorderPages\" | \"deletePage\" to ActionName."
+      ],
+      "exports": [
+        {
+          "name": "ActionResult",
+          "kind": "type",
+          "params": [],
+          "returns": "ActionResult"
+        },
+        {
+          "name": "ActionName",
+          "kind": "type",
+          "params": [],
+          "returns": "ActionName"
+        }
+      ],
+      "import_line": "import type { Action, ActionName, ActionResult } from \"./types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 30,
+          "to": 33,
+          "first_line": "captureUpdate: CaptureUpdateActionType;",
+          "last_line": "}",
+          "rule": "Add replaceAllPages?: boolean; to ActionResult."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 146,
+          "to": 152,
+          "first_line": "| \"toggleShapeSwitch\"",
+          "last_line": "| \"deletePage\";",
+          "rule": "Add \"createPage\" | \"switchPage\" | \"renamePage\" | \"reorderPages\" | \"deletePage\" to ActionName."
+        }
+      ],
+      "depends_on": [
+        "U06"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/actions/actionPages.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Fix TypeScript types on page actions and mark deleted page elements as tombstones with bumped versions in actionDeletePage so collaborators delete them too.",
+      "rules": [
+        "1. Remove the invalid import from @excalidraw/common/types; instead import { CaptureUpdateAction, getElementPageId, newElementWith } from \"@excalidraw/element\" and import type { ExcalidrawPage, NormalizedZoomValue } from \"../types\".",
+        "2. In actionSwitchPage, actionCreatePage, actionRenamePage, actionReorderPages, and actionDeletePage, omit parameter type annotations on perform(elements, appState, value, app) so perform is assignable to ActionFn, and use plain numbers 0 instead of 0 as FlooredNumber.",
+        "3. In actionDeletePage, instead of filtering deleted page elements out of the array, map app.scene.getAllElementsIncludingDeleted() so every element where getElementPageId(el) === targetPageId && !el.isDeleted is replaced with newElementWith(el, { isDeleted: true }) (marking it deleted with a bumped version), and save the active page's current scrollX, scrollY, and zoom into remainingPages when deleting a non-active page."
+      ],
+      "exports": [
+        {
+          "name": "getNextDefaultPageName",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "actionSwitchPage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionCreatePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionRenamePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionReorderPages",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionDeletePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPages, actionSwitchPage, getNextDefaultPageName } from \"./actionPages\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 11,
+          "first_line": "import { randomId } from \"@excalidraw/common\";",
+          "last_line": "import type { ExcalidrawPage } from \"../types\";",
+          "rule": "Import newElementWith from @excalidraw/element and NormalizedZoomValue from ../types instead of @excalidraw/common/types."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 41,
+          "to": 136,
+          "first_line": "perform(elements, appState, value: string, app) {",
+          "last_line": "if (!value || typeof value.id !== \"string\") {",
+          "rule": "Remove parameter type annotations on value in actionSwitchPage, actionCreatePage, and actionRenamePage, and remove as FlooredNumber casts."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 164,
+          "to": 255,
+          "first_line": "perform(elements, appState, value: { fromIndex: number; toIndex: number }) {",
+          "last_line": "});",
+          "rule": "Remove parameter type annotations on value in actionReorderPages and actionDeletePage, and in actionDeletePage mark elements on targetPageId as isDeleted: true via newElementWith(el, { isDeleted: true }) instead of filtering them out."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U04",
+        "U06",
+        "U08",
+        "U11",
+        "U12"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-9",
+        "FR-10",
+        "FR-15",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-export page management actions from packages/excalidraw/actions/index.ts.",
+      "rules": [
+        "1. Re-export actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPages, and actionSwitchPage from ./actionPages."
+      ],
+      "exports": [
+        {
+          "name": "actionCreatePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionSwitchPage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionRenamePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionReorderPages",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionDeletePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPages, actionSwitchPage } from \"../actions\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 98,
+          "to": 104,
+          "first_line": "export {",
+          "last_line": "} from \"./actionPages\";",
+          "rule": "Re-export page management actions from ./actionPages."
+        }
+      ],
+      "depends_on": [
+        "U13"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/types.ts": "e891a947d28ab791089c5006b300d73fe64e2b7a79fe5aab220ef3a3da8d6c3a",
+    "packages/excalidraw/appState.ts": "4cdbdbb7d7c46e7f9d7045d011beddb5f785dff6c87128c36b3b1fecfbd144cb",
+    "packages/excalidraw/history.ts": "c7c98cb916650b929746dd54144b65156a3370bd4ecaad51af85f68b25ff0796",
+    "packages/excalidraw/data/restore.ts": "5fb19b3c5a6bde48e2d3198ac23afd0eed6d26a002338612dabfd056cb8d9246",
+    "packages/excalidraw/scene/export.ts": "85f2381b4286170537e566a52c6c95f0aab68de32185a14bf2d26796c6ca593a",
+    "packages/excalidraw/locales/en.json": "efc32fd1cc9cd3671ae05ee3813345e80a7b0349d6c5f5324510d7714f633211",
+    "packages/excalidraw/actions/types.ts": "51a90f492ac1da86d37380455fc906b0794fd18f6295364e187e4e2cd41c5258",
+    "packages/excalidraw/actions/actionPages.tsx": "0fb1a9bdc800e6e32eade2c4cfddde56fee63fe16447bf3594784e57cb9ff587",
+    "packages/excalidraw/actions/index.ts": "f50bbe73de8679cba98262a9d80c640b6f754f3a3f5fd9c845b54da127ee1345"
+  }
+}

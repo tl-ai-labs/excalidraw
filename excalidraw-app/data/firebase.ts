@@ -87,6 +87,8 @@ type FirebaseStoredScene = {
   sceneVersion: number;
   iv: Bytes;
   ciphertext: Bytes;
+  pagesIv?: Bytes;
+  pagesCiphertext?: Bytes;
 };
 
 const encryptElements = async (
@@ -114,27 +116,79 @@ const decryptElements = async (
   return JSON.parse(decodedData);
 };
 
+const encryptPages = async (
+  key: string,
+  pages: AppState["pages"],
+): Promise<{ pagesCiphertext: ArrayBuffer; pagesIv: Uint8Array }> => {
+  const json = JSON.stringify(pages);
+  const encoded = new TextEncoder().encode(json);
+  const { encryptedBuffer, iv } = await encryptData(key, encoded);
+
+  return { pagesCiphertext: encryptedBuffer, pagesIv: iv };
+};
+
+const decryptPages = async (
+  pagesIv: Bytes,
+  pagesCiphertext: Bytes,
+  roomKey: string,
+): Promise<AppState["pages"] | undefined> => {
+  try {
+    const ciphertext =
+      pagesCiphertext.toUint8Array() as Uint8Array<ArrayBuffer>;
+    const iv = pagesIv.toUint8Array() as Uint8Array<ArrayBuffer>;
+
+    const decrypted = await decryptData(iv, ciphertext, roomKey);
+    const decodedData = new TextDecoder("utf-8").decode(
+      new Uint8Array(decrypted),
+    );
+    return JSON.parse(decodedData);
+  } catch (error) {
+    console.error("Failed to decrypt pages from Firebase", error);
+    return undefined;
+  }
+};
+
+const getPagesSignature = (pages: AppState["pages"] | undefined): string => {
+  if (!pages) {
+    return "";
+  }
+  return JSON.stringify(pages.map((p) => ({ id: p.id, name: p.name })));
+};
+
 class FirebaseSceneVersionCache {
-  private static cache = new WeakMap<Socket, number>();
+  private static cache = new WeakMap<
+    Socket,
+    { sceneVersion: number; pagesSignature: string }
+  >();
   static get = (socket: Socket) => {
     return FirebaseSceneVersionCache.cache.get(socket);
   };
   static set = (
     socket: Socket,
     elements: readonly SyncableExcalidrawElement[],
+    pages?: AppState["pages"],
   ) => {
-    FirebaseSceneVersionCache.cache.set(socket, getSceneVersion(elements));
+    FirebaseSceneVersionCache.cache.set(socket, {
+      sceneVersion: getSceneVersion(elements),
+      pagesSignature: getPagesSignature(pages),
+    });
   };
 }
 
 export const isSavedToFirebase = (
   portal: Portal,
   elements: readonly ExcalidrawElement[],
+  appState?: Pick<AppState, "pages">,
 ): boolean => {
   if (portal.socket && portal.roomId && portal.roomKey) {
     const sceneVersion = getSceneVersion(elements);
+    const pagesSignature = getPagesSignature(appState?.pages);
 
-    return FirebaseSceneVersionCache.get(portal.socket) === sceneVersion;
+    const cached = FirebaseSceneVersionCache.get(portal.socket);
+    return (
+      cached?.sceneVersion === sceneVersion &&
+      cached?.pagesSignature === pagesSignature
+    );
   }
   // if no room exists, consider the room saved so that we don't unnecessarily
   // prevent unload (there's nothing we could do at that point anyway)
@@ -176,15 +230,24 @@ export const saveFilesToFirebase = async ({
 const createFirebaseSceneDocument = async (
   elements: readonly SyncableExcalidrawElement[],
   roomKey: string,
+  pages?: AppState["pages"],
 ) => {
   const sceneVersion = getSceneVersion(elements);
   const { ciphertext, iv } = await encryptElements(roomKey, elements);
   const { Bytes } = await _loadFirestore();
-  return {
+  const doc: FirebaseStoredScene = {
     sceneVersion,
     ciphertext: Bytes.fromUint8Array(new Uint8Array(ciphertext)),
     iv: Bytes.fromUint8Array(iv),
-  } as FirebaseStoredScene;
+  };
+
+  if (pages && pages.length > 0) {
+    const { pagesCiphertext, pagesIv } = await encryptPages(roomKey, pages);
+    doc.pagesCiphertext = Bytes.fromUint8Array(new Uint8Array(pagesCiphertext));
+    doc.pagesIv = Bytes.fromUint8Array(pagesIv);
+  }
+
+  return doc;
 };
 
 export const saveToFirebase = async (
@@ -198,7 +261,7 @@ export const saveToFirebase = async (
     !roomId ||
     !roomKey ||
     !socket ||
-    isSavedToFirebase(portal, elements)
+    isSavedToFirebase(portal, elements, appState)
   ) {
     return null;
   }
@@ -206,11 +269,17 @@ export const saveToFirebase = async (
   const { firestore, doc, runTransaction } = await _loadFirestore();
   const docRef = doc(firestore, "scenes", roomId);
 
+  let storedPages: AppState["pages"] | undefined = appState.pages;
+
   const storedScene = await runTransaction(firestore, async (transaction) => {
     const snapshot = await transaction.get(docRef);
 
     if (!snapshot.exists()) {
-      const storedScene = await createFirebaseSceneDocument(elements, roomKey);
+      const storedScene = await createFirebaseSceneDocument(
+        elements,
+        roomKey,
+        appState.pages,
+      );
 
       transaction.set(docRef, storedScene);
 
@@ -229,9 +298,22 @@ export const saveToFirebase = async (
       ),
     );
 
+    if (prevStoredScene.pagesIv && prevStoredScene.pagesCiphertext) {
+      const prevStoredPages = await decryptPages(
+        prevStoredScene.pagesIv,
+        prevStoredScene.pagesCiphertext,
+        roomKey,
+      );
+      if (prevStoredPages && prevStoredPages.length > 0) {
+        // reconcile or use current appState.pages if updated
+        storedPages = appState.pages;
+      }
+    }
+
     const storedScene = await createFirebaseSceneDocument(
       reconciledElements,
       roomKey,
+      storedPages,
     );
 
     transaction.update(docRef, storedScene);
@@ -244,7 +326,11 @@ export const saveToFirebase = async (
     restoreElements(await decryptElements(storedScene, roomKey), null),
   );
 
-  FirebaseSceneVersionCache.set(socket, storedElements);
+  if (storedPages) {
+    (storedElements as any).pages = storedPages;
+  }
+
+  FirebaseSceneVersionCache.set(socket, storedElements, storedPages);
 
   return toBrandedType<RemoteExcalidrawElement[]>(storedElements);
 };
@@ -267,8 +353,20 @@ export const loadFromFirebase = async (
     }),
   );
 
+  let pages: AppState["pages"] | undefined;
+  if (storedScene.pagesIv && storedScene.pagesCiphertext) {
+    pages = await decryptPages(
+      storedScene.pagesIv,
+      storedScene.pagesCiphertext,
+      roomKey,
+    );
+    if (pages) {
+      (elements as any).pages = pages;
+    }
+  }
+
   if (socket) {
-    FirebaseSceneVersionCache.set(socket, elements);
+    FirebaseSceneVersionCache.set(socket, elements, pages);
   }
 
   return elements;

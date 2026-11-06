@@ -13,6 +13,7 @@ import {
   getFontString,
   getUpdatedTimestamp,
   getLineHeight,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import type { Radians } from "@excalidraw/math";
@@ -83,6 +84,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "locked"
   | "opacity"
   | "customData"
+  | "pageId"
   | "created"
 >;
 
@@ -169,6 +171,9 @@ const _newElementBase = <T extends ExcalidrawElement>(
     link,
     locked,
     customData: rest.customData,
+    ...(rest.pageId && rest.pageId !== DEFAULT_PAGE_ID
+      ? { pageId: rest.pageId }
+      : {}),
   };
   return element;
 };

@@ -1,0 +1,673 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "instruction": "Fix `packages/excalidraw/history.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false: 855 tests across 50+ files fail with `TypeError: delta.elements.added is not iterable`, thrown from resolveDeltaPageId (lines ~189-210) on every recorded edit. Cause: ElementsDelta.added / removed / updated are plain objects `Record<string, Delta<ElementPartial>>` (packages/element/src/delta.ts line 1042-1044), not Maps, so `for (const [id, entry] of delta.elements.added)` throws. Iterate with Object.entries(...) instead, and keep filing by the changed elements' page as the plan says.\nTypecheck errors in this file:\npackages/excalidraw/history.ts(190,31): error TS2488: Type 'Record<string, Delta<ElementPartial<ExcalidrawElement>>>' must have a '[Symbol.iterator]()' method that returns an iterator.\npackages/excalidraw/history.ts(197,31): error TS2488: Type 'Record<string, Delta<ElementPartial<ExcalidrawElement>>>' must have a '[Symbol.iterator]()' method that returns an iterator.\npackages/excalidraw/history.ts(204,31): error TS2488: Type 'Record<string, Delta<ElementPartial<ExcalidrawElement>>>' must have a '[Symbol.iterator]()' method that returns an iterator.\npackages/excalidraw/history.ts(212,53): error TS2339: Property 'selectedElementIds' does not exist on type 'Delta<ObservedAppState>'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/App.tsx",
+    "instruction": "Fix `excalidraw-app/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\nexcalidraw-app/App.tsx(804,31): error TS2677: A type predicate's type must be assignable to its parameter's type.\nexcalidraw-app/App.tsx(1004,25): error TS2322: Type 'OrderedExcalidrawElement[]' is not assignable to type 'readonly NonDeletedExcalidrawElement[]'.\nexcalidraw-app/App.tsx(1007,41): error TS2677: A type predicate's type must be assignable to its parameter's type.\nexcalidraw-app/App.tsx(1094,19): error TS2345: Argument of type 'OrderedExcalidrawElement[]' is not assignable to parameter of type 'readonly NonDeletedExcalidrawElement[]'.\nexcalidraw-app/App.tsx(1097,35): error TS2677: A type predicate's type must be assignable to its parameter's type.\nexcalidraw-app/App.tsx(1140,19): error TS2345: Argument of type 'OrderedExcalidrawElement[]' is not assignable to parameter of type 'readonly NonDeletedExcalidrawElement[]'.\nexcalidraw-app/App.tsx(1143,35): error TS2677: A type predicate's type must be assignable to its parameter's type.\nexcalidraw-app/App.tsx(1320,21): error TS2345: Argument of type 'OrderedExcalidrawElement[]' is not assignable to parameter of type 'readonly NonDeletedExcalidrawElement[]'.\nexcalidraw-app/App.tsx(1323,37): error TS2677: A type predicate's type must be assignable to its parameter's type.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U30.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/App.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\nexcalidraw-app/collab/Collab.tsx(361,40): error TS2304: Cannot find name 'AppState'.\nexcalidraw-app/collab/Collab.tsx(783,54): error TS2304: Cannot find name 'AppState'.\nexcalidraw-app/collab/Collab.tsx(865,19): error TS2304: Cannot find name 'AppState'.\nexcalidraw-app/collab/Collab.tsx(867,38): error TS2304: Cannot find name 'AppState'.\nexcalidraw-app/collab/Collab.tsx(874,60): error TS7006: Parameter 'remotePage' implicitly has an 'any' type.\nexcalidraw-app/collab/Collab.tsx(888,54): error TS7006: Parameter 'p' implicitly has an 'any' type.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pagesCollabAndStorage.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(23,3): error TS2305: Module '\"../data/localStorage\"' has no exported member 'saveDataStateToLocalStorage'.\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(119,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"rectangle\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(148,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"ellipse\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(263,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"diamond\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(365,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"ellipse\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\nyarn test:app --watch=false fails in this file (the history.ts not-iterable bug is fixed in the same round, so judge each assertion against the source as the change plan specifies):\n FAIL  excalidraw-app/tests/pagesCollabAndStorage.test.tsx > Multi-page collaboration, Firebase room storage, and localStorage > synchronizes multi-page elements and page list in collaboration while keeping local activePageId independent (AC-10)\nAssertionError: expected [] to deeply equal [ 'rect-p2' ]\n\n- Expected\n+ Received\n\n- [\n-   \"rect-p2\",\n- ]\n+ []\n\n ❯ excalidraw-app/tests/pagesCollabAndStorage.test.tsx:136:57\n    134| \n    135|     expect(h.state.activePageId).toBe(page2Id);\n    136|     expect(h.app.getSceneElements().map((el) => el.id)).toEqual([\"rect…\n       |                                                         ^\n    137| \n    138|     // Remote collaborator sends a SCENE_UPDATE with:\n\n\n FAIL  excalidraw-app/tests/pagesCollabAndStorage.test.tsx > Multi-page collaboration, Firebase room storage, and localStorage > encrypts and loads the room page list on the Firebase room document (AC-10)\nTypeError: Cannot read properties of undefined (reading 'ciphertext')\n ❯ decryptElements excalidraw-app/data/firebase.ts:109:27\n    107|   roomKey: string,\n    108| ): Promise<readonly ExcalidrawElement[]> => {\n    109|   const ciphertext = data.ciphertext.toUint8Array() as Uint8Array<Arra…\n       |                           ^\n    110|   const iv = data.iv.toUint8Array() as Uint8Array<ArrayBuffer>;\n    111| \n ❯ Module.saveToFirebase excalidraw-app/data/firebase.ts:326:27\n ❯ excalidraw-app/tests/pagesCollabAndStorage.test.tsx:293:27\n\n\n FAIL  excalidraw-app/tests/pagesCollabAndStorage.test.tsx > Multi-page collaboration, Firebase room storage, and localStorage > persists and restores multi-page state and elements in browser localStorage (AC-11)\nTypeError: saveDataStateToLocalStorage is not a function\n ❯ excalidraw-app/tests/pagesCollabAndStorage.test.tsx:377:5\n    375|     });\n    376| \n    377|     saveDataStateToLocalStorage([elPage1, elPage2], appStateToSave);\n       |     ^\n    378| \n    379|     const imported = importFromLocalStorage();\n\n\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/element/src/arrows/helpers.ts",
+    "instruction": "Fix `packages/element/src/arrows/helpers.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/element/src/arrows/helpers.ts(36,9): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/arrows/helpers.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/arrows/helpers.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/element/src/arrows/helpers.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/actions/actionPages.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionPages.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/actions/actionPages.tsx(136,32): error TS2339: Property 'id' does not exist on type '{}'.\npackages/excalidraw/actions/actionPages.tsx(140,38): error TS2339: Property 'name' does not exist on type '{}'.\npackages/excalidraw/actions/actionPages.tsx(140,64): error TS2339: Property 'name' does not exist on type '{}'.\npackages/excalidraw/actions/actionPages.tsx(146,22): error TS2339: Property 'id' does not exist on type '{}'.\npackages/excalidraw/actions/actionPages.tsx(169,13): error TS2339: Property 'fromIndex' does not exist on type '{}'.\npackages/excalidraw/actions/actionPages.tsx(169,24): error TS2339: Property 'toIndex' does not exist on type '{}'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionPages.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionPages.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.selectionTool.ts",
+    "instruction": "Fix `packages/excalidraw/components/App.selectionTool.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/components/App.selectionTool.ts(169,13): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(489,11): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(669,9): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(981,11): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(1061,17): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(1112,15): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(1218,7): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(1381,17): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.selectionTool.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.selectionTool.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/App.selectionTool.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_008",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/components/App.tsx(732,33): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(892,7): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(1230,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(1237,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(1353,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(1360,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(1492,25): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(2440,32): error TS2322: Type 'this' is not assignable to type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(2488,29): error TS2322: Type 'this' is not assignable to type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(2644,61): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(2693,29): error TS2322: Type 'this' is not assignable to type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(5372,49): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(6418,13): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties | null'.\npackages/excalidraw/components/App.tsx(6966,9): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(7017,13): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(7190,11): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(7395,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties | null'.\npackages/excalidraw/components/App.tsx(8963,9): error TS2322: Type 'this' is not assignable to type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(8987,9): error TS2322: Type 'this' is not assignable to type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(9199,13): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(9268,13): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(9434,15): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(10103,11): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.tsx(11191,7): error TS2345: Argument of type 'this' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U23.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6026
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6027,
+          11533
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_009",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.wrap.ts",
+    "instruction": "Fix `packages/excalidraw/components/App.wrap.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/components/App.wrap.ts(130,11): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.wrap.ts(145,71): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.wrap.ts(173,61): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.wrap.ts(180,64): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.wrap.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.wrap.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/App.wrap.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_010",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+    "instruction": "Fix `packages/excalidraw/components/ConvertElementTypePopup.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/components/ConvertElementTypePopup.tsx(471,72): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/ConvertElementTypePopup.tsx(567,67): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/ConvertElementTypePopup.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/ConvertElementTypePopup.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_011",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/PageTabBar.tsx",
+    "instruction": "Fix `packages/excalidraw/components/PageTabBar.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/components/PageTabBar.tsx(21,5): error TS2503: Cannot find namespace 'JSX'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/PageTabBar.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/PageTabBar.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PageTabBar.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_012",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/data/restore.ts(479,9): error TS2741: Property 'pageId' is missing in type '{ type: \"line\" | \"arrow\" | \"text\" | \"selection\" | \"rectangle\" | \"stickynote\" | \"diamond\" | \"ellipse\" | \"embeddable\" | \"iframe\" | \"image\" | \"frame\" | \"magicframe\" | \"freedraw\"; version: number; ... 24 more ...; locked: boolean; }' but required in type 'Pick<T, \"x\" | \"y\" | \"link\" | \"id\" | \"strokeColor\" | \"backgroundColor\" | \"fillStyle\" | \"strokeWidth\" | \"strokeStyle\" | \"roundness\" | \"roughness\" | \"opacity\" | \"width\" | \"height\" | ... 14 more ... | \"type\">'.\npackages/excalidraw/data/restore.ts(595,7): error TS2322: Type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 9 more ... | ExcalidrawArrowElement'.\npackages/excalidraw/data/restore.ts(595,46): error TS2345: Argument of type 'ExcalidrawTextElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(619,33): error TS2322: Type '{ originalText: string; isDeleted: true; id: string; x: number; y: number; strokeColor: string; backgroundColor: string; fillStyle: FillStyle; strokeWidth: number; strokeStyle: StrokeStyle; ... 24 more ...; endArrowhead: Arrowhead | null; } | ... 11 more ... | { ...; }' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 9 more ... | ExcalidrawArrowElement'.\npackages/excalidraw/data/restore.ts(630,7): error TS2322: Type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 10 more ... | null'.\npackages/excalidraw/data/restore.ts(630,43): error TS2345: Argument of type 'ExcalidrawFreeDrawElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(638,7): error TS2322: Type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 10 more ... | null'.\npackages/excalidraw/data/restore.ts(638,43): error TS2345: Argument of type 'ExcalidrawImageElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(668,57): error TS2345: Argument of type 'ExcalidrawLinearElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(687,44): error TS2345: Argument of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to parameter of type 'ExcalidrawLinearElement'.\npackages/excalidraw/data/restore.ts(735,40): error TS2345: Argument of type 'ExcalidrawElbowArrowElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(745,40): error TS2345: Argument of type 'ExcalidrawArrowElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(750,11): error TS2345: Argument of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to parameter of type 'ExcalidrawLinearElement'.\npackages/excalidraw/data/restore.ts(754,44): error TS2345: Argument of type '{ points: LocalPoint[]; x: number; y: number; link: string | null; id: string; strokeColor: string; backgroundColor: string; fillStyle: FillStyle; strokeWidth: number; ... 23 more ...; moveMidPointsWithElement?: boolean | null; }' is not assignable to parameter of type 'ExcalidrawLinearElement'.\npackages/excalidraw/data/restore.ts(763,7): error TS2322: Type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 10 more ... | null'.\npackages/excalidraw/data/restore.ts(763,43): error TS2345: Argument of type 'ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawEmbeddableElement | ExcalidrawIframeElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(766,9): error TS2345: Argument of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to parameter of type 'ExcalidrawStickyNoteElement'.\npackages/excalidraw/data/restore.ts(766,38): error TS2345: Argument of type 'ExcalidrawStickyNoteElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\npackages/excalidraw/data/restore.ts(775,7): error TS2322: Type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...' is not assignable to type 'ExcalidrawLinearElement | ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ... 10 more ... | null'.\npackages/excalidraw/data/restore.ts(775,43): error TS2345: Argument of type 'ExcalidrawFrameElement | ExcalidrawMagicFrameElement' is not assignable to parameter of type 'Required<Omit<ExcalidrawElement, \"customData\">> & { customData?: Record<string, any> | (Record<string, any> & { generationData?: MagicGenerationData | undefined; }) | undefined; boundElementIds?: readonly string[] | undefined; strokeSharpness?: StrokeRoundness | undefined; moveMidPointsWithElement?: boolean | ... 1 ...'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_013",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/lasso/index.ts",
+    "instruction": "Fix `packages/excalidraw/lasso/index.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/lasso/index.ts(127,9): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_014",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails in this file:\npackages/excalidraw/tests/pages.test.tsx(24,3): error TS2305: Module '\"../index\"' has no exported member 'exportToBlob'.\npackages/excalidraw/tests/pages.test.tsx(25,3): error TS2305: Module '\"../index\"' has no exported member 'exportToCanvas'.\npackages/excalidraw/tests/pages.test.tsx(26,3): error TS2305: Module '\"../index\"' has no exported member 'exportToSvg'.\npackages/excalidraw/tests/pages.test.tsx(110,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"rectangle\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\npackages/excalidraw/tests/pages.test.tsx(392,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"ellipse\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\npackages/excalidraw/tests/pages.test.tsx(476,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"text\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\npackages/excalidraw/tests/pages.test.tsx(534,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"rectangle\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\npackages/excalidraw/tests/pages.test.tsx(612,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"rectangle\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\npackages/excalidraw/tests/pages.test.tsx(621,9): error TS2353: Object literal may only specify known properties, and 'focus' does not exist in type 'FixedPointBinding'.\npackages/excalidraw/tests/pages.test.tsx(628,7): error TS2353: Object literal may only specify known properties, and 'pageId' does not exist in type '{ type?: \"ellipse\" | undefined; x?: number | undefined; y?: number | undefined; height?: number | undefined; width?: number | undefined; angle?: number | undefined; id?: string | undefined; ... 33 more ...; fixedSegments?: FixedSegment[] | ... 1 more ... | undefined; }'.\nyarn test:app --watch=false fails in this file (the history.ts not-iterable bug is fixed in the same round, so judge each assertion against the source as the change plan specifies):\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > creates, renames, reorders, and tombstone-deletes pages via PageTabBar and actions (AC-2, AC-3)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ packages/excalidraw/tests/pages.test.tsx:198:37\n    196|     const deletedRect2 = allElements.find((el) => el.id === \"rect-page…\n    197|     expect(deletedRect2).toBeDefined();\n    198|     expect(deletedRect2?.isDeleted).toBe(true);\n       |                                     ^\n    199|     expect(deletedRect2!.version).toBeGreaterThan(rect2InitialVersion);\n    200|   });\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > isolates elements and preserves per-page viewport and undo/redo history across page switches (AC-4, AC-5)\nAssertionError: expected [] to have a length of 1 but got +0\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ packages/excalidraw/tests/pages.test.tsx:209:45\n    207|     mouse.reset();\n    208|     UI_drawRectangleOnCanvas();\n    209|     expect(h.scene.getNonDeletedElements()).toHaveLength(1);\n       |                                             ^\n    210|     const page1El = h.scene.getNonDeletedElements()[0];\n    211|     expect(getElementPageId(page1El)).toBe(DEFAULT_PAGE_ID);\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > files undo entries by the edited element's page when switching from page A to page B straight away (AC-5)\nAssertionError: expected [] to have a length of 1 but got +0\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ packages/excalidraw/tests/pages.test.tsx:316:45\n    314|     // Draw element on Page 1 (Page A)\n    315|     UI_drawRectangleOnCanvas();\n    316|     expect(h.scene.getNonDeletedElements()).toHaveLength(1);\n       |                                             ^\n    317|     const rectPageA = h.scene.getNonDeletedElements()[0];\n    318| \n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > exports only the active page in visual exports and omits page list and pageId from embedded scenes (AC-6)\nAssertionError: expected [] to deeply equal [ 'page2-ellipse' ]\n\n- Expected\n+ Received\n\n- [\n-   \"page2-ellipse\",\n- ]\n+ []\n\n ❯ packages/excalidraw/tests/pages.test.tsx:399:64\n    397| \n    398|     // Active page is Page 2 -> only ellipse2 is on the active page\n    399|     expect(h.scene.getNonDeletedElements().map((el) => el.id)).toEqual…\n       |                                                                ^\n    400|       \"page2-ellipse\",\n    401|     ]);\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > searches across all pages and switches to the matched element's page on selection (AC-7)\nTestingLibraryElementError: Unable to find an element by: [data-testid=\"search-input\"]\n ❯ Object.getElementError setupTests.ts:28:21\n     26|   configure({\n     27|     getElementError: (message) => {\n     28|       const error = new Error(message ?? undefined);\n       |                     ^\n     29|       error.name = \"TestingLibraryElementError\";\n     30|       return error;\n ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38\n ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17\n ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19\n ❯ packages/excalidraw/tests/pages.test.tsx:496:25\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > round-trips multi-page JSON and restores legacy and orphaned-pageId payloads cleanly (AC-8, AC-9)\nAssertionError: expected { id: 'page-default', …(4) } to match object { id: 'page-default', …(3) }\n(1 matching property omitted from actual)\n\n- Expected\n+ Received\n\n  {\n    \"id\": \"page-default\",\n-   \"scrollX\": 55,\n-   \"scrollY\": 65,\n+   \"scrollX\": 0,\n+   \"scrollY\": 0,\n    \"zoom\": {\n-     \"value\": 1.25,\n+     \"value\": 1,\n    },\n  }\n\n ❯ packages/excalidraw/tests/pages.test.tsx:555:38\n    553|     expect(parsed.appState.pages).toHaveLength(2);\n    554|     expect(parsed.appState.activePageId).toBe(page2Id);\n    555|     expect(parsed.appState.pages[0]).toMatchObject({\n       |                                      ^\n    556|       id: DEFAULT_PAGE_ID,\n    557|       scrollX: 55,\n\n\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_015",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/types.ts",
+    "instruction": "Fix `packages/excalidraw/types.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: 38 errors across App.tsx, App.selectionTool.ts, App.wrap.ts, ConvertElementTypePopup.tsx, lasso/index.ts, arrows/helpers.ts and the existing tests helpers/api.ts, drawShape.test.tsx, stickyNotes.test.tsx all read: Argument of type App is not assignable to parameter of type AppClassProperties. Property history is private in type App but not in type AppClassProperties. Cause: this run added `history: App[\"history\"];` to AppClassProperties in this file, while App declares history private. Remove that member from AppClassProperties (page actions must not reach app.history; switch history pages through App itself, as actionPages already must). Examples:\npackages/element/src/arrows/helpers.ts(36,9): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(169,13): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(489,11): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(669,9): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(981,11): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\npackages/excalidraw/components/App.selectionTool.ts(1061,17): error TS2345: Argument of type 'App' is not assignable to parameter of type 'AppClassProperties'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

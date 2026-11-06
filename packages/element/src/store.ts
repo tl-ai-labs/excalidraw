@@ -145,7 +145,7 @@ export class Store {
       // also, we have to compare against the current state,
       // as comparing against the snapshot might include yet uncomitted changes (i.e. async freedraw / text / image, etc.)
       const currentSnapshot = StoreSnapshot.create(
-        this.app.scene.getElementsMapIncludingDeleted(),
+        this.app.scene.getAllElementsMapIncludingDeleted(),
         this.app.state,
       );
 
@@ -155,7 +155,9 @@ export class Store {
         // also have the synced elements immutable, so that we don't mutate elements,
         // that are already in the scene, otherwise we wouldn't see any change
         params.elements
-          ? syncInvalidIndicesImmutable(params.elements)
+          ? syncInvalidIndicesImmutable(
+              this.app.scene.getMergedElements(params.elements),
+            )
           : undefined,
         params.appState,
       );

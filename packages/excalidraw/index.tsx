@@ -415,6 +415,7 @@ export { isInvisiblySmallElement } from "@excalidraw/element";
 
 export { defaultLang, useI18n, languages } from "./i18n";
 export {
+  restore,
   restoreAppState,
   restoreElement,
   restoreElements,
@@ -498,6 +499,7 @@ export type {
   ViewportStatusFrame,
   ElementRenderOverride,
   ElementRenderOverrides,
+  ExcalidrawPage,
 } from "./types";
 
 export { zoomToFitBounds, DEFAULT_OVERSCROLL } from "./viewport";
