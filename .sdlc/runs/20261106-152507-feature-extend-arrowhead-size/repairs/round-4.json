@@ -1,0 +1,188 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-152507-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 review fix (person's decision). In actionChangeArrowheadSize's perform, the Medium branch (`value === DEFAULT_ARROWHEAD_SIZE`) currently does `element = newElementWith(el, {}, el.arrowheadSize !== undefined); delete (element as Mutable<ExcalidrawLinearElement>).arrowheadSize;`. When el has no changes newElementWith can return the scene's own object, so the delete mutates a scene element in place, and the `!== undefined` test misses an own key holding `undefined` (delta.ts leaves `arrowheadSize: undefined` after an undo), which then gets no version bump. Replace the Medium branch with: if `!(\"arrowheadSize\" in el)` return `el` unchanged (no new object); otherwise build a fresh object without the key and never delete from the scene's object, e.g. `const { arrowheadSize: _arrowheadSize, ...rest } = el; element = newElementWith(rest as typeof el, {}, true);` so version/versionNonce are bumped and the result has no own \"arrowheadSize\" key. Keep the non-default branch (`newElementWith(el, { arrowheadSize: value })`) and the elbow re-route (`isElbowArrow(element) ? newElementWith(element, updateElbowArrowRoute(...)) : element`) as they are. Remove the `Mutable` import if it becomes unused. eslint must pass with --max-warnings=0 (if the unused destructured name is flagged, name it so the project's no-unused-vars config ignores it, e.g. a leading underscore, or use an equivalent omit).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-152507-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/actions/actionStyles.ts",
+    "instruction": "Fix `packages/excalidraw/actions/actionStyles.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 review fix (person's decision). In actionPasteStyles, the arrow branch computes `shouldClearArrowheadSize = elementStylesToCopyFrom.arrowheadSize === undefined && newElement.arrowheadSize !== undefined`, calls newElementWith(newElement, {...}, shouldClearArrowheadSize) and then `delete (newElement as Mutable<typeof newElement>).arrowheadSize`, which can delete from a scene object and misses a target holding an own `arrowheadSize: undefined` key (left by delta.ts after an undo). Change it to test own keys with `in`: when the source has an own \"arrowheadSize\" key (`\"arrowheadSize\" in elementStylesToCopyFrom` and its value is not undefined), copy it as today. When the source has no own key (or holds undefined) and the target has an own \"arrowheadSize\" key (`\"arrowheadSize\" in newElement`), build the pasted element from a fresh object without the key, e.g. `const { arrowheadSize: _arrowheadSize, ...rest } = newElement; newElement = newElementWith(rest as typeof newElement, { startArrowhead: ..., endArrowhead: ... }, true);` (version bump, no delete on any scene object). Otherwise keep today's newElementWith call. Keep the following isElbowArrow re-route as is. Remove the `Mutable` import if it becomes unused. eslint must pass with --max-warnings=0.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionStyles.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionStyles.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-152507-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "instruction": "Fix `packages/excalidraw/CHANGELOG.md` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 review fix (person's decision). Under `## Unreleased` the entry is a bare bullet: `- Per-element arrowhead size: support Small, Medium, Large arrowhead size presets on arrows and lines.` Move it under its own dated heading like the other entries: replace that bullet with the heading `### Per-element arrowhead size (2026-11-06)`, then a blank line, then the existing description line, then a blank line, placed directly above the existing `### Export API: \\`exportScene\\` (2026-10-18)` heading. Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "verify_timeout_sec": 30,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-152507-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 review: add assertions for the fixed Medium/paste behaviour (actionChangeArrowheadSize in packages/excalidraw/actions/actionProperties.tsx and actionPasteStyles in packages/excalidraw/actions/actionStyles.ts now never delete from a scene object, and turn an element holding an own `arrowheadSize` key, including one holding `undefined`, into a new element with no key and a bumped version). (a) In 'undoes and redoes arrowheadSize changes through history deltas' (or a new test after it): after undoing back to default (the element then holds `arrowheadSize: undefined` as an own key), keep `const before = h.elements[0]`, select it, click `screen.getByTestId(\"arrowheadSize-medium\")`, then expect `\"arrowheadSize\" in h.elements[0]` to be false, `h.elements[0]` not to be `before` (`expect(h.elements[0]).not.toBe(before)`), and `h.elements[0].version` to be greater than `before.version`. (b) In the copy/paste test (or a new test): build a target arrow that holds an own `arrowheadSize: undefined` key, e.g. `{ ...API.createElement({ type: \"arrow\", ... }), arrowheadSize: undefined }`, put it in the scene with the default-sized source arrow (API.setElements), copy styles from the default-sized source, select the target, keep `before`, paste styles, then expect `\"arrowheadSize\" in` the pasted target to be false, it not to be `before`, and its version to be greater than `before.version`. Keep every existing test and assertion. Note API.createElement does not forward arrowheadSize (set it on the returned object) and API.setSelectedElements needs `as NonDeletedExcalidrawElement` casts. vitest and eslint --max-warnings=0 must pass.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionStyles.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

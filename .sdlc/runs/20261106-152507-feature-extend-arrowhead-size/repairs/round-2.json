@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-152507-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. vitest packages/excalidraw/tests/arrowheadSize.test.tsx fails. (1) 'restores an arrow with smaller arrowheadSize ...' line 85: expected undefined to be 0.5; (2) 'copies and pastes arrowheadSize ...' line 193/218: expected undefined to be 0.5; (3) 'undoes and redoes arrowheadSize changes through history deltas' line 173: expect(\"arrowheadSize\" in h.elements[0]).toBe(false) received true. Cause of (1) and (2): API.createElement in packages/excalidraw/tests/helpers/api.ts does NOT forward arrowheadSize to newArrowElement (its arrow branch passes only ...base, width, height, type, points, elbowed), so `API.createElement({ ..., arrowheadSize: 0.5 })` returns an arrow at default size. That helper is outside the write contract and must not be changed. Fix in this test only: create the arrow with API.createElement WITHOUT arrowheadSize, then build the sized one as a new object, e.g. `const smallArrow = { ...API.createElement(baseOpts), arrowheadSize: ARROWHEAD_SIZES.small };` (and the same for every other sized arrow in the file, including the copy/paste test's arrow before API.setElements). Cause of (3): packages/element/src/delta.ts (off-limits, not to be changed) reverts a change by writing `arrowheadSize: undefined`, so after undo the key is present with value undefined. Fix the assertion only: after undo back to default, assert `expect((h.elements[0] as ExcalidrawArrowElement).arrowheadSize).toBeUndefined()` and remove the `\"arrowheadSize\" in h.elements[0]` check at that point (keep the `in` checks elsewhere: the initial default arrow, Medium from the panel, and paste from a default-sized arrow). Keep all five tests and their intent.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152507-feature-extend-arrowhead-size/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

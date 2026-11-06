@@ -1,0 +1,80 @@
+{
+  "conventions": [
+    "Format all TypeScript, TSX, JSON, and Markdown files with Prettier (@excalidraw/prettier-config) and lint TypeScript/TSX with ESLint (--max-warnings=0).",
+    "Group imports by external packages first (@excalidraw/math, @excalidraw/common, @excalidraw/element), then internal relative imports, then type-only imports (`import type { ... }`).",
+    "Omit `arrowheadSize` from linear elements when at the default Medium scale (`1`); never store `arrowheadSize: 1` or `arrowheadSize: undefined` as an own property on constructed or restored elements.",
+    "Only English locale strings (`packages/excalidraw/locales/en.json`) are edited; other locale files are synced externally and are off-limits.",
+    "Use Vitest (`describe`, `it`, `expect`, `vi`) and `@testing-library/react` helpers from `packages/excalidraw/tests/test-utils.ts` for tests."
+  ],
+  "decisions": [
+    {
+      "topic": "Element property representation and default omission",
+      "choice": "Optional `arrowheadSize?: ArrowheadSize` (number scale factor in `[0.5, 1.5]`, presets Small = `0.5`, Medium = `1`, Large = `1.5`) on `ExcalidrawLinearElement`, omitted when equal to `1` (`DEFAULT_ARROWHEAD_SIZE`).",
+      "rejected": [
+        "Always storing `arrowheadSize: 1` on linear elements",
+        "Separate `startArrowheadSize` and `endArrowheadSize` properties",
+        "String enum `'small' | 'medium' | 'large'`"
+      ],
+      "reason": "Omitting the default value keeps all existing element and render snapshots unchanged and preserves backward compatibility with saved scenes while allowing numeric scale factors in [0.5, 1.5]."
+    },
+    {
+      "topic": "Shared arrowhead size constants and validator placement",
+      "choice": "Export `ARROWHEAD_SIZES`, `DEFAULT_ARROWHEAD_SIZE`, `MIN_ARROWHEAD_SIZE`, `MAX_ARROWHEAD_SIZE`, and `isValidArrowheadSize` from `packages/element/src/bounds.ts` (re-exported via `@excalidraw/element`) and `ArrowheadSize` from `packages/element/src/types.ts` (re-exported via `@excalidraw/element/types`).",
+      "rejected": [
+        "Adding constants to `packages/common/src/constants.ts`",
+        "Duplicating magic numbers across element and excalidraw packages"
+      ],
+      "reason": "`packages/common` is outside the Gate 0 write allowlist, whereas `packages/element/src/bounds.ts` is in scope and re-exported by `packages/element/src/index.ts`."
+    },
+    {
+      "topic": "New arrow default size state (Gate 0 Option A)",
+      "choice": "Store `currentItemArrowheadSize: ArrowheadSize` (default `1`) in `AppState` with storage config `{ browser: true, export: false, server: false }` and pass it to `newArrowElement` in `App.tsx`.",
+      "rejected": [
+        "Deriving default arrowhead size only from selected elements without AppState persistence",
+        "Persisting `currentItemArrowheadSize` to exported scene files or server"
+      ],
+      "reason": "Option A was chosen at Gate 0 so users can preconfigure arrowhead size with no selection and persist the preference locally in the browser."
+    },
+    {
+      "topic": "Secondary `getArrowheadSize` readers (`elbowArrow.ts` and `transform.ts`)",
+      "choice": "Pass `arrow.arrowheadSize` as the second argument to `getArrowheadSize` in `packages/element/src/elbowArrow.ts` minimum leg checks and `packages/element/src/transform.ts` `clampLabelPositionOffEnds`.",
+      "rejected": [
+        "Leaving elbow routing and skeleton label clearance unscaled at 1x"
+      ],
+      "reason": "Scaling both readers keeps elbow leg clearances and bound label margins proportional to the rendered arrowhead while remaining byte-identical when `arrowheadSize` is undefined."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "prettier",
+      "run": "yarn prettier --list-different {path}",
+      "fix": "yarn prettier --write {path}",
+      "timeout_s": 30
+    },
+    {
+      "id": "vitest",
+      "run": "yarn test:app --watch=false {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lint",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "test",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}

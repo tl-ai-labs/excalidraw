@@ -15,6 +15,8 @@ import {
   DEFAULT_STICKY_NOTE_BG,
 } from "@excalidraw/common";
 
+import { DEFAULT_ARROWHEAD_SIZE } from "@excalidraw/element";
+
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
 
 /**
@@ -44,6 +46,7 @@ export const getDefaultAppState = (): Omit<
     currentItemRoughness: DEFAULT_ELEMENT_PROPS.roughness,
     currentItemStrokeVariability: "constant",
     currentItemStartArrowhead: null,
+    currentItemArrowheadSize: DEFAULT_ARROWHEAD_SIZE,
     currentItemStrokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
     currentItemStickynoteStrokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
     currentItemStickynoteBackgroundColor: DEFAULT_STICKY_NOTE_BG,
@@ -194,6 +197,7 @@ const APP_STATE_STORAGE_CONF = (<
     server: false,
   },
   currentItemStartArrowhead: { browser: true, export: false, server: false },
+  currentItemArrowheadSize: { browser: true, export: false, server: false },
   currentItemStrokeColor: { browser: true, export: false, server: false },
   currentItemStickynoteStrokeColor: {
     browser: true,

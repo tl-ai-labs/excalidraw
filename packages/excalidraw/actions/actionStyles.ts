@@ -186,10 +186,30 @@ export const actionPasteStyles = register({
               newElement.type === "arrow" &&
               isArrowElement(elementStylesToCopyFrom)
             ) {
-              newElement = newElementWith(newElement, {
-                startArrowhead: elementStylesToCopyFrom.startArrowhead,
-                endArrowhead: elementStylesToCopyFrom.endArrowhead,
-              });
+              const hasSourceArrowheadSize =
+                "arrowheadSize" in elementStylesToCopyFrom &&
+                elementStylesToCopyFrom.arrowheadSize !== undefined;
+
+              if (!hasSourceArrowheadSize && "arrowheadSize" in newElement) {
+                const { arrowheadSize: _arrowheadSize, ...rest } = newElement;
+                newElement = newElementWith(
+                  rest as typeof newElement,
+                  {
+                    startArrowhead: elementStylesToCopyFrom.startArrowhead,
+                    endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                  },
+                  true,
+                );
+              } else {
+                newElement = newElementWith(newElement, {
+                  startArrowhead: elementStylesToCopyFrom.startArrowhead,
+                  endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                  ...(hasSourceArrowheadSize
+                    ? { arrowheadSize: elementStylesToCopyFrom.arrowheadSize }
+                    : {}),
+                });
+              }
+
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(
                   newElement,
