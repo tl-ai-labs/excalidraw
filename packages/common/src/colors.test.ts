@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  invertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -212,6 +213,52 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("invertDarkModeFilter", () => {
+  it("round-trips reachable dark-mode colors across a sampled RGB grid", () => {
+    for (let r = 0; r <= 255; r += 17) {
+      for (let g = 0; g <= 255; g += 17) {
+        for (let b = 0; b <= 255; b += 17) {
+          const p = applyDarkModeFilter(rgbToHex(r, g, b));
+          expect(applyDarkModeFilter(invertDarkModeFilter(p))).toBe(p);
+        }
+      }
+    }
+  });
+
+  it("recovers exact hex for #1e1e1e, #000000, and #ffffff", () => {
+    for (const c of ["#1e1e1e", "#000000", "#ffffff"]) {
+      expect(invertDarkModeFilter(applyDarkModeFilter(c))).toBe(c);
+    }
+  });
+
+  it("preserves alpha channel on #rrggbbaa inputs", () => {
+    expect(invertDarkModeFilter(applyDarkModeFilter("#1e1e1e80"))).toBe(
+      "#1e1e1e80",
+    );
+    expect(invertDarkModeFilter(applyDarkModeFilter("#1e1e1e00"))).toBe(
+      "#1e1e1e00",
+    );
+  });
+
+  it("returns a valid hex best estimate without throwing for unreachable pixels", () => {
+    for (const pixel of ["#ffffff", "#000000", "#0000ff"]) {
+      expect(invertDarkModeFilter(pixel)).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  it("does not write to DARK_MODE_COLORS_CACHE", () => {
+    const reachable = applyDarkModeFilter("#1e1e1e");
+    const setSpy = vi.spyOn(Map.prototype, "set");
+    try {
+      invertDarkModeFilter("#0000ff");
+      invertDarkModeFilter(reachable);
+      expect(setSpy).not.toHaveBeenCalled();
+    } finally {
+      setSpy.mockRestore();
+    }
   });
 });
 

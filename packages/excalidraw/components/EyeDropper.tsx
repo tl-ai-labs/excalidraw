@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  EVENT,
+  invertDarkModeFilter,
+  KEYS,
+  rgbToHex,
+  THEME,
+} from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -91,7 +97,11 @@ export const EyeDropper: React.FC<{
         1,
       ).data;
 
-      return rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const color = rgbToHex(pixel[0], pixel[1], pixel[2]);
+
+      return appState.theme === THEME.DARK
+        ? invertDarkModeFilter(color)
+        : color;
     };
 
     const mouseMoveListener = ({
@@ -215,6 +225,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

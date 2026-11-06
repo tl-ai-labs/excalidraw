@@ -80,6 +80,17 @@ const cssInvert = (
   return { r: invertedR, g: invertedG, b: invertedB };
 };
 
+const applyDarkModeFilterToRgb = (
+  r: number,
+  g: number,
+  b: number,
+): { r: number; g: number; b: number } => {
+  // order of operations matters
+  // (corresponds to "filter: invert(invertPercent) hue-rotate(hueDegrees)" in css)
+  const inverted = cssInvert(r, g, b, 93);
+  return cssHueRotate(inverted.r, inverted.g, inverted.b, 180 as Degrees);
+};
+
 export const applyDarkModeFilter = (color: string, enable = true): string => {
   if (!enable) {
     return color;
@@ -93,16 +104,8 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   const tc = tinycolor(color);
   const alpha = tc.getAlpha();
 
-  // order of operations matters
-  // (corresponds to "filter: invert(invertPercent) hue-rotate(hueDegrees)" in css)
   const rgb = tc.toRgb();
-  const inverted = cssInvert(rgb.r, rgb.g, rgb.b, 93);
-  const rotated = cssHueRotate(
-    inverted.r,
-    inverted.g,
-    inverted.b,
-    180 as Degrees,
-  );
+  const rotated = applyDarkModeFilterToRgb(rgb.r, rgb.g, rgb.b);
 
   const result = rgbToHex(rotated.r, rotated.g, rotated.b, alpha);
 
@@ -111,6 +114,48 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   }
 
   return result;
+};
+
+export const invertDarkModeFilter = (color: string): string => {
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+  const rgb = tc.toRgb();
+
+  // Reverse the forward "invert(93%) hue-rotate(180deg)" pipeline:
+  // first rotate hue by 180deg, then invert each channel by the inverse of 93%
+  const unrotated = cssHueRotate(rgb.r, rgb.g, rgb.b, 180 as Degrees);
+  const p = 0.93;
+  const uninvertComponent = (c: number): number =>
+    Math.round(clamp((c - 255 * p) / (1 - 2 * p), 0, 255));
+
+  const estR = uninvertComponent(unrotated.r);
+  const estG = uninvertComponent(unrotated.g);
+  const estB = uninvertComponent(unrotated.b);
+
+  const initialForward = applyDarkModeFilterToRgb(estR, estG, estB);
+  if (
+    initialForward.r === rgb.r &&
+    initialForward.g === rgb.g &&
+    initialForward.b === rgb.b
+  ) {
+    return rgbToHex(estR, estG, estB, alpha);
+  }
+
+  for (let dr = -3; dr <= 3; dr++) {
+    const cr = clamp(estR + dr, 0, 255);
+    for (let dg = -3; dg <= 3; dg++) {
+      const cg = clamp(estG + dg, 0, 255);
+      for (let db = -3; db <= 3; db++) {
+        const cb = clamp(estB + db, 0, 255);
+        const forward = applyDarkModeFilterToRgb(cr, cg, cb);
+        if (forward.r === rgb.r && forward.g === rgb.g && forward.b === rgb.b) {
+          return rgbToHex(cr, cg, cb, alpha);
+        }
+      }
+    }
+  }
+
+  return rgbToHex(estR, estG, estB, alpha);
 };
 
 // ---------------------------------------------------------------------------

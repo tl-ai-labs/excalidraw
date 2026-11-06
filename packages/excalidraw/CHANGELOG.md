@@ -58,6 +58,7 @@ The toolbar UI was rewritten from hidden radio/checkbox inputs to real `<button>
 #### Fixes
 
 - Mobile toolbar popovers: the active option stays highlighted after tapping it (the highlight was being suppressed by sticky touch-hover).
+- Eyedropper no longer saves dark-mode-transformed colors in dark theme (#10867).
 - The active-tool highlight can no longer desync from the actually active tool (controlled-radio DOM desync).
 
 ### Viewport control & scroll/zoom locking (2026-07-03) [#11554](https://github.com/excalidraw/excalidraw/pull/11554)
