@@ -40,6 +40,7 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  shiftTextRangesOnEdit,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -52,11 +53,16 @@ import type {
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
 
+import type { Mutable } from "@excalidraw/common/utility-types";
+
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { withBatchedUpdates } from "../reactUtils";
 import { isPointHittingTextAutoResizeHandle } from "../textAutoResizeHandle";
 import { scrollBoundsIntoView } from "../viewport";
-import { textWysiwyg } from "../wysiwyg/textWysiwyg";
+import {
+  syncWysiwygTextRangesStyle,
+  textWysiwyg,
+} from "../wysiwyg/textWysiwyg";
 
 import type App from "./App";
 import type { AppState, Offsets, ViewportUIName } from "../types";
@@ -220,9 +226,23 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
-            return newElementWith(_element, {
+            const textChanged =
+              isDeleted || nextOriginalText !== _element.originalText;
+            const shiftedRanges = !textChanged
+              ? _element.textRanges
+              : isDeleted
+              ? undefined
+              : shiftTextRangesOnEdit(
+                  _element.textRanges,
+                  _element.originalText,
+                  nextOriginalText,
+                );
+            const nextElement = newElementWith(_element, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
+              ...(textChanged && shiftedRanges
+                ? { textRanges: shiftedRanges }
+                : {}),
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
                 refreshTextDimensions(
@@ -234,6 +254,10 @@ export class AppText {
                   this.app.renderEnvironment,
                 )),
             });
+            if (textChanged && !shiftedRanges && "textRanges" in nextElement) {
+              delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges;
+            }
+            return nextElement;
           }
           return _element;
         }),
@@ -242,6 +266,19 @@ export class AppText {
       const updatedTextElement = this.app.scene.getNonDeletedElement(
         latestTextElement.id,
       );
+      if (
+        updatedTextElement &&
+        isTextElement(updatedTextElement) &&
+        this.app.state.editingTextElement?.id === updatedTextElement.id
+      ) {
+        syncWysiwygTextRangesStyle(updatedTextElement, this.app.state.theme);
+        if (
+          this.app.state.editingTextElement.textRanges !==
+          updatedTextElement.textRanges
+        ) {
+          this.app.setState({ editingTextElement: updatedTextElement });
+        }
+      }
       if (
         latestTextElement.autoResize &&
         updatedTextElement &&

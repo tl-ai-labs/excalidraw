@@ -45,6 +45,7 @@ import {
 import { LinearElementEditor } from "./linearElementEditor";
 import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId, redrawTextBoundingBox } from "./textElement";
+import { areTextRangesEqual, normalizeTextRanges } from "./textRanges";
 import {
   hasBoundTextElement,
   isArrowElement,
@@ -1788,7 +1789,36 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         delta.deleted.index !== delta.inserted.index;
     }
 
-    return newElementWith(element, directlyApplicablePartial, true);
+    const nextElement = newElementWith(
+      element,
+      directlyApplicablePartial,
+      true,
+    );
+
+    if (
+      isTextElement(nextElement) &&
+      ("textRanges" in directlyApplicablePartial || "textRanges" in nextElement)
+    ) {
+      const normalizedRanges =
+        "textRanges" in directlyApplicablePartial
+          ? normalizeTextRanges(
+              directlyApplicablePartial.textRanges,
+              nextElement.originalText.length,
+            )
+          : normalizeTextRanges(
+              nextElement.textRanges,
+              nextElement.originalText.length,
+            );
+
+      if (normalizedRanges) {
+        (nextElement as Mutable<ExcalidrawTextElement>).textRanges =
+          normalizedRanges;
+      } else {
+        delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges;
+      }
+    }
+
+    return nextElement;
   }
 
   /**
@@ -1877,6 +1907,11 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
           return !isShallowEqual(
             visibleBindings(before, previousElements),
             visibleBindings(after, nextElements),
+          );
+        case "textRanges":
+          return !areTextRangesEqual(
+            (before as ExcalidrawTextElement).textRanges,
+            (after as ExcalidrawTextElement).textRanges,
           );
         default:
           return true;

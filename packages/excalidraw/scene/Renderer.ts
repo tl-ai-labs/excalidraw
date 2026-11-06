@@ -249,7 +249,11 @@ export class Renderer {
     newElement: AppState["newElement"];
   }) {
     const elementsMap = toBrandedType<RenderableElementsMap>(new Map());
-    const newElementCanvasElement = newElement?.frameId ? null : newElement;
+    const newElementCanvasElement =
+      newElement?.frameId ||
+      (newElement && isTextElement(newElement) && newElement.textRanges?.length)
+        ? null
+        : newElement;
 
     for (const element of elements) {
       if (newElementCanvasElement?.id === element.id) {
@@ -261,7 +265,8 @@ export class Renderer {
       if (
         !editingTextElement ||
         editingTextElement.type !== "text" ||
-        element.id !== editingTextElement.id
+        element.id !== editingTextElement.id ||
+        Boolean(isTextElement(element) && element.textRanges?.length)
       ) {
         elementsMap.set(element.id, element);
       }
@@ -369,6 +374,10 @@ export class Renderer {
     const canvasNonce = `${this.scene.getSceneNonce()}${
       newElement?.frameId || isTextElement(newElement)
         ? `:${newElement.versionNonce}`
+        : ""
+    }${
+      opts.editingTextElement && isTextElement(opts.editingTextElement)
+        ? `:${opts.editingTextElement.versionNonce}`
         : ""
     }`;
 

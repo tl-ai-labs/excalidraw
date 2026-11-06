@@ -31,6 +31,7 @@ import {
 import { getBoundTextMaxWidth } from "./textElement";
 import { normalizeText, measureText } from "./textMeasurements";
 import { wrapText } from "./textWrapping";
+import { normalizeTextRanges } from "./textRanges";
 
 import { isLineElement } from "./typeChecks";
 
@@ -347,6 +348,7 @@ export const newTextElement = (
     autoResize?: ExcalidrawTextElement["autoResize"];
     labelPosition?: ExcalidrawTextElement["labelPosition"];
     baseFontSize?: ExcalidrawTextElement["baseFontSize"];
+    textRanges?: ExcalidrawTextElement["textRanges"];
     renderEnvironment?: RenderEnvironment;
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawTextElement> => {
@@ -366,6 +368,8 @@ export const newTextElement = (
     { textAlign, verticalAlign },
     metrics,
   );
+  const originalText = opts.originalText ?? text;
+  const textRanges = normalizeTextRanges(opts.textRanges, originalText.length);
 
   const textElementProps: NonDeleted<ExcalidrawTextElement> = {
     ..._newElementBase<ExcalidrawTextElement>("text", opts),
@@ -380,10 +384,11 @@ export const newTextElement = (
     width: metrics.width,
     height: metrics.height,
     containerId: opts.containerId || null,
-    originalText: opts.originalText ?? text,
+    originalText,
     autoResize: opts.autoResize ?? true,
     lineHeight,
     labelPosition: opts.labelPosition ?? null,
+    ...(textRanges ? { textRanges } : {}),
   };
 
   const textElement: NonDeleted<ExcalidrawTextElement> = newElementWith(

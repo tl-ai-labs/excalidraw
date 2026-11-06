@@ -1,0 +1,45 @@
+[
+  {
+    "path": "packages/element/src/textRanges.ts",
+    "problem": "Gate 3 security findings 1 and 2 (security_review.md), accepted by the user. (1) Medium, SVG injection: isValidRangeColor (line 17) accepts any non-empty string other than 'transparent', so crafted scene/collab payloads can put url(...) paint-server references or oversized strings into <rect fill>/<tspan fill> on SVG export and into editable.dataset.textRanges. Restrict it to bounded CSS colour tokens only: hex #rgb/#rgba/#rrggbb/#rrggbbaa; rgb()/rgba()/hsl()/hsla() with only digits, '.', '%', ',', '/', spaces and optional 'deg' inside the parentheses; or an ASCII-letters-only named colour; total length at most 64 characters after trim; reject 'transparent', url(...), and anything else. Keep the signature `(color: unknown): color is string`. (2) Medium, DoS: normalizeTextRanges (line 25) processes an unbounded ranges array with an O(N^2) loop, and getStyleForTextRange (line ~374) calls `Math.max(end, ...ranges.map((r) => r.end))`, which can overflow the call stack. Add and export `export const MAX_TEXT_RANGES = 512;` and in normalizeTextRanges inspect only the first MAX_TEXT_RANGES entries of the input array; in getStyleForTextRange compute the maximum end with a for loop instead of the spread. Change nothing else; every existing test must still pass.",
+    "context_paths": [
+      ".sdlc/runs/20261106-152440-feature-new-text-range-styling/security_review.md"
+    ]
+  },
+  {
+    "path": "packages/excalidraw/data/reconcile.ts",
+    "problem": "Gate 3 security finding 3 (Low, availability), accepted by the user: reconcileElements reads element.originalText.length (line 103) and localElement.originalText.length (line 135) directly when 'textRanges' is in the element, which throws a TypeError if a remote collab payload has a text element with textRanges but a missing or non-string originalText. Guard both lookups with `typeof x.originalText === \"string\" ? x.originalText.length : 0`, and for remote elements use the sanitized normalized array (omit the textRanges key when normalization yields nothing). Change nothing else; every existing test must still pass.",
+    "context_paths": [
+      ".sdlc/runs/20261106-152440-feature-new-text-range-styling/security_review.md"
+    ]
+  },
+  {
+    "path": "packages/element/src/renderElement.ts",
+    "problem": "User decision at Gate 3: in the per-element canvas cache check (lines ~840-852, the `if (!prevElementWithCanvas || ... )` that decides whether to call generateElementCanvas), remove the `prevElementWithCanvas.versionNonce !== element.versionNonce ||` comparison this run added, and compare only textRanges (`prevElementWithCanvas.textRanges !== (isTextElement(element) ? element.textRanges : undefined)`). Also remove the `versionNonce` field this run added to the cached element-with-canvas type (line ~222) and its assignment (line ~347), so versionNonce is no longer stored or compared; keep the textRanges field, its assignment, and everything else. The cache check must otherwise match HEAD's version plus the textRanges comparison. Every existing test must still pass.",
+    "context_paths": []
+  },
+  {
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "problem": "User decision at Gate 3, two changes. (1) actionChangeBackgroundColor: restore its original behaviour while editing. Highlighting goes only through the Highlight picker. Remove the rangeResult / highlightColor branch and the applyEditingTextRangeUpdate call from actionChangeBackgroundColor.perform (including the `return performHighlightColorUpdate(...)` at line ~729 inside it), so actionChangeBackgroundColor (perform and PanelComponent) matches its version in git HEAD exactly. (2) Delete the exported `actionChangeHighlightColor` object (line ~527) entirely; nothing else imports it. Keep performHighlightColorUpdate, which actionChangeStrokeColor.perform still calls when its value carries `highlightColor` (the Highlight picker in actionChangeStrokeColor.PanelComponent calls updateData({ highlightColor })). Keep everything else unchanged: the per-range stroke colour, the whole-text-selection fallback to the whole element, and the sticky-note behaviour. Remove any import that becomes unused (eslint --max-warnings=0). All tests currently pass and must keep passing, including packages/excalidraw/tests/stickyNotes.test.tsx.",
+    "context_paths": [
+      "packages/excalidraw/tests/stickyNotes.test.tsx"
+    ]
+  },
+  {
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "problem": "Retry unit U17 (briefs/U17.md); the file is unchanged since before the run. Add `describe(\"per-range text styling\", ...)` at the end of the file. Anchoring: make exactly two edits, each with a unique search text. (a) Add `import { actionChangeStrokeColor } from \"../actions/actionProperties\";` next to an existing unique import line. Do NOT import actionChangeHighlightColor: it is deleted this round. (b) Search for the unique line `      expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);` (it appears once, inside it(\"removes a plain text in a single undo\")) and replace it with itself + `\\n    });\\n  });\\n\\n  describe(\"per-range text styling\", () => {` + the new cases, so that the file's remaining `    });\\n  });\\n});` closes the last new it(), the new describe and the outer describe. In every case, create the text element with API.createElement({ type: \"text\", text: \"Hello world\", ... }) and put it in the scene (API.setElements / as the file's existing-element tests do), then open the editor on it (Keyboard.keyPress(KEYS.ENTER) with it selected, or a double-click, as existing tests do). Never use the text tool. Set the selection explicitly (editor.selectionStart/selectionEnd). Apply colour with h.app.actionManager.executeAction(actionChangeStrokeColor, \"ui\", { currentItemStrokeColor: \"#e03131\" }) and highlight with h.app.actionManager.executeAction(actionChangeStrokeColor, \"ui\", { highlightColor: \"#ffec99\" }). Cases: (1) live display, which passed before: with selection 0..5, apply the colour and the highlight, then, with h.state.editingTextElement still set, assert editor.style.color === \"transparent\", JSON.parse(editor.dataset.textRanges!) holds the range, and h.app.renderer.getRenderableElements(...).elementsMap.get(id)?.textRanges holds it; (2) live typing shifts and deletes ranges, which passed before; (3) a collapsed selection (selectionStart === selectionEnd) recolours the whole element's strokeColor and leaves no 'textRanges' own property, which passed before; (4) undo/redo: on an existing element, styling during the edit is its own undo entry (captured IMMEDIATELY). Apply the highlight to 0..5, exit the editor (Keyboard.exitTextEditor(editor)), assert textRanges is set, then call Keyboard.undo() once: textRanges must be undefined and 'textRanges' in el must be false. Then Keyboard.redo(): textRanges must be restored. Do not change existing tests; no toMatchSnapshot.",
+    "context_paths": [
+      "packages/excalidraw/actions/actionProperties.tsx",
+      "packages/excalidraw/scene/Renderer.ts"
+    ]
+  },
+  {
+    "path": "packages/element/tests/textRanges.test.ts",
+    "problem": "User request at Gate 3: add one test case (keep every existing case unchanged) where a bound text element (containerId set; container is a rectangle with boundElements [{type:'text', id}]) has textRanges on part of its originalText (e.g. a coloured and highlighted word near the end of a multi-word text). It re-wraps (1) after the container is resized narrower (mutate the container width, then redrawTextBoundingBox(text, container, scene/elementsMap) as packages/element/src/textElement.ts exports it, or refreshTextDimensions from newElement.ts) and (2) after a fontSize change (mutate fontSize, then redraw the bounding box the same way). After each, assert that element.text has the new wrapping (more lines than before) and that projectTextRangesToLines (from packages/element/src/textRanges.ts) maps the styled runs onto the new lines: each run's substring equals the styled word and lands on the line that now contains it, and originalText offsets are unchanged. Use the real exported APIs (see the context files) and the project's typed-map helpers (arrayToMap / toBrandedType) so yarn test:typecheck passes; no toMatchSnapshot.",
+    "context_paths": [
+      "packages/element/src/textRanges.ts",
+      "packages/element/src/textElement.ts",
+      "packages/element/src/newElement.ts"
+    ]
+  }
+]

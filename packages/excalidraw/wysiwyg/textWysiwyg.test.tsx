@@ -49,6 +49,7 @@ import {
 import * as dataModule from "../data";
 import { actionBindText } from "../actions";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
+import { actionChangeStrokeColor } from "../actions/actionProperties";
 import { getTextAutoResizeHandle } from "../textAutoResizeHandle";
 
 import { CARET_FOLLOW_PADDING } from "./textWysiwyg";
@@ -3592,6 +3593,203 @@ describe("textWysiwyg", () => {
       Keyboard.undo();
 
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+    });
+  });
+
+  describe("per-range text styling", () => {
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    it("styles a selected range with colour and highlight and displays it live while textWysiwyg is open", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(100, 100);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+      Keyboard.exitTextEditor(editor);
+
+      const originalStrokeColor = (h.elements[0] as ExcalidrawTextElement)
+        .strokeColor;
+      const textId = h.elements[0].id;
+
+      API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);
+      Keyboard.keyPress(KEYS.ENTER);
+      editor = await getTextEditor();
+
+      act(() => {
+        editor.setSelectionRange(0, 5);
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          currentItemStrokeColor: "#e03131",
+        });
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          highlightColor: "#ffec99",
+        });
+      });
+
+      expect(h.state.editingTextElement?.id).toBe(textId);
+      expect(editor.style.color).toBe("transparent");
+      expect(JSON.parse(editor.dataset.textRanges!)).toEqual([
+        {
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlightColor: "#ffec99",
+        },
+      ]);
+
+      const renderableElement = h.app.renderer
+        .getRenderableElements({
+          ...h.state,
+          selectedElements: h.app.scene.getSelectedElements(h.state),
+        })
+        .elementsMap.get(textId) as ExcalidrawTextElement | undefined;
+      expect(renderableElement?.textRanges).toEqual([
+        {
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlightColor: "#ffec99",
+        },
+      ]);
+
+      Keyboard.exitTextEditor(editor);
+
+      const submitted = h.elements[0] as ExcalidrawTextElement;
+      expect(submitted.strokeColor).toBe(originalStrokeColor);
+      expect(submitted.textRanges).toEqual([
+        {
+          start: 0,
+          end: 5,
+          color: "#e03131",
+          highlightColor: "#ffec99",
+        },
+      ]);
+    });
+
+    it("shifts and removes textRanges during live typing and deletion in textWysiwyg", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(100, 100);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+      Keyboard.exitTextEditor(editor);
+
+      API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);
+      Keyboard.keyPress(KEYS.ENTER);
+      editor = await getTextEditor();
+
+      act(() => {
+        editor.setSelectionRange(6, 11);
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          currentItemStrokeColor: "#e03131",
+        });
+      });
+
+      expect((h.elements[0] as ExcalidrawTextElement).textRanges).toEqual([
+        { start: 6, end: 11, color: "#e03131" },
+      ]);
+
+      updateTextEditor(editor, "Oh! Hello world");
+      expect((h.elements[0] as ExcalidrawTextElement).textRanges).toEqual([
+        { start: 10, end: 15, color: "#e03131" },
+      ]);
+
+      updateTextEditor(editor, "Oh! Hello ");
+      Keyboard.exitTextEditor(editor);
+
+      const updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.textRanges).toBeUndefined();
+      expect("textRanges" in updated).toBe(false);
+    });
+
+    it("updates whole-element strokeColor when selection is collapsed", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(100, 100);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+      Keyboard.exitTextEditor(editor);
+
+      API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);
+      Keyboard.keyPress(KEYS.ENTER);
+      editor = await getTextEditor();
+
+      act(() => {
+        editor.setSelectionRange(3, 3);
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#1971c2",
+          currentItemStrokeColor: "#1971c2",
+        });
+      });
+
+      Keyboard.exitTextEditor(editor);
+
+      const updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.strokeColor).toBe("#1971c2");
+      expect(updated.textRanges).toBeUndefined();
+      expect("textRanges" in updated).toBe(false);
+    });
+
+    it("supports undo and redo of range styling", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(100, 100);
+      let editor = await getTextEditor();
+      updateTextEditor(editor, "Hello world");
+      Keyboard.exitTextEditor(editor);
+
+      API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);
+      Keyboard.keyPress(KEYS.ENTER);
+      editor = await getTextEditor();
+
+      const before = (h.history as any).undoStack.length;
+
+      act(() => {
+        editor.setSelectionRange(0, 5);
+      });
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          highlightColor: "#ffec99",
+        });
+      });
+
+      Keyboard.exitTextEditor(editor);
+
+      expect((h.elements[0] as ExcalidrawTextElement).textRanges).toEqual([
+        { start: 0, end: 5, highlightColor: "#ffec99" },
+      ]);
+      // the styling is one entry (textRanges plus the selection leaving the element),
+      // and exiting the editor adds the existing selection-only entry (selectedElementIds {} -> {id: true}),
+      // as recolouring the whole element while editing also does.
+      expect((h.history as any).undoStack.length).toBe(before + 2);
+
+      // the first undo only restores the selection
+      Keyboard.undo();
+      const afterFirstUndo = h.elements[0] as ExcalidrawTextElement;
+      expect(afterFirstUndo).toBeDefined();
+      expect(afterFirstUndo.isDeleted).toBe(false);
+      expect(afterFirstUndo.textRanges).toEqual([
+        { start: 0, end: 5, highlightColor: "#ffec99" },
+      ]);
+
+      Keyboard.undo();
+      const afterSecondUndo = h.elements[0] as ExcalidrawTextElement;
+      expect(afterSecondUndo).toBeDefined();
+      expect(afterSecondUndo.isDeleted).toBe(false);
+      expect(afterSecondUndo.textRanges).toBeUndefined();
+      expect("textRanges" in afterSecondUndo).toBe(false);
+
+      Keyboard.redo();
+      const afterRedo = h.elements[0] as ExcalidrawTextElement;
+      expect(afterRedo.textRanges).toEqual([
+        { start: 0, end: 5, highlightColor: "#ffec99" },
+      ]);
     });
   });
 });

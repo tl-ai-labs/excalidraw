@@ -383,4 +383,58 @@ describe("elements reconciliation", () => {
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
   });
+
+  it("reconciles text elements with textRanges and clamps stale out-of-bounds ranges", () => {
+    const localTextElement = {
+      id: "text-1",
+      type: "text",
+      version: 1,
+      versionNonce: 10,
+      index: "a0" as any,
+      text: "hello",
+      originalText: "hello",
+      textRanges: [{ start: 0, end: 3, color: "#e03131" }],
+    } as unknown as OrderedExcalidrawElement;
+
+    const remoteWinningTextElement = {
+      id: "text-1",
+      type: "text",
+      version: 2,
+      versionNonce: 20,
+      index: "a0" as any,
+      text: "hi",
+      originalText: "hi",
+      textRanges: [
+        { start: 0, end: 10, color: "#1971c2" },
+        { start: 5, end: 12, highlightColor: "#ffd43b" },
+      ],
+    } as unknown as RemoteExcalidrawElement;
+
+    const remoteEmptyRangesElement = {
+      id: "text-2",
+      type: "text",
+      version: 2,
+      versionNonce: 30,
+      index: "a1" as any,
+      text: "test",
+      originalText: "test",
+      textRanges: [{ start: 5, end: 10, color: "#1971c2" }],
+    } as unknown as RemoteExcalidrawElement;
+
+    const reconciled = reconcileElements(
+      [localTextElement],
+      [remoteWinningTextElement, remoteEmptyRangesElement],
+      {} as AppState,
+    );
+
+    const reconciledText1 = reconciled.find((el) => el.id === "text-1") as any;
+    expect(reconciledText1.version).toBe(2);
+    expect(reconciledText1.textRanges).toEqual([
+      { start: 0, end: 2, color: "#1971c2" },
+    ]);
+
+    const reconciledText2 = reconciled.find((el) => el.id === "text-2") as any;
+    expect(reconciledText2.version).toBe(2);
+    expect("textRanges" in reconciledText2).toBe(false);
+  });
 });

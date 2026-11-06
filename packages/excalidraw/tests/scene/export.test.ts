@@ -1096,5 +1096,123 @@ describe("exporting frames", () => {
       expect(svg.getAttribute("width")).toBe(frame1.width.toString());
       expect(svg.getAttribute("height")).toBe(frame1.height.toString());
     });
+
+    it("exports SVG with rect highlights and coloured tspans for multiline styled text across alignments and dark mode", async () => {
+      const baseText = API.createElement({
+        type: "text",
+        text: "Hello\nworld",
+        strokeColor: "#1e1e1e",
+      });
+      const styledBase = {
+        ...baseText,
+        textRanges: [
+          {
+            start: 0,
+            end: 5,
+            color: "#e03131",
+            highlightColor: "#ffec99",
+          },
+          {
+            start: 6,
+            end: 11,
+            color: "#1971c2",
+            highlightColor: "#b2f2bb",
+          },
+        ],
+      } as NonDeleted<ExcalidrawTextElement>;
+
+      for (const textAlign of ["left", "center", "right"] as const) {
+        const styledText = {
+          ...styledBase,
+          textAlign,
+        } as NonDeleted<ExcalidrawTextElement>;
+
+        const svg = await exportScene({
+          type: "svg",
+          data: {
+            elements: [styledText],
+            appState: { viewBackgroundColor: "#ffffff" },
+            files: null,
+          },
+          config: { canvasBackgroundColor: false },
+        });
+
+        const rects = Array.from(svg.querySelectorAll("rect"));
+        expect(rects).toHaveLength(2);
+        expect(rects[0]).toHaveAttribute("fill", "#ffec99");
+        expect(rects[1]).toHaveAttribute("fill", "#b2f2bb");
+
+        const tspans = Array.from(svg.querySelectorAll("tspan"));
+        expect(tspans).toHaveLength(2);
+        expect(tspans[0].textContent).toBe("Hello");
+        expect(tspans[0]).toHaveAttribute("fill", "#e03131");
+        expect(tspans[1].textContent).toBe("world");
+        expect(tspans[1]).toHaveAttribute("fill", "#1971c2");
+
+        const canvas = await exportScene({
+          type: "canvas",
+          data: {
+            elements: [styledText],
+            appState: { viewBackgroundColor: "#ffffff" },
+            files: null,
+          },
+          config: { canvasBackgroundColor: false },
+        });
+        expect(canvas.width).toBeGreaterThan(0);
+      }
+
+      const darkSvg = await exportScene({
+        type: "svg",
+        data: {
+          elements: [styledBase],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: {
+          canvasBackgroundColor: false,
+          theme: THEME.DARK,
+        },
+      });
+
+      const darkRects = Array.from(darkSvg.querySelectorAll("rect"));
+      expect(darkRects).toHaveLength(2);
+      expect(darkRects[0]).toHaveAttribute(
+        "fill",
+        applyDarkModeFilter("#ffec99", true),
+      );
+      expect(darkRects[1]).toHaveAttribute(
+        "fill",
+        applyDarkModeFilter("#b2f2bb", true),
+      );
+
+      const darkTspans = Array.from(darkSvg.querySelectorAll("tspan"));
+      expect(darkTspans).toHaveLength(2);
+      expect(darkTspans[0]).toHaveAttribute(
+        "fill",
+        applyDarkModeFilter("#e03131", true),
+      );
+      expect(darkTspans[1]).toHaveAttribute(
+        "fill",
+        applyDarkModeFilter("#1971c2", true),
+      );
+
+      const unstyledText = API.createElement({
+        type: "text",
+        text: "Hello\nworld",
+        strokeColor: "#1e1e1e",
+      });
+      const unstyledSvg = await exportScene({
+        type: "svg",
+        data: {
+          elements: [unstyledText],
+          appState: { viewBackgroundColor: "#ffffff" },
+          files: null,
+        },
+        config: { canvasBackgroundColor: false },
+      });
+      expect(unstyledSvg.querySelectorAll("rect")).toHaveLength(0);
+      expect(unstyledSvg.querySelectorAll("tspan")).toHaveLength(0);
+      expect(unstyledSvg.querySelectorAll("text")).toHaveLength(2);
+    });
   });
 });

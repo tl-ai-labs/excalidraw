@@ -1,0 +1,1833 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript strict mode with ES modules; use `import type` for type-only imports and keep `@excalidraw/common` / `@excalidraw/element` imports grouped before relative imports.",
+      "Never leave `textRanges: undefined` or `textRanges: []` as an own property on any `ExcalidrawTextElement`; omit the `textRanges` key or `delete` it when empty so Vitest element and scene snapshots remain byte-for-byte identical.",
+      "Do not add fields to `AppState` in `packages/excalidraw/appState.ts` or alter default toolbar/panel DOM when not editing text, preserving existing `appState` and UI snapshots.",
+      "Use Vitest (`describe`, `it`, `expect`, `vi`) and `@excalidraw/excalidraw/tests/test-utils` (`render`, `act`, `waitFor`) for unit and integration tests without adding new `toMatchSnapshot` calls.",
+      "Apply dark-mode colour transformation via `applyDarkModeFilter(color, theme === THEME.DARK)` from `@excalidraw/common` for both foreground text runs and background highlight rectangles in Canvas and SVG renderers."
+    ],
+    "decisions": [
+      {
+        "topic": "Live edit-time display mechanism for per-range text colour and highlight (FR-9, AC-3)",
+        "choice": "Render `editingTextElement` on the static canvas when `editingTextElement.textRanges?.length` is non-empty by retaining it in `packages/excalidraw/scene/Renderer.ts` (`getRenderableElementsMap`) and folding `editingTextElement.versionNonce` into `canvasNonce` (`getRenderableElements`), while `packages/excalidraw/wysiwyg/textWysiwyg.tsx` sets `editable.style.color = \"transparent\"`, `editable.style.caretColor = applyDarkModeFilter(updatedTextElement.strokeColor, appState.theme === THEME.DARK)`, and `editable.dataset.textRanges = JSON.stringify(updatedTextElement.textRanges)`; in jsdom, `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` deterministically asserts against `editor.style.color === \"transparent\"`, `JSON.parse(editor.dataset.textRanges!)`, and `h.app.renderer.getRenderableElements(...).elementsMap.get(textElement.id)?.textRanges` while `h.state.editingTextElement` is open.",
+        "rejected": [
+          "Replacing the `<textarea class=\"excalidraw-wysiwyg\">` with a `contenteditable` div containing `<span>` nodes",
+          "Rendering a mirrored HTML `<div>/<span>` overlay inside `.excalidraw-textEditorContainer` while keeping `editingTextElement` excluded from `Renderer.ts`"
+        ],
+        "reason": "(a) Normally `packages/excalidraw/scene/Renderer.ts` `getRenderableElementsMap` skips `editingTextElement` and `packages/excalidraw/wysiwyg/textWysiwyg.tsx` paints the `<textarea>` in a single inline `color`, which cannot render per-run colours or background highlights; replacing `<textarea>` with `contenteditable` would break `selectionStart`/`selectionEnd` code-unit indexing and existing `HTMLTextAreaElement` tests, and a DOM mirror overlay can drift from Canvas 2D `measureText`/`getWrappedTextLines` metrics, whereas letting the static canvas draw the styled runs beneath a transparent-text `<textarea>` reuses the exact canvas run renderer while keeping native `<textarea>` caret/selection and leaving unstyled text editing (`!textRanges?.length`) untouched. (b) In jsdom, `textWysiwyg.test.tsx` asserts deterministically while the editor is open that `editor.style.color` is `\"transparent\"`, `JSON.parse(editor.dataset.textRanges!)` matches the applied `TextRangeStyle[]`, and `h.app.renderer.getRenderableElements(...).elementsMap.get(textElement.id)?.textRanges` contains the live styled range."
+      },
+      {
+        "topic": "Representation and omission of `textRanges` on `ExcalidrawTextElement` (FR-1, NFR-1)",
+        "choice": "Store styled spans in `textRanges?: readonly TextRangeStyle[]` where `TextRangeStyle = Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>` over UTF-16 code-unit offsets of `originalText`, and omit or `delete` the `textRanges` own property whenever normalized ranges are empty.",
+        "rejected": [
+          "Initializing `textRanges: []` or `textRanges: undefined` as an own property on every `ExcalidrawTextElement`",
+          "Indexing ranges against wrapped `element.text` instead of `originalText`"
+        ],
+        "reason": "Vitest snapshots serialize `\"textRanges\": undefined` if the key exists on the object; omitting and deleting the key when empty guarantees zero snapshot drift, and indexing against `originalText` keeps offsets stable across width/container re-wrapping."
+      },
+      {
+        "topic": "Applying range colour and highlight from WYSIWYG and properties actions (FR-4)",
+        "choice": "Export `getWysiwygSelectionRange` and `syncWysiwygTextRangesStyle` from `packages/excalidraw/wysiwyg/textWysiwyg.tsx`, export `actionChangeHighlightColor` from `packages/excalidraw/actions/actionProperties.tsx`, and route `actionChangeStrokeColor`, `actionChangeBackgroundColor`, and `actionChangeHighlightColor` to update `[selectionStart, selectionEnd)` via `applyTextRangeStyle` whenever `appState.editingTextElement` has a non-empty selection (`selectionStart < selectionEnd`), while rendering a Highlight `ColorPicker` inside `actionChangeStrokeColor.PanelComponent` when editing non-sticky text.",
+        "rejected": [
+          "Enabling `getShapeActionPredicates.backgroundColor` for plain text elements while editing",
+          "Storing WYSIWYG selection offsets in `AppState`"
+        ],
+        "reason": "`stickyNotes.test.tsx` explicitly asserts `getShapeActionPredicates(...).backgroundColor === false` when editing plain text, and `contextmenu`/`history` snapshots forbid new `AppState` keys; reading selection from the live `.excalidraw-wysiwyg` textarea and rendering the highlight picker in `actionChangeStrokeColor.PanelComponent` during plain-text editing satisfies both constraints."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "yarn test:app --watch=false {path}",
+        "timeout_s": 120
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "code",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "app-tests",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Define `TextRangeStyle` and add the optional `textRanges?: readonly TextRangeStyle[]` property to `ExcalidrawTextElement`.",
+      "rules": [
+        "1. Export `type TextRangeStyle = Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>` where `start` and `end` are UTF-16 code-unit offsets in `[0, originalText.length]` with `start < end`.",
+        "2. Add `textRanges?: readonly TextRangeStyle[];` as an optional field on `ExcalidrawTextElement` so unstyled text elements omit the key entirely."
+      ],
+      "exports": [
+        {
+          "name": "TextRangeStyle",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>"
+        },
+        {
+          "name": "ExcalidrawTextElement",
+          "kind": "type",
+          "params": [],
+          "returns": "_ExcalidrawElementBase & Readonly<{ type: \"text\"; ...; textRanges?: readonly TextRangeStyle[] }>"
+        }
+      ],
+      "import_line": "import type { ExcalidrawTextElement, TextRangeStyle } from \"./types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253,
+          "first_line": "export type ExcalidrawTextElement = _ExcalidrawElementBase &",
+          "rule": "Export `TextRangeStyle = Readonly<{ start: number; end: number; color?: string; highlightColor?: string }>` immediately before `ExcalidrawTextElement`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 290,
+          "to": 290,
+          "first_line": "labelPosition?: number | null;",
+          "rule": "Add optional `textRanges?: readonly TextRangeStyle[];` to `ExcalidrawTextElement`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/src/types.ts",
+        "lines": [
+          250,
+          292
+        ],
+        "reason": "Matches existing `ExcalidrawTextElement` readonly type declaration style."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "NFR-1",
+        "NFR-5"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/textRanges.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Provide pure range algebra for normalizing, merging, splitting, applying, shifting on edit, querying, and line-projecting `TextRangeStyle` spans over `originalText`.",
+      "rules": [
+        "1. `isValidRangeColor(color: unknown): color is string` returns `true` iff `typeof color === \"string\"` and `color.trim().length > 0` and `color.trim().toLowerCase() !== \"transparent\"`.",
+        "2. `normalizeTextRanges(ranges: unknown, textLength: number): readonly TextRangeStyle[] | undefined` returns `undefined` if `!Array.isArray(ranges)` or `textLength <= 0` or `ranges.length === 0`; clamps each entry's finite `start`/`end` integers into `[0, textLength]`, drops entries with `start >= end` or neither valid `color` nor valid `highlightColor`, splits overlapping intervals at all sorted unique boundary points so later entries override earlier entries per defined channel (`color` independently of `highlightColor`) while preserving the other channel from earlier entries, merges adjacent intervals that have `prev.end === curr.start && prev.color === curr.color && prev.highlightColor === curr.highlightColor`, omits undefined channel keys from each `TextRangeStyle` object, and returns `undefined` when empty.",
+        "3. `areTextRangesEqual(a: readonly TextRangeStyle[] | undefined, b: readonly TextRangeStyle[] | undefined): boolean` treats `undefined` and `[]` as equal and returns `true` iff both arrays have equal length and identical `start`, `end`, `color`, and `highlightColor` at every index.",
+        "4. `applyTextRangeStyle(ranges: readonly TextRangeStyle[] | undefined, textLength: number, start: number, end: number, style: { color?: string | null; highlightColor?: string | null }, baseStrokeColor?: string): readonly TextRangeStyle[] | undefined` clamps `[start, end)` to `[0, textLength]`; if `s >= e` or `textLength <= 0`, returns `normalizeTextRanges(ranges, textLength)`. Splits existing normalized ranges at `s` and `e`; when `\"color\" in style`, sets `color` on `[s, e)` if `isValidRangeColor(style.color)` and `(!baseStrokeColor || style.color.trim().toLowerCase() !== baseStrokeColor.trim().toLowerCase())`, otherwise clears the `color` channel on `[s, e)`; when `\"highlightColor\" in style`, sets `highlightColor` on `[s, e)` if `isValidRangeColor(style.highlightColor)`, otherwise clears the `highlightColor` channel on `[s, e)`; normalizes and merges the result via `normalizeTextRanges`.",
+        "5. `computeTextEditDelta(prevText: string, nextText: string): TextEditDelta` computes common prefix length `start` and non-overlapping common suffix length `suffixLen`, returning `{ start, deleteCount: prevText.length - start - suffixLen, insertLength: nextText.length - start - suffixLen }`.",
+        "6. `shiftTextRangesOnEdit(ranges: readonly TextRangeStyle[] | undefined, prevText: string, nextText: string): readonly TextRangeStyle[] | undefined` returns `undefined` if `!ranges?.length || nextText.length === 0`, or `normalizeTextRanges(ranges, nextText.length)` if `prevText === nextText`. Otherwise uses `computeTextEditDelta(prevText, nextText)` (`dStart = start`, `dEnd = start + deleteCount`, `dLen = deleteCount`, `k = insertLength`) to transform each range in two steps: first delete `[dStart, dEnd)` (`s1 = r.start <= dStart ? r.start : r.start >= dEnd ? r.start - dLen : dStart`, `e1 = r.end <= dStart ? r.end : r.end >= dEnd ? r.end - dLen : dStart`, dropping if `s1 >= e1`), then insert `k` at `dStart` (`s2 = s1 >= dStart ? s1 + k : s1`, `e2 = e1 > dStart ? e1 + k : e1`), and returns `normalizeTextRanges(shifted, nextText.length)`.",
+        "7. `getStyleForTextRange(ranges: readonly TextRangeStyle[] | undefined, start: number, end: number, defaultStrokeColor: string): { color: string; highlightColor: string }` returns `{ color: defaultStrokeColor, highlightColor: \"transparent\" }` when `start >= end` or `!ranges?.length`; otherwise inspects normalized ranges overlapping `[start, end)` and returns a uniform `color` if ranges completely cover `[start, end)` with the same `color` (else `defaultStrokeColor`) and a uniform `highlightColor` if ranges completely cover `[start, end)` with the same `highlightColor` (else `\"transparent\"`).",
+        "8. `projectTextRangesToLines(originalText: string, wrappedText: string, ranges: readonly TextRangeStyle[] | undefined): readonly (readonly TextLineRun[])[]` normalizes newlines (`\\r\\n?` -> `\\n`) on both inputs, splits `wrappedText` on `\"\\n\"`, advances a cursor `pos` through `originalText` to locate each line's `[lineStart, lineEnd)` offset in `originalText` (skipping soft-wrap trimmed whitespace via `originalText.indexOf(lineText, pos)` and advancing past at most one `\\n` after each line), and slices each line `[lineStart, lineEnd)` against `normalizeTextRanges(ranges, originalText.length)` into contiguous `TextLineRun` segments `{ text, start, end, ...(color ? { color } : {}), ...(highlightColor ? { highlightColor } : {}) }`."
+      ],
+      "exports": [
+        {
+          "name": "TextLineRun",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ text: string; start: number; end: number; color?: string; highlightColor?: string }>"
+        },
+        {
+          "name": "TextEditDelta",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ start: number; deleteCount: number; insertLength: number }>"
+        },
+        {
+          "name": "isValidRangeColor",
+          "kind": "function",
+          "params": [
+            {
+              "name": "color",
+              "type": "unknown"
+            }
+          ],
+          "returns": "color is string"
+        },
+        {
+          "name": "normalizeTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "unknown"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "areTextRangesEqual",
+          "kind": "function",
+          "params": [
+            {
+              "name": "a",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "b",
+              "type": "readonly TextRangeStyle[] | undefined"
+            }
+          ],
+          "returns": "boolean"
+        },
+        {
+          "name": "applyTextRangeStyle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            },
+            {
+              "name": "style",
+              "type": "{ color?: string | null; highlightColor?: string | null }"
+            },
+            {
+              "name": "baseStrokeColor",
+              "type": "string | undefined"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "computeTextEditDelta",
+          "kind": "function",
+          "params": [
+            {
+              "name": "prevText",
+              "type": "string"
+            },
+            {
+              "name": "nextText",
+              "type": "string"
+            }
+          ],
+          "returns": "TextEditDelta"
+        },
+        {
+          "name": "shiftTextRangesOnEdit",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "prevText",
+              "type": "string"
+            },
+            {
+              "name": "nextText",
+              "type": "string"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "getStyleForTextRange",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            },
+            {
+              "name": "defaultStrokeColor",
+              "type": "string"
+            }
+          ],
+          "returns": "{ color: string; highlightColor: string }"
+        },
+        {
+          "name": "projectTextRangesToLines",
+          "kind": "function",
+          "params": [
+            {
+              "name": "originalText",
+              "type": "string"
+            },
+            {
+              "name": "wrappedText",
+              "type": "string"
+            },
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            }
+          ],
+          "returns": "readonly (readonly TextLineRun[])[]"
+        }
+      ],
+      "import_line": "import { isValidRangeColor, normalizeTextRanges, areTextRangesEqual, applyTextRangeStyle, computeTextEditDelta, shiftTextRangesOnEdit, getStyleForTextRange, projectTextRangesToLines } from \"./textRanges\";",
+      "style_from": {
+        "path": "packages/element/src/textMeasurements.ts",
+        "lines": [
+          1,
+          80
+        ],
+        "reason": "Follows @excalidraw/element pure helper structure and TypeScript conventions."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Imports `TextRangeStyle` from `./types`."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "AC-5",
+        "AC-6",
+        "AC-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/newElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Accept optional `textRanges` in `newTextElement` and normalize it, omitting the property completely when empty.",
+      "rules": [
+        "1. Accept `textRanges?: ExcalidrawTextElement[\"textRanges\"];` in `newTextElement` options.",
+        "2. Compute `const originalText = opts.originalText ?? text;` and `const textRanges = normalizeTextRanges(opts.textRanges, originalText.length);`.",
+        "3. Spread `...(textRanges ? { textRanges } : {})` into `textElementProps` so that `\"textRanges\" in textElement` is `false` whenever `textRanges` is `undefined`."
+      ],
+      "exports": [
+        {
+          "name": "newTextElement",
+          "kind": "function",
+          "params": [
+            {
+              "name": "opts",
+              "type": "object & ElementConstructorOpts"
+            }
+          ],
+          "returns": "NonDeleted<ExcalidrawTextElement>"
+        }
+      ],
+      "import_line": "import { newTextElement } from \"./newElement\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33,
+          "first_line": "import { wrapText } from \"./textWrapping\";",
+          "rule": "Import `normalizeTextRanges` from `./textRanges`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 349,
+          "to": 387,
+          "first_line": "baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];",
+          "last_line": "};",
+          "rule": "Add `textRanges?: ExcalidrawTextElement[\"textRanges\"];` to `newTextElement` options, normalize `opts.textRanges` against `originalText.length`, and conditionally spread `...(textRanges ? { textRanges } : {})` into `textElementProps`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/src/newElement.ts",
+        "lines": [
+          337,
+          395
+        ],
+        "reason": "Matches `newTextElement` construction style."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "NFR-1",
+        "NFR-5"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/renderElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render per-run background highlight rectangles and per-run coloured text on Canvas 2D and invalidate cached element canvases when `textRanges` changes.",
+      "rules": [
+        "1. Add `textRanges?: ExcalidrawTextElement[\"textRanges\"];` and `versionNonce?: number;` to `ExcalidrawElementWithCanvas`, populate them in `generateElementCanvas`, and check `prevElementWithCanvas.versionNonce !== element.versionNonce || prevElementWithCanvas.textRanges !== (isTextElement(element) ? element.textRanges : undefined)` in `generateElementWithCanvas` so any range change regenerates the cached bitmap.",
+        "2. In `drawElementOnCanvas` (`if (isTextElement(element))`): when `!element.textRanges?.length`, keep the existing single `context.fillText(lines[index], horizontalOffset, index * lineHeightPx + verticalOffset)` loop unchanged.",
+        "3. When `element.textRanges?.length` is non-empty, call `const lineRuns = projectTextRangesToLines(element.originalText, element.text.replace(/\\r\\n?/g, \"\\n\"), element.textRanges)`. For each line `index`, if `lineRuns[index]` has a single run with neither `color` nor `highlightColor`, draw `lines[index]` with the existing fast path; otherwise measure `lineWidth = context.measureText(lines[index]).width`, compute `lineStartX = element.textAlign === \"center\" ? (element.width - lineWidth) / 2 : element.textAlign === \"right\" ? element.width - lineWidth : 0`, compute each run's `[runX, runWidth]` advancing left-to-right from `lineStartX` when `!rtl` or right-to-left from `lineStartX + lineWidth` when `rtl`, first draw `context.fillRect(runX, index * lineHeightPx, runWidth, lineHeightPx)` with `context.fillStyle = applyDarkModeFilter(run.highlightColor, renderConfig.theme === THEME.DARK)` for every run with `run.highlightColor`, then set `context.textAlign = \"left\"` and draw `context.fillText(run.text, runX, index * lineHeightPx + verticalOffset)` with `context.fillStyle = applyDarkModeFilter(run.color || element.strokeColor, renderConfig.theme === THEME.DARK)` for every run, restoring `context.textAlign = element.textAlign as CanvasTextAlign` after the line."
+      ],
+      "exports": [
+        {
+          "name": "ExcalidrawElementWithCanvas",
+          "kind": "interface",
+          "params": [],
+          "returns": "ExcalidrawElementWithCanvas"
+        }
+      ],
+      "import_line": "import { renderElement, elementWithCanvasCache } from \"./renderElement\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 61,
+          "to": 61,
+          "first_line": "import { getLineHeightInPx } from \"./textMeasurements\";",
+          "rule": "Import `projectTextRangesToLines` from `./textRanges`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 219,
+          "to": 221,
+          "first_line": "imageCrop: ExcalidrawImageElement[\"crop\"] | null;",
+          "last_line": "}",
+          "rule": "Add `versionNonce?: number;` and `textRanges?: ExcalidrawTextElement[\"textRanges\"];` to `ExcalidrawElementWithCanvas`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 343,
+          "to": 345,
+          "first_line": "imageCrop: isImageElement(element) ? element.crop : null,",
+          "last_line": "};",
+          "rule": "Record `versionNonce: element.versionNonce` and `textRanges: isTextElement(element) ? element.textRanges : undefined` in the object returned by `generateElementCanvas`."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 706,
+          "to": 713,
+          "first_line": "for (let index = 0; index < lines.length; index++) {",
+          "last_line": "});",
+          "rule": "When `element.textRanges?.length` is non-empty, project ranges via `projectTextRangesToLines` and render per-run highlight `fillRect`s before per-run `fillText` calls with `applyDarkModeFilter` and alignment/RTL positioning; preserve the single `fillText` loop when `!element.textRanges?.length`."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 755,
+          "to": 756,
+          "first_line": "prevElementWithCanvas.imageCrop !== imageCrop ||",
+          "last_line": "prevElementWithCanvas.containingFrameOpacity !== containingFrameOpacity",
+          "rule": "Also regenerate cached element canvas when `prevElementWithCanvas.versionNonce !== element.versionNonce` or `prevElementWithCanvas.textRanges !== (isTextElement(element) ? element.textRanges : undefined)`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/src/renderElement.ts",
+        "lines": [
+          660,
+          775
+        ],
+        "reason": "Matches existing Canvas 2D text rendering and element canvas caching."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement` and `TextRangeStyle`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-8",
+        "NFR-2",
+        "NFR-4",
+        "AC-2",
+        "AC-4"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/element/src/delta.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Normalize or remove `textRanges` when applying `ElementsDelta` and compare `textRanges` structurally in `checkForVisibleDifference`.",
+      "rules": [
+        "1. In `ElementsDelta.applyDelta`: after `const nextElement = newElementWith(element, directlyApplicablePartial, true);`, if `isTextElement(nextElement)` and `(\"textRanges\" in directlyApplicablePartial || \"textRanges\" in nextElement)`, compute `const normalizedRanges = \"textRanges\" in directlyApplicablePartial ? normalizeTextRanges(directlyApplicablePartial.textRanges, nextElement.originalText.length) : normalizeTextRanges(nextElement.textRanges, nextElement.originalText.length);`; if `normalizedRanges` is defined, set `(nextElement as Mutable<ExcalidrawTextElement>).textRanges = normalizedRanges`, else `delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges` so undoing back to an unstyled state removes the own property.",
+        "2. In `ElementsDelta.checkForVisibleDifference`: handle `case \"textRanges\": return !areTextRangesEqual((before as ExcalidrawTextElement).textRanges, (after as ExcalidrawTextElement).textRanges);`."
+      ],
+      "exports": [
+        {
+          "name": "ElementsDelta",
+          "kind": "class",
+          "params": [],
+          "returns": "ElementsDelta"
+        }
+      ],
+      "import_line": "import { Delta, ElementsDelta } from \"./delta\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 47,
+          "to": 47,
+          "first_line": "import { getBoundTextElementId, redrawTextBoundingBox } from \"./textElement\";",
+          "rule": "Import `areTextRangesEqual` and `normalizeTextRanges` from `./textRanges`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 1791,
+          "to": 1792,
+          "first_line": "return newElementWith(element, directlyApplicablePartial, true);",
+          "last_line": "}",
+          "rule": "Normalize `textRanges` on `nextElement` against `nextElement.originalText.length` and `delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges` when empty or cleared by `directlyApplicablePartial`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 1876,
+          "to": 1883,
+          "first_line": "case \"boundElements\":",
+          "last_line": "}",
+          "rule": "Add `case \"textRanges\": return !areTextRangesEqual((before as ExcalidrawTextElement).textRanges, (after as ExcalidrawTextElement).textRanges);` before `default:`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/src/delta.ts",
+        "lines": [
+          1742,
+          1885
+        ],
+        "reason": "Matches `ElementsDelta.applyDelta` and `checkForVisibleDifference` conventions."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-12",
+        "NFR-1",
+        "AC-1"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/element/src/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-export all range algebra helpers and types from `./textRanges` in `@excalidraw/element`.",
+      "rules": [
+        "1. Add `export * from \"./textRanges\";` after `export * from \"./textWrapping\";`."
+      ],
+      "exports": [
+        {
+          "name": "normalizeTextRanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "unknown"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "applyTextRangeStyle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "textLength",
+              "type": "number"
+            },
+            {
+              "name": "start",
+              "type": "number"
+            },
+            {
+              "name": "end",
+              "type": "number"
+            },
+            {
+              "name": "style",
+              "type": "{ color?: string | null; highlightColor?: string | null }"
+            },
+            {
+              "name": "baseStrokeColor",
+              "type": "string | undefined"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "shiftTextRangesOnEdit",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            },
+            {
+              "name": "prevText",
+              "type": "string"
+            },
+            {
+              "name": "nextText",
+              "type": "string"
+            }
+          ],
+          "returns": "readonly TextRangeStyle[] | undefined"
+        },
+        {
+          "name": "projectTextRangesToLines",
+          "kind": "function",
+          "params": [
+            {
+              "name": "originalText",
+              "type": "string"
+            },
+            {
+              "name": "wrappedText",
+              "type": "string"
+            },
+            {
+              "name": "ranges",
+              "type": "readonly TextRangeStyle[] | undefined"
+            }
+          ],
+          "returns": "readonly (readonly TextLineRun[])[]"
+        }
+      ],
+      "import_line": "import { isValidRangeColor, normalizeTextRanges, areTextRangesEqual, applyTextRangeStyle, computeTextEditDelta, shiftTextRangesOnEdit, getStyleForTextRange, projectTextRangesToLines } from \"@excalidraw/element\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 102,
+          "to": 102,
+          "first_line": "export * from \"./textWrapping\";",
+          "rule": "Add `export * from \"./textRanges\";`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/src/index.ts",
+        "lines": [
+          85,
+          111
+        ],
+        "reason": "Matches `@excalidraw/element` barrel export style."
+      },
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add English translation strings for the text highlight colour picker.",
+      "rules": [
+        "1. Add `\"highlight\": \"Highlight\",` and `\"changeHighlight\": \"Change highlight color\",` under `\"labels\"` right after `\"changeBackground\"`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 36,
+          "to": 36,
+          "first_line": "\"changeBackground\": \"Change background color\",",
+          "rule": "Add `\"highlight\": \"Highlight\",` and `\"changeHighlight\": \"Change highlight color\",`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/locales/en.json",
+        "lines": [
+          30,
+          42
+        ],
+        "reason": "Matches existing color picker label keys in `en.json`."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-4"
+      ],
+      "checks": []
+    },
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/scene/Renderer.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Keep `editingTextElement` in `getRenderableElementsMap` when `element.textRanges?.length` is non-empty and include `editingTextElement.versionNonce` in `canvasNonce` so the static canvas live-renders styled runs beneath the transparent WYSIWYG textarea.",
+      "rules": [
+        "1. In `getRenderableElementsMap`: only treat `newElement` as `newElementCanvasElement` when it is not a text element with `textRanges?.length` (`const newElementCanvasElement = newElement?.frameId || (newElement && isTextElement(newElement) && newElement.textRanges?.length) ? null : newElement;`), and include `element` in `elementsMap` when `!editingTextElement || editingTextElement.type !== \"text\" || element.id !== editingTextElement.id || Boolean(isTextElement(element) && element.textRanges?.length)`.",
+        "2. In `getRenderableElements`: append `opts.editingTextElement && isTextElement(opts.editingTextElement) ? \":\" + opts.editingTextElement.versionNonce : \"\"` to `canvasNonce` so mutating `textRanges` or typing during WYSIWYG editing invalidates the memoized renderable elements."
+      ],
+      "exports": [
+        {
+          "name": "Renderer",
+          "kind": "class",
+          "params": [
+            {
+              "name": "scene",
+              "type": "Scene"
+            }
+          ],
+          "returns": "Renderer"
+        }
+      ],
+      "import_line": "import { Renderer } from \"../scene/Renderer\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 252,
+          "to": 268,
+          "first_line": "const newElementCanvasElement = newElement?.frameId ? null : newElement;",
+          "last_line": "}",
+          "rule": "Keep `editingTextElement` (and `newElement` when it is a text element with `textRanges?.length`) in `elementsMap` whenever `isTextElement(element) && Boolean(element.textRanges?.length)`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 369,
+          "to": 373,
+          "first_line": "const canvasNonce = `${this.scene.getSceneNonce()}${",
+          "last_line": "}`;",
+          "rule": "Fold `opts.editingTextElement.versionNonce` into `canvasNonce` when `opts.editingTextElement && isTextElement(opts.editingTextElement)`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/scene/Renderer.ts",
+        "lines": [
+          250,
+          380
+        ],
+        "reason": "Matches `Renderer.getRenderableElementsMap` and `getRenderableElements` memoization style."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement.textRanges`."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-9",
+        "AC-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Expose active WYSIWYG selection offsets and synchronize the `<textarea>` transparency, caret colour, and `data-text-ranges` attribute when `textRanges` are present.",
+      "rules": [
+        "1. Export `getWysiwygSelectionRange(ownerDocument?: Document): { start: number; end: number } | null`: looks up the active `.excalidraw-wysiwyg` `<textarea>` (from module-tracked `activeEditable` or `(ownerDocument ?? document).querySelector<HTMLTextAreaElement>(\".excalidraw-wysiwyg\")`); if not found, returns `null`; returns `{ start: Math.min(editable.selectionStart, editable.selectionEnd), end: Math.max(editable.selectionStart, editable.selectionEnd) }` (returning `{ start: 0, end: 0 }` when the selection was set only by initial `autoSelect` and the user/test has not modified selection via `setSelectionRange`, `select`, `mouseup`, `keyup`, or direct `selectionStart`/`selectionEnd` assignment to a sub-range).",
+        "2. Track whether initial `autoSelect` selected the whole text on open: wrap `editable.setSelectionRange` and listen to `select`, `keyup`, `mouseup`, and `input` on `editable` so any explicit call to `editor.setSelectionRange(start, end)` (even `[0, value.length)`) or user selection marks the selection as explicit, whereas an untouched `autoSelect` full-text selection on an unstyled element reports `{ start: 0, end: 0 }` so changing stroke colour right after opening without selecting a range still updates whole-element `strokeColor`.",
+        "3. Export `syncWysiwygTextRangesStyle(element: ExcalidrawTextElement, theme: AppState[\"theme\"], editableEl?: HTMLTextAreaElement | null): void`: resolves `editable = editableEl ?? activeEditable ?? document.querySelector<HTMLTextAreaElement>(\".excalidraw-wysiwyg\")`; if `!editable`, returns. Computes `filteredStroke = applyDarkModeFilter(element.strokeColor, theme === THEME.DARK)`. When `element.textRanges?.length` is non-empty, sets `editable.style.color = \"transparent\"`, `editable.style.caretColor = filteredStroke`, and `editable.dataset.textRanges = JSON.stringify(element.textRanges)`; when `element.textRanges` is empty/undefined, sets `editable.style.color = filteredStroke`, `editable.style.caretColor = \"\"`, and `delete editable.dataset.textRanges`.",
+        "4. Call `syncWysiwygTextRangesStyle(updatedTextElement, appState.theme, editable)` inside `updateWysiwygStyle` right after `Object.assign(editable.style, ...)`, set `activeEditable = editable` when creating the editor, and clear `activeEditable = null` in `cleanup()`.",
+        "5. When initializing selection before `bindBlurEvent()`, if `pendingInitialSelection` is non-null, call `editable.setSelectionRange(pendingInitialSelection.start, pendingInitialSelection.end)` immediately so `editable.selectionStart` and `editable.selectionEnd` reflect `pendingInitialSelection` synchronously on open."
+      ],
+      "exports": [
+        {
+          "name": "getWysiwygSelectionRange",
+          "kind": "function",
+          "params": [
+            {
+              "name": "ownerDocument",
+              "type": "Document | undefined"
+            }
+          ],
+          "returns": "{ start: number; end: number } | null"
+        },
+        {
+          "name": "syncWysiwygTextRangesStyle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawTextElement"
+            },
+            {
+              "name": "theme",
+              "type": "AppState[\"theme\"]"
+            },
+            {
+              "name": "editableEl",
+              "type": "HTMLTextAreaElement | null | undefined"
+            }
+          ],
+          "returns": "void"
+        }
+      ],
+      "import_line": "import { textWysiwyg, getWysiwygSelectionRange, syncWysiwygTextRangesStyle } from \"../wysiwyg/textWysiwyg\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "export const CARET_FOLLOW_PADDING = 5;",
+          "rule": "Declare module-level tracking for `activeEditable` / explicit selection and export `getWysiwygSelectionRange` and `syncWysiwygTextRangesStyle`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 503,
+          "to": 509,
+          "first_line": "color: applyDarkModeFilter(",
+          "last_line": "currentTextLayout = {",
+          "rule": "Call `syncWysiwygTextRangesStyle(updatedTextElement, appState.theme, editable)` so `editable.style.color`, `editable.style.caretColor`, and `editable.dataset.textRanges` reflect whether `updatedTextElement.textRanges` is non-empty."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 1091,
+          "to": 1091,
+          "first_line": "const cleanup = () => {",
+          "rule": "Clear `activeEditable` in `cleanup()`."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 1301,
+          "to": 1306,
+          "first_line": "if (autoSelect && !pendingInitialSelection) {",
+          "last_line": "bindBlurEvent();",
+          "rule": "Register `activeEditable = editable`, apply `pendingInitialSelection` synchronously when present or run `editable.select()` when `autoSelect` is true, and hook `setSelectionRange` / selection events to track explicit range selection."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "lines": [
+          480,
+          540
+        ],
+        "reason": "Matches `textWysiwyg` DOM style management and event lifecycle."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement` and `TextRangeStyle`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "FR-9",
+        "AC-1",
+        "AC-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/components/App.text.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Shift, expand, trim, or remove `textRanges` when `originalText` changes during `textWysiwyg` live editing and submit, and keep `editingTextElement` and the WYSIWYG textarea synced.",
+      "rules": [
+        "1. Import `shiftTextRangesOnEdit` from `@excalidraw/element`, `Mutable` from `@excalidraw/common/utility-types`, and `syncWysiwygTextRangesStyle` from `../wysiwyg/textWysiwyg`.",
+        "2. In `handleTextWysiwyg` -> `updateElement(nextOriginalText, isDeleted)`: when building the updated text element for `_element.id === latestTextElement.id`, compute `const shiftedRanges = isDeleted ? undefined : shiftTextRangesOnEdit(_element.textRanges, _element.originalText, nextOriginalText);`; pass `...(shiftedRanges ? { textRanges: shiftedRanges } : {})` to `newElementWith`, and if `!shiftedRanges && \"textRanges\" in nextElement`, `delete (nextElement as Mutable<ExcalidrawTextElement>).textRanges` so no `textRanges: undefined` own property remains.",
+        "3. After `this.app.scene.replaceAllElements(...)` in `updateElement`: if `updatedTextElement && isTextElement(updatedTextElement)` and `this.app.state.editingTextElement?.id === updatedTextElement.id`, call `syncWysiwygTextRangesStyle(updatedTextElement, this.app.state.theme)` and if `this.app.state.editingTextElement.textRanges !== updatedTextElement.textRanges`, update `this.app.setState({ editingTextElement: updatedTextElement })`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "refreshTextDimensions,",
+          "rule": "Import `shiftTextRangesOnEdit` from `@excalidraw/element`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 59,
+          "to": 59,
+          "first_line": "import { textWysiwyg } from \"../wysiwyg/textWysiwyg\";",
+          "last_line": "import { textWysiwyg } from \"../wysiwyg/textWysiwyg\";",
+          "rule": "Also import `syncWysiwygTextRangesStyle` from `../wysiwyg/textWysiwyg` and `type { Mutable } from \"@excalidraw/common/utility-types\"`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 222,
+          "to": 245,
+          "first_line": "if (_element.id === latestTextElement.id && isTextElement(_element)) {",
+          "last_line": "if (",
+          "rule": "Shift `_element.textRanges` with `shiftTextRangesOnEdit(_element.textRanges, _element.originalText, nextOriginalText)`, delete `textRanges` when empty, and sync `editingTextElement` and `syncWysiwygTextRangesStyle`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/App.text.ts",
+        "lines": [
+          185,
+          255
+        ],
+        "reason": "Matches `AppText.handleTextWysiwyg` `updateElement` flow."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06",
+        "U09"
+      ],
+      "covers": [
+        "FR-5",
+        "FR-9",
+        "AC-3",
+        "AC-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Apply text colour and highlight colour to the selected `[selectionStart, selectionEnd)` range when `textWysiwyg` has a non-empty selection, and render a Highlight `ColorPicker` while editing non-sticky text.",
+      "rules": [
+        "1. Import `applyTextRangeStyle`, `getStyleForTextRange` from `@excalidraw/element`, `Mutable` from `@excalidraw/common/utility-types`, `DEFAULT_ELEMENT_BACKGROUND_PICKS` from `@excalidraw/common`, and `getWysiwygSelectionRange`, `syncWysiwygTextRangesStyle` from `../wysiwyg/textWysiwyg`.",
+        "2. Define helper `applyEditingTextRangeUpdate(elements, appState, style: { color?: string | null; highlightColor?: string | null }, requireNonEmptySelection: boolean)`: when `appState.editingTextElement` is open, finds the live text element in `elements`, reads `selection = getWysiwygSelectionRange()`; if `requireNonEmptySelection` and `(!selection || selection.start >= selection.end)`, returns `null`; resolves `[start, end] = selection && selection.start < selection.end ? [selection.start, selection.end] : [0, editingEl.originalText.length]`; computes `nextRanges = applyTextRangeStyle(editingEl.textRanges, editingEl.originalText.length, start, end, style, editingEl.strokeColor)`; creates `updatedEl = newElementWith(editingEl, { textRanges: nextRanges ?? [] }, true)` and if `!nextRanges` deletes `(updatedEl as Mutable<ExcalidrawTextElement>).textRanges`; calls `syncWysiwygTextRangesStyle(updatedEl, appState.theme)`; returns `{ elements: elements.map((el) => (el.id === updatedEl.id ? updatedEl : el)), editingTextElement: updatedEl }`.",
+        "3. In `actionChangeStrokeColor.perform`: resolve `effectiveColor = color ?? appStateUpdates.currentItemStrokeColor`; if `effectiveColor !== undefined`, try `const rangeResult = applyEditingTextRangeUpdate(elements, appState, { color: effectiveColor }, true)`; if `rangeResult` is non-null, return `{ elements: rangeResult.elements, appState: { ...appState, ...appStateUpdates, editingTextElement: rangeResult.editingTextElement }, captureUpdate: appState.newElement ? CaptureUpdateAction.EVENTUALLY : CaptureUpdateAction.IMMEDIATELY }`; otherwise execute the existing whole-element stroke color update.",
+        "4. In `actionChangeBackgroundColor.perform`: resolve `effectiveColor = color ?? appStateUpdates.currentItemBackgroundColor`; if `effectiveColor !== undefined`, try `const rangeResult = applyEditingTextRangeUpdate(elements, appState, { highlightColor: effectiveColor }, true)`; if `rangeResult` is non-null, return `{ elements: rangeResult.elements, appState: { ...appState, ...appStateUpdates, editingTextElement: rangeResult.editingTextElement }, captureUpdate: appState.newElement ? CaptureUpdateAction.EVENTUALLY : CaptureUpdateAction.IMMEDIATELY }`; otherwise execute the existing background color update.",
+        "5. Register and export `actionChangeHighlightColor = register<Partial<AppState> & { color?: string }>({ name: \"changeHighlightColor\", label: \"labels.changeHighlight\", trackEvent: false, perform: (elements, appState, value) => ... })` which resolves `effectiveColor = value?.color ?? value?.currentItemBackgroundColor`; when `appState.editingTextElement` is open, calls `applyEditingTextRangeUpdate(elements, appState, { highlightColor: effectiveColor }, false)` (applying to `[selection.start, selection.end)` when `selection.start < selection.end`, else `[0, originalText.length)`), and when not editing text applies `applyTextRangeStyle(el.textRanges, el.originalText.length, 0, el.originalText.length, { highlightColor: effectiveColor })` to selected text elements.",
+        "6. In `actionChangeStrokeColor.PanelComponent`: when `appState.editingTextElement` is open on a live text element `editingEl`, read `selection = getWysiwygSelectionRange()`; when `selection && selection.start < selection.end`, display `getStyleForTextRange(editingEl.textRanges, selection.start, selection.end, editingEl.strokeColor).color` in the stroke `ColorPicker`; and when `appState.editingTextElement && target.kind !== \"sticky\"`, also render a second `ColorPicker` with `type=\"elementBackground\"`, `label={t(\"labels.highlight\")}`, `palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}`, `topPicks={appState.colorTopPicks?.elementBackground ?? DEFAULT_ELEMENT_BACKGROUND_PICKS}`, `color={selection && selection.start < selection.end ? getStyleForTextRange(editingEl.textRanges, selection.start, selection.end, editingEl.strokeColor).highlightColor : getStyleForTextRange(editingEl.textRanges, 0, editingEl.originalText.length, editingEl.strokeColor).highlightColor}`, and `onChange={(highlightColor) => app.actionManager.executeAction(actionChangeHighlightColor, \"ui\", { color: highlightColor })}`."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeHighlightColor",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { actionChangeStrokeColor, actionChangeBackgroundColor, actionChangeHighlightColor } from \"../actions/actionProperties\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,",
+          "rule": "Also import `DEFAULT_ELEMENT_BACKGROUND_PICKS` from `@excalidraw/common`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 53,
+          "to": 53,
+          "first_line": "} from \"@excalidraw/element\";",
+          "rule": "Import `applyTextRangeStyle` and `getStyleForTextRange` from `@excalidraw/element`, `type { Mutable } from \"@excalidraw/common/utility-types\"`, and `getWysiwygSelectionRange`, `syncWysiwygTextRangesStyle` from `../wysiwyg/textWysiwyg`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 366,
+          "to": 523,
+          "first_line": "export const actionChangeStrokeColor = register<",
+          "last_line": "},",
+          "rule": "Add `applyEditingTextRangeUpdate` and `actionChangeHighlightColor`, update `actionChangeStrokeColor` and `actionChangeBackgroundColor` to apply per-range `color` / `highlightColor` when `textWysiwyg` has a non-empty selection, and render the Highlight `ColorPicker` inside `actionChangeStrokeColor.PanelComponent` when editing non-sticky text."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [
+          366,
+          559
+        ],
+        "reason": "Matches `actionChangeStrokeColor` and `actionChangeBackgroundColor` action registration and `ColorPicker` JSX."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06",
+        "U07",
+        "U09"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-9",
+        "AC-1",
+        "AC-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render `<rect>` background highlights and `<tspan>` foreground colour runs in SVG export when a text element has `textRanges`.",
+      "rules": [
+        "1. Import `getFontString` from `@excalidraw/common` and `measureText`, `projectTextRangesToLines` from `@excalidraw/element`.",
+        "2. In `renderElementToSvg` (`if (isTextElement(element))`): when `!element.textRanges?.length`, keep the existing loop that creates one `<text>` element per line with `text.textContent = lines[i]` unchanged so existing SVG snapshots do not change.",
+        "3. When `element.textRanges?.length` is non-empty, compute `const lineRuns = projectTextRangesToLines(element.originalText, element.text.replace(/\\r\\n?/g, \"\\n\"), element.textRanges)` and `const fontString = getFontString(element)`. For each line `i`, let `runs = lineRuns[i] ?? [{ text: lines[i], start: 0, end: lines[i].length }]`. If `runs.some((r) => r.highlightColor)`, measure `lineWidth = measureText(lines[i], fontString, element.lineHeight, renderConfig.renderEnvironment).width`, compute `lineStartX = element.textAlign === \"center\" ? (element.width - lineWidth) / 2 : element.textAlign === \"right\" ? element.width - lineWidth : 0`, advance across `runs` (left-to-right from `lineStartX` when `direction === \"ltr\"`, right-to-left from `lineStartX + lineWidth` when `direction === \"rtl\"`) using `runWidth = measureText(run.text, fontString, element.lineHeight, renderConfig.renderEnvironment).width`, and for each run with `run.highlightColor` append an SVG `<rect>` (`x`, `y = i * lineHeightPx`, `width = runWidth`, `height = lineHeightPx`, `fill = applyDarkModeFilter(run.highlightColor, renderConfig.theme === THEME.DARK)`) to `node` before `<text>`. For `<text>`, if `runs.length === 1 && !runs[0].color`, set `text.textContent = lines[i]`; otherwise append a `<tspan>` per run with `tspan.textContent = run.text` and (when `run.color` is defined) `tspan.setAttribute(\"fill\", applyDarkModeFilter(run.color, renderConfig.theme === THEME.DARK))`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "getFontFamilyString,",
+          "rule": "Also import `getFontString` from `@excalidraw/common`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+          "rule": "Import `measureText` and `projectTextRangesToLines` from `@excalidraw/element`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 815,
+          "to": 834,
+          "first_line": "for (let i = 0; i < lines.length; i++) {",
+          "last_line": "}",
+          "rule": "When `element.textRanges?.length` is non-empty, emit `<rect>` highlight elements before `<text>` and `<tspan>` children with per-run `fill` inside `<text>`; keep the exact single `<text>` node output when `!element.textRanges?.length`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "lines": [
+          785,
+          845
+        ],
+        "reason": "Matches SVG text element creation and attribute formatting in `staticSvgScene.ts`."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement.textRanges`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-10",
+        "NFR-1",
+        "NFR-4",
+        "AC-2",
+        "AC-4"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Normalize and clamp `textRanges` when restoring text elements and omit the `textRanges` own property when empty or invalid.",
+      "rules": [
+        "1. Import `normalizeTextRanges` from `@excalidraw/element` and `type { Mutable } from \"@excalidraw/common/utility-types\"`.",
+        "2. In `restoreElementWithProperties` type parameter `K`: change `Omit<Required<T>, keyof ExcalidrawElement>` to `Omit<Required<T>, keyof ExcalidrawElement | \"textRanges\">` so optional `textRanges` is not required in `extra`.",
+        "3. In `restoreElement` (`case \"text\":`): compute `const originalText = element.originalText || text;` and `const textRanges = normalizeTextRanges(element.textRanges, originalText.length);`. After `restoreElementWithProperties`, if `textRanges` is defined and `!(opts?.deleteInvisibleElements && !text && !element.isDeleted)`, set `(element as Mutable<ExcalidrawTextElement>).textRanges = textRanges;`, otherwise `delete (element as Mutable<ExcalidrawTextElement>).textRanges;` so restored unstyled text elements never carry a `textRanges` own property."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81,
+          "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";",
+          "rule": "Import `normalizeTextRanges` from `@excalidraw/element`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 460,
+          "to": 461,
+          "first_line": "K extends Pick<T, keyof Omit<Required<T>, keyof ExcalidrawElement>>,",
+          "last_line": ">(",
+          "rule": "Exclude `\"textRanges\"` from `Required<T>` in `K` (`Omit<Required<T>, keyof ExcalidrawElement | \"textRanges\">`)."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 577,
+          "to": 605,
+          "first_line": "element = restoreElementWithProperties(element, {",
+          "last_line": "return element;",
+          "rule": "Normalize `element.textRanges` against `(element.originalText || text).length` via `normalizeTextRanges`; set `element.textRanges` only when non-empty and not deleted as invisible empty text, and `delete (element as any).textRanges` otherwise."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/data/restore.ts",
+        "lines": [
+          554,
+          606
+        ],
+        "reason": "Matches `restoreElement` `case \"text\":` property normalization and cleanup."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-11",
+        "NFR-1",
+        "NFR-3",
+        "AC-5",
+        "AC-6"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/data/reconcile.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Sanitize and clamp `textRanges` against `originalText.length` on reconciled text elements without altering element identity when ranges are already valid.",
+      "rules": [
+        "1. Import `areTextRangesEqual`, `isTextElement`, `normalizeTextRanges` from `@excalidraw/element`.",
+        "2. Define `sanitizeReconciledElement(element: OrderedExcalidrawElement): OrderedExcalidrawElement`: if `!isTextElement(element)` or `!(\"textRanges\" in element)`, return `element` unchanged; compute `const normalized = normalizeTextRanges(element.textRanges, element.originalText.length);`; if `!normalized`, clone `{ ...element }` and `delete (cloned as any).textRanges` and return `cloned`; if `areTextRangesEqual(element.textRanges, normalized)` and `Array.isArray(element.textRanges)`, return `element` unchanged; otherwise return `{ ...element, textRanges: normalized }`.",
+        "3. Apply `sanitizeReconciledElement` when pushing `localElement` or `remoteElement` into `reconciledElements` in `reconcileElements`."
+      ],
+      "exports": [
+        {
+          "name": "reconcileElements",
+          "kind": "function",
+          "params": [
+            {
+              "name": "localElements",
+              "type": "readonly OrderedExcalidrawElement[]"
+            },
+            {
+              "name": "remoteElements",
+              "type": "readonly RemoteExcalidrawElement[]"
+            },
+            {
+              "name": "localAppState",
+              "type": "AppState"
+            }
+          ],
+          "returns": "ReconciledExcalidrawElement[]"
+        }
+      ],
+      "import_line": "import { reconcileElements, shouldDiscardRemoteElement } from \"../data/reconcile\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 5,
+          "to": 9,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Also import `areTextRangesEqual`, `isTextElement`, and `normalizeTextRanges` from `@excalidraw/element`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 92,
+          "to": 108,
+          "first_line": "if (localElement && discardRemoteElement) {",
+          "last_line": "}",
+          "rule": "Sanitize `textRanges` on reconciled text elements against `originalText.length` while preserving object identity when `textRanges` is absent or already normalized."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/data/reconcile.ts",
+        "lines": [
+          73,
+          118
+        ],
+        "reason": "Matches `reconcileElements` implementation style."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/types.ts",
+          "lines": [
+            250,
+            292
+          ],
+          "reason": "Uses `ExcalidrawTextElement`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-13",
+        "NFR-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/element/tests/textRanges.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Unit-test range normalization, channel-independent splitting/merging, edit-time shifting, wrapped-line projection, `newTextElement` omission, Canvas 2D per-run rendering across alignments and themes, and `ElementsDelta` undo/redo.",
+      "rules": [
+        "1. Test `normalizeTextRanges` clamping out-of-bounds/negative indices, dropping inverted/empty (`start >= end`) or transparent/empty-colour entries, merging adjacent spans with identical `{ color, highlightColor }`, and omitting the array (`undefined`) when all spans are cleared.",
+        "2. Test `applyTextRangeStyle` splitting overlapping spans independently per channel (`color` on `[0, 6)` + `highlightColor` on `[3, 9)` -> `[0, 3)` color, `[3, 6)` color+highlight, `[6, 9)` highlight) and clearing a channel when `\"transparent\"` or `baseStrokeColor` is applied.",
+        "3. Test `computeTextEditDelta` and `shiftTextRangesOnEdit` for inserting before/inside/after a styled range, deleting a slice overlapping or enclosing a range (removing emptied ranges and returning `undefined`), and replacing a slice.",
+        "4. Test `projectTextRangesToLines` across hard `\\n` breaks and soft-wrapped lines where `wrapText` trimmed boundary spaces.",
+        "5. Test `newTextElement` omitting `textRanges` as an own property (`\"textRanges\" in el === false`) when no valid ranges are supplied, and retaining normalized `textRanges` when supplied.",
+        "6. Test `renderElement` / `elementWithCanvasCache` drawing `fillRect` highlight boxes before `fillText` runs with `applyDarkModeFilter` in light and dark themes across `left`, `center`, and `right` `textAlign`, and regenerating the cached bitmap when `textRanges` changes.",
+        "7. Test `ElementsDelta.calculate` and `ElementsDelta.applyDelta` (forward and reverse) applying and undoing `textRanges` changes and removing the `textRanges` own property when undone back to unstyled state."
+      ],
+      "exports": [],
+      "import_line": "",
+      "style_from": {
+        "path": "packages/element/tests/textElement.test.ts",
+        "lines": [
+          1,
+          100
+        ],
+        "reason": "Follows `@excalidraw/element` Vitest test structure and helper imports."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/newElement.ts",
+          "lines": [
+            337,
+            395
+          ],
+          "reason": "Tests `newTextElement` with and without `textRanges`."
+        },
+        {
+          "path": "packages/element/src/renderElement.ts",
+          "lines": [
+            660,
+            775
+          ],
+          "reason": "Tests Canvas 2D rendering and `elementWithCanvasCache` invalidation for `textRanges`."
+        },
+        {
+          "path": "packages/element/src/delta.ts",
+          "lines": [
+            1742,
+            1885
+          ],
+          "reason": "Tests `ElementsDelta` forward and backward application of `textRanges`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U04",
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8",
+        "FR-12",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "NFR-4",
+        "NFR-5",
+        "AC-2",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7"
+      ],
+      "tests": [
+        {
+          "name": "normalizes, clamps, sorts, and merges adjacent identical ranges and returns undefined when empty",
+          "given": "Unsorted, out-of-bounds, empty, transparent, and adjacent identical `TextRangeStyle` entries over a 10-char text",
+          "expect": "Returns sorted non-overlapping clamped spans with adjacent identical spans merged, or `undefined` when all spans are invalid/empty"
+        },
+        {
+          "name": "splits overlapping colour and highlight ranges independently per channel",
+          "given": "Range `[0, 6)` styled with `color: \"#e03131\"` and overlapping range `[3, 9)` styled with `highlightColor: \"#ffec99\"`",
+          "expect": "Produces `[{ start: 0, end: 3, color: \"#e03131\" }, { start: 3, end: 6, color: \"#e03131\", highlightColor: \"#ffec99\" }, { start: 6, end: 9, highlightColor: \"#ffec99\" }]`"
+        },
+        {
+          "name": "shifts, expands, trims, and removes ranges across insert, delete, and replace text edits",
+          "given": "Text `\"Hello world\"` with range `[6, 11)` styled and edits inserting `\"brave \"` at 6, inserting inside `[6, 11)`, and deleting `[6, 11)`",
+          "expect": "Shifts range to `[12, 17)` on prefix insert, expands range on interior insert, and returns `undefined` when the styled substring is deleted"
+        },
+        {
+          "name": "projects originalText ranges onto soft-wrapped and hard-wrapped lines",
+          "given": "Text `\"  Hello  World\"` wrapped to `\"  Hello\\nWorld\"` with a range spanning `[2, 14)`",
+          "expect": "Projects onto line 0 run `\"Hello\"` (`[2, 7)`) and line 1 run `\"World\"` (`[9, 14)`) skipping soft-wrap trimmed spaces"
+        },
+        {
+          "name": "omits textRanges own property on newTextElement when empty and renders per-run fillRect and fillText on canvas",
+          "given": "An unstyled `newTextElement` and a styled `newTextElement` rendered across `left`, `center`, and `right` alignments in light and dark themes",
+          "expect": "`\"textRanges\" in unstyled === false`; canvas context executes `fillRect` before `fillText` with dark-mode-filtered colours and aligned `x` coordinates"
+        },
+        {
+          "name": "applies and reverses ElementsDelta for textRanges without leaving undefined own properties",
+          "given": "A text element transitioning from unstyled to styled `textRanges` and back via `ElementsDelta`",
+          "expect": "Forward delta sets `textRanges` and reverse delta deletes `textRanges` so `\"textRanges\" in restored === false`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Add tests verifying `projectTextRangesToLines` aligns with `getWrappedTextLines` offsets across soft wraps, hard newlines, and long broken tokens.",
+      "rules": [
+        "1. Import `projectTextRangesToLines` from `../src/textRanges`.",
+        "2. Add a test inside `describe(\"Test wrapText\", ...)` verifying `projectTextRangesToLines` maps ranges across soft-wrapped lines with trimmed spaces (`\"  Hello  World\"`) and split long tokens (`\"Excalidraw\"`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 5,
+          "to": 5,
+          "first_line": "} from \"../src/textWrapping\";",
+          "rule": "Import `projectTextRangesToLines` from `../src/textRanges`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 172,
+          "to": 172,
+          "first_line": "});",
+          "rule": "Add a test case asserting `projectTextRangesToLines` preserves line run offsets across soft-wrapped lines with trimmed whitespace and broken tokens."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/tests/textWrapping.test.ts",
+        "lines": [
+          109,
+          173
+        ],
+        "reason": "Matches `getWrappedTextLines` offset test style in `textWrapping.test.ts`."
+      },
+      "depends_on": [
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-6",
+        "AC-2"
+      ],
+      "tests": [
+        {
+          "name": "projects styled ranges onto wrapped lines consistently with getWrappedTextLines offsets",
+          "given": "Text `\"  Hello  World\"` wrapped at width 90 with overlapping colour and highlight ranges",
+          "expect": "Produces runs matching each wrapped line's `[start, end)` offsets in `originalText`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test WYSIWYG substring range colour and highlight application, live edit-time display while `textWysiwyg` is open, live typing range shifts/deletions, collapsed-selection fallback, and undo/redo.",
+      "rules": [
+        "1. Import `actionChangeStrokeColor`, `actionChangeBackgroundColor`, `actionChangeHighlightColor` from `../actions/actionProperties`.",
+        "2. Add a `describe(\"per-range text styling\", ...)` block at the end of `textWysiwyg.test.tsx` testing: (a) selecting `[0, 5)` in the open `<textarea>`, applying `actionChangeStrokeColor` and `actionChangeHighlightColor`, and asserting while `textWysiwyg` is still open that `editor.style.color === \"transparent\"`, `JSON.parse(editor.dataset.textRanges!)` matches the styled span, and `h.app.renderer.getRenderableElements({ ...h.state, elements: h.app.scene.getNonDeletedElements(), newElement: h.state.newElement }).elementsMap.get(textElement.id)?.textRanges` contains the live styled range (`FR-9`, `AC-3`); (b) submitting and verifying `textElement.textRanges` persists while `textElement.strokeColor` is unchanged (`AC-1`); (c) typing before/inside/deleting the styled substring in `textWysiwyg` shifts/expands/removes `textRanges` and omits the `textRanges` own property when emptied (`FR-5`, `AC-7`); (d) changing stroke colour with a collapsed selection (`selectionStart === selectionEnd`) updates `textElement.strokeColor` without adding `textRanges` (`FR-4`); (e) undoing and redoing range styling via `Keyboard.undo()` and `Keyboard.redo()` (`FR-12`, `AC-1`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 51,
+          "to": 51,
+          "first_line": "import { actionTextAutoResize } from \"../actions/actionTextAutoResize\";",
+          "rule": "Import `actionChangeStrokeColor`, `actionChangeBackgroundColor`, and `actionChangeHighlightColor` from `../actions/actionProperties`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 3595,
+          "to": 3597,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add `describe(\"per-range text styling\", ...)` covering live edit-time display (`editor.style.color === \"transparent\"`, `editor.dataset.textRanges`, and `h.app.renderer.getRenderableElements` inclusion), substring colour/highlight, live typing range shifts and deletion, collapsed selection whole-element fallback, and undo/redo."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "lines": [
+          3385,
+          3597
+        ],
+        "reason": "Matches `textWysiwyg.test.tsx` `describe`/`beforeEach` and `getTextEditor`/`Keyboard` test idioms."
+      },
+      "depends_on": [
+        "U08",
+        "U09",
+        "U10",
+        "U11"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "FR-9",
+        "FR-12",
+        "AC-1",
+        "AC-3",
+        "AC-7"
+      ],
+      "tests": [
+        {
+          "name": "styles a selected range with colour and highlight and displays it live while textWysiwyg is open",
+          "given": "A text element `\"Hello world\"` open in `textWysiwyg` with selection `[0, 5)`",
+          "expect": "Applying `actionChangeStrokeColor` (`#e03131`) and `actionChangeHighlightColor` (`#ffec99`) sets `editor.style.color === \"transparent\"`, populates `editor.dataset.textRanges`, keeps the element in `h.app.renderer.getRenderableElements(...).elementsMap` with `textRanges`, and preserves `strokeColor` on submit"
+        },
+        {
+          "name": "shifts and removes textRanges during live typing and deletion in textWysiwyg",
+          "given": "A text element `\"Hello world\"` with `[6, 11)` styled open in `textWysiwyg`",
+          "expect": "Inserting a prefix shifts the range right, and deleting the styled characters removes `textRanges` (`\"textRanges\" in el === false`)"
+        },
+        {
+          "name": "updates whole-element strokeColor when selection is collapsed and supports undo/redo of range styling",
+          "given": "A text element open in `textWysiwyg` with `selectionStart === selectionEnd`, and a text element with range styling applied then undone/redone",
+          "expect": "Collapsed selection updates `strokeColor` without creating `textRanges`; `Keyboard.undo()` removes `textRanges` and `Keyboard.redo()` restores it"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/tests/data/restore.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `restoreElements` normalizing, clamping, and merging `textRanges` on text elements and omitting `textRanges` when absent or invalid.",
+      "rules": [
+        "1. Add tests inside `describe(\"restoreElements\", ...)` verifying: (a) valid `textRanges` round-trip through `serializeAsJSON` and `restore.restoreElements`; (b) out-of-bounds, overlapping, empty, or transparent `textRanges` are clamped, split/merged, or dropped; (c) when all ranges are invalid/empty or absent, `\"textRanges\" in restoredText` is `false` (`NFR-1`, `AC-5`, `AC-6`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1033,
+          "to": 1034,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add tests in `describe(\"restoreElements\", ...)` for `textRanges` round-trip serialization, clamping/merging malformed ranges, and omitting the `textRanges` property when empty."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          970,
+          1034
+        ],
+        "reason": "Matches `restoreElements` unit test style."
+      },
+      "depends_on": [
+        "U13"
+      ],
+      "covers": [
+        "FR-11",
+        "NFR-1",
+        "NFR-3",
+        "AC-5",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "preserves valid textRanges and normalizes out-of-bounds or overlapping ranges on restore",
+          "given": "Text elements with valid, overlapping, and out-of-bounds `textRanges` passed to `restore.restoreElements`",
+          "expect": "Restored text elements carry normalized clamped `textRanges`, and text elements with empty/invalid ranges have `\"textRanges\" in el === false`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `reconcileElements` preserving and clamping `textRanges` on collaborative text elements.",
+      "rules": [
+        "1. Add a test inside `describe(\"elements reconciliation\", ...)` verifying that `reconcileElements` preserves valid `textRanges` from the winning element, clamps out-of-bounds `textRanges` to `originalText.length`, and removes `textRanges` when empty."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 385,
+          "to": 386,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add a test case in `describe(\"elements reconciliation\", ...)` asserting `reconcileElements` preserves and clamps `textRanges` on text elements."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "lines": [
+          307,
+          386
+        ],
+        "reason": "Matches `reconcile.test.ts` assertion style."
+      },
+      "depends_on": [
+        "U14"
+      ],
+      "covers": [
+        "FR-13",
+        "NFR-3"
+      ],
+      "tests": [
+        {
+          "name": "reconciles text elements with textRanges and clamps stale out-of-bounds ranges",
+          "given": "Local and remote text elements with `textRanges` (including ranges exceeding `originalText.length`)",
+          "expect": "`reconcileElements` selects the winning version and clamps `textRanges` to `[0, originalText.length]` or deletes `textRanges` when empty"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/excalidraw/tests/scene/export.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `exportScene` SVG and Canvas export for multiline text elements with per-range colour and highlight across alignments and themes.",
+      "rules": [
+        "1. Add tests inside `describe(\"exportToSvg\", ...)` verifying: (a) `exportScene({ type: \"svg\", ... })` on a multiline text element with `textRanges` (both `color` and `highlightColor`) emits `<rect>` highlight elements before `<text>` and `<tspan fill=\"...\">` runs across `left`, `center`, and `right` alignments and applies `applyDarkModeFilter` when `config.theme === THEME.DARK`; (b) `exportScene({ type: \"canvas\", ... })` renders without error on styled multiline text; (c) an unstyled text element emits a plain `<text>` node with no `<tspan>` or highlight `<rect>`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1099,
+          "to": 1100,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add SVG and Canvas export tests for text elements with `textRanges` across `left`/`center`/`right` alignments and light/dark themes."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "lines": [
+          1000,
+          1100
+        ],
+        "reason": "Matches `exportScene` test conventions in `scene/export.test.ts`."
+      },
+      "depends_on": [
+        "U04",
+        "U12"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-8",
+        "FR-10",
+        "AC-2",
+        "AC-4"
+      ],
+      "tests": [
+        {
+          "name": "exports SVG with rect highlights and coloured tspans for multiline styled text across alignments and dark mode",
+          "given": "A multiline text element with `textRanges` containing both `color` and `highlightColor` exported via `exportScene` (`type: \"svg\"` and `type: \"canvas\"`)",
+          "expect": "SVG contains `<rect>` highlight nodes behind `<text>` and `<tspan>` runs with dark-mode-filtered `fill` attributes, while unstyled text has no `<tspan>`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "excalidraw-app/tests/collab.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test collaborative durable/ephemeral store increments and undo/redo for text elements with `textRanges`.",
+      "rules": [
+        "1. Add a test inside `describe(\"collaboration\", ...)` verifying that updating a text element's `textRanges` emits store increments with the `textRanges` delta and that undoing/redoing the change restores and re-applies `textRanges` without leaving `textRanges: undefined`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 251,
+          "to": 252,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add a test verifying collaborative store increments and undo/redo for a text element's `textRanges`."
+        }
+      ],
+      "style_from": {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "lines": [
+          145,
+          252
+        ],
+        "reason": "Matches `collab.test.tsx` store increment and undo/redo test style."
+      },
+      "depends_on": [
+        "U05",
+        "U14"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-13"
+      ],
+      "tests": [
+        {
+          "name": "syncs and undoes/redoes textRanges on collaborative text elements",
+          "given": "A text element in `ExcalidrawApp` updated with `textRanges` and then undone and redone",
+          "expect": "Durable increment records `textRanges`, undo removes the `textRanges` own property, and redo restores `textRanges`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Document per-range text colour and highlight under `## Unreleased` in `packages/excalidraw/CHANGELOG.md`.",
+      "rules": [
+        "1. Add a `### Per-range text color and highlight` section under `## Unreleased` describing `textRanges` on `ExcalidrawTextElement`, the range algebra helpers exported from `@excalidraw/element`, live WYSIWYG substring colour and highlight editing, and Canvas/SVG export support."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14,
+          "first_line": "## Unreleased",
+          "rule": "Add `### Per-range text color and highlight` entry under `## Unreleased`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "lines": [
+          14,
+          60
+        ],
+        "reason": "Matches `CHANGELOG.md` `## Unreleased` subsection style."
+      },
+      "depends_on": [
+        "U11",
+        "U12",
+        "U13"
+      ],
+      "covers": [
+        "FR-14"
+      ],
+      "checks": []
+    }
+  ]
+}

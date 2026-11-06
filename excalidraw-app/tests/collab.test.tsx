@@ -11,6 +11,7 @@ import { vi } from "vitest";
 import { StoreIncrement } from "@excalidraw/element";
 
 import type { DurableIncrement, EphemeralIncrement } from "@excalidraw/element";
+import type { ExcalidrawTextElement } from "@excalidraw/element/types";
 
 import ExcalidrawApp from "../App";
 
@@ -247,6 +248,74 @@ describe("collaboration", () => {
         expect.objectContaining(rect1Props),
         expect.objectContaining({ ...rect2Props, isDeleted: true }),
       ]);
+    });
+  });
+
+  it("syncs and undoes/redoes textRanges on collaborative text elements", async () => {
+    const durableIncrements: DurableIncrement[] = [];
+    await render(<ExcalidrawApp />);
+
+    h.store.onStoreIncrementEmitter.on((increment) => {
+      if (StoreIncrement.isDurable(increment)) {
+        durableIncrements.push(increment);
+      }
+    });
+
+    const text = API.createElement({
+      type: "text",
+      id: "T1",
+      text: "Hello World",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 25,
+    });
+
+    API.updateScene({
+      elements: [text],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    await waitFor(() => {
+      expect(durableIncrements.length).toBe(1);
+    });
+
+    const styledRanges = [{ start: 0, end: 5, color: "#e03131" }] as const;
+
+    API.updateScene({
+      elements: [
+        newElementWith(h.elements[0] as ExcalidrawTextElement, {
+          textRanges: styledRanges,
+        }),
+      ],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    await waitFor(() => {
+      expect(durableIncrements.length).toBe(2);
+      expect(durableIncrements[1].change.elements.T1).toEqual(
+        expect.objectContaining({
+          textRanges: styledRanges,
+        }),
+      );
+      expect((h.elements[0] as any).textRanges).toEqual(styledRanges);
+    });
+
+    const undoAction = createUndoAction(h.history);
+    act(() => h.app.actionManager.executeAction(undoAction));
+
+    await waitFor(() => {
+      expect("textRanges" in h.elements[0]).toBe(false);
+      expect(
+        Object.prototype.hasOwnProperty.call(h.elements[0], "textRanges"),
+      ).toBe(false);
+    });
+
+    const redoAction = createRedoAction(h.history);
+    act(() => h.app.actionManager.executeAction(redoAction));
+
+    await waitFor(() => {
+      expect((h.elements[0] as any).textRanges).toEqual(styledRanges);
     });
   });
 });

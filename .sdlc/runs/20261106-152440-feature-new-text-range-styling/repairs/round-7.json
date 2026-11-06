@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152440-feature-new-text-range-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck fails (the 4 new per-range text styling tests all pass under vitest; only the types are wrong):\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3616,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3681,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3718,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\npackages/excalidraw/wysiwyg/textWysiwyg.test.tsx(3747,32): error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'.\nAll four are the line `      API.setSelectedElements([h.elements[0]]);` inside describe(\"per-range text styling\"). Fix ONLY those four lines, using the idiom the file already uses at lines 1856 and 2560: `API.setSelectedElements([h.elements[0]] as NonDeletedExcalidrawElement[]);` (NonDeletedExcalidrawElement is already imported at line 29). Change nothing else: test names, steps, assertions and comments stay exactly as they are; no source file changes; no toMatchSnapshot.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152440-feature-new-text-range-styling/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

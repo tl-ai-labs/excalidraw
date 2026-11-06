@@ -6,6 +6,7 @@ import {
   BUCKET_FILL_BACKGROUND_PICKS,
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
+  DEFAULT_ELEMENT_BACKGROUND_PICKS,
   ARROW_TYPE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -51,6 +52,7 @@ import {
   getBaseFontSizeUpdate,
   redrawTextBoundingBox,
 } from "@excalidraw/element";
+import { applyTextRangeStyle, getStyleForTextRange } from "@excalidraw/element";
 
 import {
   isArrowElement,
@@ -79,6 +81,8 @@ import {
 
 import { deriveStylesPanelMode } from "@excalidraw/common";
 
+import type { Mutable } from "@excalidraw/common/utility-types";
+
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
@@ -100,6 +104,11 @@ import type {
 import type { ElementUpdate, Scene } from "@excalidraw/element";
 
 import type { CaptureUpdateActionType } from "@excalidraw/element";
+
+import {
+  getWysiwygSelectionRange,
+  syncWysiwygTextRangesStyle,
+} from "../wysiwyg/textWysiwyg";
 
 import { trackEvent } from "../analytics";
 import { RadioSelection } from "../components/RadioSelection";
@@ -363,14 +372,195 @@ const changeFontSize = (
 
 // -----------------------------------------------------------------------------
 
+const isSubRangeSelection = (
+  selection: { start: number; end: number } | null,
+  originalTextLength: number,
+): selection is { start: number; end: number } => {
+  return Boolean(
+    selection &&
+      selection.start < selection.end &&
+      !(selection.start === 0 && selection.end >= originalTextLength),
+  );
+};
+
+const applyEditingTextRangeUpdate = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  style: { color?: string | null; highlightColor?: string | null },
+  requireNonEmptySelection: boolean,
+  requireSubRangeSelection = false,
+): {
+  elements: ExcalidrawElement[];
+  editingTextElement: ExcalidrawTextElement;
+} | null => {
+  if (!appState.editingTextElement) {
+    return null;
+  }
+
+  const editingEl = elements.find(
+    (el): el is ExcalidrawTextElement =>
+      el.id === appState.editingTextElement?.id && isTextElement(el),
+  );
+  if (!editingEl) {
+    return null;
+  }
+
+  const selection = getWysiwygSelectionRange();
+  const hasNonEmptySelection = Boolean(
+    selection && selection.start < selection.end,
+  );
+  const hasSubRange = isSubRangeSelection(
+    selection,
+    editingEl.originalText.length,
+  );
+
+  if (requireSubRangeSelection && !hasSubRange) {
+    return null;
+  }
+  if (requireNonEmptySelection && !hasNonEmptySelection) {
+    return null;
+  }
+
+  const [start, end] =
+    selection && hasNonEmptySelection
+      ? [selection.start, selection.end]
+      : [0, editingEl.originalText.length];
+
+  const nextRanges = applyTextRangeStyle(
+    editingEl.textRanges,
+    editingEl.originalText.length,
+    start,
+    end,
+    style,
+    editingEl.strokeColor,
+  );
+
+  const updatedEl = newElementWith(
+    editingEl,
+    { textRanges: nextRanges ?? [] },
+    true,
+  );
+  if (!nextRanges) {
+    delete (updatedEl as Mutable<ExcalidrawTextElement>).textRanges;
+  }
+
+  syncWysiwygTextRangesStyle(updatedEl, appState.theme);
+
+  return {
+    elements: elements.map((el) => (el.id === updatedEl.id ? updatedEl : el)),
+    editingTextElement: updatedEl,
+  };
+};
+
+const performHighlightColorUpdate = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  effectiveColor: string | undefined,
+  appStateUpdates: Partial<AppState>,
+) => {
+  if (effectiveColor === undefined) {
+    return {
+      appState: { ...appState, ...appStateUpdates },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    };
+  }
+
+  const rangeResult = applyEditingTextRangeUpdate(
+    elements,
+    appState,
+    { highlightColor: effectiveColor },
+    false,
+    false,
+  );
+  if (rangeResult) {
+    return {
+      elements: rangeResult.elements,
+      appState: {
+        ...appState,
+        ...appStateUpdates,
+        editingTextElement: rangeResult.editingTextElement,
+      },
+      captureUpdate: appState.newElement
+        ? CaptureUpdateAction.EVENTUALLY
+        : CaptureUpdateAction.IMMEDIATELY,
+    };
+  }
+
+  return {
+    elements: changeProperty(
+      elements,
+      appState,
+      (el) => {
+        if (!isTextElement(el)) {
+          return el;
+        }
+        const nextRanges = applyTextRangeStyle(
+          el.textRanges,
+          el.originalText.length,
+          0,
+          el.originalText.length,
+          { highlightColor: effectiveColor },
+          el.strokeColor,
+        );
+        const updated = newElementWith(
+          el,
+          { textRanges: nextRanges ?? [] },
+          true,
+        );
+        if (!nextRanges) {
+          delete (updated as Mutable<ExcalidrawTextElement>).textRanges;
+        }
+        return updated;
+      },
+      true,
+    ),
+    appState: {
+      ...appState,
+      ...appStateUpdates,
+    },
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  };
+};
+
 export const actionChangeStrokeColor = register<
-  Partial<AppState> & { color?: string }
+  Partial<AppState> & { color?: string; highlightColor?: string }
 >({
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
   perform: (elements, appState, value) => {
-    const { color, ...appStateUpdates } = value ?? {};
+    const { color, highlightColor, ...appStateUpdates } = value ?? {};
+    if (highlightColor !== undefined) {
+      return performHighlightColorUpdate(
+        elements,
+        appState,
+        highlightColor,
+        appStateUpdates,
+      );
+    }
+    const effectiveColor = color ?? appStateUpdates.currentItemStrokeColor;
+    if (effectiveColor !== undefined) {
+      const rangeResult = applyEditingTextRangeUpdate(
+        elements,
+        appState,
+        { color: effectiveColor },
+        true,
+        true,
+      );
+      if (rangeResult) {
+        return {
+          elements: rangeResult.elements,
+          appState: {
+            ...appState,
+            ...appStateUpdates,
+            editingTextElement: rangeResult.editingTextElement,
+          },
+          captureUpdate: appState.newElement
+            ? CaptureUpdateAction.EVENTUALLY
+            : CaptureUpdateAction.IMMEDIATELY,
+        };
+      }
+    }
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
@@ -415,6 +605,53 @@ export const actionChangeStrokeColor = register<
     const label =
       target.kind === "sticky" ? t("labels.textColor") : t("labels.stroke");
 
+    const editingEl = appState.editingTextElement
+      ? elements.find(
+          (el): el is ExcalidrawTextElement =>
+            el.id === appState.editingTextElement?.id && isTextElement(el),
+        ) ?? appState.editingTextElement
+      : null;
+    const selection = editingEl ? getWysiwygSelectionRange() : null;
+    const hasSubRangeSelection = Boolean(
+      editingEl &&
+        isSubRangeSelection(selection, editingEl.originalText.length),
+    );
+    const hasAnySelection = Boolean(
+      selection && selection.start < selection.end,
+    );
+
+    const strokePickerColor =
+      editingEl && hasSubRangeSelection && selection
+        ? getStyleForTextRange(
+            editingEl.textRanges,
+            selection.start,
+            selection.end,
+            editingEl.strokeColor,
+          ).color
+        : getFormValue(
+            elements,
+            app,
+            (element) => element.strokeColor,
+            true,
+            (hasSelection) => (!hasSelection ? target.currentValue : null),
+          );
+
+    const highlightPickerColor = editingEl
+      ? hasAnySelection && selection
+        ? getStyleForTextRange(
+            editingEl.textRanges,
+            selection.start,
+            selection.end,
+            editingEl.strokeColor,
+          ).highlightColor
+        : getStyleForTextRange(
+            editingEl.textRanges,
+            0,
+            editingEl.originalText.length,
+            editingEl.strokeColor,
+          ).highlightColor
+      : "transparent";
+
     return (
       <>
         {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
@@ -425,18 +662,31 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
-            elements,
-            app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={strokePickerColor}
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}
           updateData={updateData}
         />
+        {editingEl && target.kind !== "sticky" && (
+          <>
+            {stylesPanelMode === "full" && (
+              <h3 aria-hidden="true">{t("labels.highlight")}</h3>
+            )}
+            <ColorPicker
+              topPicks={DEFAULT_ELEMENT_BACKGROUND_PICKS}
+              palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+              customizableTopPicks="elementBackground"
+              type="elementBackground"
+              label={t("labels.highlight")}
+              color={highlightPickerColor}
+              onChange={(highlightColor) => updateData({ highlightColor })}
+              elements={elements}
+              appState={appState}
+              updateData={updateData}
+            />
+          </>
+        )}
       </>
     );
   },

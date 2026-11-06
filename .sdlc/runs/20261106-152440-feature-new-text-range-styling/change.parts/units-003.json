@@ -1,0 +1,512 @@
+{
+  "section": "units",
+  "source": "units-003.json",
+  "value": [
+    {
+      "id": "U15",
+      "path": "packages/element/tests/textRanges.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Unit-test range normalization, channel-independent splitting/merging, edit-time shifting, wrapped-line projection, `newTextElement` omission, Canvas 2D per-run rendering across alignments and themes, and `ElementsDelta` undo/redo.",
+      "rules": [
+        "1. Test `normalizeTextRanges` clamping out-of-bounds/negative indices, dropping inverted/empty (`start >= end`) or transparent/empty-colour entries, merging adjacent spans with identical `{ color, highlightColor }`, and omitting the array (`undefined`) when all spans are cleared.",
+        "2. Test `applyTextRangeStyle` splitting overlapping spans independently per channel (`color` on `[0, 6)` + `highlightColor` on `[3, 9)` -> `[0, 3)` color, `[3, 6)` color+highlight, `[6, 9)` highlight) and clearing a channel when `\"transparent\"` or `baseStrokeColor` is applied.",
+        "3. Test `computeTextEditDelta` and `shiftTextRangesOnEdit` for inserting before/inside/after a styled range, deleting a slice overlapping or enclosing a range (removing emptied ranges and returning `undefined`), and replacing a slice.",
+        "4. Test `projectTextRangesToLines` across hard `\\n` breaks and soft-wrapped lines where `wrapText` trimmed boundary spaces.",
+        "5. Test `newTextElement` omitting `textRanges` as an own property (`\"textRanges\" in el === false`) when no valid ranges are supplied, and retaining normalized `textRanges` when supplied.",
+        "6. Test `renderElement` / `elementWithCanvasCache` drawing `fillRect` highlight boxes before `fillText` runs with `applyDarkModeFilter` in light and dark themes across `left`, `center`, and `right` `textAlign`, and regenerating the cached bitmap when `textRanges` changes.",
+        "7. Test `ElementsDelta.calculate` and `ElementsDelta.applyDelta` (forward and reverse) applying and undoing `textRanges` changes and removing the `textRanges` own property when undone back to unstyled state."
+      ],
+      "exports": [],
+      "import_line": "",
+      "style_from": {
+        "path": "packages/element/tests/textElement.test.ts",
+        "lines": [
+          1,
+          100
+        ],
+        "reason": "Follows `@excalidraw/element` Vitest test structure and helper imports."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/newElement.ts",
+          "lines": [
+            337,
+            395
+          ],
+          "reason": "Tests `newTextElement` with and without `textRanges`."
+        },
+        {
+          "path": "packages/element/src/renderElement.ts",
+          "lines": [
+            660,
+            775
+          ],
+          "reason": "Tests Canvas 2D rendering and `elementWithCanvasCache` invalidation for `textRanges`."
+        },
+        {
+          "path": "packages/element/src/delta.ts",
+          "lines": [
+            1742,
+            1885
+          ],
+          "reason": "Tests `ElementsDelta` forward and backward application of `textRanges`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U04",
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8",
+        "FR-12",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "NFR-4",
+        "NFR-5",
+        "AC-2",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7"
+      ],
+      "tests": [
+        {
+          "name": "normalizes, clamps, sorts, and merges adjacent identical ranges and returns undefined when empty",
+          "given": "Unsorted, out-of-bounds, empty, transparent, and adjacent identical `TextRangeStyle` entries over a 10-char text",
+          "expect": "Returns sorted non-overlapping clamped spans with adjacent identical spans merged, or `undefined` when all spans are invalid/empty"
+        },
+        {
+          "name": "splits overlapping colour and highlight ranges independently per channel",
+          "given": "Range `[0, 6)` styled with `color: \"#e03131\"` and overlapping range `[3, 9)` styled with `highlightColor: \"#ffec99\"`",
+          "expect": "Produces `[{ start: 0, end: 3, color: \"#e03131\" }, { start: 3, end: 6, color: \"#e03131\", highlightColor: \"#ffec99\" }, { start: 6, end: 9, highlightColor: \"#ffec99\" }]`"
+        },
+        {
+          "name": "shifts, expands, trims, and removes ranges across insert, delete, and replace text edits",
+          "given": "Text `\"Hello world\"` with range `[6, 11)` styled and edits inserting `\"brave \"` at 6, inserting inside `[6, 11)`, and deleting `[6, 11)`",
+          "expect": "Shifts range to `[12, 17)` on prefix insert, expands range on interior insert, and returns `undefined` when the styled substring is deleted"
+        },
+        {
+          "name": "projects originalText ranges onto soft-wrapped and hard-wrapped lines",
+          "given": "Text `\"  Hello  World\"` wrapped to `\"  Hello\\nWorld\"` with a range spanning `[2, 14)`",
+          "expect": "Projects onto line 0 run `\"Hello\"` (`[2, 7)`) and line 1 run `\"World\"` (`[9, 14)`) skipping soft-wrap trimmed spaces"
+        },
+        {
+          "name": "omits textRanges own property on newTextElement when empty and renders per-run fillRect and fillText on canvas",
+          "given": "An unstyled `newTextElement` and a styled `newTextElement` rendered across `left`, `center`, and `right` alignments in light and dark themes",
+          "expect": "`\"textRanges\" in unstyled === false`; canvas context executes `fillRect` before `fillText` with dark-mode-filtered colours and aligned `x` coordinates"
+        },
+        {
+          "name": "applies and reverses ElementsDelta for textRanges without leaving undefined own properties",
+          "given": "A text element transitioning from unstyled to styled `textRanges` and back via `ElementsDelta`",
+          "expect": "Forward delta sets `textRanges` and reverse delta deletes `textRanges` so `\"textRanges\" in restored === false`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/element/tests/textWrapping.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Add tests verifying `projectTextRangesToLines` aligns with `getWrappedTextLines` offsets across soft wraps, hard newlines, and long broken tokens.",
+      "rules": [
+        "1. Import `projectTextRangesToLines` from `../src/textRanges`.",
+        "2. Add a test inside `describe(\"Test wrapText\", ...)` verifying `projectTextRangesToLines` maps ranges across soft-wrapped lines with trimmed spaces (`\"  Hello  World\"`) and split long tokens (`\"Excalidraw\"`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 5,
+          "to": 5,
+          "first_line": "} from \"../src/textWrapping\";",
+          "rule": "Import `projectTextRangesToLines` from `../src/textRanges`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 172,
+          "to": 172,
+          "first_line": "});",
+          "rule": "Add a test case asserting `projectTextRangesToLines` preserves line run offsets across soft-wrapped lines with trimmed whitespace and broken tokens."
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/tests/textWrapping.test.ts",
+        "lines": [
+          109,
+          173
+        ],
+        "reason": "Matches `getWrappedTextLines` offset test style in `textWrapping.test.ts`."
+      },
+      "depends_on": [
+        "U02",
+        "U06"
+      ],
+      "covers": [
+        "FR-6",
+        "AC-2"
+      ],
+      "tests": [
+        {
+          "name": "projects styled ranges onto wrapped lines consistently with getWrappedTextLines offsets",
+          "given": "Text `\"  Hello  World\"` wrapped at width 90 with overlapping colour and highlight ranges",
+          "expect": "Produces runs matching each wrapped line's `[start, end)` offsets in `originalText`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test WYSIWYG substring range colour and highlight application, live edit-time display while `textWysiwyg` is open, live typing range shifts/deletions, collapsed-selection fallback, and undo/redo.",
+      "rules": [
+        "1. Import `actionChangeStrokeColor`, `actionChangeBackgroundColor`, `actionChangeHighlightColor` from `../actions/actionProperties`.",
+        "2. Add a `describe(\"per-range text styling\", ...)` block at the end of `textWysiwyg.test.tsx` testing: (a) selecting `[0, 5)` in the open `<textarea>`, applying `actionChangeStrokeColor` and `actionChangeHighlightColor`, and asserting while `textWysiwyg` is still open that `editor.style.color === \"transparent\"`, `JSON.parse(editor.dataset.textRanges!)` matches the styled span, and `h.app.renderer.getRenderableElements({ ...h.state, elements: h.app.scene.getNonDeletedElements(), newElement: h.state.newElement }).elementsMap.get(textElement.id)?.textRanges` contains the live styled range (`FR-9`, `AC-3`); (b) submitting and verifying `textElement.textRanges` persists while `textElement.strokeColor` is unchanged (`AC-1`); (c) typing before/inside/deleting the styled substring in `textWysiwyg` shifts/expands/removes `textRanges` and omits the `textRanges` own property when emptied (`FR-5`, `AC-7`); (d) changing stroke colour with a collapsed selection (`selectionStart === selectionEnd`) updates `textElement.strokeColor` without adding `textRanges` (`FR-4`); (e) undoing and redoing range styling via `Keyboard.undo()` and `Keyboard.redo()` (`FR-12`, `AC-1`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 51,
+          "to": 51,
+          "first_line": "import { actionTextAutoResize } from \"../actions/actionTextAutoResize\";",
+          "rule": "Import `actionChangeStrokeColor`, `actionChangeBackgroundColor`, and `actionChangeHighlightColor` from `../actions/actionProperties`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 3595,
+          "to": 3597,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add `describe(\"per-range text styling\", ...)` covering live edit-time display (`editor.style.color === \"transparent\"`, `editor.dataset.textRanges`, and `h.app.renderer.getRenderableElements` inclusion), substring colour/highlight, live typing range shifts and deletion, collapsed selection whole-element fallback, and undo/redo."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "lines": [
+          3385,
+          3597
+        ],
+        "reason": "Matches `textWysiwyg.test.tsx` `describe`/`beforeEach` and `getTextEditor`/`Keyboard` test idioms."
+      },
+      "depends_on": [
+        "U08",
+        "U09",
+        "U10",
+        "U11"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-5",
+        "FR-9",
+        "FR-12",
+        "AC-1",
+        "AC-3",
+        "AC-7"
+      ],
+      "tests": [
+        {
+          "name": "styles a selected range with colour and highlight and displays it live while textWysiwyg is open",
+          "given": "A text element `\"Hello world\"` open in `textWysiwyg` with selection `[0, 5)`",
+          "expect": "Applying `actionChangeStrokeColor` (`#e03131`) and `actionChangeHighlightColor` (`#ffec99`) sets `editor.style.color === \"transparent\"`, populates `editor.dataset.textRanges`, keeps the element in `h.app.renderer.getRenderableElements(...).elementsMap` with `textRanges`, and preserves `strokeColor` on submit"
+        },
+        {
+          "name": "shifts and removes textRanges during live typing and deletion in textWysiwyg",
+          "given": "A text element `\"Hello world\"` with `[6, 11)` styled open in `textWysiwyg`",
+          "expect": "Inserting a prefix shifts the range right, and deleting the styled characters removes `textRanges` (`\"textRanges\" in el === false`)"
+        },
+        {
+          "name": "updates whole-element strokeColor when selection is collapsed and supports undo/redo of range styling",
+          "given": "A text element open in `textWysiwyg` with `selectionStart === selectionEnd`, and a text element with range styling applied then undone/redone",
+          "expect": "Collapsed selection updates `strokeColor` without creating `textRanges`; `Keyboard.undo()` removes `textRanges` and `Keyboard.redo()` restores it"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/tests/data/restore.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `restoreElements` normalizing, clamping, and merging `textRanges` on text elements and omitting `textRanges` when absent or invalid.",
+      "rules": [
+        "1. Add tests inside `describe(\"restoreElements\", ...)` verifying: (a) valid `textRanges` round-trip through `serializeAsJSON` and `restore.restoreElements`; (b) out-of-bounds, overlapping, empty, or transparent `textRanges` are clamped, split/merged, or dropped; (c) when all ranges are invalid/empty or absent, `\"textRanges\" in restoredText` is `false` (`NFR-1`, `AC-5`, `AC-6`)."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1033,
+          "to": 1034,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add tests in `describe(\"restoreElements\", ...)` for `textRanges` round-trip serialization, clamping/merging malformed ranges, and omitting the `textRanges` property when empty."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          970,
+          1034
+        ],
+        "reason": "Matches `restoreElements` unit test style."
+      },
+      "depends_on": [
+        "U13"
+      ],
+      "covers": [
+        "FR-11",
+        "NFR-1",
+        "NFR-3",
+        "AC-5",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "preserves valid textRanges and normalizes out-of-bounds or overlapping ranges on restore",
+          "given": "Text elements with valid, overlapping, and out-of-bounds `textRanges` passed to `restore.restoreElements`",
+          "expect": "Restored text elements carry normalized clamped `textRanges`, and text elements with empty/invalid ranges have `\"textRanges\" in el === false`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `reconcileElements` preserving and clamping `textRanges` on collaborative text elements.",
+      "rules": [
+        "1. Add a test inside `describe(\"elements reconciliation\", ...)` verifying that `reconcileElements` preserves valid `textRanges` from the winning element, clamps out-of-bounds `textRanges` to `originalText.length`, and removes `textRanges` when empty."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 385,
+          "to": 386,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add a test case in `describe(\"elements reconciliation\", ...)` asserting `reconcileElements` preserves and clamps `textRanges` on text elements."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+        "lines": [
+          307,
+          386
+        ],
+        "reason": "Matches `reconcile.test.ts` assertion style."
+      },
+      "depends_on": [
+        "U14"
+      ],
+      "covers": [
+        "FR-13",
+        "NFR-3"
+      ],
+      "tests": [
+        {
+          "name": "reconciles text elements with textRanges and clamps stale out-of-bounds ranges",
+          "given": "Local and remote text elements with `textRanges` (including ranges exceeding `originalText.length`)",
+          "expect": "`reconcileElements` selects the winning version and clamps `textRanges` to `[0, originalText.length]` or deletes `textRanges` when empty"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/excalidraw/tests/scene/export.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test `exportScene` SVG and Canvas export for multiline text elements with per-range colour and highlight across alignments and themes.",
+      "rules": [
+        "1. Add tests inside `describe(\"exportToSvg\", ...)` verifying: (a) `exportScene({ type: \"svg\", ... })` on a multiline text element with `textRanges` (both `color` and `highlightColor`) emits `<rect>` highlight elements before `<text>` and `<tspan fill=\"...\">` runs across `left`, `center`, and `right` alignments and applies `applyDarkModeFilter` when `config.theme === THEME.DARK`; (b) `exportScene({ type: \"canvas\", ... })` renders without error on styled multiline text; (c) an unstyled text element emits a plain `<text>` node with no `<tspan>` or highlight `<rect>`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1099,
+          "to": 1100,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add SVG and Canvas export tests for text elements with `textRanges` across `left`/`center`/`right` alignments and light/dark themes."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "lines": [
+          1000,
+          1100
+        ],
+        "reason": "Matches `exportScene` test conventions in `scene/export.test.ts`."
+      },
+      "depends_on": [
+        "U04",
+        "U12"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-8",
+        "FR-10",
+        "AC-2",
+        "AC-4"
+      ],
+      "tests": [
+        {
+          "name": "exports SVG with rect highlights and coloured tspans for multiline styled text across alignments and dark mode",
+          "given": "A multiline text element with `textRanges` containing both `color` and `highlightColor` exported via `exportScene` (`type: \"svg\"` and `type: \"canvas\"`)",
+          "expect": "SVG contains `<rect>` highlight nodes behind `<text>` and `<tspan>` runs with dark-mode-filtered `fill` attributes, while unstyled text has no `<tspan>`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "excalidraw-app/tests/collab.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Test collaborative durable/ephemeral store increments and undo/redo for text elements with `textRanges`.",
+      "rules": [
+        "1. Add a test inside `describe(\"collaboration\", ...)` verifying that updating a text element's `textRanges` emits store increments with the `textRanges` delta and that undoing/redoing the change restores and re-applies `textRanges` without leaving `textRanges: undefined`."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 251,
+          "to": 252,
+          "first_line": "});",
+          "last_line": "});",
+          "rule": "Add a test verifying collaborative store increments and undo/redo for a text element's `textRanges`."
+        }
+      ],
+      "style_from": {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "lines": [
+          145,
+          252
+        ],
+        "reason": "Matches `collab.test.tsx` store increment and undo/redo test style."
+      },
+      "depends_on": [
+        "U05",
+        "U14"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-13"
+      ],
+      "tests": [
+        {
+          "name": "syncs and undoes/redoes textRanges on collaborative text elements",
+          "given": "A text element in `ExcalidrawApp` updated with `textRanges` and then undone and redone",
+          "expect": "Durable increment records `textRanges`, undo removes the `textRanges` own property, and redo restores `textRanges`"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Document per-range text colour and highlight under `## Unreleased` in `packages/excalidraw/CHANGELOG.md`.",
+      "rules": [
+        "1. Add a `### Per-range text color and highlight` section under `## Unreleased` describing `textRanges` on `ExcalidrawTextElement`, the range algebra helpers exported from `@excalidraw/element`, live WYSIWYG substring colour and highlight editing, and Canvas/SVG export support."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 14,
+          "to": 14,
+          "first_line": "## Unreleased",
+          "rule": "Add `### Per-range text color and highlight` entry under `## Unreleased`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "lines": [
+          14,
+          60
+        ],
+        "reason": "Matches `CHANGELOG.md` `## Unreleased` subsection style."
+      },
+      "depends_on": [
+        "U11",
+        "U12",
+        "U13"
+      ],
+      "covers": [
+        "FR-14"
+      ],
+      "checks": []
+    }
+  ],
+  "hashes": {
+    "packages/element/tests/textElement.test.ts": "5799fa0657f854606d4ddb0a99e5f9d57caa3a025751adc60478ddfe5bc0f42e",
+    "packages/element/src/newElement.ts": "a8e340ef0890c63933d4ce9b0dcc6a6f393b72da15e347209c340d1add1e8539",
+    "packages/element/src/renderElement.ts": "e36c3418798b7dec6d374b02710180df560bb6283ec0ffe195670b0171298995",
+    "packages/element/src/delta.ts": "32b3b19a6360a021cf95eb18315d0c0f43a03a029c338ce004b9b9f96426dee6",
+    "packages/element/tests/textWrapping.test.ts": "9912e764c5ed9abb3b65b38137de99ac6dab10e7cf600c7faf6484565f507890",
+    "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx": "83f9112cda33af72c3abb1fc9c671c07dcdf4c8b3def22cc9348946e57249def",
+    "packages/excalidraw/tests/data/restore.test.ts": "2c41ed983ce10672f7aec07817b7bcd5c0690b868153189d19c5bd8f89eb6bfb",
+    "packages/excalidraw/tests/data/reconcile.test.ts": "2dc053c6212ffc52579b946f73aeecebc01af154239e1a59e226c3929a9b984c",
+    "packages/excalidraw/tests/scene/export.test.ts": "6b95ead53d7991ba611f7777910e2f2fc8e55825d9e574a1e85b8cb756db9a74",
+    "excalidraw-app/tests/collab.test.tsx": "6f63de466dbfd6a0bd0ffa7b35bf3a09dfb359b9fa63b2b9dfa16cbb14c1888d",
+    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811"
+  }
+}

@@ -13,6 +13,13 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Per-range text color and highlight
+
+- Text elements support styling individual substrings with text color and background highlight through `element.textRanges` (`readonly TextRangeStyle[]`). Unstyled text elements omit the `textRanges` property entirely, preserving backwards compatibility and snapshot stability.
+- Exported range algebra helpers from `@excalidraw/element`: `isValidRangeColor`, `normalizeTextRanges`, `areTextRangesEqual`, `applyTextRangeStyle`, `computeTextEditDelta`, `shiftTextRangesOnEdit`, `getStyleForTextRange`, and `projectTextRangesToLines`.
+- Live WYSIWYG substring editing: selecting a text range inside the editor and changing the stroke color or highlight color updates that specific range, with live visual feedback rendered underneath the transparent editor textarea.
+- Canvas and SVG export support per-range foreground colors (`<tspan>`) and background highlight boxes (`<rect>`), with automatic dark-mode color filtering.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.
