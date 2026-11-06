@@ -15,6 +15,7 @@ import {
   toBrandedType,
   applyDarkModeFilter,
   removeDarkModeFilter,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
@@ -25,6 +26,7 @@ import {
   getNonDeletedElements,
   getRenderEnvironment,
   updateImageCache,
+  getElementPageId,
 } from "@excalidraw/element";
 
 import { newElementWith } from "@excalidraw/element";
@@ -568,9 +570,22 @@ const configExportDimension = async ({
   // deleted ones. The type contract requires non-deleted elements already,
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
-  const elements = getNonDeletedElements(
+  const allRestoredElements = getNonDeletedElements(
     restoreElements(data.elements, null, { deleteInvisibleElements: true }),
   );
+
+  // visual exports only render the active page; the full list is kept for
+  // embedding the scene
+  const suppliedActivePageId = data.appState?.activePageId;
+  const activePageId = suppliedActivePageId || DEFAULT_PAGE_ID;
+  const hasMultiplePages =
+    new Set(allRestoredElements.map((el) => getElementPageId(el))).size > 1;
+  const elements =
+    suppliedActivePageId || hasMultiplePages
+      ? allRestoredElements.filter(
+          (el) => getElementPageId(el) === activePageId,
+        )
+      : allRestoredElements;
 
   // initialize defaults
   // ---------------------------------------------------------------------------
@@ -814,6 +829,8 @@ const configExportDimension = async ({
     // the restored & non-deleted-filtered elements — use these (not
     // `data.elements`) for all rendering purposes
     elements,
+    // all pages' restored elements, for embedding the scene
+    allRestoredElements,
     normalizedPadding,
     contentWidth: width,
     contentHeight: height,
@@ -989,6 +1006,7 @@ const exportToSvg = async ({
   const {
     config: cfg,
     elements,
+    allRestoredElements,
     normalizedPadding,
     exportWidth,
     exportHeight,
@@ -1048,7 +1066,21 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          allRestoredElements,
+          data.appState
+            ? {
+                ...appState,
+                pages: data.appState.pages ?? appState.pages,
+                activePageId:
+                  data.appState.activePageId ?? appState.activePageId,
+                pageViewports:
+                  data.appState.pageViewports ?? appState.pageViewports,
+              }
+            : appState,
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);

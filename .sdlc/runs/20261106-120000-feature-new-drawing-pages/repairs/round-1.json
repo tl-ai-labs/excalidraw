@@ -1,0 +1,45 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Unit U10 was never applied: all 3 attempts failed and the file is still unchanged from before the run, so this fix must make the whole U10 change from its brief (briefs/U10) AND pass `yarn eslint --max-warnings 0 packages/excalidraw/data/restore.ts`. The only failure was prettier/prettier formatting in the pageViewports restore condition; the attempts flip-flopped between wrapped and single-line forms. Verbatim (attempt 3): `1384:9 warning Replace ⏎······!pageIds.has(pageId)·||⏎······!viewport·||⏎······typeof·viewport·!==·\"object\"⏎···· with !pageIds.has(pageId)·||·!viewport·||·typeof·viewport·!==·\"object\" prettier/prettier`. Verbatim (attempt 2, variable named validPageIds): `1393:9 warning Replace !validPageIds.has(pageId)·||·!viewport·||·typeof·viewport·!==·\"object\" with ⏎······!validPageIds.has(pageId)·||⏎······!viewport·||⏎······typeof·viewport·!==·\"object\"⏎···· prettier/prettier`. Rule: prettier printWidth is 80; keep an `if (...)` condition on one line when the whole `if (cond) {` line fits within 80 columns, otherwise break it with one operand per line. Use the name `pageIds` and write `if (!pageIds.has(pageId) || !viewport || typeof viewport !== \"object\") {` on a single line only if it fits in 80 columns at its indentation; otherwise wrap one operand per line. Also keep the first attempt's lesson: change only the planned sites (attempt 1 added lines after 521 and 536, outside its sites).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

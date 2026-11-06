@@ -1,0 +1,49 @@
+[
+  {
+    "id": "tp_debug_r10_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-120000-feature-new-drawing-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "instruction": "Fix `packages/excalidraw/history.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 reviewer, verbatim: \"per-page undo doesn't work: an edit on page 2 never reaches page 2's undo stack, and the store raises \\\"ElementsDelta invariant broken for element rect2\\\"; History.record in packages/excalidraw/history.ts filters the previous snapshot to the active page, which breaks how the store computes the change (AC-4).\" Reproduction: render(<Excalidraw handleKeyboardGlobally={true} />), add rect1 via API.updateScene with CaptureUpdateAction.IMMEDIATELY, act(() => h.app.addPage()), add rect2 the same way -> h.history.undoStackByPage is [[\"page-1\",1],[\"<page2>\",0]], rect2.pageId is the page-2 id, and the store logs `ElementsDelta invariant broken for element \"rect2\"`. Fix: remove the active-page filtering of the store snapshot / elements in History (perform around lines 229-245, and any in record): the store's snapshot always holds ALL pages' elements (App.tsx is changed in this round to commit scene.getAllElementsMapIncludingDeleted() to the store), so every recorded StoreDelta contains only the elements actually changed, and it is pushed onto the active page's undo stack; undo/redo apply the popped delta to the all-pages elements map without filtering. Result: undo on page 2 reverts rect2 and never touches page 1; switching pages keeps each page's stacks. (App.tsx has already been changed in this round to commit scene.getAllElementsMapIncludingDeleted() to the store and to pass all pages elements to history.undo/redo.)\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-120000-feature-new-drawing-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

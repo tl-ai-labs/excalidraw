@@ -1,0 +1,85 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "Follow strict package dependency direction: excalidraw-app -> @excalidraw/excalidraw -> @excalidraw/element -> @excalidraw/common / @excalidraw/math; packages/* must never import from excalidraw-app.",
+      "Never mutate ExcalidrawElement or AppState in place; always use newElementWith or mutateElement so version and versionNonce increment for history deltas and collaboration reconciliation.",
+      "Use app.ownerDocument and app.ownerWindow instead of global document and window wherever app is accessible.",
+      "Prefer Merge<Base, Overrides> from @excalidraw/common/utility-types over Omit<Base, ...> & Overrides.",
+      "Follow ESLint import order: external and @excalidraw/* packages first, then relative imports, then import type declarations.",
+      "Add user-facing strings only to packages/excalidraw/locales/en.json and read them via t() from packages/excalidraw/i18n.ts; never edit other locale files.",
+      "Every new AppState field must be wired in types.ts (AppState and UIAppState if used by UI), getDefaultAppState() and APP_STATE_STORAGE_CONF in appState.ts, and restoreAppState() in data/restore.ts."
+    ],
+    "decisions": [
+      {
+        "topic": "Page-membership representation (ADR: pageId on elements vs separate per-page element arrays)",
+        "choice": "Element-level optional pageId?: string on _ExcalidrawElementBase (normalized via getElementPageId(el) -> el.pageId || DEFAULT_PAGE_ID where DEFAULT_PAGE_ID = 'page-1', and omitted as an own property when equal to DEFAULT_PAGE_ID) stored in a master allElements collection in Scene with cached active-page slices for getNonDeletedElements/getElementsIncludingDeleted/frames/maps and full-collection accessors getAllElementsIncludingDeleted/getAllNonDeletedElements",
+        "rejected": [
+          "Separate per-page element arrays or multiple Scene instances per page"
+        ],
+        "reason": "Collab reconciliation (reconcileElements, BroadcastedExcalidrawElement, Firebase sync) natively merges flat element arrays by id and version without changing wire containers; fractional indices are validated and synced per pageId group so z-order operations on one page never invalidate indices on other pages; frames are automatically scoped to the active page because Scene.frames and nonDeletedFramesLikes derive from the active-page slice; history deltas (History with per-page undo/redo stacks and StoreSnapshot preserving inactive pages' elements) isolate undo/redo per page; and .excalidraw JSON files keep a single top-level elements array for backward compatibility with single-page loaders"
+      },
+      {
+        "topic": "Default page constants and deterministic PRNG / snapshot compatibility",
+        "choice": "Use deterministic constants DEFAULT_PAGE_ID = 'page-1' and DEFAULT_PAGE_NAME = 'Page 1' in getDefaultAppState(), omit pageId as an own property on elements when pageId === DEFAULT_PAGE_ID, omit default single-page fields in cleanAppStateForExport when untouched, and strip pages/activePageId/pageViewports in test-utils AppState snapshot serializer",
+        "rejected": [
+          "Calling randomId() inside getDefaultAppState() and always setting own property pageId: 'page-1' on every created element"
+        ],
+        "reason": "Existing test suites call reseed(7) in beforeEach and assert exact element snapshots and AppState/SVG export snapshots; deterministic DEFAULT_PAGE_ID and omitting default-page property noise keeps all 149 existing test files and snapshot suites passing without modifying .snap files"
+      },
+      {
+        "topic": "AppState page fields and APP_STATE_STORAGE_CONF wiring",
+        "choice": "Add pages: readonly ExcalidrawPage[], activePageId: string, and pageViewports: Record<string, PageViewport> to AppState with APP_STATE_STORAGE_CONF entries pages: { browser: true, export: true, server: true }, activePageId: { browser: true, export: true, server: false }, pageViewports: { browser: true, export: true, server: false }",
+        "rejected": [
+          "Setting server: true for activePageId and pageViewports"
+        ],
+        "reason": "The ordered page list is shared across local storage, .excalidraw file exports, and collaboration servers, whereas each collaborator keeps their own activePageId and per-page viewport state locally unless following another user"
+      },
+      {
+        "topic": "Per-page undo/redo history isolation",
+        "choice": "History maintains per-page undo and redo stacks keyed by activePageId (with setActivePageId and deletePageHistory helpers) while Scene/Store preserves inactive pages' elements when applying active-page history deltas",
+        "rejected": [
+          "Single global undo/redo stack shared across all pages"
+        ],
+        "reason": "Ensures Undo and Redo on the active page only revert or reapply element mutations on that page, keep the user on the active page, and never alter elements or history stacks of inactive pages"
+      },
+      {
+        "topic": "Collaboration page list synchronization",
+        "choice": "Encrypt the optional pages array together with all pages' syncable elements inside Firebase StoredScene ciphertext using roomKey (with backward-compatible decryption when the decrypted JSON is either { elements, pages } or a legacy elements array) and include pages in encrypted WebSocket SCENE_INIT / SCENE_UPDATE payloads, falling back to a remaining valid page locally if a remote update deletes the local user's activePageId",
+        "rejected": [
+          "Storing pages in plaintext on FirebaseStoredScene beside ciphertext and iv or adding a separate room document/custom socket event"
+        ],
+        "reason": "Encrypting pages inside ciphertext and SCENE_INIT/SCENE_UPDATE payloads ensures page names are end-to-end encrypted with roomKey before reaching Firebase or the relay server while remaining backward-compatible with legacy single-page documents"
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "yarn eslint --max-warnings 0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "yarn vitest run {path}",
+        "timeout_s": 120
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "lint",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}

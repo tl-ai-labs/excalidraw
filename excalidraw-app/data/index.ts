@@ -25,6 +25,7 @@ import type {
   AppState,
   BinaryFileData,
   BinaryFiles,
+  ExcalidrawPage,
   SocketId,
 } from "@excalidraw/excalidraw/types";
 import type { MakeBrand } from "@excalidraw/common/utility-types";
@@ -84,12 +85,14 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {

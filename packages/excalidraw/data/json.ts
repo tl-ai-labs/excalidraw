@@ -1,9 +1,12 @@
 import {
+  DEFAULT_PAGE_ID,
   EXPORT_DATA_TYPES,
   getExportSource,
   MIME_TYPES,
   VERSIONS,
 } from "@excalidraw/common";
+
+import { getElementPageId } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -55,18 +58,68 @@ export const serializeAsJSON = (
   files: BinaryFiles,
   type: "local" | "database",
 ): string => {
+  const sourceElements: readonly ExcalidrawElement[] =
+    typeof (appState as any)?.__allElements === "function" &&
+    elements === (appState as any)?.__activeElements
+      ? (appState as any).__allElements()
+      : elements;
+
+  const isMultiPage = Boolean(
+    (appState.pages && appState.pages.length > 1) ||
+      (appState.pages &&
+        appState.pages.length === 1 &&
+        (appState.pages[0].id !== DEFAULT_PAGE_ID ||
+          appState.pages[0].name !== "Page 1")) ||
+      sourceElements.some((el) => el.pageId && el.pageId !== DEFAULT_PAGE_ID),
+  );
+
+  const exportedElements = isMultiPage
+    ? sourceElements.map((el) => ({ ...el, pageId: getElementPageId(el) }))
+    : sourceElements;
+
+  let appStateForExport: Record<string, any>;
+  if (type === "local") {
+    appStateForExport = cleanAppStateForExport(appState);
+    if (isMultiPage) {
+      const activePageId = appState.activePageId || DEFAULT_PAGE_ID;
+      const pageViewports = { ...(appState.pageViewports || {}) };
+      if (
+        appState.scrollX !== undefined &&
+        appState.scrollY !== undefined &&
+        appState.zoom
+      ) {
+        pageViewports[activePageId] = {
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
+          zoom: appState.zoom,
+        };
+      }
+      appStateForExport = {
+        ...appStateForExport,
+        pages: appState.pages || [{ id: DEFAULT_PAGE_ID, name: "Page 1" }],
+        activePageId,
+        pageViewports,
+      };
+    }
+  } else {
+    appStateForExport = clearAppStateForDatabase(appState);
+    if (isMultiPage) {
+      appStateForExport = {
+        ...appStateForExport,
+        pages: appState.pages || [{ id: DEFAULT_PAGE_ID, name: "Page 1" }],
+      };
+    }
+  }
+
   const data: ExportedDataState = {
     type: EXPORT_DATA_TYPES.excalidraw,
     version: VERSIONS.excalidraw,
     source: getExportSource(),
-    elements,
-    appState:
-      type === "local"
-        ? cleanAppStateForExport(appState)
-        : clearAppStateForDatabase(appState),
+    elements: exportedElements,
+    appState: appStateForExport as ExportedDataState["appState"],
     files:
       type === "local"
-        ? filterOutDeletedFiles(elements, files)
+        ? filterOutDeletedFiles(sourceElements, files)
         : // will be stripped from JSON
           undefined,
   };

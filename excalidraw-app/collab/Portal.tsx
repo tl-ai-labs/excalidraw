@@ -104,7 +104,7 @@ class Portal {
   queueFileUpload = throttle(async () => {
     try {
       await this.collab.fileManager.saveFiles({
-        elements: this.collab.excalidrawAPI.getSceneElementsIncludingDeleted(),
+        elements: this.collab.getSceneElementsIncludingDeleted(),
         files: this.collab.excalidrawAPI.getFiles(),
       });
     } catch (error: any) {
@@ -118,7 +118,7 @@ class Portal {
     }
 
     let isChanged = false;
-    const newElements = this.collab.excalidrawAPI
+    const newElements = this.collab
       .getSceneElementsIncludingDeleted()
       .map((element) => {
         if (this.collab.fileManager.shouldUpdateImageElementStatus(element)) {
@@ -167,6 +167,7 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages: this.collab.excalidrawAPI.getAppState().pages,
       },
     };
 

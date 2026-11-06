@@ -93,7 +93,15 @@ export const reconcileElements = (
         reconciledElements.push(localElement);
         added.add(localElement.id);
       } else {
-        reconciledElements.push(remoteElement);
+        reconciledElements.push(
+          localElement?.pageId !== undefined &&
+            remoteElement.pageId === undefined
+            ? ({
+                ...remoteElement,
+                pageId: localElement.pageId,
+              } as RemoteExcalidrawElement)
+            : remoteElement,
+        );
         added.add(remoteElement.id);
       }
     }

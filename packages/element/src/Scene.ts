@@ -7,6 +7,7 @@ import {
   isDevEnv,
   isTestEnv,
   toArray,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
@@ -20,7 +21,11 @@ import {
 
 import { getSelectedElements } from "@excalidraw/element";
 
-import { mutateElement, type ElementUpdate } from "@excalidraw/element";
+import {
+  mutateElement,
+  newElementWith,
+  type ElementUpdate,
+} from "@excalidraw/element";
 
 import type {
   ExcalidrawElement,
@@ -46,6 +51,31 @@ type SceneStateCallback = () => void;
 type SceneStateCallbackRemover = () => void;
 
 type SelectionHash = string & { __brand: "selectionHash" };
+
+export function getElementPageId(
+  element: Pick<ExcalidrawElement, "pageId">,
+  fallbackPageId: string = DEFAULT_PAGE_ID,
+): string {
+  return element.pageId || fallbackPageId;
+}
+
+export function withElementPageId<T extends ExcalidrawElement>(
+  element: T,
+  pageId: string,
+): T {
+  if (pageId === DEFAULT_PAGE_ID) {
+    if (!("pageId" in element)) {
+      return element;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { pageId: _pageId, ...rest } = element;
+    return rest as T;
+  }
+  if (getElementPageId(element) === pageId) {
+    return element;
+  }
+  return { ...element, pageId };
+}
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
   allElements: readonly T[],
@@ -112,6 +142,12 @@ export class Scene {
 
   private callbacks: Set<SceneStateCallback> = new Set();
 
+  private activePageId: string = DEFAULT_PAGE_ID;
+  private allElements: readonly OrderedExcalidrawElement[] = [];
+  private allElementsMap = toBrandedType<SceneElementsMap>(new Map());
+  private allNonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
+    [];
+
   private nonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
     [];
   private nonDeletedElementsMap = toBrandedType<NonDeletedSceneElementsMap>(
@@ -162,6 +198,77 @@ export class Scene {
 
   getFramesIncludingDeleted() {
     return this.frames;
+  }
+
+  getActivePageId(): string {
+    return this.activePageId;
+  }
+
+  setActivePageId(
+    pageId: string,
+    options?: {
+      triggerUpdate?: boolean;
+    },
+  ): void {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.rebuildCaches();
+    if (options?.triggerUpdate !== false) {
+      this.triggerUpdate();
+    }
+  }
+
+  getAllElementsIncludingDeleted(): readonly OrderedExcalidrawElement[] {
+    return this.allElements;
+  }
+
+  getAllNonDeletedElements(): readonly Ordered<NonDeletedExcalidrawElement>[] {
+    return this.allNonDeletedElements;
+  }
+
+  getAllElementsMapIncludingDeleted(): SceneElementsMap {
+    return this.allElementsMap;
+  }
+
+  deletePageElements(pageId: string): void {
+    this.allElements = this.allElements.map((el) =>
+      getElementPageId(el) === pageId && !el.isDeleted
+        ? (newElementWith(el, { isDeleted: true }) as OrderedExcalidrawElement)
+        : el,
+    );
+    this.rebuildCaches();
+    this.triggerUpdate();
+  }
+
+  private rebuildCaches() {
+    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+
+    this.allElementsMap.clear();
+    this.allElements.forEach((element) => {
+      this.allElementsMap.set(element.id, element);
+    });
+    this.allNonDeletedElements = getNonDeletedElements(
+      this.allElements,
+    ).elements;
+
+    this.elements = this.allElements.filter(
+      (element) => getElementPageId(element) === this.activePageId,
+    );
+    this.elementsMap.clear();
+    this.elements.forEach((element) => {
+      if (isFrameLikeElement(element)) {
+        nextFrameLikes.push(element);
+      }
+      this.elementsMap.set(element.id, element);
+    });
+    const nonDeletedElements = getNonDeletedElements(this.elements);
+    this.nonDeletedElements = nonDeletedElements.elements;
+    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+
+    this.frames = nextFrameLikes;
+    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
   }
 
   constructor(
@@ -272,30 +379,40 @@ export class Scene {
     nextElements: ElementsMapOrArray,
     options?: {
       skipValidation?: true;
+      allPages?: boolean;
     },
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
-    const _nextElements = toArray(nextElements);
-    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+    const _nextElements = toArray(nextElements).map((el) => {
+      const pageId =
+        el.pageId ??
+        (this.allElementsMap.has(el.id)
+          ? getElementPageId(this.allElementsMap.get(el.id)!)
+          : options?.allPages
+          ? DEFAULT_PAGE_ID
+          : this.activePageId);
+      return withElementPageId(el, pageId);
+    });
 
     if (!options?.skipValidation) {
       validateIndicesThrottled(_nextElements);
     }
 
-    this.elements = syncInvalidIndices(_nextElements);
-    this.elementsMap.clear();
-    this.elements.forEach((element) => {
-      if (isFrameLikeElement(element)) {
-        nextFrameLikes.push(element);
-      }
-      this.elementsMap.set(element.id, element);
-    });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
-    this.nonDeletedElements = nonDeletedElements.elements;
-    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+    const isMultiPage =
+      options?.allPages ||
+      _nextElements.some((el) => getElementPageId(el) !== this.activePageId);
 
-    this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+    const mergedElements = isMultiPage
+      ? _nextElements
+      : [
+          ...this.allElements.filter(
+            (el) => getElementPageId(el) !== this.activePageId,
+          ),
+          ..._nextElements,
+        ];
+
+    this.allElements = syncInvalidIndices(mergedElements);
+    this.rebuildCaches();
 
     this.triggerUpdate();
   }
@@ -324,6 +441,10 @@ export class Scene {
   }
 
   destroy() {
+    this.allElements = [];
+    this.allNonDeletedElements = [];
+    this.allElementsMap.clear();
+    this.activePageId = DEFAULT_PAGE_ID;
     this.elements = [];
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
@@ -358,13 +479,17 @@ export class Scene {
       );
     }
 
+    const normalizedElements = elements.map((el) =>
+      withElementPageId(el, this.activePageId),
+    );
+
     const nextElements = [
       ...this.elements.slice(0, index),
-      ...elements,
+      ...normalizedElements,
       ...this.elements.slice(index),
     ];
 
-    syncMovedIndices(nextElements, arrayToMap(elements));
+    syncMovedIndices(nextElements, arrayToMap(normalizedElements));
 
     this.replaceAllElements(nextElements);
   }

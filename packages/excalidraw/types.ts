@@ -588,7 +588,24 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  /** ordered list of pages in the drawing */
+  pages: readonly ExcalidrawPage[];
+  /** id of the page currently displayed */
+  activePageId: string;
+  /** last known viewport of each page, keyed by page id */
+  pageViewports: Readonly<Record<string, PageViewport>>;
 }
+
+export type ExcalidrawPage = {
+  id: string;
+  name: string;
+};
+
+export type PageViewport = {
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
+};
 
 export type SearchMatch = {
   id: string;
@@ -1278,6 +1295,14 @@ export type AppClassProperties = {
 
   isInteractionEnabled: App["isInteractionEnabled"];
   isNavigationEnabled: App["isNavigationEnabled"];
+
+  getAllSceneElements: App["getAllSceneElements"];
+  getAllSceneElementsIncludingDeleted: App["getAllSceneElementsIncludingDeleted"];
+  addPage: App["addPage"];
+  switchPage: App["switchPage"];
+  renamePage: App["renamePage"];
+  reorderPages: App["reorderPages"];
+  deletePage: App["deletePage"];
 };
 
 export type PointerDownState = Readonly<{
@@ -1423,6 +1448,15 @@ export interface ExcalidrawImperativeAPI {
     "select" | "add" | "remove" | "clear"
   >;
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
+  getAllSceneElements: InstanceType<typeof App>["getAllSceneElements"];
+  getAllSceneElementsIncludingDeleted: InstanceType<
+    typeof App
+  >["getAllSceneElementsIncludingDeleted"];
+  addPage: InstanceType<typeof App>["addPage"];
+  switchPage: InstanceType<typeof App>["switchPage"];
+  renamePage: InstanceType<typeof App>["renamePage"];
+  reorderPages: InstanceType<typeof App>["reorderPages"];
+  deletePage: InstanceType<typeof App>["deletePage"];
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];

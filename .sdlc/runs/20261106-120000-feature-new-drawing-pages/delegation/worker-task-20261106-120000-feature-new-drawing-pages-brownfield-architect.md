@@ -1,0 +1,5 @@
+Changes asked for this step:
+
+Approved by the person after Phase 5 stalled: add a write form to the per-file lint check. Change the eslint file check (`yarn eslint --max-warnings 0 {path}`) so it carries `fix: "yarn eslint --fix {path}"` on every unit that uses it (in the header's check definitions and/or each unit's checks, wherever the check is declared). Reason: units U10 and U20 failed repeatedly on prettier/prettier line-wrapping warnings only (e.g. App.tsx 2916:41, 5214:33, 5215:7), which `eslint --fix` corrects automatically. Change nothing else in the spec: no unit's sites, behaviour, dependencies or files. Note: 23 units (U01-U19, U21, U22, U26, U29) are already applied to disk; U20 (packages/excalidraw/components/App.tsx), U23, U24, U25, U27, U28 and U30 are not yet applied and their target files are unchanged since your sections were accepted.
+
+Edit the pieces you handed in and hand each changed one in again.

@@ -13,6 +13,8 @@ import {
   DEFAULT_GRID_STEP,
   isTestEnv,
   DEFAULT_STICKY_NOTE_BG,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
 } from "@excalidraw/common";
 
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
@@ -149,6 +151,9 @@ export const getDefaultAppState = (): Omit<
       stickyNoteBackground: null,
     },
     fontTopPicks: null,
+    pages: [{ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME }],
+    activePageId: DEFAULT_PAGE_ID,
+    pageViewports: {},
   };
 };
 
@@ -294,6 +299,9 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: false },
+  pageViewports: { browser: true, export: true, server: false },
 });
 
 const _clearAppStateForStorage = <
@@ -325,7 +333,24 @@ export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
 };
 
 export const cleanAppStateForExport = (appState: Partial<AppState>) => {
-  return _clearAppStateForStorage(appState, "export");
+  const cleaned = _clearAppStateForStorage(appState, "export");
+
+  const isUntouchedSinglePage =
+    (!appState.pages ||
+      (appState.pages.length === 1 &&
+        appState.pages[0].id === DEFAULT_PAGE_ID &&
+        appState.pages[0].name === DEFAULT_PAGE_NAME)) &&
+    (!appState.activePageId || appState.activePageId === DEFAULT_PAGE_ID) &&
+    (!appState.pageViewports ||
+      Object.keys(appState.pageViewports).length === 0);
+
+  if (isUntouchedSinglePage) {
+    delete cleaned.pages;
+    delete cleaned.activePageId;
+    delete cleaned.pageViewports;
+  }
+
+  return cleaned;
 };
 
 export const clearAppStateForDatabase = (appState: Partial<AppState>) => {
