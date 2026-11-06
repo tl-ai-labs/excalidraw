@@ -1,0 +1,398 @@
+[
+  {
+    "id": "tp_tests_U01",
+    "unit": "U01",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/common/src/colors.test.ts",
+    "depends_on": [],
+    "subtype": "bug_reproduce",
+    "instruction": "Edit `packages/common/src/colors.test.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 1-5 (line 1 reads `import {`, line 5 reads `} from \"@excalidraw/common\";`) — Add `invertDarkModeFilter` to the named imports from `@excalidraw/common`.\n- S2: insert after line 216 (line 216 reads `});`) — Insert the `describe(\"invertDarkModeFilter\", ...)` test block after the `describe(\"applyDarkModeFilter\", ...)` block.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/colors.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/colors.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          83,
+          166
+        ],
+        "reason": "uses: Uses `applyDarkModeFilter`, `invertDarkModeFilter`, and `COLOR_PALETTE`."
+      },
+      {
+        "path": "packages/common/src/colors.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "inverts exact round-trip colors (#000000, #ffffff, COLOR_PALETTE.black): given Dark-mode filtered hex values of #000000 (#ededed), #ffffff (#121212), and COLOR_PALETTE.black (#d3d3d3), expect invertDarkModeFilter(applyDarkModeFilter(c)) returns the exact original hex string c",
+      "round-trips all COLOR_PALETTE colors and arbitrary RGB colors through applyDarkModeFilter: given Every colour and shade in COLOR_PALETTE plus primary, secondary, and arbitrary RGB hex colours, expect applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) equals applyDarkModeFilter(c)",
+      "preserves alpha channel, respects enable=false, and clamps out-of-range pixels to nearest colour: given Semi-transparent/transparent dark-mode colours, enable=false input, and out-of-range raw pixels #000000 and #ffffff, expect Preserves alpha suffix, returns input unchanged when enable is false, and for raw pixels #000000 and #ffffff returns a 7-character hex whose applyDarkModeFilter output is at least as close (squared RGB distance) to the pixel as applyDarkModeFilter('#ffffff') resp. applyDarkModeFilter('#000000')"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn test:app --watch=false '{path}'",
+          "expect": "fail"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 5
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 216,
+          "to": 216
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U02",
+    "unit": "U02",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+    "depends_on": [],
+    "subtype": "bug_reproduce",
+    "instruction": "Edit `packages/excalidraw/tests/eyeDropper.test.tsx` (unit U02) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 1-6 (line 1 reads `import React from \"react\";`, line 6 reads `import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";`) — Import `vi` from `vitest`, `{ applyDarkModeFilter, COLOR_PALETTE, THEME }` from `@excalidraw/common`, `{ ShapeCache }` from `@excalidraw/element`, `{ API }` from `./helpers/api`, and `{ act, fireEvent, GlobalTestState, render, togglePopover, waitFor }` from `./test-utils`.\n- S2: insert after line 49 (line 49 reads `});`) — Insert dark-theme and light-theme eyedropper colour-picking tests and the two fresh-render bucket-fill cursor droplet tests (dark theme and light theme) inside `describe(\"eye dropper\", ...)`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/eyeDropper.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/eyeDropper.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "lines": [
+          37,
+          163
+        ],
+        "reason": "uses: Exercises EyeDropper pointer events and getCurrentColor canvas sampling."
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [
+          459,
+          490
+        ],
+        "reason": "uses: Exercises the Background ColorPicker and ColorInput hex field updated by the eyedropper."
+      },
+      {
+        "path": "packages/excalidraw/components/App.cursor.ts",
+        "lines": [
+          30,
+          162
+        ],
+        "reason": "uses: Exercises `createBucketFillCursorDataURL` and `AppCursor.applyForTool` in dark and light themes."
+      },
+      {
+        "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [
+      "inverts dark-mode canvas pixel when picking color in dark theme: given Excalidraw in dark theme with a #1e1e1e source rectangle rendered on canvas as #d3d3d3 (211, 211, 211) and a selected #ffffff target rectangle with Background ColorPicker open, expect Picking from the source rectangle sets target backgroundColor to #1e1e1e, renders target with fill #d3d3d3 matching source, and sets .color-picker-input value to 1e1e1e",
+      "keeps sampled canvas pixel unchanged in light theme: given Excalidraw in light theme with a selected target rectangle and canvas pixel (30, 30, 30), expect Picking with the eyedropper sets target backgroundColor to #1e1e1e unchanged",
+      "draws bucket-fill cursor droplet with dark-mode-filtered color in dark theme: given Fresh Excalidraw render in dark theme with currentItemBackgroundColor COLOR_PALETTE.black (#1e1e1e) and bucketfill tool activated, expect Interactive canvas cursor SVG contains fill=\"#d3d3d3\" (applyDarkModeFilter(COLOR_PALETTE.black))",
+      "draws bucket-fill cursor droplet with untransformed color in light theme: given Fresh Excalidraw render in light theme with currentItemBackgroundColor COLOR_PALETTE.black (#1e1e1e) and bucketfill tool activated, expect Interactive canvas cursor SVG contains fill=\"#1e1e1e\" (COLOR_PALETTE.black)"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn test:app --watch=false '{path}'",
+          "expect": "fail"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 6
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 49,
+          "to": 49
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U03",
+    "unit": "U03",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/common/src/colors.ts",
+    "depends_on": [
+      "tp_tests_U01",
+      "tp_tests_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/common/src/colors.ts` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 114 (line 114 reads `};`) — Insert `DARK_MODE_INV_COLORS_CACHE` and `export const invertDarkModeFilter` immediately after `applyDarkModeFilter`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/colors.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/colors.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/index.ts",
+        "lines": [
+          1,
+          18
+        ],
+        "reason": "uses: Re-exports all exports of `./colors` from `@excalidraw/common`."
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 114,
+          "to": 114
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U04",
+    "unit": "U04",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/excalidraw/components/EyeDropper.tsx",
+    "depends_on": [
+      "tp_tests_U01",
+      "tp_tests_U02",
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/EyeDropper.tsx` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 4 (line 4 reads `import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";`) — Import `EVENT`, `KEYS`, `THEME`, `invertDarkModeFilter`, and `rgbToHex` from `@excalidraw/common`.\n- S2: replace line 94 (line 94 reads `return rgbToHex(pixel[0], pixel[1], pixel[2]);`) — Return `invertDarkModeFilter(rgbToHex(pixel[0], pixel[1], pixel[2]), appState.theme === THEME.DARK)`.\n- S3: replace lines 216-218 (line 216 reads `appState.offsetLeft,`, line 218 reads `]);`) — Include `appState.theme` in the `useEffect` dependency array.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/EyeDropper.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/EyeDropper.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          83,
+          114
+        ],
+        "reason": "uses: Calls `invertDarkModeFilter` with `appState.theme === THEME.DARK`."
+      },
+      {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 4,
+          "to": 4
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 94,
+          "to": 94
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 216,
+          "to": 218
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U05",
+    "unit": "U05",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261106-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/excalidraw/components/App.cursor.ts",
+    "depends_on": [
+      "tp_tests_U01",
+      "tp_tests_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/App.cursor.ts` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace lines 1-6 (line 1 reads `import {`, line 6 reads `} from \"@excalidraw/common\";`) — Add `applyDarkModeFilter` to the named imports from `@excalidraw/common`.\n- S2: replace lines 114-117 (line 114 reads `const theme =`, line 117 reads `: undefined;`) — Include `activeTool.type === \"bucketfill\"` alongside `\"eraser\"` and `\"laser\"` when computing `theme`.\n- S3: replace lines 136-140 (line 136 reads `} else if (activeTool.type === \"bucketfill\") {`, line 140 reads `);`) — Pass `applyDarkModeFilter(bucketFillColor!, this.app.state.theme === THEME.DARK)` to `createBucketFillCursorDataURL`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.cursor.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.cursor.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-bugfix-eyedropper-dark-theme/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          83,
+          114
+        ],
+        "reason": "uses: Calls `applyDarkModeFilter(color, enable)` for the bucket-fill cursor droplet."
+      },
+      {
+        "path": "packages/excalidraw/components/App.cursor.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --max-warnings=0 --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 6
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 114,
+          "to": 117
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 136,
+          "to": 140
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:app --watch=false 'packages/common/src/colors.test.ts'",
+      "yarn test:app --watch=false 'packages/excalidraw/tests/eyeDropper.test.tsx'",
+      "yarn test:typecheck && yarn test:code && yarn test:app --watch=false"
+    ]
+  }
+]

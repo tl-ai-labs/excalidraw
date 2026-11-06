@@ -1,0 +1,20 @@
+[
+  {
+    "id": "FU-1",
+    "source": "Gate 2 revise (user)",
+    "file": "packages/excalidraw/App.tsx (outside this run's allowlist)",
+    "summary": "Bucket-fill cursor droplet does not update on a theme toggle while the bucket-fill tool stays active: App.tsx componentDidUpdate (around lines 4142-4154) re-calls cursor.applyForTool() on a theme change only when activeTool is eraser; for bucketfill only when currentItemBackgroundColor changes. U05 adds theme to the cursor memo key, but nothing re-applies the cursor on a theme-only change. List as a follow-up in the PR."
+  },
+  {
+    "id": "FU-2",
+    "source": "end-of-run checks; user decision to carry to Gate 3",
+    "file": "packages/excalidraw/tests/eyeDropper.test.tsx",
+    "summary": "Test \"inverts dark-mode canvas pixel when picking color in dark theme\" depends on test order: editorJotaiStore is module-level, the existing first test opens the eyedropper (keyPress i) and leaves activeEyeDropperAtom set, and the ColorInput trigger toggles it off (s ? null : ...), so .excalidraw-eye-dropper-backdrop never appears (line 127). Its red check failed before the fix for this reason, not the colour bug. Fix: reset activeEyeDropperAtom before the test (e.g. beforeEach) or open the eyedropper order-independently."
+  },
+  {
+    "id": "FU-3",
+    "source": "end-of-run checks; user decision to carry to Gate 3",
+    "file": "packages/excalidraw/tests/eyeDropper.test.tsx",
+    "summary": "yarn test:typecheck fails: TS2339 at eyeDropper.test.tsx(95,54), (136,62), (137,57): ShapeCache.get(...) returns Drawable | Path2D | Drawable[] | (Drawable | SVGPathString)[], so ShapeCache.get(...)?.options.fill must be narrowed to Drawable."
+  }
+]

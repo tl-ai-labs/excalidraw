@@ -113,6 +113,145 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   return result;
 };
 
+const DARK_MODE_INV_COLORS_CACHE: Map<string, string> | null =
+  typeof window !== "undefined" ? new Map() : null;
+
+export const invertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const cached = DARK_MODE_INV_COLORS_CACHE?.get(color);
+  if (cached) {
+    return cached;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+  const { r: targetR, g: targetG, b: targetB } = tc.toRgb();
+
+  const uninvertComponent = (inv: number): number =>
+    Math.round(clamp((255 * 0.93 - inv) / 0.86, 0, 255));
+
+  const unrot = cssHueRotate(targetR, targetG, targetB, 180 as Degrees);
+  const baseR = clamp(unrot.r, 18, 237);
+  const baseG = clamp(unrot.g, 18, 237);
+  const baseB = clamp(unrot.b, 18, 237);
+
+  let bestDist = Infinity;
+  let bestInvR = baseR;
+  let bestInvG = baseG;
+  let bestInvB = baseB;
+
+  const deltas = [0, -1, 1, -2, 2];
+  for (const dr of deltas) {
+    const invR = clamp(baseR + dr, 18, 237);
+    for (const dg of deltas) {
+      const invG = clamp(baseG + dg, 18, 237);
+      for (const db of deltas) {
+        const invB = clamp(baseB + db, 18, 237);
+        const rot = cssHueRotate(invR, invG, invB, 180 as Degrees);
+        const dist =
+          (rot.r - targetR) ** 2 +
+          (rot.g - targetG) ** 2 +
+          (rot.b - targetB) ** 2;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestInvR = invR;
+          bestInvG = invG;
+          bestInvB = invB;
+          if (dist === 0) {
+            break;
+          }
+        }
+      }
+      if (bestDist === 0) {
+        break;
+      }
+    }
+    if (bestDist === 0) {
+      break;
+    }
+  }
+
+  if (bestDist !== 0) {
+    for (let invG = 18; invG <= 237; invG++) {
+      const s = targetG + invG;
+      const rhs = targetG - 0.43 * invG;
+      const loR =
+        targetR === 0
+          ? clamp(Math.round(s), 18, 237)
+          : targetR === 255
+          ? 18
+          : clamp(Math.round(s - targetR) - 1, 18, 237);
+      const hiR =
+        targetR === 0
+          ? 237
+          : targetR === 255
+          ? clamp(Math.round(s - 255), 18, 237)
+          : clamp(Math.round(s - targetR) + 1, 18, 237);
+      const loB =
+        targetB === 0
+          ? clamp(Math.round(s), 18, 237)
+          : targetB === 255
+          ? 18
+          : clamp(Math.round(s - targetB) - 1, 18, 237);
+      const hiB =
+        targetB === 0
+          ? 237
+          : targetB === 255
+          ? clamp(Math.round(s - 255), 18, 237)
+          : clamp(Math.round(s - targetB) + 1, 18, 237);
+
+      let invR = clamp(Math.round(s - targetR), loR, hiR);
+      let invB = clamp(Math.round(s - targetB), loB, hiB);
+      invR = clamp(Math.round((rhs - 0.144 * invB) / 0.426), loR, hiR);
+      invB = clamp(Math.round((rhs - 0.426 * invR) / 0.144), loB, hiB);
+      invR = clamp(Math.round((rhs - 0.144 * invB) / 0.426), loR, hiR);
+
+      for (let dr = -2; dr <= 2; dr++) {
+        const testR = clamp(invR + dr, 18, 237);
+        for (let db = -4; db <= 4; db++) {
+          const testB = clamp(invB + db, 18, 237);
+          const rot = cssHueRotate(testR, invG, testB, 180 as Degrees);
+          const dist =
+            (rot.r - targetR) ** 2 +
+            (rot.g - targetG) ** 2 +
+            (rot.b - targetB) ** 2;
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestInvR = testR;
+            bestInvG = invG;
+            bestInvB = testB;
+            if (dist === 0) {
+              break;
+            }
+          }
+        }
+        if (bestDist === 0) {
+          break;
+        }
+      }
+      if (bestDist === 0) {
+        break;
+      }
+    }
+  }
+
+  const result = rgbToHex(
+    uninvertComponent(bestInvR),
+    uninvertComponent(bestInvG),
+    uninvertComponent(bestInvB),
+    alpha,
+  );
+
+  if (DARK_MODE_INV_COLORS_CACHE) {
+    DARK_MODE_INV_COLORS_CACHE.set(color, result);
+  }
+
+  return result;
+};
+
 // ---------------------------------------------------------------------------
 // Color palette
 // ---------------------------------------------------------------------------

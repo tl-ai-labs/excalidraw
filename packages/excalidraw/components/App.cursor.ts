@@ -1,4 +1,5 @@
 import {
+  applyDarkModeFilter,
   CURSOR_TYPE,
   getBucketFillBackgroundColor,
   MIME_TYPES,
@@ -112,7 +113,9 @@ export class AppCursor {
           )
         : undefined;
     const theme =
-      activeTool.type === "eraser" || activeTool.type === "laser"
+      activeTool.type === "eraser" ||
+      activeTool.type === "laser" ||
+      activeTool.type === "bucketfill"
         ? this.app.state.theme
         : undefined;
     const memo = this.toolCursorMemo;
@@ -136,7 +139,12 @@ export class AppCursor {
     } else if (activeTool.type === "bucketfill") {
       // The hotspot is the center of the paint droplet in the icon.
       this.set(
-        `url(${createBucketFillCursorDataURL(bucketFillColor!)}) 5 18, auto`,
+        `url(${createBucketFillCursorDataURL(
+          applyDarkModeFilter(
+            bucketFillColor!,
+            this.app.state.theme === THEME.DARK,
+          ),
+        )}) 5 18, auto`,
       );
     } else if (activeTool.type === "laser") {
       const url =

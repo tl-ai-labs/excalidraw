@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  invertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -212,6 +213,94 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("invertDarkModeFilter", () => {
+  it("inverts exact round-trip colors (#000000, #ffffff, COLOR_PALETTE.black)", () => {
+    for (const color of ["#000000", "#ffffff", COLOR_PALETTE.black]) {
+      expect(invertDarkModeFilter(applyDarkModeFilter(color))).toBe(color);
+    }
+  });
+
+  it("round-trips all COLOR_PALETTE colors and arbitrary RGB colors through applyDarkModeFilter", () => {
+    const colors: string[] = [
+      COLOR_PALETTE.black,
+      COLOR_PALETTE.white,
+      COLOR_PALETTE.transparent,
+      "#ff0000",
+      "#00ff00",
+      "#0000ff",
+      "#ffff00",
+      "#00ffff",
+      "#ff00ff",
+      "#123456",
+      "#abcdef",
+    ];
+
+    for (const colorName of [
+      "gray",
+      "red",
+      "pink",
+      "grape",
+      "violet",
+      "blue",
+      "cyan",
+      "teal",
+      "green",
+      "yellow",
+      "orange",
+      "bronze",
+    ] as const) {
+      colors.push(...COLOR_PALETTE[colorName]);
+    }
+
+    for (const color of colors) {
+      const filtered = applyDarkModeFilter(color);
+      expect(applyDarkModeFilter(invertDarkModeFilter(filtered))).toBe(
+        filtered,
+      );
+    }
+  });
+
+  it("preserves alpha channel, respects enable=false, and clamps out-of-range pixels to nearest colour", () => {
+    const semiHex = applyDarkModeFilter("#ff000080");
+    expect(invertDarkModeFilter(semiHex).slice(-2)).toBe("80");
+    expect(applyDarkModeFilter(invertDarkModeFilter(semiHex))).toBe(semiHex);
+
+    const semiRgba = applyDarkModeFilter("rgba(255, 0, 0, 0.5)");
+    expect(invertDarkModeFilter(semiRgba).slice(-2)).toBe("80");
+    expect(applyDarkModeFilter(invertDarkModeFilter(semiRgba))).toBe(semiRgba);
+
+    const transparentFiltered = applyDarkModeFilter("transparent");
+    expect(invertDarkModeFilter(transparentFiltered)).toBe("#00000000");
+
+    expect(invertDarkModeFilter("#121212", false)).toBe("#121212");
+
+    const hexToRgb = (hex: string) => ({
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16),
+    });
+    const sqDist = (a: string, b: string) => {
+      const rgbA = hexToRgb(a);
+      const rgbB = hexToRgb(b);
+      return (
+        (rgbA.r - rgbB.r) ** 2 + (rgbA.g - rgbB.g) ** 2 + (rgbA.b - rgbB.b) ** 2
+      );
+    };
+
+    const invertedBlackPixel = invertDarkModeFilter("#000000");
+    expect(invertedBlackPixel).toMatch(/^#[0-9a-f]{6}$/);
+    expect(
+      sqDist(applyDarkModeFilter(invertedBlackPixel), "#000000"),
+    ).toBeLessThanOrEqual(sqDist(applyDarkModeFilter("#ffffff"), "#000000"));
+
+    const invertedWhitePixel = invertDarkModeFilter("#ffffff");
+    expect(invertedWhitePixel).toMatch(/^#[0-9a-f]{6}$/);
+    expect(
+      sqDist(applyDarkModeFilter(invertedWhitePixel), "#ffffff"),
+    ).toBeLessThanOrEqual(sqDist(applyDarkModeFilter("#000000"), "#ffffff"));
   });
 });
 

@@ -1,0 +1,482 @@
+{
+  "header": {
+    "conventions": [
+      "Use double quotes, semicolons, 2-space indentation, and trailing commas in multiline lists per @excalidraw/prettier-config and @excalidraw/eslint-config.",
+      "Order imports with blank lines between groups: builtin/external first, then @excalidraw/** packages, then parent/sibling relative imports, with separate `import type` statements (`@typescript-eslint/consistent-type-imports`).",
+      "Tests run under Vitest with globals (`describe`, `it`, `expect`, `vi`) in jsdom; use plain assertions (`expect(...).toBe(...)`) and never use or update snapshots.",
+      "Never import from the barrel `@excalidraw/excalidraw` inside `packages/excalidraw/` non-test source files; use `@excalidraw/common` and relative imports."
+    ],
+    "decisions": [
+      {
+        "topic": "Inverse dark-mode transform function signature and export",
+        "choice": "Export `invertDarkModeFilter = (color: string, enable = true): string` from `packages/common/src/colors.ts` (automatically re-exported by `export * from \"./colors\"` in `packages/common/src/index.ts`).",
+        "rejected": [
+          "Private helper inside EyeDropper.tsx",
+          "Redundant named re-export in packages/common/src/index.ts"
+        ],
+        "reason": "FR-1 and FR-5 require the inverse helper to be exported from `@excalidraw/common` for both `EyeDropper.tsx` and `colors.test.ts`, and `packages/common/src/index.ts` already re-exports all exports from `./colors`."
+      },
+      {
+        "topic": "Inverse dark-mode colour calculation algorithm",
+        "choice": "Find integer inverted channels `(invR, invG, invB)` in `[18, 237]^3` whose `cssHueRotate(invR, invG, invB, 180 as Degrees)` minimizes squared RGB distance to target `tc.toRgb()` (checking the 3x3x3 neighborhood of `cssHueRotate(r, g, b, 180)` first, then scanning `invG` in `18..237` using `0.426 * invR + 0.430 * invG + 0.144 * invB = G` to recover channels clamped to 0 or 255 by `cssHueRotate`), then un-invert each channel via `Math.round(clamp((255 * 0.93 - inv) / 0.86, 0, 255))` and format with `rgbToHex(r, g, b, alpha)`.",
+        "rejected": [
+          "Lookup tables or special-case branches for black/white",
+          "Direct algebraic matrix inverse without handling `cssHueRotate` clamping at 0 and 255"
+        ],
+        "reason": "Saturated colours such as `COLOR_PALETTE.yellow` and pure RGB primaries clamp in `cssHueRotate`, so scanning `invG` in `18..237` when the direct neighborhood does not match achieves exact round-trip `applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) === applyDarkModeFilter(c)` for all colours and exact `invertDarkModeFilter(applyDarkModeFilter(c)) === c` for `#000000`, `#ffffff`, and `#1e1e1e` in O(1) time without lookup tables."
+      },
+      {
+        "topic": "Eyedropper dark-theme inversion point",
+        "choice": "Apply `invertDarkModeFilter(rgbToHex(pixel[0], pixel[1], pixel[2]), appState.theme === THEME.DARK)` inside `getCurrentColor` in `packages/excalidraw/components/EyeDropper.tsx` and add `appState.theme` to its `useEffect` dependencies.",
+        "rejected": [
+          "Storing dark-mode-filtered colours in appState or element properties"
+        ],
+        "reason": "`getCurrentColor` in `EyeDropper.tsx` feeds the preview bubble (which is CSS-filtered by `var(--theme-filter)`), live drag `onChange`, and pointer-up `onSelect` with the canonical colour."
+      },
+      {
+        "topic": "Bucket-fill cursor droplet dark-theme colour and memo key",
+        "choice": "In `packages/excalidraw/components/App.cursor.ts` (`AppCursor.applyForTool`), include `activeTool.type === \"bucketfill\"` in `theme` for `toolCursorMemo` and pass `applyDarkModeFilter(bucketFillColor!, this.app.state.theme === THEME.DARK)` to `createBucketFillCursorDataURL`.",
+        "rejected": [
+          "Drawing the bucket-fill cursor droplet with the untransformed canonical colour in dark theme"
+        ],
+        "reason": "The canvas cursor SVG is not CSS-filtered, so in dark theme the droplet must apply `applyDarkModeFilter` to match the picked/painted canvas colour and `toolCursorMemo` must record `theme` for `bucketfill` when `applyForTool` runs."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "lint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --max-warnings=0 --fix {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "test",
+        "run": "yarn test:app --watch=false {path}",
+        "timeout_s": 120
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "verify",
+        "run": "yarn test:typecheck && yarn test:code && yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/common/src/colors.test.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Add round-trip unit tests for invertDarkModeFilter covering exact round-trip colours, all COLOR_PALETTE entries, arbitrary RGB colours, alpha preservation, disabled filter pass-through, and out-of-range pixels.",
+      "rules": [
+        "1. Import `invertDarkModeFilter` from `@excalidraw/common` alongside `applyDarkModeFilter`, `COLOR_PALETTE`, and `rgbToHex`.",
+        "2. Add a `describe(\"invertDarkModeFilter\", () => { ... })` suite using plain `expect(...).toBe(...)` assertions (never snapshots).",
+        "3. Assert exact round-trip `expect(invertDarkModeFilter(applyDarkModeFilter(color))).toBe(color)` for `#000000`, `#ffffff`, and `COLOR_PALETTE.black` (`#1e1e1e`).",
+        "4. Assert idempotent dark-mode round-trip `expect(applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(color)))).toBe(applyDarkModeFilter(color))` for every colour and shade array in `COLOR_PALETTE` (`black`, `white`, `transparent`, `gray`, `red`, `pink`, `grape`, `violet`, `blue`, `cyan`, `teal`, `green`, `yellow`, `orange`, `bronze`) as well as primary/secondary and arbitrary hex colours (`#ff0000`, `#00ff00`, `#0000ff`, `#ffff00`, `#00ffff`, `#ff00ff`, `#123456`, `#abcdef`).",
+        "5. Assert alpha preservation on `#ff000080`, `rgba(255, 0, 0, 0.5)`, and `transparent` (`#ededed00`), pass-through when `enable` is `false` (`expect(invertDarkModeFilter(\"#121212\", false)).toBe(\"#121212\")`), and for out-of-range raw pixels `#000000` and `#ffffff` assert that `invertDarkModeFilter` returns a 7-character hex (`/^#[0-9a-f]{6}$/`) and that `applyDarkModeFilter` of the result has squared RGB distance to the raw pixel less than or equal to the squared RGB distance of `applyDarkModeFilter(\"#ffffff\")` (for `#000000`) and `applyDarkModeFilter(\"#000000\")` (for `#ffffff`)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 5,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Add `invertDarkModeFilter` to the named imports from `@excalidraw/common`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 216,
+          "to": 216,
+          "first_line": "});",
+          "rule": "Insert the `describe(\"invertDarkModeFilter\", ...)` test block after the `describe(\"applyDarkModeFilter\", ...)` block."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.test.ts",
+        "lines": [
+          13,
+          117
+        ],
+        "reason": "Match existing Vitest describe/it structure and plain assertion style in colors.test.ts."
+      },
+      "uses": [
+        {
+          "path": "packages/common/src/colors.ts",
+          "lines": [
+            83,
+            166
+          ],
+          "reason": "Uses `applyDarkModeFilter`, `invertDarkModeFilter`, and `COLOR_PALETTE`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-5",
+        "NFR-1",
+        "NFR-2",
+        "AC-2",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "inverts exact round-trip colors (#000000, #ffffff, COLOR_PALETTE.black)",
+          "given": "Dark-mode filtered hex values of #000000 (#ededed), #ffffff (#121212), and COLOR_PALETTE.black (#d3d3d3)",
+          "expect": "invertDarkModeFilter(applyDarkModeFilter(c)) returns the exact original hex string c"
+        },
+        {
+          "name": "round-trips all COLOR_PALETTE colors and arbitrary RGB colors through applyDarkModeFilter",
+          "given": "Every colour and shade in COLOR_PALETTE plus primary, secondary, and arbitrary RGB hex colours",
+          "expect": "applyDarkModeFilter(invertDarkModeFilter(applyDarkModeFilter(c))) equals applyDarkModeFilter(c)"
+        },
+        {
+          "name": "preserves alpha channel, respects enable=false, and clamps out-of-range pixels to nearest colour",
+          "given": "Semi-transparent/transparent dark-mode colours, enable=false input, and out-of-range raw pixels #000000 and #ffffff",
+          "expect": "Preserves alpha suffix, returns input unchanged when enable is false, and for raw pixels #000000 and #ffffff returns a 7-character hex whose applyDarkModeFilter output is at least as close (squared RGB distance) to the pixel as applyDarkModeFilter('#ffffff') resp. applyDarkModeFilter('#000000')"
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "test"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "Add jsdom reproduction tests verifying dark-theme eyedropper pixel inversion on target shapes and colour picker hex input, light-theme preservation, and bucket-fill cursor droplet colours on fresh dark-theme and light-theme renders.",
+      "rules": [
+        "1. Import `vi` from `\"vitest\"`, `{ applyDarkModeFilter, COLOR_PALETTE, THEME }` from `\"@excalidraw/common\"`, `{ ShapeCache }` from `\"@excalidraw/element\"`, `{ API }` from `\"./helpers/api\"`, and `{ act, fireEvent, GlobalTestState, render, togglePopover, waitFor }` from `\"./test-utils\"`.",
+        "2. Add a test in `describe(\"eye dropper\", ...)` that renders `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} initialData={{ appState: { theme: THEME.DARK } }} />`, creates a solid source rectangle with `backgroundColor: COLOR_PALETTE.black` (`#1e1e1e`) and a solid target rectangle with `backgroundColor: COLOR_PALETTE.white` (`#ffffff`), sets both elements via `API.setElements([sourceRect, targetRect])`, and selects `targetRect` via `API.setSelectedElements([targetRect])`.",
+        "3. Wait for the static canvas render so `ShapeCache.get(sourceRect, THEME.DARK)?.options.fill` equals `applyDarkModeFilter(COLOR_PALETTE.black)` (`#d3d3d3`, i.e. RGB `211, 211, 211`), and mock `vi.spyOn(GlobalTestState.canvas.getContext(\"2d\")!, \"getImageData\").mockReturnValue({ data: new Uint8ClampedArray([211, 211, 211, 255]), width: 1, height: 1, colorSpace: \"srgb\" } as ImageData)`.",
+        "4. Open the background colour picker popover via `togglePopover(\"Background\")`, click `.excalidraw-eye-dropper-trigger`, wait for `.excalidraw-eye-dropper-backdrop`, and dispatch `fireEvent.pointerMove(window, { clientX: 50, clientY: 50 })`, `fireEvent.pointerDown(eyeDropperContainer, { clientX: 50, clientY: 50 })`, and `fireEvent.pointerUp(eyeDropperContainer, { clientX: 50, clientY: 50 })`.",
+        "5. Assert with plain `expect(...).toBe(...)` that the updated target rectangle's `backgroundColor` is `COLOR_PALETTE.black` (`#1e1e1e`), its rendered dark-mode fill `ShapeCache.get(window.h.elements[1], THEME.DARK)?.options.fill` equals `ShapeCache.get(window.h.elements[0], THEME.DARK)?.options.fill` (`#d3d3d3`), and `(GlobalTestState.renderResult.container.querySelector(\".color-picker-input\") as HTMLInputElement).value` is `\"1e1e1e\"`.",
+        "6. Verify light theme (`THEME.LIGHT`): when `appState.theme` is `THEME.LIGHT` and `getImageData` returns `[30, 30, 30, 255]` (`#1e1e1e`), picking with the eyedropper sets the target shape's `backgroundColor` to `#1e1e1e` unchanged.",
+        "7. Add two bucket-fill cursor droplet tests, each with a fresh render (no `API.setAppState` theme switching): first, render `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} initialData={{ appState: { theme: THEME.DARK, currentItemBackgroundColor: COLOR_PALETTE.black } }} />`, activate `bucketfill` via `act(() => { window.h.app.setActiveTool({ type: \"bucketfill\" }); })`, and assert `decodeURIComponent(GlobalTestState.interactiveCanvas.style.cursor)` contains `fill=\"${applyDarkModeFilter(COLOR_PALETTE.black)}\"` (`fill=\"#d3d3d3\"`); second, render `<Excalidraw autoFocus={true} handleKeyboardGlobally={true} initialData={{ appState: { theme: THEME.LIGHT, currentItemBackgroundColor: COLOR_PALETTE.black } }} />`, activate `bucketfill` via `act(() => { window.h.app.setActiveTool({ type: \"bucketfill\" }); })`, and assert `decodeURIComponent(GlobalTestState.interactiveCanvas.style.cursor)` contains `fill=\"${COLOR_PALETTE.black}\"` (`fill=\"#1e1e1e\"`)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 6,
+          "first_line": "import React from \"react\";",
+          "last_line": "import { fireEvent, GlobalTestState, render, waitFor } from \"./test-utils\";",
+          "rule": "Import `vi` from `vitest`, `{ applyDarkModeFilter, COLOR_PALETTE, THEME }` from `@excalidraw/common`, `{ ShapeCache }` from `@excalidraw/element`, `{ API }` from `./helpers/api`, and `{ act, fireEvent, GlobalTestState, render, togglePopover, waitFor }` from `./test-utils`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 49,
+          "to": 49,
+          "first_line": "});",
+          "rule": "Insert dark-theme and light-theme eyedropper colour-picking tests and the two fresh-render bucket-fill cursor droplet tests (dark theme and light theme) inside `describe(\"eye dropper\", ...)`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/tests/eyeDropper.test.tsx",
+        "lines": [
+          1,
+          50
+        ],
+        "reason": "Follow existing eyeDropper.test.tsx setup and DOM query conventions."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/EyeDropper.tsx",
+          "lines": [
+            37,
+            163
+          ],
+          "reason": "Exercises EyeDropper pointer events and getCurrentColor canvas sampling."
+        },
+        {
+          "path": "packages/excalidraw/actions/actionProperties.tsx",
+          "lines": [
+            459,
+            490
+          ],
+          "reason": "Exercises the Background ColorPicker and ColorInput hex field updated by the eyedropper."
+        },
+        {
+          "path": "packages/excalidraw/components/App.cursor.ts",
+          "lines": [
+            30,
+            162
+          ],
+          "reason": "Exercises `createBucketFillCursorDataURL` and `AppCursor.applyForTool` in dark and light themes."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-6",
+        "NFR-1",
+        "NFR-2",
+        "AC-1",
+        "AC-3",
+        "AC-4",
+        "AC-6"
+      ],
+      "tests": [
+        {
+          "name": "inverts dark-mode canvas pixel when picking color in dark theme",
+          "given": "Excalidraw in dark theme with a #1e1e1e source rectangle rendered on canvas as #d3d3d3 (211, 211, 211) and a selected #ffffff target rectangle with Background ColorPicker open",
+          "expect": "Picking from the source rectangle sets target backgroundColor to #1e1e1e, renders target with fill #d3d3d3 matching source, and sets .color-picker-input value to 1e1e1e"
+        },
+        {
+          "name": "keeps sampled canvas pixel unchanged in light theme",
+          "given": "Excalidraw in light theme with a selected target rectangle and canvas pixel (30, 30, 30)",
+          "expect": "Picking with the eyedropper sets target backgroundColor to #1e1e1e unchanged"
+        },
+        {
+          "name": "draws bucket-fill cursor droplet with dark-mode-filtered color in dark theme",
+          "given": "Fresh Excalidraw render in dark theme with currentItemBackgroundColor COLOR_PALETTE.black (#1e1e1e) and bucketfill tool activated",
+          "expect": "Interactive canvas cursor SVG contains fill=\"#d3d3d3\" (applyDarkModeFilter(COLOR_PALETTE.black))"
+        },
+        {
+          "name": "draws bucket-fill cursor droplet with untransformed color in light theme",
+          "given": "Fresh Excalidraw render in light theme with currentItemBackgroundColor COLOR_PALETTE.black (#1e1e1e) and bucketfill tool activated",
+          "expect": "Interactive canvas cursor SVG contains fill=\"#1e1e1e\" (COLOR_PALETTE.black)"
+        }
+      ],
+      "checks": [
+        "lint"
+      ],
+      "red_checks": [
+        "test"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/common/src/colors.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Implement and export invertDarkModeFilter(color, enable) in packages/common/src/colors.ts to invert applyDarkModeFilter without lookup tables or special-casing.",
+      "rules": [
+        "1. Define a browser-only cache `const DARK_MODE_INV_COLORS_CACHE: Map<string, string> | null = typeof window !== \"undefined\" ? new Map() : null;` matching `DARK_MODE_COLORS_CACHE`.",
+        "2. Export `const invertDarkModeFilter = (color: string, enable = true): string => { ... }`: if `!enable`, return `color`; if `DARK_MODE_INV_COLORS_CACHE?.get(color)` hits, return the cached value.",
+        "3. Parse `const tc = tinycolor(color)`, `const alpha = tc.getAlpha()`, and `const { r: targetR, g: targetG, b: targetB } = tc.toRgb()`. Define helper `uninvertComponent = (inv: number): number => Math.round(clamp((255 * 0.93 - inv) / 0.86, 0, 255))` (which is the exact right-inverse of `cssInvert(..., 93)` for every integer `inv` in `18..237`).",
+        "4. First compute `const unrot = cssHueRotate(targetR, targetG, targetB, 180 as Degrees)` and search `dr, dg, db` in `[0, -1, 1, -2, 2]` around `clamp(unrot.{r,g,b}, 18, 237)` for `(invR, invG, invB)` in `[18, 237]^3` minimizing squared RGB distance `(rot.r - targetR)^2 + (rot.g - targetG)^2 + (rot.b - targetB)^2` where `rot = cssHueRotate(invR, invG, invB, 180 as Degrees)`, breaking early when distance is `0`.",
+        "5. If minimum distance after step 4 is not `0` (which occurs when `cssHueRotate` clamped `r` or `b` to `0` or `255`, or when the pixel is outside the transform's output range), loop `invG` from `18` to `237`: let `s = targetG + invG`, `rhs = targetG - 0.43 * invG`, `loR = targetR === 0 ? clamp(Math.round(s), 18, 237) : targetR === 255 ? 18 : clamp(Math.round(s - targetR) - 1, 18, 237)`, `hiR = targetR === 0 ? 237 : targetR === 255 ? clamp(Math.round(s - 255), 18, 237) : clamp(Math.round(s - targetR) + 1, 18, 237)`, and analogously `loB`, `hiB` for `targetB`; project `invR` and `invB` onto `0.426 * invR + 0.144 * invB = rhs` within `[loR, hiR] x [loB, hiB]` (`invR = clamp(Math.round(s - targetR), loR, hiR)`, `invB = clamp(Math.round(s - targetB), loB, hiB)`, then refine `invR = clamp(Math.round((rhs - 0.144 * invB) / 0.426), loR, hiR)`, `invB = clamp(Math.round((rhs - 0.426 * invR) / 0.144), loB, hiB)`, `invR = clamp(Math.round((rhs - 0.144 * invB) / 0.426), loR, hiR)`), and test `dr` in `-2..2`, `db` in `-4..4` around `(invR, invB)` (clamped to `18..237`), updating best `(bestInvR, bestInvG, bestInvB)` when distance improves and breaking early if distance reaches `0`.",
+        "6. Compute `const result = rgbToHex(uninvertComponent(bestInvR), uninvertComponent(bestInvG), uninvertComponent(bestInvB), alpha)`, store `result` in `DARK_MODE_INV_COLORS_CACHE` if present, and return `result`."
+      ],
+      "exports": [
+        {
+          "name": "invertDarkModeFilter",
+          "kind": "function",
+          "params": [
+            {
+              "name": "color",
+              "type": "string"
+            },
+            {
+              "name": "enable",
+              "type": "boolean"
+            }
+          ],
+          "returns": "string"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 114,
+          "to": 114,
+          "first_line": "};",
+          "rule": "Insert `DARK_MODE_INV_COLORS_CACHE` and `export const invertDarkModeFilter` immediately after `applyDarkModeFilter`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/colors.ts",
+        "lines": [
+          12,
+          114
+        ],
+        "reason": "Match caching, tinycolor parsing, and helper style of applyDarkModeFilter in colors.ts."
+      },
+      "uses": [
+        {
+          "path": "packages/common/src/index.ts",
+          "lines": [
+            1,
+            18
+          ],
+          "reason": "Re-exports all exports of `./colors` from `@excalidraw/common`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "NFR-1",
+        "NFR-3",
+        "NFR-4",
+        "AC-2",
+        "AC-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/excalidraw/components/EyeDropper.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Invert sampled canvas pixel colours in EyeDropper.getCurrentColor when appState.theme is THEME.DARK and include appState.theme in the useEffect dependency list.",
+      "rules": [
+        "1. Import `THEME` and `invertDarkModeFilter` from `@excalidraw/common` alongside `EVENT`, `KEYS`, and `rgbToHex`.",
+        "2. In `getCurrentColor`, pass `rgbToHex(pixel[0], pixel[1], pixel[2])` through `invertDarkModeFilter(..., appState.theme === THEME.DARK)` before returning it.",
+        "3. Add `appState.theme` to the `useEffect` dependency array."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 4,
+          "to": 4,
+          "first_line": "import { EVENT, KEYS, rgbToHex } from \"@excalidraw/common\";",
+          "rule": "Import `EVENT`, `KEYS`, `THEME`, `invertDarkModeFilter`, and `rgbToHex` from `@excalidraw/common`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 94,
+          "to": 94,
+          "first_line": "return rgbToHex(pixel[0], pixel[1], pixel[2]);",
+          "rule": "Return `invertDarkModeFilter(rgbToHex(pixel[0], pixel[1], pixel[2]), appState.theme === THEME.DARK)`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 216,
+          "to": 218,
+          "first_line": "appState.offsetLeft,",
+          "last_line": "]);",
+          "rule": "Include `appState.theme` in the `useEffect` dependency array."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/EyeDropper.tsx",
+        "lines": [
+          69,
+          132
+        ],
+        "reason": "Match existing EyeDropper effect and helper style."
+      },
+      "uses": [
+        {
+          "path": "packages/common/src/colors.ts",
+          "lines": [
+            83,
+            114
+          ],
+          "reason": "Calls `invertDarkModeFilter` with `appState.theme === THEME.DARK`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "NFR-1",
+        "NFR-4",
+        "AC-1",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/excalidraw/components/App.cursor.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Apply applyDarkModeFilter to the bucket-fill cursor droplet colour in dark theme and include bucketfill in the cursor memo theme key.",
+      "rules": [
+        "1. Import `applyDarkModeFilter` from `@excalidraw/common` alongside `CURSOR_TYPE`, `getBucketFillBackgroundColor`, `MIME_TYPES`, and `THEME`.",
+        "2. In `AppCursor.applyForTool`, include `activeTool.type === \"bucketfill\"` in the condition that sets `const theme = ... ? this.app.state.theme : undefined;` so `toolCursorMemo` tracks `theme` for the bucket-fill tool.",
+        "3. When `activeTool.type === \"bucketfill\"`, pass `applyDarkModeFilter(bucketFillColor!, this.app.state.theme === THEME.DARK)` to `createBucketFillCursorDataURL(...)` so the droplet is dark-mode-filtered in dark theme and unchanged in light theme."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 6,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Add `applyDarkModeFilter` to the named imports from `@excalidraw/common`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 114,
+          "to": 117,
+          "first_line": "const theme =",
+          "last_line": ": undefined;",
+          "rule": "Include `activeTool.type === \"bucketfill\"` alongside `\"eraser\"` and `\"laser\"` when computing `theme`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 136,
+          "to": 140,
+          "first_line": "} else if (activeTool.type === \"bucketfill\") {",
+          "last_line": ");",
+          "rule": "Pass `applyDarkModeFilter(bucketFillColor!, this.app.state.theme === THEME.DARK)` to `createBucketFillCursorDataURL`."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/App.cursor.ts",
+        "lines": [
+          100,
+          162
+        ],
+        "reason": "Match existing AppCursor.applyForTool memoization and theme handling."
+      },
+      "uses": [
+        {
+          "path": "packages/common/src/colors.ts",
+          "lines": [
+            83,
+            114
+          ],
+          "reason": "Calls `applyDarkModeFilter(color, enable)` for the bucket-fill cursor droplet."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "NFR-1",
+        "NFR-4",
+        "AC-1",
+        "AC-4",
+        "AC-5"
+      ],
+      "checks": [
+        "lint"
+      ]
+    }
+  ]
+}

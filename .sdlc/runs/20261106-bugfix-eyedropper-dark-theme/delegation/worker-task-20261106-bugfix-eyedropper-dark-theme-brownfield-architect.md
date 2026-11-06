@@ -1,0 +1,7 @@
+Changes asked for this step:
+
+Gate 2 revise from the user (verbatim): Option 1, with light theme kept: U02's cursor test checks the droplet on two fresh renders, dark theme (fill #d3d3d3, fails before the fix) and light theme (fill #1e1e1e), with no theme switch inside one test. Keep the memo key change in U05. The droplet not updating on a theme toggle while the bucket tool stays active needs App.tsx, which is outside this run's scope: list it as a follow-up in the PR. Keep everything else.
+
+Notes from the orchestrator: App.tsx componentDidUpdate (around lines 4142-4154) re-calls cursor.applyForTool() on a theme change only when activeTool is eraser, and for bucketfill only when currentItemBackgroundColor changes; App.tsx is not in the allowlist, so the orchestrator records the toggle case as a follow-up — do not add a unit or site for App.tsx. So in U02 rule 7 (and its listed test): replace the single theme-switching test with two tests, each a fresh render (initialData appState theme set at render, currentItemBackgroundColor COLOR_PALETTE.black, bucketfill tool activated): dark theme asserts the interactive canvas cursor contains fill="#d3d3d3" (applyDarkModeFilter(COLOR_PALETTE.black)); light theme asserts it contains fill="#1e1e1e". Remove the API.setAppState theme switching. U05 unchanged (theme in the memo key for bucketfill, applyDarkModeFilter on the droplet colour in dark theme); adjust U05's decision wording so it does not claim the cursor rebuilds on a theme toggle.
+
+Edit the pieces you handed in and hand each changed one in again.
