@@ -485,10 +485,37 @@ export class Delta<T> {
           typeof value1 === "object" &&
           typeof value2 === "object" &&
           value1 !== null &&
-          value2 !== null &&
-          isShallowEqual(value1, value2)
+          value2 !== null
         ) {
-          continue;
+          if (Array.isArray(value1) && Array.isArray(value2)) {
+            if (
+              value1.length === value2.length &&
+              value1.every((item, idx) => {
+                const other = value2[idx];
+                if (
+                  typeof item === "object" &&
+                  item !== null &&
+                  typeof other === "object" &&
+                  other !== null
+                ) {
+                  if (
+                    "id" in item &&
+                    "name" in item &&
+                    "id" in other &&
+                    "name" in other
+                  ) {
+                    return item.id === other.id && item.name === other.name;
+                  }
+                  return isShallowEqual(item, other);
+                }
+                return item === other;
+              })
+            ) {
+              continue;
+            }
+          } else if (isShallowEqual(value1, value2)) {
+            continue;
+          }
         }
 
         yield key;
@@ -954,7 +981,7 @@ export class AppStateDelta implements DeltaContainer<AppState> {
     delta: Partial<ObservedAppState>,
   ): Partial<ObservedElementsAppState> {
     // WARN: Do not remove the type-casts as they here to ensure proper type checks
-    const { name, viewBackgroundColor, ...elementsProps } =
+    const { name, viewBackgroundColor, pages, ...elementsProps } =
       delta as ObservedAppState;
 
     return elementsProps as SubtypeOf<
@@ -2080,7 +2107,7 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
     changed: Map<string, OrderedExcalidrawElement>,
     renderEnvironment?: RenderEnvironment,
   ) {
-    const elements = scene.getNonDeletedElementsMap();
+    const elements = scene.getAllNonDeletedElementsMap();
     const boxesToRedraw = new Map<
       string,
       { container: OrderedExcalidrawElement; boundText: ExcalidrawTextElement }

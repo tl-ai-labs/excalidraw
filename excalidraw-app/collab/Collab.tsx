@@ -4,6 +4,8 @@ import {
   restoreElements,
   zoomToFitBounds,
   reconcileElements,
+  reconcilePages,
+  getElementPageId,
 } from "@excalidraw/excalidraw";
 import { ErrorDialog } from "@excalidraw/excalidraw/components/ErrorDialog";
 import { APP_NAME, cloneJSON, EVENT, toBrandedType } from "@excalidraw/common";
@@ -46,6 +48,7 @@ import type {
 import type {
   BinaryFileData,
   ExcalidrawImperativeAPI,
+  ExcalidrawPage,
   SocketId,
   Collaborator,
   Gesture,
@@ -315,7 +318,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (
       this.isCollaborating() &&
       (this.fileManager.shouldPreventUnload(syncableElements) ||
-        !isSavedToFirebase(this.portal, syncableElements))
+        !isSavedToFirebase(
+          this.portal,
+          syncableElements,
+          this.excalidrawAPI.getAppState(),
+        ))
     ) {
       // this won't run in time if user decides to leave the site, but
       //  the purpose is to run in immediately after user decides to stay
@@ -336,7 +343,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   ) => {
     syncableElements = cloneJSON(syncableElements);
     try {
-      const storedElements = await saveToFirebase(
+      const storedScene = await saveToFirebase(
         this.portal,
         syncableElements,
         this.excalidrawAPI.getAppState(),
@@ -344,8 +351,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
       this.resetErrorIndicator();
 
-      if (this.isCollaborating() && storedElements) {
-        this.handleRemoteSceneUpdate(this._reconcileElements(storedElements));
+      if (this.isCollaborating() && storedScene) {
+        this.handleRemoteSceneUpdate(
+          this._reconcileElements(storedScene.elements),
+          storedScene.pages,
+        );
       }
     } catch (error: any) {
       const errorMessage = /is longer than.*?bytes/.test(error.message)
@@ -610,10 +620,23 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               >(decryptedData.payload.elements);
               const reconciledElements =
                 this._reconcileElements(remoteElements);
-              this.handleRemoteSceneUpdate(reconciledElements);
+              this.handleRemoteSceneUpdate(
+                reconciledElements,
+                decryptedData.payload.pages,
+              );
               // noop if already resolved via init from firebase
               scenePromise.resolve({
                 elements: reconciledElements,
+                appState: decryptedData.payload.pages
+                  ? {
+                      pages: reconcilePages(
+                        this.excalidrawAPI.getAppState().pages,
+                        decryptedData.payload
+                          .pages as readonly ExcalidrawPage[],
+                        reconciledElements,
+                      ),
+                    }
+                  : undefined,
                 scrollToContent: true,
               });
             }
@@ -626,10 +649,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
                   decryptedData.payload.elements,
                 ),
               ),
+              decryptedData.payload.pages,
             );
             break;
           case WS_SUBTYPES.MOUSE_LOCATION: {
-            const { pointer, button, username, selectedElementIds } =
+            const { pointer, button, username, selectedElementIds, pageId } =
               decryptedData.payload;
 
             const socketId: SocketUpdateDataSource["MOUSE_LOCATION"]["payload"]["socketId"] =
@@ -642,13 +666,14 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               button,
               selectedElementIds,
               username,
+              pageId,
             });
 
             break;
           }
 
           case WS_SUBTYPES.USER_VISIBLE_SCENE_BOUNDS: {
-            const { sceneBounds, socketId } = decryptedData.payload;
+            const { sceneBounds, socketId, pageId } = decryptedData.payload;
 
             const userToFollow = appJotaiStore.get(userToFollowAtom);
 
@@ -664,6 +689,15 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             // cross-follow case, ignore updates in this case
             if (this.followedBy.has(userToFollow.socketId)) {
               return;
+            }
+
+            const targetPageId =
+              pageId ?? this.collaborators.get(socketId)?.pageId;
+            if (
+              targetPageId &&
+              targetPageId !== this.excalidrawAPI.getAppState().activePageId
+            ) {
+              this.excalidrawAPI.setActivePage(targetPageId);
             }
 
             const appState = this.excalidrawAPI.getAppState();
@@ -742,18 +776,47 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.excalidrawAPI.resetScene();
 
       try {
-        const elements = await loadFromFirebase(
+        const loadedScene = await loadFromFirebase(
           roomLinkData.roomId,
           roomLinkData.roomKey,
           this.portal.socket,
         );
-        if (elements) {
+        if (loadedScene) {
+          const { elements, pages } = loadedScene;
           this.setLastBroadcastedOrReceivedSceneVersion(
             getSceneVersion(elements),
           );
+          if (pages && pages.length > 0) {
+            const reconciledPages = reconcilePages(
+              this.excalidrawAPI.getAppState().pages,
+              pages as readonly ExcalidrawPage[],
+              elements,
+            );
+            this.lastBroadcastedOrReceivedPagesKey = JSON.stringify(
+              reconciledPages.map((p) => [p.id, p.name]),
+            );
+            this.excalidrawAPI.updateScene({
+              appState: {
+                pages: reconciledPages,
+                activePageId: reconciledPages[0].id,
+              },
+              captureUpdate: CaptureUpdateAction.NEVER,
+            });
+          }
 
           return {
             elements,
+            appState:
+              pages && pages.length > 0
+                ? {
+                    pages: reconcilePages(
+                      this.excalidrawAPI.getAppState().pages,
+                      pages as readonly ExcalidrawPage[],
+                      elements,
+                    ),
+                    activePageId: pages[0].id,
+                  }
+                : undefined,
             scrollToContent: true,
           };
         }
@@ -820,9 +883,46 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private handleRemoteSceneUpdate = (
     elements: ReconciledExcalidrawElement[],
+    remotePages?: readonly {
+      id: string;
+      name: string;
+      scrollX: number;
+      scrollY: number;
+      zoom: { value: number };
+    }[],
   ) => {
+    const appState = this.excalidrawAPI.getAppState();
+    let nextAppState: {
+      pages: readonly ExcalidrawPage[];
+      activePageId: string;
+    } | null = null;
+
+    if (
+      (remotePages && remotePages.length > 0) ||
+      elements.some((el) => getElementPageId(el) !== appState.pages[0]?.id)
+    ) {
+      const nextPages = reconcilePages(
+        appState.pages,
+        remotePages as readonly ExcalidrawPage[] | undefined,
+        elements,
+      );
+      const nextActivePageId = nextPages.some(
+        (p) => p.id === appState.activePageId,
+      )
+        ? appState.activePageId
+        : nextPages[0].id;
+      this.lastBroadcastedOrReceivedPagesKey = JSON.stringify(
+        nextPages.map((p) => [p.id, p.name]),
+      );
+      nextAppState = {
+        pages: nextPages,
+        activePageId: nextActivePageId,
+      };
+    }
+
     this.excalidrawAPI.updateScene({
       elements,
+      ...(nextAppState ? { appState: nextAppState } : {}),
       captureUpdate: CaptureUpdateAction.NEVER,
     });
 
@@ -923,10 +1023,22 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     collaborators.set(socketId, user);
     this.collaborators = collaborators;
 
+    const userToFollow = appJotaiStore.get(userToFollowAtom);
+    if (
+      userToFollow?.socketId === socketId &&
+      !this.followedBy.has(socketId) &&
+      user.pageId &&
+      user.pageId !== this.excalidrawAPI.getAppState().activePageId
+    ) {
+      this.excalidrawAPI.setActivePage(user.pageId);
+    }
+
     this.excalidrawAPI.updateScene({
       collaborators,
     });
   };
+
+  private lastBroadcastedOrReceivedPagesKey = "";
 
   public setLastBroadcastedOrReceivedSceneVersion = (version: number) => {
     this.lastBroadcastedOrReceivedSceneVersion = version;
@@ -969,12 +1081,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {
+    const appState = this.excalidrawAPI.getAppState();
+    const pagesKey = JSON.stringify(appState.pages.map((p) => [p.id, p.name]));
+    const pagesChanged = pagesKey !== this.lastBroadcastedOrReceivedPagesKey;
     if (
       getSceneVersion(elements) >
-      this.getLastBroadcastedOrReceivedSceneVersion()
+        this.getLastBroadcastedOrReceivedSceneVersion() ||
+      pagesChanged
     ) {
-      this.portal.broadcastScene(WS_SUBTYPES.UPDATE, elements, false);
+      this.portal.broadcastScene(WS_SUBTYPES.UPDATE, elements, pagesChanged);
       this.lastBroadcastedOrReceivedSceneVersion = getSceneVersion(elements);
+      this.lastBroadcastedOrReceivedPagesKey = pagesKey;
       this.queueBroadcastAllElements();
     }
   };
@@ -1032,6 +1149,16 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
 
     appJotaiStore.set(userToFollowAtom, userToFollow);
+
+    if (userToFollow) {
+      const followedUser = this.collaborators.get(userToFollow.socketId);
+      if (
+        followedUser?.pageId &&
+        followedUser.pageId !== this.excalidrawAPI.getAppState().activePageId
+      ) {
+        this.excalidrawAPI.setActivePage(followedUser.pageId);
+      }
+    }
   };
 
   setUsername = (username: string) => {

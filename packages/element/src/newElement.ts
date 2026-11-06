@@ -2,6 +2,7 @@ import {
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
+  DEFAULT_PAGE_ID,
   DEFAULT_TEXT_ALIGN,
   DEFAULT_STICKY_NOTE_SIZE,
   STICKY_NOTE_MIN_SIZE,
@@ -84,6 +85,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "opacity"
   | "customData"
   | "created"
+  | "pageId"
 >;
 
 const _newElementBase = <T extends ExcalidrawElement>(
@@ -108,6 +110,7 @@ const _newElementBase = <T extends ExcalidrawElement>(
     boundElements = null,
     link = null,
     locked = DEFAULT_ELEMENT_PROPS.locked,
+    pageId,
     ...rest
   }: ElementConstructorOpts & Omit<Partial<ExcalidrawGenericElement>, "type">,
 ) => {
@@ -169,6 +172,11 @@ const _newElementBase = <T extends ExcalidrawElement>(
     link,
     locked,
     customData: rest.customData,
+    ...(typeof pageId === "string" &&
+    pageId.length > 0 &&
+    pageId !== DEFAULT_PAGE_ID
+      ? { pageId }
+      : {}),
   };
   return element;
 };

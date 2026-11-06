@@ -1,6 +1,8 @@
 import {
   assertNever,
   COLOR_PALETTE,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
   isDevEnv,
   isTestEnv,
   randomId,
@@ -12,7 +14,11 @@ import type App from "@excalidraw/excalidraw/components/App";
 
 import type { DTO, ValueOf } from "@excalidraw/common/utility-types";
 
-import type { AppState, ObservedAppState } from "@excalidraw/excalidraw/types";
+import type {
+  AppState,
+  NormalizedZoomValue,
+  ObservedAppState,
+} from "@excalidraw/excalidraw/types";
 
 import { deepCopyElement } from "./duplicate";
 import { newElementWith } from "./mutateElement";
@@ -1000,6 +1006,15 @@ const getDefaultObservedAppState = (): ObservedAppState => {
     croppingElementId: null,
     activeLockedId: null,
     lockedMultiSelections: {},
+    pages: [
+      {
+        id: DEFAULT_PAGE_ID,
+        name: DEFAULT_PAGE_NAME,
+        scrollX: 0,
+        scrollY: 0,
+        zoom: { value: 1 as NormalizedZoomValue },
+      },
+    ],
   };
 };
 
@@ -1015,6 +1030,23 @@ export const getObservedAppState = (
     croppingElementId: appState.croppingElementId,
     activeLockedId: appState.activeLockedId,
     lockedMultiSelections: appState.lockedMultiSelections,
+    pages: appState.pages?.length
+      ? appState.pages.map((page) => ({
+          id: page.id,
+          name: page.name,
+          scrollX: page.scrollX,
+          scrollY: page.scrollY,
+          zoom: { value: page.zoom.value },
+        }))
+      : [
+          {
+            id: DEFAULT_PAGE_ID,
+            name: DEFAULT_PAGE_NAME,
+            scrollX: 0,
+            scrollY: 0,
+            zoom: { value: 1 as NormalizedZoomValue },
+          },
+        ],
     selectedLinearElement: appState.selectedLinearElement
       ? {
           elementId: appState.selectedLinearElement.elementId,

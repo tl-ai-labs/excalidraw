@@ -29,7 +29,8 @@ export const actionSelectAll = register({
       return false;
     }
 
-    const selectedElementIds = elements
+    const activeElements = app.scene.getNonDeletedElements();
+    const selectedElementIds = activeElements
       .filter(
         (element) =>
           !element.isDeleted &&
@@ -49,17 +50,17 @@ export const actionSelectAll = register({
             editingGroupId: null,
             selectedElementIds,
           },
-          getNonDeletedElements(elements),
+          getNonDeletedElements(activeElements),
           appState,
           app,
         ),
         selectedLinearElement:
           // single linear element selected
           Object.keys(selectedElementIds).length === 1 &&
-          isLinearElement(elements[0])
+          isLinearElement(activeElements[0])
             ? new LinearElementEditor(
-                elements[0] as NonDeleted<ExcalidrawLinearElement>,
-                arrayToMap(elements),
+                activeElements[0] as NonDeleted<ExcalidrawLinearElement>,
+                arrayToMap(activeElements),
               )
             : null,
       },

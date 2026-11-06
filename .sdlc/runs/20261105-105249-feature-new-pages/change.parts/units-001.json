@@ -1,0 +1,70 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/data/reconcile.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds an optional third parameter `elements?: readonly ExcalidrawElement[]` to `reconcilePages` so local pages missing from `remotePages` are kept when non-deleted elements are still on them (AC-12).",
+      "rules": [
+        "1. In S1 (line 11), import `ExcalidrawElement` alongside `OrderedExcalidrawElement` from `\"@excalidraw/element/types\"`.",
+        "2. In S2 (lines 120-148), add `elements?: readonly ExcalidrawElement[]` as an optional third parameter to `reconcilePages`; after iterating `remotePages`, if `elements?.length`, collect the set of `element.pageId` values across non-deleted elements (`!element.isDeleted && element.pageId`) and append any `localPage` in `localPages` whose `id` is not yet in `seen` and is in that set."
+      ],
+      "exports": [
+        {
+          "name": "reconcilePages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "localPages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "remotePages",
+              "type": "readonly ExcalidrawPage[] | undefined"
+            },
+            {
+              "name": "elements",
+              "type": "readonly ExcalidrawElement[] | undefined"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        }
+      ],
+      "import_line": "import { reconcilePages } from \"@excalidraw/excalidraw\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 11,
+          "first_line": "import type { OrderedExcalidrawElement } from \"@excalidraw/element/types\";",
+          "rule": "Import ExcalidrawElement alongside OrderedExcalidrawElement from @excalidraw/element/types."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 120,
+          "to": 148,
+          "first_line": "export const reconcilePages = (",
+          "last_line": "};",
+          "rule": "Add optional elements?: readonly ExcalidrawElement[] parameter to reconcilePages and keep any localPage missing from remotePages that still has non-deleted elements on it."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "AC-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/data/reconcile.ts": "8fb66c6424aa80654943810e237be92e3514de7a2896b8c56fe0657f279e20e4"
+  }
+}

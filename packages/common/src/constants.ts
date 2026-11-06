@@ -393,6 +393,7 @@ export const DEFAULT_UI_OPTIONS: AppProps["UIOptions"] = {
     saveToActiveFile: true,
     toggleTheme: null,
     saveAsImage: true,
+    pages: false,
   },
   tools: {
     image: true,
@@ -612,6 +613,9 @@ export enum UserIdleState {
  * the start and end points)
  */
 export const LINE_POLYGON_POINT_MERGE_DISTANCE = 20;
+
+export const DEFAULT_PAGE_ID = "page-1";
+export const DEFAULT_PAGE_NAME = "Page 1";
 
 export const DOUBLE_TAP_POSITION_THRESHOLD = 35;
 

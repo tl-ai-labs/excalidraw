@@ -118,6 +118,9 @@ const InteractiveCanvas = (props: InteractiveCanvasProps) => {
       new Map();
 
     props.appState.collaborators.forEach((user, socketId) => {
+      if (user.pageId && user.pageId !== props.appState.activePageId) {
+        return;
+      }
       if (user.selectedElementIds) {
         for (const id of Object.keys(user.selectedElementIds)) {
           if (!remoteSelectedElementIds.has(id)) {

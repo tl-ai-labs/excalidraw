@@ -22,6 +22,8 @@ import {
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_GRID_SIZE,
   DEFAULT_GRID_STEP,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
   randomId,
   getUpdatedTimestamp,
   updateActiveTool,
@@ -115,7 +117,12 @@ import {
   getNormalizedZoom,
 } from "../scene";
 
-import type { AppState, BinaryFiles, LibraryItem } from "../types";
+import type {
+  AppState,
+  BinaryFiles,
+  ExcalidrawPage,
+  LibraryItem,
+} from "../types";
 import type { ImportedDataState, LegacyAppState } from "./types";
 
 type RestoredAppState = Omit<
@@ -448,8 +455,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -534,6 +542,16 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+
+  if (
+    typeof element.pageId === "string" &&
+    element.pageId.length > 0 &&
+    element.pageId !== DEFAULT_PAGE_ID
+  ) {
+    (ret as Mutable<T>).pageId = element.pageId;
+  } else {
+    delete (ret as Mutable<T>).pageId;
+  }
 
   return ret;
 };
@@ -1338,8 +1356,135 @@ export const restoreAppState = (
       defaultAppState.currentItemStrokeWidthKey;
   }
 
+  const hasExplicitScrollX = isFiniteNumber(appState.scrollX);
+  const hasExplicitScrollY = isFiniteNumber(appState.scrollY);
+  const hasExplicitZoom =
+    isFiniteNumber(appState.zoom) || isFiniteNumber(appState.zoom?.value);
+
+  const fallbackScrollX = hasExplicitScrollX
+    ? (appState.scrollX as number)
+    : isFiniteNumber(localAppState?.scrollX)
+    ? (localAppState!.scrollX as number)
+    : defaultAppState.scrollX;
+  const fallbackScrollY = hasExplicitScrollY
+    ? (appState.scrollY as number)
+    : isFiniteNumber(localAppState?.scrollY)
+    ? (localAppState!.scrollY as number)
+    : defaultAppState.scrollY;
+  const fallbackZoomValue = getNormalizedZoom(
+    isFiniteNumber(appState.zoom)
+      ? appState.zoom
+      : appState.zoom?.value ??
+          localAppState?.zoom?.value ??
+          defaultAppState.zoom.value,
+  );
+
+  const rawPages = Array.isArray(appState.pages)
+    ? appState.pages
+    : Array.isArray(localAppState?.pages)
+    ? localAppState.pages
+    : null;
+
+  const restoredPages: ExcalidrawPage[] = [];
+  const seenPageIds = new Set<string>();
+
+  if (rawPages) {
+    rawPages.forEach((rawPage, idx) => {
+      if (!rawPage || typeof rawPage !== "object") {
+        return;
+      }
+      const rawId =
+        typeof rawPage.id === "string" && rawPage.id.trim().length > 0
+          ? rawPage.id.trim()
+          : `page-${idx + 1}`;
+      const id = seenPageIds.has(rawId) ? `${rawId}-${randomId()}` : rawId;
+      seenPageIds.add(id);
+
+      const name =
+        typeof rawPage.name === "string" && rawPage.name.trim().length > 0
+          ? rawPage.name.trim()
+          : `Page ${restoredPages.length + 1}`;
+
+      const scrollX = isFiniteNumber(rawPage.scrollX) ? rawPage.scrollX : 0;
+      const scrollY = isFiniteNumber(rawPage.scrollY) ? rawPage.scrollY : 0;
+      const rawZoom = (rawPage as { zoom?: unknown }).zoom;
+      const zoomValue = getNormalizedZoom(
+        isFiniteNumber(rawZoom)
+          ? rawZoom
+          : isFiniteNumber((rawZoom as { value?: unknown } | undefined)?.value)
+          ? ((rawZoom as { value: number }).value as number)
+          : defaultAppState.zoom.value,
+      );
+
+      restoredPages.push({
+        id,
+        name,
+        scrollX,
+        scrollY,
+        zoom: { value: zoomValue },
+      });
+    });
+  }
+
+  if (restoredPages.length === 0) {
+    restoredPages.push({
+      id: DEFAULT_PAGE_ID,
+      name: DEFAULT_PAGE_NAME,
+      scrollX: fallbackScrollX,
+      scrollY: fallbackScrollY,
+      zoom: { value: fallbackZoomValue },
+    });
+  }
+
+  const candidateActivePageId =
+    typeof appState.activePageId === "string" &&
+    appState.activePageId.length > 0
+      ? appState.activePageId
+      : typeof localAppState?.activePageId === "string" &&
+        localAppState.activePageId.length > 0
+      ? localAppState.activePageId
+      : restoredPages[0].id;
+
+  const activePageIndex = restoredPages.findIndex(
+    (p) => p.id === candidateActivePageId,
+  );
+  const resolvedActivePageIndex = activePageIndex >= 0 ? activePageIndex : 0;
+  const resolvedActivePage = restoredPages[resolvedActivePageIndex];
+  const activePageId = resolvedActivePage.id;
+
+  const hasSuppliedPages =
+    Array.isArray(appState.pages) && appState.pages.length > 0;
+  const scrollX = hasExplicitScrollX
+    ? (appState.scrollX as number)
+    : hasSuppliedPages
+    ? resolvedActivePage.scrollX
+    : fallbackScrollX;
+  const scrollY = hasExplicitScrollY
+    ? (appState.scrollY as number)
+    : hasSuppliedPages
+    ? resolvedActivePage.scrollY
+    : fallbackScrollY;
+  const zoom = {
+    value: hasExplicitZoom
+      ? fallbackZoomValue
+      : hasSuppliedPages
+      ? resolvedActivePage.zoom.value
+      : fallbackZoomValue,
+  };
+
+  restoredPages[resolvedActivePageIndex] = {
+    ...resolvedActivePage,
+    scrollX,
+    scrollY,
+    zoom,
+  };
+
   return {
     ...nextAppState,
+    pages: restoredPages,
+    activePageId,
+    scrollX,
+    scrollY,
     cursorButton: localAppState?.cursorButton || "up",
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:
@@ -1356,14 +1501,7 @@ export const restoreAppState = (
       lastActiveTool: null,
       locked: nextAppState.activeTool.locked ?? false,
     },
-    // Migrates from previous version where appState.zoom was a number
-    zoom: {
-      value: getNormalizedZoom(
-        isFiniteNumber(appState.zoom)
-          ? appState.zoom
-          : appState.zoom?.value ?? defaultAppState.zoom.value,
-      ),
-    },
+    zoom,
     openSidebar:
       // string (legacy)
       typeof (appState.openSidebar as any as string) === "string"

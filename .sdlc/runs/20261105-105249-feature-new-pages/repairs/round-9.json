@@ -1,0 +1,83 @@
+[
+  {
+    "id": "tp_debug_r9_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "instruction": "Fix `packages/element/src/Scene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise from the person, verbatim:\nrevise: Drawing on any page except the first is broken in the real app. On a new page, a rectangle drag leaves a 0×0 rectangle (the same drag on Page 1 gives 150×131), and those shapes disappear on reload because Excalidraw drops invisibly small elements on save. Cause: Scene.insertElementAtIndex (packages/element/src/Scene.ts:529-534) and replaceAllElements (Scene.ts:432-440) stamp pageId by swapping a new element for a copy ({ ...element, pageId }), so App.tsx keeps resizing the original object during the drag while the scene holds the copy. Fix: set pageId on the element object itself in both places (for example Object.assign(element, { pageId: this.activePageId })) instead of copying, so the scene and App.tsx share one object; this covers every creation path (shapes, text, freedraw, lines, arrows, images, frames). I checked that change in the dev app: the same drag on a new page then gives a 150×131 rectangle that survives a reload. Add a jsdom test in packages/excalidraw/tests/pages.test.tsx that adds a second page, draws a rectangle with UI.clickTool(\"rectangle\") and mouse.down/mouse.up, and asserts the element's width and height are non-zero and its pageId is the second page's id.\n\nOn disk now the two copies are at packages/element/src/Scene.ts lines 434-440 (replaceAllElements: `? { ...el, pageId: this.activePageId }`) and 528-535 (insertElementsAtIndex: `: { ...element, pageId: this.activePageId },`). Change only these two sites: set pageId on the element object itself (Object.assign) and keep the same element reference in the array. Leave every other line unchanged.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r9_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise from the person, verbatim:\nrevise: Drawing on any page except the first is broken in the real app. On a new page, a rectangle drag leaves a 0×0 rectangle (the same drag on Page 1 gives 150×131), and those shapes disappear on reload because Excalidraw drops invisibly small elements on save. Cause: Scene.insertElementAtIndex (packages/element/src/Scene.ts:529-534) and replaceAllElements (Scene.ts:432-440) stamp pageId by swapping a new element for a copy ({ ...element, pageId }), so App.tsx keeps resizing the original object during the drag while the scene holds the copy. Fix: set pageId on the element object itself in both places (for example Object.assign(element, { pageId: this.activePageId })) instead of copying, so the scene and App.tsx share one object; this covers every creation path (shapes, text, freedraw, lines, arrows, images, frames). I checked that change in the dev app: the same drag on a new page then gives a 150×131 rectangle that survives a reload. Add a jsdom test in packages/excalidraw/tests/pages.test.tsx that adds a second page, draws a rectangle with UI.clickTool(\"rectangle\") and mouse.down/mouse.up, and asserts the element's width and height are non-zero and its pageId is the second page's id.\n\nIn this file, add only the jsdom test the last sentence describes, as one new it(...) case inside the existing describe block; change no existing test. Render <Excalidraw> with UIOptions={{ canvasActions: { pages: true } }} and handleKeyboardGlobally, add and switch to a second page with h.app.addPage({ name: \"Page 2\" }), draw with UI.clickTool(\"rectangle\"), mouse.down(…) and mouse.up(…) as dragCreate.test.tsx does, and assert width > 0, height > 0, and pageId equal to the second page id. Do not weaken these assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/dragCreate.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

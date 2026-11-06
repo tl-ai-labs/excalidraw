@@ -41,6 +41,13 @@ You can use this prop when you want to access some [Excalidraw APIs](https://git
 | [onChange](#onChange) | `function` | Subscribes to change events |
 | [onPointerDown](#onPointerDown) | `function` | Subscribes to `pointerdown` events |
 | [onPointerUp](#onPointerUp) | `function` | Subscribes to `pointerup` events |
+| [getPages](#getpages) | `function` | Returns the ordered list of pages in the scene |
+| [getActivePageId](#getactivepageid) | `function` | Returns the currently active page ID |
+| [setActivePage](#setactivepage) | `function` | Switches to the specified page by ID |
+| [addPage](#addpage) | `function` | Creates and appends a new page |
+| [renamePage](#renamepage) | `function` | Renames a page by ID |
+| [reorderPages](#reorderpages) | `function` | Reorders a page from `fromIndex` to `toIndex` |
+| [deletePage](#deletepage) | `function` | Deletes a page and soft-deletes its elements |
 
 :::info The `Ref` support has been removed in v0.17.0 so if you are using refs, please update the integration to use the `excalidrawAPI`.
 
@@ -447,3 +454,59 @@ Returns an unsubscribe function.
 Subscribes to canvas `pointerup` events.
 
 Returns an unsubscribe function.
+
+## getPages
+
+```tsx
+() => readonly ExcalidrawPage[]
+```
+
+Returns the ordered list of pages in the scene.
+
+## getActivePageId
+
+```tsx
+() => string
+```
+
+Returns the ID of the currently active page.
+
+## setActivePage
+
+```tsx
+(pageId: string) => void
+```
+
+Switches the active page to `pageId`, saving the current page's viewport and restoring the target page's viewport without recording an undo entry.
+
+## addPage
+
+```tsx
+(opts?: { name?: string; switchTo?: boolean }) => ExcalidrawPage
+```
+
+Creates and appends a new page (defaulting to a unique `"Page N"` name when `opts.name` is omitted) and switches to it unless `opts.switchTo` is `false`.
+
+## renamePage
+
+```tsx
+(pageId: string, name: string) => void
+```
+
+Renames the page with the given `pageId` to `name` (empty or whitespace-only names are ignored).
+
+## reorderPages
+
+```tsx
+(fromIndex: number, toIndex: number) => void
+```
+
+Moves the page at `fromIndex` to `toIndex` in `appState.pages`.
+
+## deletePage
+
+```tsx
+(pageId: string) => void
+```
+
+Deletes the page with the given `pageId` and soft-deletes its elements. When only one page remains, `deletePage` is a no-op.

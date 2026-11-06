@@ -408,6 +408,7 @@ export {
   hashElementsVersion,
   hashString,
   getNonDeletedElements,
+  getElementPageId,
 } from "@excalidraw/element";
 
 export { getTextFromElements } from "@excalidraw/element";
@@ -421,7 +422,8 @@ export {
   restoreLibraryItems,
 } from "./data/restore";
 
-export { reconcileElements } from "./data/reconcile";
+export { reconcileElements, reconcilePages } from "./data/reconcile";
+export type { ExcalidrawPage } from "./types";
 
 export { exportScene, exportToClipboard } from "./scene/export";
 

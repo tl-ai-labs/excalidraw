@@ -7,6 +7,8 @@ import {
   DEFAULT_ELEMENT_STROKE_WIDTH_KEY,
   DEFAULT_TEXT_ALIGN,
   DEFAULT_GRID_SIZE,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
   EXPORT_SCALES,
   STATS_PANELS,
   THEME,
@@ -149,6 +151,16 @@ export const getDefaultAppState = (): Omit<
       stickyNoteBackground: null,
     },
     fontTopPicks: null,
+    pages: [
+      {
+        id: DEFAULT_PAGE_ID,
+        name: DEFAULT_PAGE_NAME,
+        scrollX: 0,
+        scrollY: 0,
+        zoom: { value: 1 as NormalizedZoomValue },
+      },
+    ],
+    activePageId: DEFAULT_PAGE_ID,
   };
 };
 
@@ -294,6 +306,8 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: true },
 });
 
 const _clearAppStateForStorage = <

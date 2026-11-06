@@ -12,6 +12,7 @@ import {
 
 import {
   getCommonBounds,
+  getElementPageId,
   isElementCompletelyInViewport,
 } from "@excalidraw/element";
 
@@ -62,6 +63,8 @@ const SEARCH_DEBOUNCE = 350;
 
 type SearchMatchItem = {
   element: ExcalidrawTextElement | ExcalidrawFrameLikeElement;
+  pageId: string;
+  pageName: string;
   searchQuery: SearchQuery;
   index: number;
   preview: {
@@ -136,6 +139,7 @@ export const SearchMenu = () => {
     searchQuery,
     elementsMap,
     app,
+    app.state.pages,
     setAppState,
     setFocusIndex,
     lastSceneNonceRef,
@@ -197,6 +201,10 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        if (match.pageId !== app.state.activePageId) {
+          app.setActivePage(match.pageId);
+        }
+
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -435,6 +443,7 @@ const ListItem = (props: {
   preview: SearchMatchItem["preview"];
   searchQuery: SearchQuery;
   highlighted: boolean;
+  pageName?: string;
   onClick?: () => void;
 }) => {
   const preview = [
@@ -468,6 +477,14 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName && (
+        <span
+          className="search-result-page-badge"
+          data-testid="search-result-page-badge"
+        >
+          {props.pageName}
+        </span>
+      )}
     </div>
   );
 };
@@ -504,6 +521,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={searchMatch.pageName}
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
             />
@@ -524,6 +542,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={searchMatch.pageName}
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
             />
@@ -800,7 +819,18 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene.getAllNonDeletedElements();
+    const pages = app.state.pages;
+    const pageOrderMap = new Map(pages.map((p, idx) => [p.id, idx]));
+    const pageNameMap = new Map(pages.map((p) => [p.id, p.name]));
+
+    const getPageOrder = (
+      el: ExcalidrawTextElement | ExcalidrawFrameLikeElement,
+    ) => pageOrderMap.get(getElementPageId(el, pages)) ?? 0;
+
+    const getPageName = (pageId: string) =>
+      pages.length > 1 ? pageNameMap.get(pageId) ?? "" : "";
+
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -809,8 +839,14 @@ const handleSearch = debounce(
       isFrameLikeElement(el),
     ) as ExcalidrawFrameLikeElement[];
 
-    texts.sort((a, b) => a.y - b.y);
-    frames.sort((a, b) => a.y - b.y);
+    texts.sort((a, b) => {
+      const pageDiff = getPageOrder(a) - getPageOrder(b);
+      return pageDiff !== 0 ? pageDiff : a.y - b.y;
+    });
+    frames.sort((a, b) => {
+      const pageDiff = getPageOrder(a) - getPageOrder(b);
+      return pageDiff !== 0 ? pageDiff : a.y - b.y;
+    });
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -819,6 +855,8 @@ const handleSearch = debounce(
     for (const textEl of texts) {
       let match = null;
       const text = textEl.originalText;
+      const pageId = getElementPageId(textEl, pages);
+      const pageName = getPageName(pageId);
 
       while ((match = regex.exec(text)) !== null) {
         const preview = getMatchPreview(text, match.index, searchQuery);
@@ -832,6 +870,8 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           textMatches.push({
             element: textEl,
+            pageId,
+            pageName,
             searchQuery,
             preview,
             index: match.index,
@@ -846,6 +886,8 @@ const handleSearch = debounce(
     for (const frame of frames) {
       let match = null;
       const name = frame.name ?? getDefaultFrameName(frame);
+      const pageId = getElementPageId(frame, pages);
+      const pageName = getPageName(pageId);
 
       while ((match = regex.exec(name)) !== null) {
         const preview = getMatchPreview(name, match.index, searchQuery);
@@ -860,6 +902,8 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           frameMatches.push({
             element: frame,
+            pageId,
+            pageName,
             searchQuery,
             preview,
             index: match.index,

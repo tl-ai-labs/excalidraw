@@ -18,6 +18,7 @@ import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
 import type { SceneBounds } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
+  ExcalidrawPage,
   FileId,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
@@ -84,12 +85,14 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {
@@ -100,6 +103,7 @@ export type SocketUpdateDataSource = {
       button: "down" | "up";
       selectedElementIds: AppState["selectedElementIds"];
       username: string;
+      pageId?: string;
     };
   };
   USER_VISIBLE_SCENE_BOUNDS: {
@@ -108,6 +112,7 @@ export type SocketUpdateDataSource = {
       socketId: SocketId;
       username: string;
       sceneBounds: SceneBounds;
+      pageId?: string;
     };
   };
   IDLE_STATUS: {

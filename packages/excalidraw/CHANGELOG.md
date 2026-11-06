@@ -13,6 +13,12 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Multi-page support (2026-11-05)
+
+- Scenes can now contain multiple pages (`appState.pages: readonly ExcalidrawPage[]` and `appState.activePageId: string`), with elements associated to a page via optional `element.pageId` (omitted on the default `"page-1"` page for backward compatibility with single-page `.excalidraw` files). Each page stores its own `id`, `name`, `scrollX`, `scrollY`, and `zoom`.
+- Opt in to the built-in page bar UI in `@excalidraw/excalidraw` via `UIOptions={{ canvasActions: { pages: true } }}` (defaults to `false` in `@excalidraw/excalidraw`, enabled in `excalidraw-app`). Users can switch pages (`Alt+PageUp` / `Alt+PageDown`), add, rename, reorder, and delete pages.
+- New imperative API methods on `excalidrawAPI`: `getPages()`, `getActivePageId()`, `setActivePage(pageId)`, `addPage(opts?)`, `renamePage(pageId, name)`, `reorderPages(fromIndex, toIndex)`, and `deletePage(pageId)`. Exported helpers `getElementPageId`, `reconcilePages`, and type `ExcalidrawPage` from `@excalidraw/excalidraw`.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

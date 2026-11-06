@@ -83,7 +83,16 @@ type _ExcalidrawElementBase = Readonly<{
   created: number | null;
   link: string | null;
   locked: boolean;
+  pageId?: string;
   customData?: Record<string, any>;
+}>;
+
+export type ExcalidrawPage = Readonly<{
+  id: string;
+  name: string;
+  scrollX: number;
+  scrollY: number;
+  zoom: { value: number };
 }>;
 
 export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {

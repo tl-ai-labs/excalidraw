@@ -1,0 +1,15 @@
+{
+  "module": "pages",
+  "verdict": "needs_changes",
+  "tool_calls": 49,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/pages.test.tsx",
+      "line": 611,
+      "issue": "In the test \"restores legacy single-page scenes, serializes all pages to JSON, and scopes visual exports via exportScene to the active page\" (lines 611-638), spying on `clipboardModule.copyTextToSystemClipboard` does not intercept `exportToClipboard({ type: \"json\", ... })` because `exportToClipboard` calls `clipboardModule.copyToClipboard`, which in turn invokes `copyTextToSystemClipboard` via a direct intra-module reference inside `clipboard.ts`, causing `copyTextToSystemClipboard` to run unmocked in jsdom and fail with `Error copying to clipboard`.",
+      "fix": "Spy on `vi.spyOn(clipboardModule, \"copyToClipboard\").mockResolvedValue()` instead of `copyTextToSystemClipboard`, and assert directly on the first argument passed to `copyToClipboard` (`expect(copySpy.mock.lastCall![0].map((el) => el.id)).toEqual([\"rect-p2\"])`)."
+    }
+  ],
+  "refinement_packets": []
+}

@@ -92,6 +92,9 @@ import {
   isSelectionLikeTool,
   oneOf,
   getStrokeWidthByKey,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
+  randomId,
 } from "@excalidraw/common";
 
 import {
@@ -207,6 +210,7 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  getElementPageId,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -308,7 +312,7 @@ import {
   copyElementRenderOverrides,
   getElementRenderOffsets,
 } from "../renderOverrides";
-import { History } from "../history";
+import { History, HistoryChangedEvent, type HistoryDelta } from "../history";
 import { defaultLang, getLanguage, languages, setLanguage, t } from "../i18n";
 
 import {
@@ -440,6 +444,7 @@ import type {
   ElementRenderOverrides,
   BinaryFileData,
   ExcalidrawImperativeAPI,
+  ExcalidrawPage,
   BinaryFiles,
   Gesture,
   GestureEvent,
@@ -821,6 +826,13 @@ class App extends React.Component<AppProps, AppState> {
       getEditorInterface: () => this.editorInterface,
       updateFrameRendering: this.updateFrameRendering,
       toggleSidebar: this.toggleSidebar,
+      getPages: this.getPages,
+      getActivePageId: this.getActivePageId,
+      setActivePage: this.setActivePage,
+      addPage: this.addPage,
+      renamePage: this.renamePage,
+      reorderPages: this.reorderPages,
+      deletePage: this.deletePage,
       onChange: (cb) => this.onChangeEmitter.on(cb),
       onIncrement: (cb) => this.store.onStoreIncrementEmitter.on(cb),
       onPointerDown: (cb) => this.onPointerDownEmitter.on(cb),
@@ -2767,7 +2779,7 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public getSceneElements = () => {
-    return this.scene.getNonDeletedElements();
+    return this.scene.getAllNonDeletedElements();
   };
 
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
@@ -3136,8 +3148,18 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    const nextPages = actionResult.appState?.pages ?? this.state.pages;
+    const nextActivePageId =
+      actionResult.appState?.activePageId ?? this.state.activePageId;
+    this.scene.setActivePage(
+      nextActivePageId,
+      nextPages.map((p) => p.id),
+    );
+    this.syncPageHistoryStacks(nextActivePageId);
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      this.scene.replaceAllElements(actionResult.elements, {
+        preservePageIds: Boolean(actionResult.appState?.pages),
+      });
       didUpdate = true;
     }
 
@@ -3186,8 +3208,7 @@ class App extends React.Component<AppProps, AppState> {
 
       this.setState((prevAppState) => {
         const actionAppState = actionResult.appState || {};
-
-        return {
+        const merged = {
           ...prevAppState,
           ...actionAppState,
           // NOTE this will prevent opening context menu using an action
@@ -3200,6 +3221,20 @@ class App extends React.Component<AppProps, AppState> {
           theme,
           name,
           errorMessage,
+        };
+        const pages = merged.pages.map((p) =>
+          p.id === merged.activePageId
+            ? {
+                ...p,
+                scrollX: merged.scrollX,
+                scrollY: merged.scrollY,
+                zoom: { value: merged.zoom.value },
+              }
+            : p,
+        );
+        return {
+          ...merged,
+          pages,
         };
       });
 
@@ -3266,6 +3301,24 @@ class App extends React.Component<AppProps, AppState> {
   ): boolean => {
     if (event.key !== KEYS.PAGE_UP && event.key !== KEYS.PAGE_DOWN) {
       return false;
+    }
+    if (event.altKey) {
+      const pages = this.state.pages;
+      if (pages.length > 1) {
+        const currentIndex = pages.findIndex(
+          (p) => p.id === this.state.activePageId,
+        );
+        if (currentIndex !== -1) {
+          const delta = event.key === KEYS.PAGE_UP ? -1 : 1;
+          const nextIndex =
+            (currentIndex + delta + pages.length) % pages.length;
+          const targetPage = pages[nextIndex];
+          if (targetPage) {
+            this.setActivePage(targetPage.id);
+          }
+        }
+      }
+      return true;
     }
     let offset =
       (event.shiftKey ? this.state.width : this.state.height) /
@@ -3554,7 +3607,10 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
+      this.scene.setActivePage(DEFAULT_PAGE_ID, [DEFAULT_PAGE_ID]);
       this.scene.replaceAllElements([]);
+      this.pageHistoryStacks.clear();
+      this.historyPageId = DEFAULT_PAGE_ID;
       this.setState((state) => ({
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
@@ -4347,6 +4403,28 @@ class App extends React.Component<AppProps, AppState> {
       prevState.scrollX !== this.state.scrollX ||
       prevState.scrollY !== this.state.scrollY
     ) {
+      const activePage = this.state.pages.find(
+        (p) => p.id === this.state.activePageId,
+      );
+      if (
+        activePage &&
+        (activePage.scrollX !== this.state.scrollX ||
+          activePage.scrollY !== this.state.scrollY ||
+          activePage.zoom.value !== this.state.zoom.value)
+      ) {
+        this.setState((state) => ({
+          pages: state.pages.map((p) =>
+            p.id === state.activePageId
+              ? {
+                  ...p,
+                  scrollX: state.scrollX,
+                  scrollY: state.scrollY,
+                  zoom: { value: state.zoom.value },
+                }
+              : p,
+          ),
+        }));
+      }
       this.props?.onScrollChange?.(
         this.state.scrollX,
         this.state.scrollY,
@@ -4440,13 +4518,30 @@ class App extends React.Component<AppProps, AppState> {
       });
     }
 
+    if (
+      prevState.activePageId !== this.state.activePageId ||
+      prevState.pages.length !== this.state.pages.length ||
+      prevState.pages.some((p, idx) => p.id !== this.state.pages[idx]?.id)
+    ) {
+      this.scene.setActivePage(
+        this.state.activePageId,
+        this.state.pages.map((p) => p.id),
+      );
+      this.syncPageHistoryStacks(this.state.activePageId);
+    }
+
     // selection may only contain non-deleted elements. Resolved post-commit,
     // so the elements we filter against are the latest.
     const selectedElementIds = Object.keys(this.state.selectedElementIds);
     if (selectedElementIds.length) {
+      const pageIds = this.state.pages;
       const staleSelectedElementIds = selectedElementIds.filter((id) => {
         const element = this.scene.getElement(id);
-        return !element || element.isDeleted;
+        return (
+          !element ||
+          element.isDeleted ||
+          getElementPageId(element, pageIds) !== this.state.activePageId
+        );
       });
 
       // only update when actually stale, so we retain the object identity
@@ -4991,13 +5086,149 @@ class App extends React.Component<AppProps, AppState> {
     }) => {
       const { elements, appState, collaborators, captureUpdate } = sceneData;
 
+      let resolvedAppState = appState as Partial<AppState> | null | undefined;
+      if (
+        resolvedAppState &&
+        ("pages" in resolvedAppState || "activePageId" in resolvedAppState)
+      ) {
+        const rawPages = resolvedAppState.pages ?? this.state.pages;
+        const normalizedPages: ExcalidrawPage[] =
+          Array.isArray(rawPages) && rawPages.length > 0
+            ? rawPages.map((p, idx) => ({
+                id:
+                  typeof p.id === "string" && p.id.trim().length > 0
+                    ? p.id.trim()
+                    : idx === 0
+                    ? DEFAULT_PAGE_ID
+                    : randomId(),
+                name:
+                  typeof p.name === "string" && p.name.trim().length > 0
+                    ? p.name.trim()
+                    : `Page ${idx + 1}`,
+                scrollX:
+                  typeof p.scrollX === "number" && Number.isFinite(p.scrollX)
+                    ? p.scrollX
+                    : 0,
+                scrollY:
+                  typeof p.scrollY === "number" && Number.isFinite(p.scrollY)
+                    ? p.scrollY
+                    : 0,
+                zoom: {
+                  value: getNormalizedZoom(
+                    typeof p.zoom?.value === "number" &&
+                      Number.isFinite(p.zoom.value)
+                      ? p.zoom.value
+                      : 1,
+                  ),
+                },
+              }))
+            : [
+                {
+                  id: DEFAULT_PAGE_ID,
+                  name: DEFAULT_PAGE_NAME,
+                  scrollX: this.state.scrollX,
+                  scrollY: this.state.scrollY,
+                  zoom: { value: this.state.zoom.value },
+                },
+              ];
+
+        const requestedActivePageId =
+          resolvedAppState.activePageId ?? this.state.activePageId;
+        const nextActivePageId = normalizedPages.some(
+          (p) => p.id === requestedActivePageId,
+        )
+          ? requestedActivePageId
+          : normalizedPages[0].id;
+
+        const activePageChanged = nextActivePageId !== this.state.activePageId;
+        const pagesWithCurrentViewport = normalizedPages.map((p) => {
+          if (
+            activePageChanged &&
+            p.id === this.state.activePageId &&
+            !resolvedAppState?.pages
+          ) {
+            return {
+              ...p,
+              scrollX: this.state.scrollX,
+              scrollY: this.state.scrollY,
+              zoom: { value: this.state.zoom.value },
+            };
+          }
+          return p;
+        });
+
+        const targetPage =
+          pagesWithCurrentViewport.find((p) => p.id === nextActivePageId) ??
+          pagesWithCurrentViewport[0];
+
+        const hasExplicitScrollX =
+          typeof resolvedAppState.scrollX === "number" &&
+          Number.isFinite(resolvedAppState.scrollX);
+        const hasExplicitScrollY =
+          typeof resolvedAppState.scrollY === "number" &&
+          Number.isFinite(resolvedAppState.scrollY);
+        const hasExplicitZoom =
+          typeof resolvedAppState.zoom?.value === "number" &&
+          Number.isFinite(resolvedAppState.zoom.value);
+
+        const nextScrollX = hasExplicitScrollX
+          ? resolvedAppState.scrollX!
+          : activePageChanged
+          ? targetPage.scrollX
+          : this.state.scrollX;
+        const nextScrollY = hasExplicitScrollY
+          ? resolvedAppState.scrollY!
+          : activePageChanged
+          ? targetPage.scrollY
+          : this.state.scrollY;
+        const nextZoom = hasExplicitZoom
+          ? { value: getNormalizedZoom(resolvedAppState.zoom!.value) }
+          : activePageChanged
+          ? { value: getNormalizedZoom(targetPage.zoom.value) }
+          : this.state.zoom;
+
+        const finalPages = pagesWithCurrentViewport.map((p) =>
+          p.id === nextActivePageId
+            ? {
+                ...p,
+                scrollX: nextScrollX,
+                scrollY: nextScrollY,
+                zoom: { value: nextZoom.value },
+              }
+            : p,
+        );
+
+        this.scene.setActivePage(
+          nextActivePageId,
+          finalPages.map((p) => p.id),
+        );
+        this.syncPageHistoryStacks(nextActivePageId);
+
+        resolvedAppState = {
+          ...resolvedAppState,
+          pages: finalPages,
+          activePageId: nextActivePageId,
+          scrollX: nextScrollX,
+          scrollY: nextScrollY,
+          zoom: nextZoom,
+          ...(activePageChanged && !resolvedAppState.selectedElementIds
+            ? {
+                selectedElementIds: {},
+                selectedGroupIds: {},
+                editingGroupId: null,
+                selectedLinearElement: null,
+              }
+            : null),
+        };
+      }
+
       if (captureUpdate) {
         const nextElements = elements ? elements : undefined;
-        const observedAppState = appState
+        const observedAppState = resolvedAppState
           ? getObservedAppState({
               ...this.store.snapshot.appState,
-              ...appState,
-            })
+              ...resolvedAppState,
+            } as AppState)
           : undefined;
 
         this.store.scheduleMicroAction({
@@ -5007,12 +5238,17 @@ class App extends React.Component<AppProps, AppState> {
         });
       }
 
-      if (appState) {
-        this.setState(appState as Pick<AppState, K> | null);
+      if (resolvedAppState) {
+        this.setState(resolvedAppState as Pick<AppState, K> | null);
       }
 
       if (elements) {
-        this.scene.replaceAllElements(elements);
+        this.scene.replaceAllElements(elements, {
+          preservePageIds: Boolean(
+            resolvedAppState?.pages ||
+              elements.some((el) => Boolean(el.pageId)),
+          ),
+        });
       }
 
       if (collaborators) {
@@ -5021,6 +5257,312 @@ class App extends React.Component<AppProps, AppState> {
       }
     },
   );
+
+  private pageHistoryStacks = new Map<
+    string,
+    { undo: HistoryDelta[]; redo: HistoryDelta[] }
+  >();
+  private historyPageId: string = DEFAULT_PAGE_ID;
+
+  private syncPageHistoryStacks = (nextPageId: string) => {
+    if (!nextPageId || nextPageId === this.historyPageId) {
+      return;
+    }
+    this.store.commit(this.scene.getElementsMapIncludingDeleted(), this.state);
+    this.pageHistoryStacks.set(this.historyPageId, {
+      undo: [...this.history.undoStack],
+      redo: [...this.history.redoStack],
+    });
+    this.historyPageId = nextPageId;
+    const targetStacks = this.pageHistoryStacks.get(nextPageId) ?? {
+      undo: [],
+      redo: [],
+    };
+    this.history.undoStack.splice(
+      0,
+      this.history.undoStack.length,
+      ...targetStacks.undo,
+    );
+    this.history.redoStack.splice(
+      0,
+      this.history.redoStack.length,
+      ...targetStacks.redo,
+    );
+    this.history.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(
+        this.history.isUndoStackEmpty,
+        this.history.isRedoStackEmpty,
+      ),
+    );
+  };
+
+  public getPages = (): readonly ExcalidrawPage[] => {
+    return this.state.pages;
+  };
+
+  public getActivePageId = (): string => {
+    return this.state.activePageId;
+  };
+
+  public setActivePage = withBatchedUpdates((pageId: string) => {
+    const targetPage = this.state.pages.find((p) => p.id === pageId);
+    if (!targetPage || pageId === this.state.activePageId) {
+      return;
+    }
+
+    if (this.state.editingTextElement) {
+      this.text.textWysiwygSubmitHandler?.();
+    }
+
+    this.syncPageHistoryStacks(pageId);
+
+    const outgoingPageId = this.state.activePageId;
+    const outgoingScrollX = this.state.scrollX;
+    const outgoingScrollY = this.state.scrollY;
+    const outgoingZoom = this.state.zoom.value;
+
+    const nextPages = this.state.pages.map((p) =>
+      p.id === outgoingPageId
+        ? {
+            ...p,
+            scrollX: outgoingScrollX,
+            scrollY: outgoingScrollY,
+            zoom: { value: outgoingZoom },
+          }
+        : p,
+    );
+
+    const resolvedTarget = nextPages.find((p) => p.id === pageId) ?? targetPage;
+    const nextZoom = {
+      value: getNormalizedZoom(resolvedTarget.zoom.value),
+    };
+
+    this.scene.setActivePage(
+      pageId,
+      nextPages.map((p) => p.id),
+    );
+
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+    this.setState({
+      pages: nextPages,
+      activePageId: pageId,
+      scrollX: resolvedTarget.scrollX,
+      scrollY: resolvedTarget.scrollY,
+      zoom: nextZoom,
+      selectedElementIds: {},
+      selectedGroupIds: {},
+      editingGroupId: null,
+      selectedLinearElement: null,
+      editingTextElement: null,
+      editingFrame: null,
+      activeEmbeddable: null,
+      contextMenu: null,
+      showHyperlinkPopup: false,
+    });
+  });
+
+  private withPageUpdate = <T extends (...args: any[]) => any>(fn: T): T => fn;
+
+  public addPage = this.withPageUpdate(
+    (opts?: { name?: string; switchTo?: boolean }): ExcalidrawPage => {
+      if (this.state.editingTextElement) {
+        this.text.textWysiwygSubmitHandler?.();
+      }
+
+      const existingIds = new Set(this.state.pages.map((p) => p.id));
+      let newId = `page-${randomId()}`;
+      while (existingIds.has(newId)) {
+        newId = `page-${randomId()}`;
+      }
+
+      const existingNames = new Set(this.state.pages.map((p) => p.name));
+      let defaultIndex = this.state.pages.length + 1;
+      let defaultName = `Page ${defaultIndex}`;
+      while (existingNames.has(defaultName)) {
+        defaultIndex += 1;
+        defaultName = `Page ${defaultIndex}`;
+      }
+
+      const trimmedName = opts?.name?.trim();
+      const pageName =
+        trimmedName && trimmedName.length > 0 ? trimmedName : defaultName;
+
+      const newPage: ExcalidrawPage = {
+        id: newId,
+        name: pageName,
+        scrollX: 0,
+        scrollY: 0,
+        zoom: { value: getNormalizedZoom(1) },
+      };
+
+      const switchTo = opts?.switchTo !== false;
+      const outgoingPageId = this.state.activePageId;
+      const nextPages = [
+        ...this.state.pages.map((p) =>
+          p.id === outgoingPageId
+            ? {
+                ...p,
+                scrollX: this.state.scrollX,
+                scrollY: this.state.scrollY,
+                zoom: { value: this.state.zoom.value },
+              }
+            : p,
+        ),
+        newPage,
+      ];
+
+      const nextActivePageId = switchTo ? newPage.id : this.state.activePageId;
+
+      if (switchTo) {
+        this.syncPageHistoryStacks(nextActivePageId);
+      }
+
+      this.scene.setActivePage(
+        nextActivePageId,
+        nextPages.map((p) => p.id),
+      );
+
+      this.store.scheduleAction(CaptureUpdateAction.NEVER);
+      this.setState({
+        pages: nextPages,
+        activePageId: nextActivePageId,
+        ...(switchTo
+          ? {
+              scrollX: newPage.scrollX,
+              scrollY: newPage.scrollY,
+              zoom: { value: getNormalizedZoom(newPage.zoom.value) },
+              selectedElementIds: {},
+              selectedGroupIds: {},
+              editingGroupId: null,
+              selectedLinearElement: null,
+              editingTextElement: null,
+              editingFrame: null,
+              activeEmbeddable: null,
+              contextMenu: null,
+              showHyperlinkPopup: false,
+            }
+          : null),
+      } as unknown as Pick<AppState, keyof AppState>);
+
+      return newPage;
+    },
+  );
+
+  public renamePage = this.withPageUpdate((pageId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return;
+    }
+    const existing = this.state.pages.find((p) => p.id === pageId);
+    if (!existing || existing.name === trimmed) {
+      return;
+    }
+    const nextPages = this.state.pages.map((p) =>
+      p.id === pageId ? { ...p, name: trimmed } : p,
+    );
+    this.store.scheduleCapture();
+    this.setState({ pages: nextPages });
+  });
+
+  public reorderPages = this.withPageUpdate(
+    (fromIndex: number, toIndex: number) => {
+      const pages = this.state.pages;
+      if (
+        fromIndex < 0 ||
+        fromIndex >= pages.length ||
+        toIndex < 0 ||
+        toIndex >= pages.length ||
+        fromIndex === toIndex
+      ) {
+        return;
+      }
+      const nextPages = [...pages];
+      const [moved] = nextPages.splice(fromIndex, 1);
+      nextPages.splice(toIndex, 0, moved);
+      this.scene.setActivePage(
+        this.state.activePageId,
+        nextPages.map((p) => p.id),
+      );
+      this.store.scheduleCapture();
+      this.setState({ pages: nextPages });
+    },
+  );
+
+  public deletePage = withBatchedUpdates((pageId: string) => {
+    const pages = this.state.pages;
+    if (pages.length <= 1) {
+      return;
+    }
+    const deleteIndex = pages.findIndex((p) => p.id === pageId);
+    if (deleteIndex === -1) {
+      return;
+    }
+
+    if (this.state.editingTextElement) {
+      this.text.textWysiwygSubmitHandler?.();
+    }
+
+    const nextPages = pages
+      .filter((p) => p.id !== pageId)
+      .map((p) =>
+        p.id === this.state.activePageId
+          ? {
+              ...p,
+              scrollX: this.state.scrollX,
+              scrollY: this.state.scrollY,
+              zoom: { value: this.state.zoom.value },
+            }
+          : p,
+      );
+
+    const wasActive = this.state.activePageId === pageId;
+    const fallbackIndex = Math.min(deleteIndex, nextPages.length - 1);
+    const nextActivePage = wasActive
+      ? nextPages[fallbackIndex]
+      : nextPages.find((p) => p.id === this.state.activePageId) ?? nextPages[0];
+
+    if (wasActive) {
+      this.syncPageHistoryStacks(nextActivePage.id);
+    }
+    this.pageHistoryStacks.delete(pageId);
+
+    const updatedElements = this.scene
+      .getElementsIncludingDeleted()
+      .map((el) => {
+        if (!el.isDeleted && getElementPageId(el, pages) === pageId) {
+          return newElementWith(el, { isDeleted: true });
+        }
+        return el;
+      });
+
+    this.scene.setActivePage(
+      nextActivePage.id,
+      nextPages.map((p) => p.id),
+    );
+    this.scene.replaceAllElements(updatedElements, { preservePageIds: true });
+
+    this.store.scheduleCapture();
+    this.setState({
+      pages: nextPages,
+      activePageId: nextActivePage.id,
+      ...(wasActive
+        ? {
+            scrollX: nextActivePage.scrollX,
+            scrollY: nextActivePage.scrollY,
+            zoom: { value: getNormalizedZoom(nextActivePage.zoom.value) },
+            selectedElementIds: {},
+            selectedGroupIds: {},
+            editingGroupId: null,
+            selectedLinearElement: null,
+            editingTextElement: null,
+            editingFrame: null,
+            activeEmbeddable: null,
+            contextMenu: null,
+            showHyperlinkPopup: false,
+          }
+        : null),
+    } as unknown as Pick<AppState, keyof AppState>);
+  });
 
   /**
    * see {@link ExcalidrawImperativeAPI.setElementRenderOverrides} for details
@@ -11476,6 +12018,7 @@ export const createTestHook = () => {
         set(elements: ExcalidrawElement[]) {
           return this.app?.scene.replaceAllElements(
             syncInvalidIndices(elements),
+            { preservePageIds: elements.some((el) => Boolean(el.pageId)) },
           );
         },
       },

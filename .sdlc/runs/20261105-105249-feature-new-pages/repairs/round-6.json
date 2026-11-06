@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-105249-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (exit 2), the only remaining error in the project, verbatim:\npackages/excalidraw/tests/pages.test.tsx(577,11): error TS2769: No overload matches this call.\n  The last overload gave the following error.\n    Object literal may only specify known properties, and 'exportEmbedScene' does not exist in type '{ gridModeEnabled?: boolean | undefined; pages?: readonly Readonly<{ id: string; name: string; scrollX: number; scrollY: number; zoom: Readonly<{ value: NormalizedZoomValue; }>; }>[] | undefined; ... 4 more ...; activePageId?: string | undefined; }'.\n(remove exportEmbedScene from the appState literal at line 577; config.embedScene: true already requests the embedded scene)\n\nyarn test:app --watch=false, the only failing test in the project, verbatim:\nFailed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support in <Excalidraw /> > restores legacy single-page scenes, serializes all pages to JSON, and scopes visual exports via exportScene to the active page\nError: Error copying to clipboard.\n ❯ copyTextToSystemClipboard packages/excalidraw/clipboard.ts:635:11\n    633|   // (3) if previous fails, use document.execCommand\n    634|   if (plainTextEntry && !copyTextViaExecCommand(plainTextEntry[1])) {\n    635|     throw new Error(\"Error copying to clipboard.\");\n       |           ^\n    636|   }\n    637| };\n ❯ copyToClipboard packages/excalidraw/clipboard.ts:203:9\n ❯ exportToClipboard packages/excalidraw/scene/export.ts:1434:11\n ❯ packages/excalidraw/tests/pages.test.tsx:618:13\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed | 151 passed (152)\n      Tests  1 failed | 2643 passed | 47 skipped | 1 todo (2692)\n   Start at  20:46:29\n   Duration  42.11s (transform 5.08s, setup 27.26s, collect 109.95s, tests 172.64s, environment 37.28s, prepare 6.91s)\n\nerror Command failed with exit code 1.\ninfo Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.\n\nCause, from the code at this commit: clipboard.ts:65 computes probablySupportsClipboardWriteText once at module load, when jsdom has no navigator.clipboard, so defining navigator.clipboard inside the test is too late and copyTextToSystemClipboard falls through to execCommand and throws. Mock it the way export.test.tsx does (import * as clipboardModule from \"../clipboard\"; vi.spyOn(clipboardModule, \"copyTextToSystemClipboard\")), assert on the spy call, and remove the navigator.clipboard defineProperty. Keep every other assertion.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-105249-feature-new-pages/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/export.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/clipboard.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings 0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

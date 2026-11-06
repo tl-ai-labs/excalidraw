@@ -13,6 +13,7 @@ import { FixedSideContainer } from "./FixedSideContainer";
 
 import { Island } from "./Island";
 
+import { PageBar } from "./PageBar/PageBar";
 import { PenModeButton } from "./PenModeButton";
 import { ViewportStatusBadge } from "./ViewportStatusFrame/ViewportStatusFrame";
 
@@ -183,8 +184,31 @@ export const MobileMenu = ({
             {appState.openDialog?.name !== "elementLinkSelector" &&
               renderToolbar()}
           </Island>
+
+          {Boolean(
+            app.props.UIOptions.canvasActions.pages &&
+              !appState.zenModeEnabled &&
+              (app.isInteractionEnabled() || app.isNavigationEnabled()),
+          ) && <PageBar app={app} appState={appState} />}
         </div>
       )}
+
+      {!shouldRenderDefaultBottomBar &&
+        Boolean(
+          app.props.UIOptions.canvasActions.pages &&
+            !appState.zenModeEnabled &&
+            (app.isInteractionEnabled() || app.isNavigationEnabled()),
+        ) && (
+          <div
+            className="App-bottom-bar"
+            style={{
+              marginBottom: SCROLLBAR_WIDTH + SCROLLBAR_MARGIN,
+            }}
+            data-viewport-ui="bottom"
+          >
+            <PageBar app={app} appState={appState} />
+          </div>
+        )}
 
       {!shouldRenderDefaultBottomBar && scrollBackToContentButton && (
         <div className="floating-status-stack">{scrollBackToContentButton}</div>

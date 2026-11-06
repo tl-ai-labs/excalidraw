@@ -20,6 +20,7 @@ import {
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 
 import {
+  getElementPageId,
   getInitializedImageElements,
   getLineWidth,
   getNonDeletedElements,
@@ -568,7 +569,7 @@ const configExportDimension = async ({
   // deleted ones. The type contract requires non-deleted elements already,
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
-  const elements = getNonDeletedElements(
+  const allElements = getNonDeletedElements(
     restoreElements(data.elements, null, { deleteInvisibleElements: true }),
   );
 
@@ -582,6 +583,18 @@ const configExportDimension = async ({
     cleanAppStateForExport(data.appState ?? {}),
     null,
   );
+
+  const shouldFilterByPage =
+    data.appState?.activePageId != null ||
+    (data.appState?.pages && data.appState.pages.length > 0);
+  const targetPageId = exportingFrame
+    ? getElementPageId(exportingFrame, appState.pages)
+    : appState.activePageId;
+  const elements = shouldFilterByPage
+    ? allElements.filter(
+        (element) => getElementPageId(element, appState.pages) === targetPageId,
+      )
+    : allElements;
 
   const theme = cfg.theme ?? THEME.LIGHT;
 
@@ -814,6 +827,7 @@ const configExportDimension = async ({
     // the restored & non-deleted-filtered elements — use these (not
     // `data.elements`) for all rendering purposes
     elements,
+    allElements,
     normalizedPadding,
     contentWidth: width,
     contentHeight: height,
@@ -989,6 +1003,7 @@ const exportToSvg = async ({
   const {
     config: cfg,
     elements,
+    allElements,
     normalizedPadding,
     exportWidth,
     exportHeight,
@@ -1048,7 +1063,12 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          allElements,
+          appState,
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);
@@ -1394,10 +1414,24 @@ export const exportToClipboard = async (
   } else if (opts.type === "png") {
     await copyBlobToClipboardAsPng(exportScene(opts));
   } else if (opts.type === "json") {
-    await copyToClipboard(
-      getNonDeletedElements(restoreElements(opts.data.elements, null)),
-      opts.data.files ?? null,
+    const allElements = getNonDeletedElements(
+      restoreElements(opts.data.elements, null),
     );
+    const shouldFilterByPage =
+      opts.data.appState?.activePageId != null ||
+      (opts.data.appState?.pages && opts.data.appState.pages.length > 0);
+    let elements = allElements;
+    if (shouldFilterByPage) {
+      const appState = restoreAppState(
+        cleanAppStateForExport(opts.data.appState ?? {}),
+        null,
+      );
+      elements = allElements.filter(
+        (element) =>
+          getElementPageId(element, appState.pages) === appState.activePageId,
+      );
+    }
+    await copyToClipboard(elements, opts.data.files ?? null);
   } else {
     throw new Error("Invalid export type");
   }
