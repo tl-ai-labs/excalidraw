@@ -28,6 +28,7 @@ import {
   DEFAULT_STICKY_NOTE_SIZE,
   isTransparent,
   DEFAULT_ZOOM,
+  getArrowheadSizeScale,
 } from "@excalidraw/common";
 
 import type { MarkOptional } from "@excalidraw/common/utility-types";
@@ -659,7 +660,12 @@ const clampLabelPositionOffEnds = (
     const [dx, dy] = vectorNormalize(vectorFromPoint(to, from));
     return (
       (Math.abs(dx) * label.width + Math.abs(dy) * label.height) / 2 +
-      (arrowhead ? getArrowheadSize(arrowhead) : 0)
+      (arrowhead
+        ? getArrowheadSize(
+            arrowhead,
+            getArrowheadSizeScale(arrow.arrowheadSize),
+          )
+        : 0)
     );
   };
   const { points } = arrow;

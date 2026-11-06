@@ -30,6 +30,7 @@ import {
   STICKY_NOTE_FOOTER,
   STICKY_NOTE_SHADOW_OPACITY,
   DEFAULT_ZOOM,
+  getArrowheadSizeScale,
 } from "@excalidraw/common";
 
 import type {
@@ -110,8 +111,8 @@ const getCanvasPadding = (element: ExcalidrawElement) => {
     case "text":
       return element.fontSize / 2;
     case "arrow":
-      if (element.endArrowhead || element.endArrowhead) {
-        return 40;
+      if (element.startArrowhead || element.endArrowhead) {
+        return 40 * Math.max(1, getArrowheadSizeScale(element.arrowheadSize));
       }
       return 20;
     default:

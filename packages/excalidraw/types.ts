@@ -25,6 +25,7 @@ import type {
   ExcalidrawBindableElement,
   ExcalidrawArrowElement,
   Arrowhead,
+  ArrowheadSize,
   FontFamilyValues,
   FileId,
   Theme,
@@ -463,6 +464,7 @@ export interface AppState {
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;
   currentItemEndArrowhead: Arrowhead | null;
+  currentItemArrowheadSize: ArrowheadSize | null;
   currentHoveredFontFamily: FontFamilyValues | null;
   currentItemRoundness: StrokeRoundness;
   currentItemArrowType: "sharp" | "round" | "elbow";

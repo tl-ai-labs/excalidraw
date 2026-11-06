@@ -13,6 +13,7 @@ import {
   getFontString,
   getUpdatedTimestamp,
   getLineHeight,
+  isArrowheadSize,
 } from "@excalidraw/common";
 
 import type { Radians } from "@excalidraw/math";
@@ -46,6 +47,7 @@ import type {
   TextAlign,
   VerticalAlign,
   Arrowhead,
+  ArrowheadSize,
   ExcalidrawFreeDrawElement,
   FontFamilyValues,
   ExcalidrawTextContainer,
@@ -625,6 +627,7 @@ export const newLinearElement = (
     type: ExcalidrawLinearElement["type"];
     points?: ExcalidrawLinearElement["points"];
     polygon?: ExcalidrawLineElement["polygon"];
+    arrowheadSize?: ArrowheadSize | null;
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawLinearElement> => {
   const element = {
@@ -635,6 +638,9 @@ export const newLinearElement = (
     endBinding: null,
     startArrowhead: null,
     endArrowhead: null,
+    ...(isArrowheadSize(opts.arrowheadSize)
+      ? { arrowheadSize: opts.arrowheadSize }
+      : {}),
   };
 
   if (isLineElement(element)) {
@@ -653,6 +659,7 @@ export const newArrowElement = <T extends boolean>(
   opts: {
     type: ExcalidrawArrowElement["type"];
     startArrowhead?: Arrowhead | null;
+    arrowheadSize?: ArrowheadSize | null;
     endArrowhead?: Arrowhead | null;
     points?: ExcalidrawArrowElement["points"];
     elbowed?: T;
@@ -669,6 +676,9 @@ export const newArrowElement = <T extends boolean>(
       endBinding: null,
       startArrowhead: opts.startArrowhead || null,
       endArrowhead: opts.endArrowhead || null,
+      ...(isArrowheadSize(opts.arrowheadSize)
+        ? { arrowheadSize: opts.arrowheadSize }
+        : {}),
       elbowed: true,
       fixedSegments: opts.fixedSegments || [],
       startIsSpecial: false,
@@ -683,6 +693,9 @@ export const newArrowElement = <T extends boolean>(
     endBinding: null,
     startArrowhead: opts.startArrowhead || null,
     endArrowhead: opts.endArrowhead || null,
+    ...(isArrowheadSize(opts.arrowheadSize)
+      ? { arrowheadSize: opts.arrowheadSize }
+      : {}),
     elbowed: false,
   } as T extends true
     ? NonDeleted<ExcalidrawElbowArrowElement>

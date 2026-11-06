@@ -187,6 +187,7 @@ export const SelectedShapeActions = ({
 
       {predicates.verticalAlign && renderAction("changeVerticalAlign")}
       {predicates.arrowheads && <>{renderAction("changeArrowhead")}</>}
+      {predicates.arrowheadSize && renderAction("changeArrowheadSize")}
 
       {predicates.opacity && renderAction("changeOpacity")}
 

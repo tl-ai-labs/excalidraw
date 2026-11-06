@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. The file passes vitest (10/10) and eslint but fails `yarn test:typecheck` (tsc) with 3 errors, all in this file; change ONLY types, no test behaviour: (1) line 40 `exportScene({ type: \"svg\", data: { elements: [element], files: null } })`: error TS2769: No overload matches this call ... Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'. Fix: type `headExtent`'s parameter as `NonDeletedExcalidrawElement` (import type { NonDeletedExcalidrawElement } from \"@excalidraw/element/types\", the same module the file already imports ExcalidrawElement from), adjusting its callers' arguments with a cast `as NonDeletedExcalidrawElement` where they pass an ExcalidrawElement. (2) line 139 and (3) line 141 `API.setSelectedElements([getById(\"source\")])` / `([getById(\"target\")])`: error TS2322: Type 'ExcalidrawElement' is not assignable to type 'NonDeletedExcalidrawElement'. Fix: make `getById` (line 21) return `NonDeletedExcalidrawElement` (`h.elements.find((el) => el.id === id)! as NonDeletedExcalidrawElement`). Every import must stay used. Answer with exactly one JSON object {path, edits: [{search, replace}]}.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

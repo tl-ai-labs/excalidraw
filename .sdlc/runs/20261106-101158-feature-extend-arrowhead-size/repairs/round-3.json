@@ -1,0 +1,238 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Create `packages/excalidraw/tests/arrowheadSize.test.tsx` so that these problems are solved, following the conventions in the shared brief:\n1. blocker: U25 was never written, so nothing tests the editor side of the feature: the changeArrowheadSize action and panel control (testIds arrowheadSize-*), the arrowheadSize predicate (arrow tool, arrow, line with or without heads), currentItemArrowheadSize creation paths, paste styles, undo/redo, flip, restoreElements keep/drop, restoreAppState validation, and SVG export. Together these cover AC-1, AC-4, AC-5, AC-6 and FR-8 to FR-18. The changed lines in actionProperties.tsx, shapeActionPredicates.ts, actionStyles.ts, restore.ts and App.tsx have no assertions at all. The only coverage is indirect, from the regenerated appState snapshots. — fix: Create the file with the 10 tests listed under U25 in change_plan.md. Render <Excalidraw handleKeyboardGlobally />, build elements with API.createElement/setElements/setSelectedElements, click controls with fireEvent on queryByTestId, use restoreElements/restoreAppState from ../data/restore and exportScene({type:'svg'}) from ../scene/export. Include the 'no arrowheadSize key when currentItemArrowheadSize is null' and 'no-field arrow equals today's restore output' assertions.\n2. Earlier attempts at this file failed on these points; avoid each. (1) Never assert whole elements or inline snapshots of elements (fractional `index`, `id`, `seed`, `version` differ): assert only `arrowheadSize` and the fields under test. (2) Undo/redo is `Keyboard.undo()` / `Keyboard.redo()` (class Keyboard, tests/helpers/ui.ts:65,136), not `UI.undo`. (3) Paste styles: `API.executeAction(actionCopyStyles)` then select the target and `API.executeAction(actionPasteStyles)`, imported from \"../actions/actionStyles\" (tests/stickyNotes.test.tsx:36,251-253). (4) Flip: `API.executeAction(actionFlipHorizontal)` from \"../actions/actionFlip\", not a label click. (5) SVG export: the whole arrow path is dominated by the shaft (an earlier attempt compared 91.41 to 91.41); compare the head only, e.g. the extent of the arrow's head <path> (the path after the shaft in the arrow's <g>), or compare getArrowheadPoints of the two elements. (6) Every import must be used (eslint --max-warnings=0 failed on an unused `actionChangeArrowheadSize` import). (7) 'new arrows take the current size' must set `currentItemArrowheadSize` through the action or `API.setAppState` before drawing, and assert `\"arrowheadSize\" in el` is false only when the current size is null. Keep the file short (an earlier Opus attempt timed out at 540 s): about 10 focused tests, the U25 list in the plan. Answer with exactly one JSON object {path, content}.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/stickyNotes.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/tests/arrowheadSize.test.ts",
+    "instruction": "Fix `packages/element/tests/arrowheadSize.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major: Only the default branch (triangle) of the new ~170-line getLinearElementRotatedBoundsWithHeads helper in bounds.ts is tested. No test runs the cardinality_one_or_many, cardinality_exactly_one, cardinality_zero_or_one and cardinality_zero_or_many decompositions, the circle/circle_outline radius path, the cardinality_one bar-only index-2 path, a start head, or a rotated arrow (the transformXY path). If any part offset or flag is wrong, the large-head bounds will be wrong and nothing will catch it. — fix: Add one parametrised 'large heads widen bounds' case per head type (circle, circle_outline, cardinality_one, the four composite cardinality markers, and a start head). Each should assert the bounds contain every drawn part's points (for circles, center ± diameter*scale/2). Also add one case with angle != 0 that checks containment against the rotated head points.\n2. minor (line 1): This breaks the plan's test conventions: describe/expect/it are imported from 'vitest' although they are globals here, and '@excalidraw/common' is imported in two separate statements (lines 2 and 3-7). It also duplicates code: createStraightArrow is defined twice (in 'head points geometry' and in 'element bounds and hit testing'), and 'no field and medium give today's head points' repeats three near-identical API.createElement literals. — fix: Drop the vitest import and merge the two @excalidraw/common imports into one. Hoist a single createStraightArrow(arrowheadSize?, endArrowhead = 'triangle', points?) helper to the top-level describe and reuse it everywhere.\n3. minor: The line case in 'small, medium and lines keep today's bounds' uses a line with no heads. The guarantee under test is that lines never widen bounds because shape.ts draws no heads for them, but the test never checks this for a line that actually has a head. The getElementBounds guard (isArrowElement) is therefore only weakly exercised. — fix: Create the large line with newLinearElement plus newElementWith(line, { endArrowhead: 'arrow', arrowheadSize: 'large' }), or extend API.createElement to accept arrowheads for lines. Then assert its bounds equal those of the same line without the size.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/arrowheadSize.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/arrowheadSize.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/arrowheadSize.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/bounds.ts",
+    "instruction": "Fix `packages/element/src/bounds.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 1196): In getLinearElementRotatedBoundsWithHeads, extendWithPoints takes three positional flags (isCircle, diameterScale, isCardinalityOne). As a result, call sites like `extendWithPoints(getArrowheadPoints(...), false, 1, true)` repeat about 8 times and are hard to check against shape.ts's part list. — fix: Map each arrowhead to a list of parts ({ type, offset?, kind: 'circle' | 'bar' | 'points', diameterScale? }) and loop over it once, so each composite marker is a single line that mirrors shape.ts.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/bounds.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/bounds.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/bounds.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/newElement.ts",
+    "instruction": "Fix `packages/element/src/newElement.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 640): newLinearElement and newArrowElement write any truthy opts.arrowheadSize. Skeleton input from JS consumers (convertToExcalidrawElements spreads ...element) can therefore store an invalid value such as 'huge' on a new element. It renders at scale 1, but persists until the next restore. — fix: Gate the spread with isArrowheadSize(opts.arrowheadSize) from @excalidraw/common instead of a truthiness check, in all three places.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/newElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/newElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/newElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "instruction": "Fix `packages/excalidraw/CHANGELOG.md` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 18): The entry says 'Elements carry an optional arrowheadSize field'. The field exists only on linear elements (arrows and lines), so the wording overstates the public API change. — fix: Change the first bullet to 'Linear elements (arrows and lines) carry an optional `arrowheadSize` field ...'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

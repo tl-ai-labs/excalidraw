@@ -8,6 +8,8 @@ import {
   isElbowArrow,
   isImageElement,
   isLinearElement,
+  isArrowElement,
+  isLineElement,
   isTextElement,
   hasStrokeColor,
   toolIsArrow,
@@ -146,6 +148,14 @@ export const getShapeActionPredicates = (
     roundness: forToolOrSelection(canChangeRoundness),
     arrowType: forToolOrSelection(toolIsArrow),
     arrowheads: forToolOrSelection(canHaveArrowheads),
+    arrowheadSize:
+      activeToolType === "arrow" ||
+      targetElements.some(
+        (element) =>
+          isArrowElement(element) ||
+          (isLineElement(element) &&
+            (element.startArrowhead !== null || element.endArrowhead !== null)),
+      ),
 
     // text
     text: activeToolType === "text" || targetElements.some(isTextElement),

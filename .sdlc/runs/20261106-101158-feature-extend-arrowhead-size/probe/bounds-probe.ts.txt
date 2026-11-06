@@ -1,0 +1,76 @@
+// Run-record probe (not project code): checks getElementBounds against the drawn heads.
+import { arrayToMap } from "@excalidraw/common";
+import { pointFrom, pointRotateRads } from "@excalidraw/math";
+import { API } from "@excalidraw/excalidraw/tests/helpers/api";
+import { getElementBounds, getArrowheadPoints } from "@excalidraw/element/bounds";
+import { ShapeCache } from "@excalidraw/element/shape";
+
+import type { GlobalPoint, Radians, LocalPoint } from "@excalidraw/math";
+
+const mk = (opts: Record<string, unknown>) =>
+  API.createElement({
+    type: "arrow",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 0,
+    points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)],
+    ...opts,
+  } as any) as any;
+
+const drawnHeadPoints = (el: any, position: "start" | "end", head: any) => {
+  const shape = ShapeCache.generateElementShape(el, null);
+  const pts = getArrowheadPoints(el, shape as any, position, head);
+  return pts;
+};
+
+const report = (label: string, el: any, heads: [("start" | "end"), any][]) => {
+  const b = getElementBounds(el, arrayToMap([el]));
+  const [x1, y1, x2, y2] = getElementBounds(el, arrayToMap([el]), true);
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  let worst = 0;
+  const out: string[] = [];
+  for (const [pos, head] of heads) {
+    const pts = drawnHeadPoints(el, pos, head);
+    if (!pts) {
+      continue;
+    }
+    for (let i = 0; i + 1 < pts.length; i += 2) {
+      const [gx, gy] = pointRotateRads(
+        pointFrom<GlobalPoint>(el.x + pts[i], el.y + pts[i + 1]),
+        pointFrom<GlobalPoint>(cx, cy),
+        el.angle as Radians,
+      );
+      const miss = Math.max(b[0] - gx, gx - b[2], b[1] - gy, gy - b[3], 0);
+      worst = Math.max(worst, miss);
+    }
+  }
+  out.push(
+    `PROBE ${label}: bounds=[${b.map((n) => n.toFixed(2)).join(",")}] worstOutside=${worst.toFixed(3)}`,
+  );
+  console.log(out.join("\n"));
+};
+
+it("probe", () => {
+  for (const angle of [0, Math.PI / 4, Math.PI / 2, Math.PI]) {
+    for (const size of [undefined, "large"]) {
+      report(
+        `arrow end angle=${angle.toFixed(2)} size=${size}`,
+        mk({ angle, arrowheadSize: size, endArrowhead: "arrow" }),
+        [["end", "arrow"]],
+      );
+    }
+  }
+  report("large start triangle angle=0.79", mk({ angle: Math.PI / 4, arrowheadSize: "large", startArrowhead: "triangle", endArrowhead: null }), [["start", "triangle"]]);
+  const noEnd = mk({ arrowheadSize: "large", endArrowhead: null });
+  console.log(`PROBE noEnd.endArrowhead=${JSON.stringify(noEnd.endArrowhead)} startArrowhead=${JSON.stringify(noEnd.startArrowhead)}`);
+  report("large NO end head", noEnd, []);
+  const base = mk({ endArrowhead: null });
+  const bb = getElementBounds(base, arrayToMap([base]));
+  console.log(`PROBE base no heads bounds=[${bb.map((n: number) => n.toFixed(2)).join(",")}]`);
+  report("large circle end angle=0.79", mk({ angle: Math.PI / 4, arrowheadSize: "large", endArrowhead: "circle" }), []);
+  report("large bar end angle=0.79", mk({ angle: Math.PI / 4, arrowheadSize: "large", endArrowhead: "bar" }), [["end", "bar"]]);
+  report("large diamond end angle=0.79", mk({ angle: Math.PI / 4, arrowheadSize: "large", endArrowhead: "diamond" }), [["end", "diamond"]]);
+  report("large crowfoot_many end angle=0.79", mk({ angle: Math.PI / 4, arrowheadSize: "large", endArrowhead: "cardinality_many" }), [["end", "cardinality_many"]]);
+});
