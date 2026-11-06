@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/tests/arrowheadSize.test.ts",
+    "instruction": "Fix `packages/element/tests/arrowheadSize.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Coverage gap (Gate 3 revise): bounds are only tested for a triangle end head at angle 0. ADD tests inside describe(\"element bounds and hit testing\"); keep every existing test unchanged. Use an arrow `API.createElement({ type: \"arrow\", x: 0, y: 0, width: 100, height: 0, points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)], startArrowhead, endArrowhead, angle, arrowheadSize })`. Assert ONLY these two properties, with a tolerance of 0.5 px (measured floating-point misses reach 0.054 px at 1.5x scale; never use 0.001 and never hard-code expected bound values): (A) containment: every point of `getArrowheadPoints(el, ShapeCache.generateElementShape(el, null), position, head)` (x,y pairs at even/odd indices, local coords), converted to global as `pointRotateRads(pointFrom<GlobalPoint>(el.x + px, el.y + py), center, el.angle)` where `center` is the midpoint of `getElementBounds(el, map, true)` (the unrotated bounds), lies within `getElementBounds(el, map)` +- 0.5. For circle/circle_outline heads the points are [cx, cy, diameter]: check the center +- diameter/2 instead. (B) growth: for the same element, `large` bounds are at least as wide and tall as the bounds with no `arrowheadSize`, and strictly larger in at least one axis by > 1 px. Cases (one `it.each` row each): end `arrow` at angles 0, Math.PI/4, Math.PI/2, Math.PI; start `triangle` (endArrowhead null) at Math.PI/4; end `bar`, `circle`, `diamond`, `cardinality_many`, `cardinality_one_or_many`, `cardinality_zero_or_one` at Math.PI/4 (for composite cardinality heads only assert (B) and that bounds contain the shaft end point). Also add a regression test: a `large` arrow with startArrowhead null and endArrowhead null has exactly the same `getElementBounds` as the same arrow with no arrowheadSize (this was a bug: null end head was read as a phantom \"arrow\"). Import `pointRotateRads` from \"@excalidraw/math\" and `getArrowheadPoints` from \"../src/bounds\" if not already imported; every import must be used. Answer with {path, edits: [{search, replace}]} inserting the new tests, or {path, content}.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/arrowheadSize.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/arrowheadSize.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/arrowheadSize.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

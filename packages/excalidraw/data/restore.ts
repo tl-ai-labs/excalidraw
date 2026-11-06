@@ -34,6 +34,7 @@ import {
   type StrokeWidthKey,
   isTransparent,
   DEFAULT_ZOOM,
+  isArrowheadSize,
 } from "@excalidraw/common";
 import {
   calculateFixedPointForNonElbowArrowBinding,
@@ -154,6 +155,17 @@ const handleOversizedLinearElements = <T extends ExcalidrawLinearElement>(
     points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 100)],
     isDeleted: true,
   };
+};
+
+// keep a valid arrowhead size, drop invalid or nullish values
+const restoreArrowheadSize = <T extends ExcalidrawLinearElement>(
+  element: T,
+): T => {
+  if (!("arrowheadSize" in element) || isArrowheadSize(element.arrowheadSize)) {
+    return element;
+  }
+  const { arrowheadSize: _, ...rest } = element;
+  return rest as T;
 };
 
 const restoreLinearElementPoints = (
@@ -666,7 +678,7 @@ export const restoreElement = (
         ...getSizeFromPoints(points),
       });
 
-      return handleOversizedLinearElements(restoredLine);
+      return handleOversizedLinearElements(restoreArrowheadSize(restoredLine));
     case "arrow": {
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
@@ -733,7 +745,9 @@ export const restoreElement = (
         ),
       };
 
-      return handleOversizedLinearElements(normalizedRestoredElement);
+      return handleOversizedLinearElements(
+        restoreArrowheadSize(normalizedRestoredElement),
+      );
     }
 
     // generic elements
@@ -1330,6 +1344,9 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+  if (!isArrowheadSize(nextAppState.currentItemArrowheadSize)) {
+    nextAppState.currentItemArrowheadSize = null;
+  }
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {

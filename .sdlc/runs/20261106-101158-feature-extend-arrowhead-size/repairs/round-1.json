@@ -1,0 +1,106 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/tests/arrowheadSize.test.ts",
+    "instruction": "Create `packages/element/tests/arrowheadSize.test.ts` so that these problems are solved, following the conventions in the shared brief:\n1. Typed 3 times, never applied. `yarn vitest run packages/element/tests/arrowheadSize.test.ts`: 2 failed | 11 passed. (1) 'constants and scaling > keeps the arrow head's angle proportions at any scale': Error: [vitest] No \"ARROW_ARROWHEAD_WIDEST_SIZE\" export is defined on the \"@excalidraw/common\" mock. ARROW_ARROWHEAD_WIDEST_SIZE is NOT exported anywhere: it is a module-private const in packages/element/src/bounds.ts:752 (value 10). Do not import it; use the literal 10 (widestSize = 10 * scale). Do not add or change a vi.mock of @excalidraw/common. (2) 'element bounds and hit testing > changing the size refreshes cached bounds': TypeError: (0, newElementWith) is not a function. newElementWith is exported from packages/element/src/mutateElement.ts:149; import it from \"../src/mutateElement\" (or wherever the other element tests import it), not from the module currently used. The last attempt (Opus) answered outside the {path, content} contract: answer with one JSON object {path, content}.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/mutateElement.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/bounds.test.ts",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r1_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Create `packages/excalidraw/tests/arrowheadSize.test.tsx` so that these problems are solved, following the conventions in the shared brief:\n1. Typed 3 times, never applied (last attempt timed out at 540 s: keep the file short). `yarn vitest run packages/excalidraw/tests/arrowheadSize.test.tsx`: 5 failed | 5 passed. (1) An inline snapshot/toEqual on a whole element failed on `index: \"a0\"` vs `\"a3\"`: never assert whole elements or fractional `index`/`id`/`seed`/`version`; assert only `arrowheadSize` and the fields under test. (2) `UI.undo is not a function`: undo is `Keyboard.undo()` (static on class Keyboard in tests/helpers/ui.ts:136), not UI. (3) `UI.copyStyles is not a function`: use `API.executeAction(actionCopyStyles)` then `API.executeAction(actionPasteStyles)` from \"../actions/actionStyles\" (as tests/stickyNotes.test.tsx:36,251-253 does). (4) 'flip keeps the size': `No labeled element found: labels.flipHorizontal`: use `API.executeAction(actionFlipHorizontal)` from \"../actions/actionFlip\" instead of clicking a label. (5) 'SVG export draws a smaller small head': expected 91.41 to be less than 91.41. The head geometry does scale (bounds.ts:1064-1065 getArrowheadSize(arrowhead, getArrowheadSizeScale(element.arrowheadSize))), so the helper measures the wrong thing (likely the whole arrow path or svg extent, which the shaft dominates). Measure the head only: e.g. the export's head path (the second <path> of the arrow's <g>, or the path drawn after the shaft) and compare its bounding extent, or compare getArrowheadPoints for the two elements.\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/stickyNotes.test.tsx",
+        "reason": "named beside the failure"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

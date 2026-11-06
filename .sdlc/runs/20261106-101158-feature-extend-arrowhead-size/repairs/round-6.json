@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/element/src/bounds.ts",
+    "instruction": "Fix `packages/element/src/bounds.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Bug in getLinearElementRotatedBoundsWithHeads (bounds.ts:1275-1280): `element.endArrowhead ?? \"arrow\"` turns an explicit `endArrowhead: null` (no end head) into a phantom \"arrow\" head, so a large arrow with NO heads grows its bounds. Measured with getElementBounds on an arrow points [[0,0],[100,0]], startArrowhead null, endArrowhead null: no size gives y-range [-0.08, 0.65]; arrowheadSize \"large\" gives [-12.54, 13.11], though nothing extra is drawn. shape.ts (around line 998) reads `const { startArrowhead = null, endArrowhead = \"arrow\" } = element;`, a destructuring default that applies only to undefined. Fix: make the bounds code read the heads exactly as shape.ts does (e.g. the same destructuring default, or `element.endArrowhead === undefined ? \"arrow\" : element.endArrowhead`), so null means no head. Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/bounds.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/bounds.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/shape.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/bounds.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 180,
+      "max_retries": 2
+    }
+  }
+]

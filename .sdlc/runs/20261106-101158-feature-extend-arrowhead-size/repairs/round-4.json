@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261106-101158-feature-extend-arrowhead-size",
+    "artifact_path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/arrowheadSize.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. `yarn vitest run packages/excalidraw/tests/arrowheadSize.test.tsx`: 2 failed | 8 passed. Change ONLY these two tests; keep the other 8 exactly as they are. (1) 'undo restores the previous size' (line 118): AssertionError: expected 'small' to be undefined. Cause: the arrow is put in the scene with `API.setElements([arrow])`, which assigns h.elements directly and never records it in the store, so undo has no baseline. Verified: with `const arrow = UI.createElement(\"arrow\", { x: 10, width: 100 })` (a drawn arrow, which is recorded and selected), clicking `arrowheadSize-small` pushes one undo entry and `Keyboard.undo()` leaves `arrowheadSize` undefined. Create the arrow with UI.createElement (import UI from \"./helpers/ui\" alongside Keyboard) and read it by `arrow.id`; remove the duplicated last `expect(...).toBe(\"small\")`. (2) 'restore keeps valid sizes and drops others' (line 178): TypeError: Cannot read properties of undefined (reading 'arrowheadSize'). Cause: the line `expect(sizeOf.call(null, \"\") ?? null).toBe(null);` looks up an element with id \"\" in h.elements; delete that line. Every import must stay used (eslint --max-warnings=0). Answer with exactly one JSON object {path, edits: [{search, replace}]} or {path, content}.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/arrowheadSize.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-101158-feature-extend-arrowhead-size/briefs/U25.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

@@ -83,6 +83,7 @@ import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
   Arrowhead,
+  ArrowheadSize,
   ElementsMap,
   ExcalidrawBindableElement,
   ExcalidrawElement,
@@ -2055,6 +2056,87 @@ export const actionChangeArrowhead = register<{
   },
 });
 
+export const actionChangeArrowheadSize = register<ArrowheadSize>({
+  name: "changeArrowheadSize",
+  label: "labels.arrowheadSize",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    invariant(value, "actionChangeArrowheadSize: value must be defined");
+
+    return {
+      elements: changeProperty(elements, appState, (el) => {
+        if (isLinearElement(el)) {
+          const element: ExcalidrawLinearElement = newElementWith(el, {
+            arrowheadSize: value,
+          });
+          return isElbowArrow(element)
+            ? newElementWith(
+                element,
+                updateElbowArrowRoute(
+                  element,
+                  app.scene.getNonDeletedElementsMap(),
+                ),
+              )
+            : element;
+        }
+
+        return el;
+      }),
+      appState: {
+        ...appState,
+        currentItemArrowheadSize: value,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    return (
+      <fieldset>
+        <legend>{t("labels.arrowheadSize")}</legend>
+        <div className="buttonList">
+          <RadioSelection<ArrowheadSize>
+            group="arrowhead-size"
+            options={[
+              {
+                value: "small",
+                text: t("labels.small"),
+                icon: FontSizeSmallIcon,
+                testId: "arrowheadSize-small",
+              },
+              {
+                value: "medium",
+                text: t("labels.medium"),
+                icon: FontSizeMediumIcon,
+                testId: "arrowheadSize-medium",
+              },
+              {
+                value: "large",
+                text: t("labels.large"),
+                icon: FontSizeLargeIcon,
+                testId: "arrowheadSize-large",
+              },
+            ]}
+            value={getFormValue<ArrowheadSize | null>(
+              elements,
+              app,
+              (element) =>
+                isLinearElement(element)
+                  ? element.arrowheadSize ?? "medium"
+                  : appState.currentItemArrowheadSize ?? "medium",
+              isLinearElement,
+              (hasSelection) =>
+                hasSelection
+                  ? null
+                  : appState.currentItemArrowheadSize ?? "medium",
+            )}
+            onChange={(value) => updateData(value)}
+          />
+        </div>
+      </fieldset>
+    );
+  },
+});
+
 export const actionChangeArrowProperties = register({
   name: "changeArrowProperties",
   label: "Change arrow properties",
@@ -2068,6 +2150,7 @@ export const actionChangeArrowProperties = register({
     return (
       <div className="selected-shape-actions">
         {renderAction("changeArrowhead")}
+        {renderAction("changeArrowheadSize")}
         {renderAction("changeArrowType")}
       </div>
     );

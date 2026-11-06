@@ -1,0 +1,1634 @@
+{
+  "header": {
+    "conventions": [
+      "TypeScript strict throughout; no `any`, no `@ts-ignore`; prefer `readonly`, `const`, `?.` and `??` (copilot-instructions).",
+      "Use `Merge<Base, Overrides>` from `@excalidraw/common/utility-types` instead of `Omit<>&`; use `app.ownerDocument`/`app.ownerWindow` for any DOM API (AGENTS.md).",
+      "Formatting is Prettier via @excalidraw/prettier-config (double quotes, trailing commas, 80 columns); eslint runs with --max-warnings=0, so a prettier/prettier warning fails.",
+      "Imports: value imports first, then `import type` blocks (separate-type-imports); groups separated by one blank line; cross-package imports use the `@excalidraw/common`, `@excalidraw/element`, `@excalidraw/math` aliases, in-package imports are relative (`./bounds`).",
+      "Elements are immutable: every element update goes through `newElementWith(el, {...})` (which bumps the version and so invalidates ShapeCache, ElementBounds and the hit-shape cache); only test helpers mutate in place.",
+      "Comments are lowercase, short, and say why, like the existing ones in bounds.ts.",
+      "UI strings come from `t(\"labels.x\")`; only packages/excalidraw/locales/en.json is edited; no literal text in JSX.",
+      "An element with no `arrowheadSize` (or `null`/`\"medium\"`) must produce exactly HEAD's geometry, bounds, shapes and SVG: scale 1 multiplies, never branches into new code, and the bounds extension runs only when the scale is above 1.",
+      "Tests are Vitest with jsdom and @testing-library/react: globals `describe`/`it`/`expect`, `vi` imported from \"vitest\" only when used; editor tests use `API`, `UI` and `render` from packages/excalidraw/tests/helpers and test-utils; element tests import sources relatively (`../src/bounds`).",
+      "Element snapshots must not change; only the appState snapshots gain `currentItemArrowheadSize: null`."
+    ],
+    "decisions": [
+      {
+        "topic": "Allowlist check for option C (FR-21e)",
+        "choice": "No file outside the allowlist changes: hitElementBoundingBox (collision.ts), the contain lasso (lasso/utils.ts) and box selection (selection.ts via elementsOverlappingBBox) all read getElementBounds, so at large they follow the widened bounds with no edit; distance.ts and utils.ts stay shaft-only.",
+        "rejected": [
+          "stop the run for collision.ts / lasso/utils.ts edits (that was option A, not chosen)"
+        ],
+        "reason": "Option C accepts that every reader of getElementBounds follows the drawn head at large, so the bounds change in bounds.ts is the whole hit-testing change."
+      },
+      {
+        "topic": "Drawn selection border at large (FR-21d)",
+        "choice": "The single-element selection border keeps reading LinearElementEditor.getElementAbsoluteCoords (shaft-only, interactiveScene.ts:1916); it is not changed.",
+        "rejected": [
+          "make the border follow getElementBounds (needs linearElementEditor.ts or interactiveScene.ts, both off the allowlist)"
+        ],
+        "reason": "At HEAD every arrowhead already reaches outside that border at every size, so a large head outside it is the same accepted mismatch, not a new one; the multi-selection box reads getCommonBounds and does follow the head."
+      },
+      {
+        "topic": "Presets and scale factors",
+        "choice": "ArrowheadSize = \"small\" | \"medium\" | \"large\" with scale 0.6 / 1 / 1.5; null, undefined or any unknown value scales by 1.",
+        "reason": "Settled at Gate 1; medium is today's size."
+      },
+      {
+        "topic": "Where the type and the table live",
+        "choice": "The `ArrowheadSize` union is declared in packages/element/src/types.ts next to `Arrowhead`; packages/common/src/constants.ts holds ARROWHEAD_SIZE_KEYS, ARROWHEAD_SIZE_SCALE, isArrowheadSize() and getArrowheadSizeScale(), importing the type with `import type` from @excalidraw/element/types (as it already does for ExcalidrawElement).",
+        "rejected": [
+          "declare the union in constants.ts (types.ts would then import a type from common for an element field, unlike every other element field)"
+        ],
+        "reason": "FR-1 names the type on the element model; FR-2 puts the presets in constants.ts in the STROKE_WIDTH style."
+      },
+      {
+        "topic": "Scaling API in bounds.ts",
+        "choice": "getArrowheadSize(arrowhead, scale = 1), getArrowheadAngle(arrowhead, size?, scale = 1) and the private getCardinalityMarkerScale(marker, corner, strokeWidth, scale) take a trailing scale; element-aware callers pass getArrowheadSizeScale(element.arrowheadSize). Callers with no element keep calling with no scale.",
+        "rejected": [
+          "a new getScaledArrowheadSize(element, arrowhead) wrapper (a second name for the same size, and the angle and marker helpers still need the scale)"
+        ],
+        "reason": "Existing call sites and tests (transform.test.ts, bounds.test.ts) keep compiling and returning HEAD values."
+      },
+      {
+        "topic": "Creation without a size (FR-5 vs FR-9)",
+        "choice": "newLinearElement and newArrowElement write the `arrowheadSize` key only for a non-null value; `null` and `undefined` both create an element with no key.",
+        "rejected": [
+          "write the key for any non-undefined value (a null current size would add `arrowheadSize: null` to every new arrow and churn element snapshots)"
+        ],
+        "reason": "FR-9 and NFR-2 require a null current size to create no key; null and absent render the same."
+      },
+      {
+        "topic": "Picking medium",
+        "choice": "changeArrowheadSize stores the picked key as is, so medium stores \"medium\".",
+        "reason": "Settled at Gate 1."
+      },
+      {
+        "topic": "Restore",
+        "choice": "restoreElement keeps `arrowheadSize` on line and arrow elements only when isArrowheadSize() holds; null, missing or invalid leave no key. restoreAppState keeps currentItemArrowheadSize when it is null or a known key, else sets null.",
+        "reason": "FR-13/FR-14: restored old elements stay byte-identical to today's output."
+      },
+      {
+        "topic": "Bounds under option C (FR-21b, AC-3)",
+        "choice": "getLinearElementRotatedBounds extends the shaft bounds by the drawn heads only when the element is an arrow and its scale is above 1, using getArrowheadPoints for the same parts shape.ts draws (composite cardinality markers split into their bar, crow's-foot and circle parts with the same offsets); a circle part adds its center plus and minus half the diameter.",
+        "rejected": [
+          "include heads at every size (changes medium and small bounds, breaks NFR-1 and FR-21a)",
+          "read the head drawables from ShapeCache (rough jitter, and the cache can be empty)"
+        ],
+        "reason": "Lines never draw heads (shape.ts adds heads for arrows only), and small or medium heads must leave bounds and every hit result as at HEAD."
+      },
+      {
+        "topic": "Files that need no change",
+        "choice": "shape.ts, staticSvgScene.ts, arrowheads.ts, binding.ts, delta.ts and actionFlip.ts stay unchanged.",
+        "reason": "Head shapes read the size through getArrowheadPoints(element, ...); SVG export uses the same shapes; the generic delta key diff carries the field and applies it through newElementWith; one size for both heads needs no swap on flip."
+      },
+      {
+        "topic": "Canvas padding (FR-7)",
+        "choice": "getCanvasPadding returns 40 times max(1, scale) for an arrow with a start or an end head (the `endArrowhead || endArrowhead` typo fixed to `startArrowhead || endArrowhead`), else 20.",
+        "reason": "Settled at Gate 1; large heads must not clip on the element canvas."
+      },
+      {
+        "topic": "Elbow arrows",
+        "choice": "The simple-route leg check (getSimpleRoute) reserves the scaled head size; changeArrowheadSize re-routes elbow arrows with updateElbowArrowRoute exactly as changeArrowhead does. The fixed BASE_BINDING_GAP padding elsewhere in elbowArrow.ts is unchanged.",
+        "reason": "FR-3 asks for scaled head clearance; out-of-scope item 6 forbids other routing changes."
+      },
+      {
+        "topic": "Creation sites (FR-9)",
+        "choice": "currentItemArrowheadSize is passed as `arrowheadSize` wherever an arrow is created from currentItemStartArrowhead/currentItemEndArrowhead: App.tsx arrow tool, App.drawshape.ts, convertToShape.ts, flowchart.ts and the two ConvertElementTypePopup.tsx arrow cases. The line tool does not pass it.",
+        "reason": "The line tool never gives a line a head (App.tsx:8628-8631), so a size there would be dead data."
+      },
+      {
+        "topic": "Panel control and predicate (FR-11, FR-12)",
+        "choice": "Predicate `arrowheadSize` is true when the active tool is `arrow`, or a target element is an arrow, or a target line has a start or end head. The control is a RadioSelection, group \"arrowhead-size\", legend t(\"labels.arrowheadSize\"), options small/medium/large with t(\"labels.small\"|\"labels.medium\"|\"labels.large\"), FontSizeSmallIcon/FontSizeMediumIcon/FontSizeLargeIcon and testIds `arrowheadSize-small|medium|large`; rendered after changeArrowhead in the desktop panel and inside actionChangeArrowProperties for compact and mobile.",
+        "reason": "Settled at Gate 1; the font-size icons are the existing small/medium/large set."
+      },
+      {
+        "topic": "Paste styles (FR-15)",
+        "choice": "Pasting onto an arrow copies the source arrow's arrowheadSize; when the source has none and the target has one, it writes null; when neither has one it writes nothing (undefined), so no key appears.",
+        "reason": "Mirrors how the arrowheads are copied without adding a key to elements that never had one."
+      },
+      {
+        "topic": "Snapshots",
+        "choice": "The three appState snapshot files (contextmenu, history, regressionTests) are regenerated by `vitest --update` tooling steps, never typed. The two utils.test.ts.snap files (packages/utils/tests, packages/excalidraw/tests/packages) have no owning test file at HEAD, so no run writes them and they stay byte-identical.",
+        "reason": "Gate 1 listed five snap files, but only three are produced by tests that exist; editing the orphaned two by hand would be untested churn."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "yarn eslint --max-warnings=0 {path}",
+        "fix": "yarn eslint --fix {path}",
+        "timeout_s": 180
+      },
+      {
+        "id": "prettier",
+        "run": "npx --no-install prettier --check {path}",
+        "fix": "npx --no-install prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "yarn vitest run {path}",
+        "timeout_s": 300
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "lint",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test-suite",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "units": [
+    {
+      "id": "U01",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Declare the ArrowheadSize preset union and the optional per-element arrowheadSize field on ExcalidrawLinearElement.",
+      "rules": [
+        "1. `export type ArrowheadSize = \"small\" | \"medium\" | \"large\";` sits directly after the AnyArrowhead alias.",
+        "2. The field is optional and nullable (`arrowheadSize?: ArrowheadSize | null;`) so older elements and every existing literal keep type-checking; a one-line doc comment says it scales both heads and that absent/null means today's size."
+      ],
+      "exports": [
+        {
+          "name": "ArrowheadSize",
+          "kind": "type",
+          "params": [],
+          "returns": "\"small\" | \"medium\" | \"large\""
+        }
+      ],
+      "import_line": "import type { ArrowheadSize } from \"@excalidraw/element/types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 367,
+          "to": 367,
+          "first_line": "export type AnyArrowhead = Arrowhead | ArrowheadLegacy;",
+          "rule": "Add a blank line, then the exported ArrowheadSize union."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 376,
+          "to": 376,
+          "first_line": "endArrowhead: Arrowhead | null;",
+          "rule": "Add the doc-commented optional `arrowheadSize?: ArrowheadSize | null;` field."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "NFR-3",
+        "NFR-4",
+        "AC-5"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/common/src/constants.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add the arrowhead size presets, their scale factors, a type guard and a key-to-scale helper in the STROKE_WIDTH style.",
+      "rules": [
+        "1. ARROWHEAD_SIZE_KEYS is `readonly ArrowheadSize[]` = [\"small\", \"medium\", \"large\"].",
+        "2. ARROWHEAD_SIZE_SCALE is `Readonly<Record<ArrowheadSize, number>>` = { small: 0.6, medium: 1, large: 1.5 }.",
+        "3. isArrowheadSize(value) is true only for a string that is one of ARROWHEAD_SIZE_KEYS (use the keys array, never `in` on the record, so `toString` etc. are rejected).",
+        "4. getArrowheadSizeScale(size) returns ARROWHEAD_SIZE_SCALE[size] when isArrowheadSize(size), else 1 (null, undefined and unknown values).",
+        "5. ArrowheadSize is imported with `import type` from @excalidraw/element/types in the existing type import at the top of the file."
+      ],
+      "exports": [
+        {
+          "name": "ARROWHEAD_SIZE_KEYS",
+          "kind": "const",
+          "params": [],
+          "returns": "readonly ArrowheadSize[]"
+        },
+        {
+          "name": "ARROWHEAD_SIZE_SCALE",
+          "kind": "const",
+          "params": [],
+          "returns": "Readonly<Record<ArrowheadSize, number>>"
+        },
+        {
+          "name": "isArrowheadSize",
+          "kind": "function",
+          "params": [
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "value is ArrowheadSize"
+        },
+        {
+          "name": "getArrowheadSizeScale",
+          "kind": "function",
+          "params": [
+            {
+              "name": "size",
+              "type": "ArrowheadSize | null | undefined"
+            }
+          ],
+          "returns": "number"
+        }
+      ],
+      "import_line": "import { ARROWHEAD_SIZE_KEYS, ARROWHEAD_SIZE_SCALE, isArrowheadSize, getArrowheadSizeScale } from \"@excalidraw/common\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 4,
+          "first_line": "import type {",
+          "last_line": "} from \"@excalidraw/element/types\";",
+          "rule": "Same type import with ArrowheadSize added to the named list."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 515,
+          "to": 515,
+          "first_line": "export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = \"medium\";",
+          "rule": "Add a blank line, then the four exports in rule order, each separated by a blank line."
+        }
+      ],
+      "style_from": {
+        "path": "packages/common/src/constants.ts",
+        "lines": [
+          475,
+          515
+        ],
+        "reason": "STROKE_WIDTH_KEYS / STROKE_WIDTH / getStrokeWidthByKey is the pattern to copy."
+      },
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-2"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/bounds.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Scale every arrowhead size computation by the element's preset, and widen linear-element bounds by the drawn heads only when the scale is above 1.",
+      "rules": [
+        "1. getArrowheadSize(arrowhead, scale = 1) keeps its switch of base sizes and returns base * scale; with no scale it returns HEAD's value.",
+        "2. getArrowheadAngle(arrowhead, size?, scale = 1): drawn size = size ?? getArrowheadSize(arrowhead, scale); for `arrow`, fullSize = getArrowheadSize(arrowhead, scale) and the widest size is ARROW_ARROWHEAD_WIDEST_SIZE * scale, so the 20-to-30 degree widening keeps its proportions; every other branch is unchanged.",
+        "3. getCardinalityMarkerScale gains a 4th parameter `scale: number` and passes it to each of its three getArrowheadSize calls.",
+        "4. getArrowheadSizeBeyondLastSegment computes `const scale = getArrowheadSizeScale(element.arrowheadSize);` first and uses it in the cardinality branch (size and marker scale), the `arrow` legibleSize and both `arrow` getArrowheadAngle calls; the other branches (bar, diamond, triangle, circle) are size-independent caps and stay as they are.",
+        "5. getArrowheadPoints computes the same scale and uses getArrowheadSize(arrowhead, scale) as `size` and getArrowheadAngle(arrowhead, minSize, scale) as `angle`; the short-segment clamp code is unchanged, so it clamps the scaled size.",
+        "6. New private helper (above getLinearElementRotatedBounds) extends a Bounds by the drawn heads: it walks start then end with the defaults shape.ts uses (`startArrowhead = null`, `endArrowhead = \"arrow\"` for a legacy undefined), skips a null head, and collects the parts shape.ts draws: cardinality_one_or_many = cardinality_many + cardinality_one at CARDINALITY_ONE_OR_MANY_BAR_OFFSET; cardinality_exactly_one = cardinality_one at CARDINALITY_INNER_BAR_OFFSET + cardinality_one; cardinality_zero_or_one = circle_outline at CARDINALITY_ZERO_CIRCLE_OFFSET with diameter scale CARDINALITY_ZERO_CIRCLE_SCALE + cardinality_one at CARDINALITY_INNER_BAR_OFFSET; cardinality_zero_or_many = cardinality_many + that circle_outline part; any other head is one part of its own type.",
+        "7. For each part it calls getArrowheadPoints(element, [shape], position, part, offset); a null result adds nothing; a circle result [x, y, diameter] adds the transformed center plus and minus diameter * diameterScale / 2 on both axes; a cardinality_one result adds only its bar ends (indices 2..5, the pairs generateArrowheadCardinalityOne draws); any other result adds every (x, y) pair. Points go through the same transformXY as the shaft ops before min/max.",
+        "8. getLinearElementRotatedBounds calls the helper right after `let coords` is set, only when isArrowElement(element) && getArrowheadSizeScale(element.arrowheadSize) > 1, and before the bound-text merge; lines (which never draw heads) and small/medium/absent sizes skip it, so their bounds and every hit result equal HEAD.",
+        "9. No other function changes; ElementBounds caches by version, so the head extent is computed once per element version (no per-hit-test allocation)."
+      ],
+      "exports": [
+        {
+          "name": "getArrowheadSize",
+          "kind": "function",
+          "params": [
+            {
+              "name": "arrowhead",
+              "type": "Arrowhead"
+            },
+            {
+              "name": "scale",
+              "type": "number = 1"
+            }
+          ],
+          "returns": "number"
+        },
+        {
+          "name": "getArrowheadAngle",
+          "kind": "function",
+          "params": [
+            {
+              "name": "arrowhead",
+              "type": "Arrowhead"
+            },
+            {
+              "name": "size",
+              "type": "number | undefined"
+            },
+            {
+              "name": "scale",
+              "type": "number = 1"
+            }
+          ],
+          "returns": "Degrees"
+        }
+      ],
+      "import_line": "import { getArrowheadSize, getArrowheadAngle, getArrowheadPoints, getElementBounds } from \"@excalidraw/element\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 3,
+          "to": 3,
+          "first_line": "arrayToMap,",
+          "rule": "Add `getArrowheadSizeScale,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 727,
+          "to": 745,
+          "first_line": "export const getArrowheadSize = (arrowhead: Arrowhead): number => {",
+          "last_line": "};",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 754,
+          "to": 776,
+          "first_line": "export const getArrowheadAngle = (",
+          "last_line": "};",
+          "rule": "Rule 2; keep the doc comments."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 864,
+          "to": 864,
+          "first_line": "strokeWidth: number,",
+          "rule": "Keep the line and add a `scale: number,` parameter after it."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 871,
+          "to": 871,
+          "first_line": "(getArrowheadSize(\"cardinality_one\") *",
+          "rule": "Pass `scale` as the 2nd argument."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 879,
+          "to": 879,
+          "first_line": "const crowsFoot = () => length / getArrowheadSize(\"cardinality_many\");",
+          "rule": "Pass `scale` as the 2nd argument."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 885,
+          "to": 885,
+          "first_line": "(getArrowheadSize(\"circle_outline\") *",
+          "rule": "Pass `scale` as the 2nd argument."
+        },
+        {
+          "id": "S8",
+          "at": "insert_before",
+          "from": 916,
+          "to": 916,
+          "first_line": "const corner = getArrowheadCorner(element, position);",
+          "rule": "Add `const scale = getArrowheadSizeScale(element.arrowheadSize);`."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 936,
+          "to": 937,
+          "first_line": ": getArrowheadSize(arrowhead) *",
+          "last_line": "getCardinalityMarkerScale(marker, corner, element.strokeWidth);",
+          "rule": "Pass `scale` to getArrowheadSize and as the 4th argument of getCardinalityMarkerScale."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 969,
+          "to": 969,
+          "first_line": "const legibleSize = getArrowheadSize(arrowhead) / 2;",
+          "rule": "Use getArrowheadSize(arrowhead, scale)."
+        },
+        {
+          "id": "S11",
+          "at": "replace",
+          "from": 977,
+          "to": 977,
+          "first_line": "getArrowheadAngle(arrowhead, legibleSize),",
+          "rule": "Add `scale` as the 3rd argument."
+        },
+        {
+          "id": "S12",
+          "at": "replace",
+          "from": 982,
+          "to": 982,
+          "first_line": "getArrowheadAngle(arrowhead, 0),",
+          "rule": "Add `scale` as the 3rd argument."
+        },
+        {
+          "id": "S13",
+          "at": "replace",
+          "from": 1058,
+          "to": 1058,
+          "first_line": "const size = getArrowheadSize(arrowhead);",
+          "rule": "Compute `scale` from element.arrowheadSize, then `size = getArrowheadSize(arrowhead, scale)`."
+        },
+        {
+          "id": "S14",
+          "at": "replace",
+          "from": 1102,
+          "to": 1102,
+          "first_line": "const angle = getArrowheadAngle(arrowhead, minSize);",
+          "rule": "Add `scale` as the 3rd argument."
+        },
+        {
+          "id": "S15",
+          "at": "insert_before",
+          "from": 1189,
+          "to": 1189,
+          "first_line": "const getLinearElementRotatedBounds = (",
+          "rule": "Add the private head-extent helper of rules 6-7 (params: element, shape: Drawable, coords: Bounds, transformXY; returns Bounds), with a short why-comment, then a blank line."
+        },
+        {
+          "id": "S16",
+          "at": "insert_after",
+          "from": 1234,
+          "to": 1234,
+          "first_line": "let coords: Bounds = [res[0], res[1], res[2], res[3]];",
+          "rule": "Rule 8: when the element is an arrow with scale above 1, replace coords with the helper's result."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/element/src/shape.ts",
+          "lines": [
+            509,
+            633
+          ],
+          "reason": "Which parts and offsets each cardinality marker draws; the bounds helper must mirror them."
+        },
+        {
+          "path": "packages/element/src/shape.ts",
+          "lines": [
+            997,
+            1031
+          ],
+          "reason": "Heads are drawn for arrows only, with the start=null / end=\"arrow\" defaults."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-4",
+        "FR-21",
+        "AC-3",
+        "NFR-1",
+        "NFR-6"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/renderElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Fix the start/end typo in getCanvasPadding and scale the arrowhead padding for heads larger than today's.",
+      "rules": [
+        "1. An arrow with a start or an end head gets padding 40 * Math.max(1, getArrowheadSizeScale(element.arrowheadSize)); an arrow with neither keeps 20."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 32,
+          "to": 32,
+          "first_line": "DEFAULT_ZOOM,",
+          "rule": "Add `getArrowheadSizeScale,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 113,
+          "to": 115,
+          "first_line": "if (element.endArrowhead || element.endArrowhead) {",
+          "last_line": "}",
+          "rule": "Rule 1, testing `element.startArrowhead || element.endArrowhead`."
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/element/src/elbowArrow.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Reserve the scaled head size in the elbow-arrow simple-route leg check.",
+      "rules": [
+        "1. ElbowArrowState gains `arrowheadSize?: ArrowheadSize | null;` (full elbow arrow elements already satisfy it at every call site).",
+        "2. In getSimpleRoute's leg check, each head's reserved length is getArrowheadSize(head, getArrowheadSizeScale(arrow.arrowheadSize)); nothing else in the routing changes."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 24,
+          "to": 24,
+          "first_line": "DEFAULT_ZOOM,",
+          "rule": "Add `getArrowheadSizeScale,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 66,
+          "to": 66,
+          "first_line": "Arrowhead,",
+          "rule": "Add `ArrowheadSize,` to the ./types type import."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 100,
+          "to": 100,
+          "first_line": "endArrowhead: Arrowhead | null;",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 1493,
+          "to": 1493,
+          "first_line": "arrow.startArrowhead ? getArrowheadSize(arrow.startArrowhead) : 0,",
+          "rule": "Rule 2 for the start head."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 1498,
+          "to": 1498,
+          "first_line": "arrow.endArrowhead ? getArrowheadSize(arrow.endArrowhead) : 0,",
+          "rule": "Rule 2 for the end head."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03"
+      ],
+      "covers": [
+        "FR-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/element/src/newElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Let newLinearElement and newArrowElement accept an optional arrowheadSize and write the key only for a non-null value.",
+      "rules": [
+        "1. Both factories' opts gain `arrowheadSize?: ArrowheadSize | null;`.",
+        "2. The element literal gets `...(opts.arrowheadSize ? { arrowheadSize: opts.arrowheadSize } : {})` after its arrowhead fields, in newLinearElement and in both newArrowElement branches (elbow and non-elbow); null and undefined leave no key, so existing element snapshots stay unchanged."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 48,
+          "to": 48,
+          "first_line": "Arrowhead,",
+          "rule": "Add `ArrowheadSize,` to the ./types type import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 627,
+          "to": 627,
+          "first_line": "polygon?: ExcalidrawLineElement[\"polygon\"];",
+          "rule": "Rule 1 for newLinearElement."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 637,
+          "to": 637,
+          "first_line": "endArrowhead: null,",
+          "rule": "Rule 2 for newLinearElement."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 655,
+          "to": 655,
+          "first_line": "startArrowhead?: Arrowhead | null;",
+          "rule": "Rule 1 for newArrowElement."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 671,
+          "to": 671,
+          "first_line": "endArrowhead: opts.endArrowhead || null,",
+          "rule": "Rule 2 for the elbow branch."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 685,
+          "to": 685,
+          "first_line": "endArrowhead: opts.endArrowhead || null,",
+          "rule": "Rule 2 for the non-elbow branch."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-5",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/element/src/transform.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Scale the skeleton label margin by the arrow's head size; the skeleton's arrowheadSize already reaches the factories through the existing `...element` spread.",
+      "rules": [
+        "1. In clampLabelPositionOffEnds' margin, the head term is getArrowheadSize(arrowhead, getArrowheadSizeScale(arrow.arrowheadSize)).",
+        "2. No other change: ValidLinearElement is `& Partial<ExcalidrawLinearElement>`, and the arrow and line cases spread `...element` into newArrowElement/newLinearElement, which keep a non-null arrowheadSize (U06)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 30,
+          "to": 30,
+          "first_line": "DEFAULT_ZOOM,",
+          "rule": "Add `getArrowheadSizeScale,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 662,
+          "to": 662,
+          "first_line": "(arrowhead ? getArrowheadSize(arrowhead) : 0)",
+          "rule": "Rule 1."
+        }
+      ],
+      "depends_on": [
+        "U02",
+        "U03",
+        "U06"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-6"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "AppState gains currentItemArrowheadSize.",
+      "rules": [
+        "1. `currentItemArrowheadSize: ArrowheadSize | null;` sits right after currentItemEndArrowhead."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 27,
+          "to": 27,
+          "first_line": "Arrowhead,",
+          "rule": "Add `ArrowheadSize,` to the @excalidraw/element/types type import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 465,
+          "to": 465,
+          "first_line": "currentItemEndArrowhead: Arrowhead | null;",
+          "rule": "Rule 1."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-8"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/element/src/convertToShape.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Recognized arrows carry the current arrowhead size.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 652,
+          "to": 652,
+          "first_line": "endArrowhead: appState.currentItemEndArrowhead,",
+          "rule": "Add `arrowheadSize: appState.currentItemArrowheadSize,`."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/element/src/flowchart.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Flowchart binding arrows carry the current arrowhead size.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 376,
+          "to": 376,
+          "first_line": "endArrowhead: appState.currentItemEndArrowhead,",
+          "rule": "Add `arrowheadSize: appState.currentItemArrowheadSize,`."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/appState.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Default currentItemArrowheadSize to null and persist it to browser storage only.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 39,
+          "to": 39,
+          "first_line": "currentItemEndArrowhead: \"arrow\",",
+          "rule": "Add `currentItemArrowheadSize: null,`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 175,
+          "to": 175,
+          "first_line": "currentItemEndArrowhead: { browser: true, export: false, server: false },",
+          "rule": "Add `currentItemArrowheadSize: { browser: true, export: false, server: false },`."
+        }
+      ],
+      "depends_on": [
+        "U08"
+      ],
+      "covers": [
+        "FR-8"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Keep a valid arrowheadSize on restored lines and arrows, drop any other value, and validate currentItemArrowheadSize in restoreAppState.",
+      "rules": [
+        "1. New private helper `restoreArrowheadSize = <T extends ExcalidrawLinearElement>(element: T): T`: when the element has no `arrowheadSize` key, or its value passes isArrowheadSize, return the same object; otherwise return a copy without the key (rest destructuring, no `delete` on the input).",
+        "2. Both linear returns wrap their element in the helper before handleOversizedLinearElements, so an old element without the key is returned unchanged (byte-identical to today).",
+        "3. In restoreAppState, right after fontTopPicks is restored: when nextAppState.currentItemArrowheadSize does not pass isArrowheadSize, set it to null (covers missing, null, and invalid)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 36,
+          "to": 36,
+          "first_line": "DEFAULT_ZOOM,",
+          "rule": "Add `isArrowheadSize,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 159,
+          "to": 159,
+          "first_line": "const restoreLinearElementPoints = (",
+          "rule": "Rule 1, with a one-line why-comment, followed by a blank line."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 669,
+          "to": 669,
+          "first_line": "return handleOversizedLinearElements(restoredLine);",
+          "rule": "Rule 2: `handleOversizedLinearElements(restoreArrowheadSize(restoredLine))`."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 736,
+          "to": 736,
+          "first_line": "return handleOversizedLinearElements(normalizedRestoredElement);",
+          "rule": "Rule 2 for the arrow case."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 1332,
+          "to": 1332,
+          "first_line": "nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);",
+          "rule": "Rule 3."
+        }
+      ],
+      "depends_on": [
+        "U02",
+        "U08",
+        "U11"
+      ],
+      "covers": [
+        "FR-13",
+        "FR-14",
+        "AC-2",
+        "AC-5",
+        "NFR-3"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add changeArrowheadSize to the ActionName union.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 74,
+          "to": 74,
+          "first_line": "| \"changeArrowhead\"",
+          "rule": "Add `| \"changeArrowheadSize\"`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-10"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "New undoable changeArrowheadSize action with a small/medium/large RadioSelection, also rendered in the compact arrow-properties popover.",
+      "rules": [
+        "1. `export const actionChangeArrowheadSize = register<ArrowheadSize>({ name: \"changeArrowheadSize\", label: \"labels.arrowheadSize\", trackEvent: false, ... })`.",
+        "2. perform: invariant(value, \"actionChangeArrowheadSize: value must be defined\"); changeProperty over the elements: a linear element becomes newElementWith(el, { arrowheadSize: value }), and an elbow arrow is then re-routed with updateElbowArrowRoute exactly as actionChangeArrowhead does; other elements are returned as is. The picked key is stored as is (medium stores \"medium\").",
+        "3. perform returns appState `{ ...appState, currentItemArrowheadSize: value }` and captureUpdate CaptureUpdateAction.IMMEDIATELY.",
+        "4. PanelComponent: a fieldset with legend t(\"labels.arrowheadSize\") and a `buttonList` div holding RadioSelection<ArrowheadSize> group \"arrowhead-size\" with options small/medium/large: text t(\"labels.small\"|\"labels.medium\"|\"labels.large\"), icon FontSizeSmallIcon/FontSizeMediumIcon/FontSizeLargeIcon, testId \"arrowheadSize-small\"|\"arrowheadSize-medium\"|\"arrowheadSize-large\"; onChange calls updateData(value).",
+        "5. Its value is getFormValue<ArrowheadSize | null>(elements, app, getValue, predicate, default) where getValue reads `element.arrowheadSize ?? \"medium\"` for a linear element (else appState.currentItemArrowheadSize ?? \"medium\"), predicate is isLinearElement, and default is `hasSelection ? null : appState.currentItemArrowheadSize ?? \"medium\"`.",
+        "6. actionChangeArrowProperties renders renderAction(\"changeArrowheadSize\") right after renderAction(\"changeArrowhead\")."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeArrowheadSize",
+          "kind": "const",
+          "params": [],
+          "returns": "Action<ArrowheadSize>"
+        }
+      ],
+      "import_line": "import { actionChangeArrowheadSize } from \"../actions/actionProperties\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 85,
+          "to": 85,
+          "first_line": "Arrowhead,",
+          "rule": "Add `ArrowheadSize,` to the @excalidraw/element/types type import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 2058,
+          "to": 2058,
+          "first_line": "export const actionChangeArrowProperties = register({",
+          "rule": "Rules 1-5, followed by a blank line."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 2070,
+          "to": 2070,
+          "first_line": "{renderAction(\"changeArrowhead\")}",
+          "rule": "Rule 6."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [
+          716,
+          772
+        ],
+        "reason": "actionChangeStrokeWidth is the RadioSelection action to copy."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/actions/actionProperties.tsx",
+          "lines": [
+            1960,
+            2056
+          ],
+          "reason": "actionChangeArrowhead: the linear-element update and elbow re-route to mirror."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U08",
+        "U11",
+        "U13"
+      ],
+      "covers": [
+        "FR-10",
+        "FR-11",
+        "FR-21",
+        "NFR-5"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-export actionChangeArrowheadSize from the actions barrel.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 23,
+          "to": 23,
+          "first_line": "actionChangeArrowProperties,",
+          "rule": "Add `actionChangeArrowheadSize,`."
+        }
+      ],
+      "depends_on": [
+        "U14"
+      ],
+      "covers": [
+        "FR-10"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/components/shapeActionPredicates.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add the arrowheadSize predicate: the arrow tool, any arrow, or any line with a head.",
+      "rules": [
+        "1. `arrowheadSize` is true when activeToolType === \"arrow\", or some target element is an arrow (isArrowElement), or some target element is a line (isLineElement) whose startArrowhead or endArrowhead is not null."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 10,
+          "to": 10,
+          "first_line": "isLinearElement,",
+          "rule": "Add `isArrowElement,` and `isLineElement,` to the @excalidraw/element import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 148,
+          "to": 148,
+          "first_line": "arrowheads: forToolOrSelection(canHaveArrowheads),",
+          "rule": "Rule 1 as the `arrowheadSize:` property."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/components/Actions.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render the arrowhead size control after the arrowhead pickers in the desktop panel.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 189,
+          "to": 189,
+          "first_line": "{predicates.arrowheads && <>{renderAction(\"changeArrowhead\")}</>}",
+          "rule": "Add `{predicates.arrowheadSize && renderAction(\"changeArrowheadSize\")}`."
+        }
+      ],
+      "depends_on": [
+        "U13",
+        "U16"
+      ],
+      "covers": [
+        "FR-11",
+        "FR-12"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/actions/actionStyles.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Paste styles copies the source arrow's arrowheadSize onto pasted arrows.",
+      "rules": [
+        "1. In the arrow branch's newElementWith update, add `...(elementStylesToCopyFrom.arrowheadSize || newElement.arrowheadSize ? { arrowheadSize: elementStylesToCopyFrom.arrowheadSize ?? null } : {})` so no key appears when neither element has a size (newElementWith would otherwise spread an undefined key)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 189,
+          "to": 192,
+          "first_line": "newElement = newElementWith(newElement, {",
+          "last_line": "});",
+          "rule": "Rule 1, keeping both arrowhead lines."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-15"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/components/App.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The arrow tool creates arrows with the current arrowhead size.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8652,
+          "to": 8652,
+          "first_line": "endArrowhead,",
+          "rule": "Add `arrowheadSize: this.state.currentItemArrowheadSize,` to the newArrowElement opts (the line tool branch is unchanged)."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/excalidraw/components/App.drawshape.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Arrows made from drawn shapes carry the current arrowhead size.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 201,
+          "to": 201,
+          "first_line": "endArrowhead: app.state.currentItemEndArrowhead,",
+          "rule": "Add `arrowheadSize: app.state.currentItemArrowheadSize,`."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Converting to a sharp or curved arrow applies the current arrowhead size along with the current heads.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 901,
+          "to": 901,
+          "first_line": "endArrowhead: app.state.currentItemEndArrowhead,",
+          "rule": "Add `arrowheadSize: app.state.currentItemArrowheadSize,` (sharpArrow case)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 915,
+          "to": 915,
+          "first_line": "endArrowhead: app.state.currentItemEndArrowhead,",
+          "rule": "Add `arrowheadSize: app.state.currentItemArrowheadSize,` (curvedArrow case)."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U08"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add the control's label; the options reuse labels.small/medium/large.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 52,
+          "to": 52,
+          "first_line": "\"arrowheads\": \"Arrowheads\",",
+          "rule": "Add `\"arrowheadSize\": \"Arrowhead size\",`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-17"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/tests/helpers/api.ts",
+      "action": "edit",
+      "phase": "tests",
+      "behaviour": "API.createElement passes arrowheadSize through for arrows and lines.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 237,
+          "to": 237,
+          "first_line": ": never;",
+          "rule": "Add `arrowheadSize?: T extends \"arrow\" | \"line\" ? ExcalidrawLinearElement[\"arrowheadSize\"] : never;`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 376,
+          "to": 376,
+          "first_line": "elbowed: rest.elbowed ?? false,",
+          "rule": "Add `arrowheadSize: rest.arrowheadSize,` to the newArrowElement opts."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 389,
+          "to": 389,
+          "first_line": "polygon: rest.polygon,",
+          "rule": "Add `arrowheadSize: rest.arrowheadSize,` to the newLinearElement opts."
+        }
+      ],
+      "depends_on": [
+        "U06"
+      ],
+      "covers": [
+        "FR-19"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U24",
+      "path": "packages/element/tests/arrowheadSize.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Geometry, bounds and hit-testing tests for per-element arrowhead size (AC-2, AC-3, AC-7).",
+      "rules": [
+        "1. Build arrows with API.createElement({ type: \"arrow\", points, endArrowhead, arrowheadSize, roughness: 0, strokeWidth: 2 }) and shapes with ShapeCache.generateElementShape(arrow, null), as bounds.test.ts does.",
+        "2. The base arrow is a straight 200px horizontal arrow (points (0,0) and (200,0)) with endArrowhead \"triangle\", so a large head (37.5px back, half-width 37.5*tan 25deg) reaches outside the 0-height shaft bounds; compare against the same arrow without the field.",
+        "3. Hit points use hitElementItself({ point, element, threshold: 10, elementsMap }) from ../src/collision; box selection uses elementsOverlappingBBox({ elements, bounds, type: \"contain\" }) from ../src/bounds."
+      ],
+      "tests": [
+        {
+          "name": "maps presets to scale factors",
+          "given": "getArrowheadSizeScale for small, medium, large, null, undefined and \"huge\"",
+          "expect": "0.6, 1, 1.5, 1, 1, 1; isArrowheadSize is true only for the three keys"
+        },
+        {
+          "name": "scales the base size",
+          "given": "getArrowheadSize(\"arrow\") and getArrowheadSize(\"arrow\", 1.5)",
+          "expect": "25 and 37.5"
+        },
+        {
+          "name": "keeps the arrow head's angle proportions at any scale",
+          "given": "getArrowheadAngle(\"arrow\", full size, scale) for scales 0.6 and 1.5, and at the scaled widest size",
+          "expect": "20 degrees at full size and 30 degrees at ARROW_ARROWHEAD_WIDEST_SIZE * scale (10 * scale), for both scales"
+        },
+        {
+          "name": "no field and medium give today's head points",
+          "given": "the base arrow without arrowheadSize, with null and with \"medium\", for triangle, arrow and cardinality_one_or_many",
+          "expect": "getArrowheadPoints returns equal arrays in all three cases"
+        },
+        {
+          "name": "small and large heads scale the head extent",
+          "given": "the base arrow with small and with large",
+          "expect": "the triangle's back corners are 0.6x and 1.5x as far from the tip as without the field"
+        },
+        {
+          "name": "a short last segment still clamps a large head",
+          "given": "an arrow whose last segment is 20px long with arrowheadSize large and an arrow end head",
+          "expect": "the head's length from the tip is at most the length the clamp allows for a medium head on the same segment times 1.5 and below 37.5"
+        },
+        {
+          "name": "large heads widen the element bounds",
+          "given": "the base arrow with large versus without the field",
+          "expect": "getElementBounds of the large arrow is strictly larger on the y axis and contains every point of getArrowheadPoints for the end head"
+        },
+        {
+          "name": "small, medium and lines keep today's bounds",
+          "given": "the base arrow with small and with medium, and a line with arrowheadSize large",
+          "expect": "getElementBounds equals the bounds of the same element without the field"
+        },
+        {
+          "name": "hit results are unchanged at small and medium",
+          "given": "points on the shaft, 5px off it, and on the drawn head, for no field, small and medium",
+          "expect": "hitElementItself gives the same result for each point as the arrow without the field"
+        },
+        {
+          "name": "the precise test stays shaft-only at large",
+          "given": "the large base arrow, a point on the shaft and a point 60px off the shaft outside the widened bounds",
+          "expect": "the shaft point hits and the far point misses"
+        },
+        {
+          "name": "box selection follows a large head",
+          "given": "a contain box enclosing the shaft with 5px margin but not the large head's back corners",
+          "expect": "elementsOverlappingBBox selects the arrow without the field and does not select the large arrow"
+        },
+        {
+          "name": "changing the size refreshes cached bounds",
+          "given": "getElementBounds read once, then newElementWith(arrow, { arrowheadSize: \"large\" })",
+          "expect": "the new element's bounds are the large bounds, not the cached medium ones"
+        },
+        {
+          "name": "factories write no key without a size",
+          "given": "newArrowElement and newLinearElement with arrowheadSize undefined, null and \"small\"",
+          "expect": "no arrowheadSize key for undefined and null; \"small\" is kept"
+        }
+      ],
+      "style_from": {
+        "path": "packages/element/tests/bounds.test.ts",
+        "lines": [
+          1,
+          265
+        ],
+        "reason": "Imports, API.createElement and ShapeCache.generateElementShape scaffolding for geometry tests."
+      },
+      "depends_on": [
+        "U02",
+        "U03",
+        "U06",
+        "U23"
+      ],
+      "covers": [
+        "AC-2",
+        "AC-3",
+        "AC-7",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-21",
+        "NFR-1",
+        "NFR-6"
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U25",
+      "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Editor tests for the arrowhead size control, appState default, creation, paste styles, flip, undo, restore and SVG export (AC-1, AC-4, AC-5).",
+      "rules": [
+        "1. `beforeEach(async () => { await render(<Excalidraw handleKeyboardGlobally={true} />); })`; elements via API.createElement/API.setElements/API.setSelectedElements; controls by testId with queryByTestId and fireEvent.click.",
+        "2. Restore cases call restoreElements from ../data/restore; the export case calls exportScene({ type: \"svg\", data: { elements, files: null } }) from ../scene/export and measures the end head by the numbers in its path `d` attribute."
+      ],
+      "tests": [
+        {
+          "name": "shows the control for arrows and for lines with a head",
+          "given": "an arrow selected; a line with endArrowhead \"arrow\" selected; a line without heads selected; the arrow tool active with nothing selected",
+          "expect": "arrowheadSize-medium is present, present, absent, present"
+        },
+        {
+          "name": "changing the size updates selection and the default",
+          "given": "two selected arrows and a click on arrowheadSize-large",
+          "expect": "both arrows have arrowheadSize \"large\", h.state.currentItemArrowheadSize is \"large\", and arrowheadSize-large is checked"
+        },
+        {
+          "name": "picking medium stores medium",
+          "given": "a large arrow selected and a click on arrowheadSize-medium",
+          "expect": "arrowheadSize is \"medium\""
+        },
+        {
+          "name": "undo restores the previous size",
+          "given": "an arrow changed from no size to small, then UI.undo() and then a redo",
+          "expect": "after undo the arrow has no size (undefined); after redo it is \"small\""
+        },
+        {
+          "name": "new arrows take the current size",
+          "given": "currentItemArrowheadSize set to \"small\" and an arrow drawn with UI.createElement(\"arrow\")",
+          "expect": "the new arrow's arrowheadSize is \"small\"; with currentItemArrowheadSize null a drawn arrow has no arrowheadSize key"
+        },
+        {
+          "name": "paste styles copies the size",
+          "given": "copy styles from a large arrow, paste onto an arrow without a size",
+          "expect": "the target's arrowheadSize is \"large\""
+        },
+        {
+          "name": "flip keeps the size",
+          "given": "a bound small arrow flipped horizontally",
+          "expect": "arrowheadSize is still \"small\""
+        },
+        {
+          "name": "restore keeps valid sizes and drops others",
+          "given": "restoreElements on arrows with \"small\", \"huge\", null and no field",
+          "expect": "\"small\" is kept; the other three have no arrowheadSize key, and the no-field arrow equals today's restore output"
+        },
+        {
+          "name": "restoreAppState validates the default",
+          "given": "restoreAppState with currentItemArrowheadSize \"large\", \"huge\" and missing",
+          "expect": "\"large\", null, null"
+        },
+        {
+          "name": "SVG export draws a smaller small head",
+          "given": "the same 200px arrow exported with arrowheadSize \"small\" and without the field",
+          "expect": "the small head's path extent is measurably smaller than the default head's"
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "lines": [
+          1,
+          175
+        ],
+        "reason": "render, API, UI and testId-driven panel assertions."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/scene/export.test.ts",
+          "lines": [
+            424,
+            470
+          ],
+          "reason": "How exportScene is called for SVG in tests."
+        }
+      ],
+      "depends_on": [
+        "U11",
+        "U12",
+        "U14",
+        "U15",
+        "U16",
+        "U17",
+        "U18",
+        "U19",
+        "U22",
+        "U23"
+      ],
+      "covers": [
+        "AC-1",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "FR-11",
+        "FR-12",
+        "FR-13",
+        "FR-14",
+        "FR-15",
+        "FR-16",
+        "FR-18"
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U26",
+      "path": "packages/excalidraw/tests/__snapshots__/contextmenu.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Regenerate the contextmenu appState snapshot so it gains currentItemArrowheadSize: null.",
+      "run": "yarn vitest run --update packages/excalidraw/tests/contextmenu.test.tsx",
+      "depends_on": [
+        "U11",
+        "U14",
+        "U17",
+        "U19",
+        "U25"
+      ],
+      "covers": [
+        "NFR-2"
+      ]
+    },
+    {
+      "id": "U27",
+      "path": "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Regenerate the history appState snapshot so it gains currentItemArrowheadSize: null.",
+      "run": "yarn vitest run --update packages/excalidraw/tests/history.test.tsx",
+      "depends_on": [
+        "U11",
+        "U14",
+        "U17",
+        "U19",
+        "U25"
+      ],
+      "covers": [
+        "NFR-2"
+      ]
+    },
+    {
+      "id": "U28",
+      "path": "packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Regenerate the regressionTests appState snapshot so it gains currentItemArrowheadSize: null.",
+      "run": "yarn vitest run --update packages/excalidraw/tests/regressionTests.test.tsx",
+      "depends_on": [
+        "U11",
+        "U14",
+        "U17",
+        "U19",
+        "U25"
+      ],
+      "covers": [
+        "NFR-2"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "One Unreleased entry describing per-element arrowhead size.",
+      "rules": [
+        "1. A `### Arrowhead size (2026-11-06)` heading and bullets: the optional `arrowheadSize` element field (`\"small\" | \"medium\" | \"large\"`, scale 0.6 / 1 / 1.5, absent or null = today's size, both heads); the new `appState.currentItemArrowheadSize` (default null, browser storage only); the properties-panel control for arrows and lines with heads; that large heads widen the element's bounds (selection box, box/lasso selection, export) while hit-testing stays on the shaft; and that the skeleton API accepts `arrowheadSize`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "",
+          "rule": "Rule 1, followed by a blank line, so the new entry is first under Unreleased."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "lines": [
+          50,
+          53
+        ],
+        "reason": "Unreleased entry heading and bullet style."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-20"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U30",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Show arrowheadSize in the skeleton's additional-properties arrow example.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 176,
+          "to": 176,
+          "first_line": "endArrowhead: \"triangle\",",
+          "rule": "Add `arrowheadSize: \"large\",`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-6"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    }
+  ]
+}

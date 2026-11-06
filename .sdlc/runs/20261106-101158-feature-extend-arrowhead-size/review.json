@@ -1,0 +1,67 @@
+{
+  "module": "arrowhead-size (feature-extend, brownfield)",
+  "verdict": "needs_changes",
+  "tool_calls": 7,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "issue": "U25 was never written, so nothing tests the editor side of the feature: the changeArrowheadSize action and panel control (testIds arrowheadSize-*), the arrowheadSize predicate (arrow tool, arrow, line with or without heads), currentItemArrowheadSize creation paths, paste styles, undo/redo, flip, restoreElements keep/drop, restoreAppState validation, and SVG export. Together these cover AC-1, AC-4, AC-5, AC-6 and FR-8 to FR-18. The changed lines in actionProperties.tsx, shapeActionPredicates.ts, actionStyles.ts, restore.ts and App.tsx have no assertions at all. The only coverage is indirect, from the regenerated appState snapshots.",
+      "fix": "Create the file with the 10 tests listed under U25 in change_plan.md. Render <Excalidraw handleKeyboardGlobally />, build elements with API.createElement/setElements/setSelectedElements, click controls with fireEvent on queryByTestId, use restoreElements/restoreAppState from ../data/restore and exportScene({type:'svg'}) from ../scene/export. Include the 'no arrowheadSize key when currentItemArrowheadSize is null' and 'no-field arrow equals today's restore output' assertions."
+    },
+    {
+      "severity": "major",
+      "file": "packages/element/tests/arrowheadSize.test.ts",
+      "issue": "Only the default branch (triangle) of the new ~170-line getLinearElementRotatedBoundsWithHeads helper in bounds.ts is tested. No test runs the cardinality_one_or_many, cardinality_exactly_one, cardinality_zero_or_one and cardinality_zero_or_many decompositions, the circle/circle_outline radius path, the cardinality_one bar-only index-2 path, a start head, or a rotated arrow (the transformXY path). If any part offset or flag is wrong, the large-head bounds will be wrong and nothing will catch it.",
+      "fix": "Add one parametrised 'large heads widen bounds' case per head type (circle, circle_outline, cardinality_one, the four composite cardinality markers, and a start head). Each should assert the bounds contain every drawn part's points (for circles, center ± diameter*scale/2). Also add one case with angle != 0 that checks containment against the rotated head points."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/tests/arrowheadSize.test.ts",
+      "line": 1,
+      "issue": "This breaks the plan's test conventions: describe/expect/it are imported from 'vitest' although they are globals here, and '@excalidraw/common' is imported in two separate statements (lines 2 and 3-7). It also duplicates code: createStraightArrow is defined twice (in 'head points geometry' and in 'element bounds and hit testing'), and 'no field and medium give today's head points' repeats three near-identical API.createElement literals.",
+      "fix": "Drop the vitest import and merge the two @excalidraw/common imports into one. Hoist a single createStraightArrow(arrowheadSize?, endArrowhead = 'triangle', points?) helper to the top-level describe and reuse it everywhere."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/tests/arrowheadSize.test.ts",
+      "issue": "The line case in 'small, medium and lines keep today's bounds' uses a line with no heads. The guarantee under test is that lines never widen bounds because shape.ts draws no heads for them, but the test never checks this for a line that actually has a head. The getElementBounds guard (isArrowElement) is therefore only weakly exercised.",
+      "fix": "Create the large line with newLinearElement plus newElementWith(line, { endArrowhead: 'arrow', arrowheadSize: 'large' }), or extend API.createElement to accept arrowheads for lines. Then assert its bounds equal those of the same line without the size."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/bounds.ts",
+      "line": 1196,
+      "issue": "In getLinearElementRotatedBoundsWithHeads, extendWithPoints takes three positional flags (isCircle, diameterScale, isCardinalityOne). As a result, call sites like `extendWithPoints(getArrowheadPoints(...), false, 1, true)` repeat about 8 times and are hard to check against shape.ts's part list.",
+      "fix": "Map each arrowhead to a list of parts ({ type, offset?, kind: 'circle' | 'bar' | 'points', diameterScale? }) and loop over it once, so each composite marker is a single line that mirrors shape.ts."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/newElement.ts",
+      "line": 640,
+      "issue": "newLinearElement and newArrowElement write any truthy opts.arrowheadSize. Skeleton input from JS consumers (convertToExcalidrawElements spreads ...element) can therefore store an invalid value such as 'huge' on a new element. It renders at scale 1, but persists until the next restore.",
+      "fix": "Gate the spread with isArrowheadSize(opts.arrowheadSize) from @excalidraw/common instead of a truthiness check, in all three places."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/CHANGELOG.md",
+      "line": 18,
+      "issue": "The entry says 'Elements carry an optional arrowheadSize field'. The field exists only on linear elements (arrows and lines), so the wording overstates the public API change.",
+      "fix": "Change the first bullet to 'Linear elements (arrows and lines) carry an optional `arrowheadSize` field ...'."
+    }
+  ],
+  "passing": [
+    "correctness vs change_plan: U01-U24 and U26-U30 match their site rules (scale threads through getArrowheadSize/Angle/CardinalityMarkerScale, bounds widen only for arrows at scale > 1, canvas padding typo fixed, elbow leg check scaled, factories omit null/undefined, restore keeps valid sizes only, appState default null and browser-only)",
+    "type safety: no new any or ts-ignore; casts in isArrowheadSize and restoreArrowheadSize are narrow and justified",
+    "error handling: invariant on undefined action value; unknown or invalid sizes fall back to scale 1",
+    "snapshots: only 132 added currentItemArrowheadSize: null lines; element snapshots unchanged",
+    "sensitive files: no manifest, .env, CLAUDE.md or settings touched",
+    "env fixtures: n/a (no validating config module in this stack)",
+    "authz/PII: n/a (client-side editor feature)"
+  ],
+  "notes": [
+    "provenance.json has a bogus entry 'packages/excalidraw/tests/__snapshots__/.test.tsx.snap' (tooling_U28, no change). No such file exists. It should not become a fix packet; clean it up in the tooling, not the code.",
+    "provenance.json's record for packages/excalidraw/tests/arrowheadSize.test.tsx (tp_debug_r1_002) has sha_before == sha_after and the file does not exist; the blocker finding above targets that path for creation."
+  ],
+  "refinement_packets": []
+}
