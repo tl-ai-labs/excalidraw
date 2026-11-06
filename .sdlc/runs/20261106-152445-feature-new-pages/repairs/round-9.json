@@ -1,0 +1,59 @@
+[
+  {
+    "id": "tp_debug_r9_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/element/src/Scene.ts",
+    "instruction": "Fix `packages/element/src/Scene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. pages.test.tsx > renders only the active page's elements in renderStaticScene (AC-2) fails: after switching to page B, renderStaticScene keeps receiving an empty visibleElements list, even after waiting:\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > renders only the active page's elements in renderStaticScene (AC-2)\nAssertionError: expected [] to include 'render-rect-page-b'\n ❯ packages/excalidraw/tests/pages.test.tsx:773:26\n    771|           (el) => el.id,\n    772|         ) ?? [];\n    773|       expect(visibleIds).toContain(rectPageB.id);\n       |                          ^\n    774|     });\n    775| \n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\nRoot cause: App.syncActionResult switches pages with this.scene.setActivePageId(id, { informMutation: false }) (App.tsx line ~3140), and setActivePageId (Scene.ts ~line 159-195) only calls this.triggerUpdate() when informMutation !== false, so sceneNonce does not change. The renderer memoizes getRenderableElements on canvasNonce = scene.getSceneNonce() (packages/excalidraw/scene/Renderer.ts ~line 360-370), so after a page switch it keeps serving the previous page's cached visible elements. Fix in setActivePageId: whenever the active page actually changes (after the early return for an unchanged page), always change this.sceneNonce so every memo keyed on it is invalidated, WITHOUT calling randomInteger() or any random source (Gate 0 rule: no new random draws on mount, restore, legacy load or element creation; resetScene and updateScene also call setActivePageId). Use a deterministic change, e.g. `this.sceneNonce = ((this.sceneNonce ?? 0) + 1) | 0;` before the informMutation check, and keep the existing triggerUpdate() call only when informMutation !== false. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/Scene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/Scene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/scene/Renderer.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  }
+]

@@ -34,9 +34,12 @@ import {
   type StrokeWidthKey,
   isTransparent,
   DEFAULT_ZOOM,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
 } from "@excalidraw/common";
 import {
   calculateFixedPointForNonElbowArrowBinding,
+  getElementPageId,
   getNonDeletedElements,
   normalizeArrowhead,
   isPointInElement,
@@ -115,7 +118,12 @@ import {
   getNormalizedZoom,
 } from "../scene";
 
-import type { AppState, BinaryFiles, LibraryItem } from "../types";
+import type {
+  AppState,
+  BinaryFiles,
+  ExcalidrawPage,
+  LibraryItem,
+} from "../types";
 import type { ImportedDataState, LegacyAppState } from "./types";
 
 type RestoredAppState = Omit<
@@ -448,8 +456,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -534,6 +543,16 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+
+  if (
+    typeof element.pageId === "string" &&
+    element.pageId.trim() &&
+    element.pageId.trim() !== DEFAULT_PAGE_ID
+  ) {
+    (ret as Mutable<ExcalidrawElement>).pageId = element.pageId.trim();
+  } else {
+    delete (ret as any).pageId;
+  }
 
   return ret;
 };
@@ -788,7 +807,11 @@ const repairContainerElement = (
         binding,
       ) => {
         const boundElement = elementsMap.get(binding.id);
-        if (boundElement && !boundIds.has(binding.id)) {
+        if (
+          boundElement &&
+          getElementPageId(boundElement) === getElementPageId(container) &&
+          !boundIds.has(binding.id)
+        ) {
           boundIds.add(binding.id);
 
           if (boundElement.isDeleted) {
@@ -832,7 +855,10 @@ const repairBoundElement = (
     isArrowElement(container) ? 0 : container?.angle ?? 0
   ) as Radians;
 
-  if (!container) {
+  if (
+    !container ||
+    getElementPageId(container) !== getElementPageId(boundElement)
+  ) {
     boundElement.containerId = null;
     return;
   }
@@ -894,7 +920,10 @@ const repairFrameMembership = (
   if (element.frameId) {
     const containingFrame = elementsMap.get(element.frameId);
 
-    if (!containingFrame) {
+    if (
+      !containingFrame ||
+      getElementPageId(containingFrame) !== getElementPageId(element)
+    ) {
       element.frameId = null;
     }
   }
@@ -966,6 +995,8 @@ export const restoreElements = <T extends ExcalidrawElement>(
         refreshDimensions?: boolean;
         repairBindings?: boolean;
         deleteInvisibleElements?: boolean;
+        validPageIds?: readonly string[];
+        defaultPageId?: string;
       }
     | undefined,
 ): CombineBrandsIfNeeded<T, OrderedExcalidrawElement> => {
@@ -975,6 +1006,13 @@ export const restoreElements = <T extends ExcalidrawElement>(
   const existingElementsMap = existingElements
     ? arrayToMap(existingElements)
     : null;
+
+  const validPageIds = opts?.validPageIds;
+  const fallbackPageId =
+    opts?.defaultPageId ||
+    (validPageIds && validPageIds.length > 0
+      ? validPageIds[0]
+      : DEFAULT_PAGE_ID);
 
   const restoredElements = syncInvalidIndices(
     (targetElements || []).reduce((elements, element) => {
@@ -998,6 +1036,21 @@ export const restoreElements = <T extends ExcalidrawElement>(
         migratedElement = null;
       }
       if (migratedElement) {
+        if (validPageIds && validPageIds.length > 0) {
+          const currentPageId = getElementPageId(migratedElement);
+          if (!validPageIds.includes(currentPageId)) {
+            if (fallbackPageId === DEFAULT_PAGE_ID) {
+              const { pageId: _, ...withoutPageId } = migratedElement;
+              migratedElement = withoutPageId as ExcalidrawElement;
+            } else {
+              migratedElement = {
+                ...migratedElement,
+                pageId: fallbackPageId,
+              };
+            }
+          }
+        }
+
         const localElement = existingElementsMap?.get(element.id);
 
         const shouldMarkAsDeleted =
@@ -1022,6 +1075,53 @@ export const restoreElements = <T extends ExcalidrawElement>(
       return elements;
     }, [] as ExcalidrawElement[]),
   );
+
+  // Sanitize cross-page bindings and frame membership across pages
+  if (restoredElements.length > 0) {
+    const pageCheckMap = arrayToMap(restoredElements);
+    for (const element of restoredElements) {
+      const elementPageId = getElementPageId(element);
+
+      if (element.frameId) {
+        const frame = pageCheckMap.get(element.frameId);
+        if (frame && getElementPageId(frame) !== elementPageId) {
+          (element as Mutable<ExcalidrawElement>).frameId = null;
+        }
+      }
+
+      if (isTextElement(element) && element.containerId) {
+        const container = pageCheckMap.get(element.containerId);
+        if (container && getElementPageId(container) !== elementPageId) {
+          (element as Mutable<ExcalidrawTextElement>).containerId = null;
+        }
+      }
+
+      if (element.boundElements && element.boundElements.length > 0) {
+        const filteredBound = element.boundElements.filter((binding) => {
+          const boundEl = pageCheckMap.get(binding.id);
+          return !boundEl || getElementPageId(boundEl) === elementPageId;
+        });
+        if (filteredBound.length !== element.boundElements.length) {
+          (element as Mutable<ExcalidrawElement>).boundElements = filteredBound;
+        }
+      }
+
+      if (isLinearElement(element)) {
+        if (element.startBinding) {
+          const target = pageCheckMap.get(element.startBinding.elementId);
+          if (target && getElementPageId(target) !== elementPageId) {
+            (element as Mutable<ExcalidrawLinearElement>).startBinding = null;
+          }
+        }
+        if (element.endBinding) {
+          const target = pageCheckMap.get(element.endBinding.elementId);
+          if (target && getElementPageId(target) !== elementPageId) {
+            (element as Mutable<ExcalidrawLinearElement>).endBinding = null;
+          }
+        }
+      }
+    }
+  }
 
   if (!opts?.repairBindings) {
     return restoredElements as CombineBrandsIfNeeded<
@@ -1060,19 +1160,29 @@ export const restoreElements = <T extends ExcalidrawElement>(
     }
 
     if (isLinearElement(element)) {
-      if (
-        element.startBinding &&
-        (!restoredElementsMap.has(element.startBinding.elementId) ||
-          !isArrowElement(element))
-      ) {
-        (element as Mutable<ExcalidrawLinearElement>).startBinding = null;
+      if (element.startBinding) {
+        const boundTarget = restoredElementsMap.get(
+          element.startBinding.elementId,
+        );
+        if (
+          !boundTarget ||
+          !isArrowElement(element) ||
+          getElementPageId(boundTarget) !== getElementPageId(element)
+        ) {
+          (element as Mutable<ExcalidrawLinearElement>).startBinding = null;
+        }
       }
-      if (
-        element.endBinding &&
-        (!restoredElementsMap.has(element.endBinding.elementId) ||
-          !isArrowElement(element))
-      ) {
-        (element as Mutable<ExcalidrawLinearElement>).endBinding = null;
+      if (element.endBinding) {
+        const boundTarget = restoredElementsMap.get(
+          element.endBinding.elementId,
+        );
+        if (
+          !boundTarget ||
+          !isArrowElement(element) ||
+          getElementPageId(boundTarget) !== getElementPageId(element)
+        ) {
+          (element as Mutable<ExcalidrawLinearElement>).endBinding = null;
+        }
       }
     }
   }
@@ -1266,10 +1376,10 @@ const restoreFontTopPicks = (
 };
 
 export const restoreAppState = (
-  appState: ImportedDataState["appState"],
+  _appState: ImportedDataState["appState"],
   localAppState: Partial<AppState> | null | undefined,
 ): RestoredAppState => {
-  appState = appState || {};
+  const appState = _appState || {};
   const defaultAppState = getDefaultAppState();
   const nextAppState = {} as typeof defaultAppState;
 
@@ -1338,8 +1448,150 @@ export const restoreAppState = (
       defaultAppState.currentItemStrokeWidthKey;
   }
 
+  const resolvedZoom = {
+    value: getNormalizedZoom(
+      isFiniteNumber(appState.zoom)
+        ? appState.zoom
+        : appState.zoom?.value ?? defaultAppState.zoom.value,
+    ),
+  };
+
+  const rawPages = _appState ? appState.pages : localAppState?.pages;
+  const normalizedPages: ExcalidrawPage[] = [];
+  const seenPageIds = new Set<string>();
+
+  if (Array.isArray(rawPages)) {
+    for (const rawPage of rawPages as readonly (
+      | (Partial<ExcalidrawPage> & {
+          zoom?: ExcalidrawPage["zoom"] | number;
+        })
+      | null
+      | undefined
+    )[]) {
+      if (
+        rawPage &&
+        typeof rawPage === "object" &&
+        typeof rawPage.id === "string" &&
+        rawPage.id.trim()
+      ) {
+        const id = rawPage.id.trim();
+        if (seenPageIds.has(id)) {
+          continue;
+        }
+        seenPageIds.add(id);
+
+        const pageName =
+          typeof rawPage.name === "string" && rawPage.name.trim()
+            ? rawPage.name.trim()
+            : `Page ${normalizedPages.length + 1}`;
+        const scrollX = isFiniteNumber(rawPage.scrollX)
+          ? Math.floor(rawPage.scrollX)
+          : 0;
+        const scrollY = isFiniteNumber(rawPage.scrollY)
+          ? Math.floor(rawPage.scrollY)
+          : 0;
+        const rawZoomValue = isFiniteNumber(rawPage.zoom)
+          ? rawPage.zoom
+          : typeof rawPage.zoom === "object" &&
+            rawPage.zoom !== null &&
+            isFiniteNumber(rawPage.zoom.value)
+          ? rawPage.zoom.value
+          : defaultAppState.zoom.value;
+        const zoom = {
+          value: getNormalizedZoom(rawZoomValue),
+        };
+
+        normalizedPages.push({
+          id,
+          name: pageName,
+          scrollX,
+          scrollY,
+          zoom,
+        });
+      }
+    }
+  }
+
+  const pages: readonly ExcalidrawPage[] =
+    normalizedPages.length > 0
+      ? normalizedPages
+      : [
+          {
+            id: DEFAULT_PAGE_ID,
+            name: DEFAULT_PAGE_NAME,
+            scrollX: isFiniteNumber(nextAppState.scrollX)
+              ? Math.floor(nextAppState.scrollX)
+              : 0,
+            scrollY: isFiniteNumber(nextAppState.scrollY)
+              ? Math.floor(nextAppState.scrollY)
+              : 0,
+            zoom: resolvedZoom,
+          },
+        ];
+
+  const rawActivePageId =
+    typeof appState.activePageId === "string" && appState.activePageId.trim()
+      ? appState.activePageId.trim()
+      : !_appState &&
+        typeof localAppState?.activePageId === "string" &&
+        localAppState.activePageId.trim()
+      ? localAppState.activePageId.trim()
+      : undefined;
+
+  const activePageId =
+    rawActivePageId && pages.some((p) => p.id === rawActivePageId)
+      ? rawActivePageId
+      : pages[0].id;
+
+  const activePageIndex = pages.findIndex((p) => p.id === activePageId);
+  const activePage = pages[activePageIndex >= 0 ? activePageIndex : 0];
+
+  let topScrollX = nextAppState.scrollX;
+  let topScrollY = nextAppState.scrollY;
+  let topZoom = resolvedZoom;
+
+  const finalPages = pages.map((p) => ({ ...p }));
+  const finalActivePage =
+    finalPages[activePageIndex >= 0 ? activePageIndex : 0];
+
+  if (Array.isArray(appState.pages) && appState.pages.length > 0) {
+    if (appState.scrollX === undefined) {
+      topScrollX = activePage.scrollX;
+    } else {
+      finalActivePage.scrollX = isFiniteNumber(topScrollX)
+        ? Math.floor(topScrollX)
+        : 0;
+    }
+
+    if (appState.scrollY === undefined) {
+      topScrollY = activePage.scrollY;
+    } else {
+      finalActivePage.scrollY = isFiniteNumber(topScrollY)
+        ? Math.floor(topScrollY)
+        : 0;
+    }
+
+    if (appState.zoom === undefined) {
+      topZoom = activePage.zoom;
+    } else {
+      finalActivePage.zoom = topZoom;
+    }
+  } else {
+    finalActivePage.scrollX = isFiniteNumber(topScrollX)
+      ? Math.floor(topScrollX)
+      : 0;
+    finalActivePage.scrollY = isFiniteNumber(topScrollY)
+      ? Math.floor(topScrollY)
+      : 0;
+    finalActivePage.zoom = topZoom;
+  }
+
   return {
     ...nextAppState,
+    pages: finalPages,
+    activePageId,
+    scrollX: topScrollX,
+    scrollY: topScrollY,
     cursorButton: localAppState?.cursorButton || "up",
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:
@@ -1357,13 +1609,7 @@ export const restoreAppState = (
       locked: nextAppState.activeTool.locked ?? false,
     },
     // Migrates from previous version where appState.zoom was a number
-    zoom: {
-      value: getNormalizedZoom(
-        isFiniteNumber(appState.zoom)
-          ? appState.zoom
-          : appState.zoom?.value ?? defaultAppState.zoom.value,
-      ),
-    },
+    zoom: topZoom,
     openSidebar:
       // string (legacy)
       typeof (appState.openSidebar as any as string) === "string"
@@ -1426,4 +1672,30 @@ export const restoreLibraryItems = (
     }
   }
   return restoredItems;
+};
+
+export const restore = (
+  data: ImportedDataState | null,
+  localAppState: Partial<AppState> | null | undefined,
+  localElements: Readonly<ElementsMapOrArray> | null | undefined,
+  opts?:
+    | {
+        refreshDimensions?: boolean;
+        repairBindings?: boolean;
+        deleteInvisibleElements?: boolean;
+      }
+    | undefined,
+): RestoredDataState => {
+  const restoredAppState = restoreAppState(data?.appState, localAppState);
+  const elements = restoreElements(data?.elements, localElements, {
+    ...opts,
+    validPageIds: restoredAppState.pages.map((p) => p.id),
+    defaultPageId: restoredAppState.pages[0]?.id ?? DEFAULT_PAGE_ID,
+  });
+
+  return {
+    elements,
+    appState: restoredAppState,
+    files: data?.files || {},
+  };
 };

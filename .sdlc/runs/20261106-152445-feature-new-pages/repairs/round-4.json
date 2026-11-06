@@ -1,0 +1,292 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/blob.ts",
+    "instruction": "Fix `packages/excalidraw/data/blob.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Regression (history.test.tsx > singleplayer undo/redo > should create new history entry on scene import via drag&drop): the [end of test] appState snapshot now has scrollX: 0, scrollY: 0 where HEAD gives scrollX: -50, scrollY: -50. Cause: the new `isLegacySinglePage` guard in loadSceneOrLibraryFromBlob skips `getScrollToContentState(data.elements, localAppState)` whenever the imported appState has a non-empty pages array; the dropped file's appState is `{...getDefaultAppState()}` which now carries the default pages entry, so the scroll-to-content that HEAD always applied on import no longer runs. Restore HEAD behaviour: apply getScrollToContentState on import exactly as HEAD did (whenever localAppState is set), so existing snapshots keep their values; page viewports may be synced from the resulting top-level scroll, not the other way round.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/blob.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/blob.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/blob.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/actions/actionPages.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionPages.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\npackages/excalidraw/actions/actionPages.tsx(63,9): error TS2339: Property 'history' does not exist on type 'AppClassProperties'.\npackages/excalidraw/actions/actionPages.tsx(113,9): error TS2339: Property 'history' does not exist on type 'AppClassProperties'.\npackages/excalidraw/actions/actionPages.tsx(240,9): error TS2339: Property 'history' does not exist on type 'AppClassProperties'.\npackages/excalidraw/actions/actionPages.tsx(247,11): error TS2339: Property 'history' does not exist on type 'AppClassProperties'.\nAppClassProperties has no `history` (it is private on App and must stay off AppClassProperties). Do not touch app.history from actions: switch the history page from App when appState.activePageId changes (App.syncActionResult already calls this.history.setActivePageId), and on page delete leave the deleted page's stacks to App as well.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionPages.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionPages.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/lasso/index.ts",
+    "instruction": "Fix `packages/excalidraw/lasso/index.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\npackages/excalidraw/lasso/index.ts(50,11): error TS2345: Argument of type 'AppClassProperties' is not assignable to parameter of type 'App'.\nThe previous fix round changed this file's `app: App` to AppClassProperties without need; revert this file's parameter types to exactly what HEAD had (`import type App from \"../components/App\"`, `constructor(app: App)`), which this feature does not need to change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/lasso/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/lasso/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\nexcalidraw-app/collab/Collab.tsx(929,36): error TS2345: Argument of type '{ captureUpdate: \"NEVER\"; appState?: Partial<AppState> | undefined; elements: ReconciledExcalidrawElement[]; }' is not assignable to parameter of type '{ elements?: readonly ExcalidrawElement[] | null | undefined; appState?: Pick<AppState, keyof AppState> | null | undefined; collaborators?: Map<...> | undefined; captureUpdate?: CaptureUpdateActionType | undefined; }'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck and yarn test:app fail to load this file:\npackages/excalidraw/tests/pages.test.tsx(7,3): error TS2305: Module '\"@excalidraw/common\"' has no exported member 'MAIN_MENU_SEARCH_TAB'.\npackages/excalidraw/tests/pages.test.tsx(16,8): error TS2307: Cannot find module '@excalidraw/utils/export' or its corresponding type declarations.\npackages/excalidraw/tests/pages.test.tsx(508,31): error TS2341: Property 'excalidrawContainerRef' is private and only accessible within class 'App'.\nError: Failed to resolve import \"@excalidraw/utils/export\" from \"packages/excalidraw/tests/pages.test.tsx\". Does the file exist?\n  Plugin: vite:import-analysis\n  File: /Users/macbook/Documents/GitHub/Google-Projects/excalidraw-3/packages/excalidraw/tests/pages.test.tsx:16:7\n  14 |    exportToCanvas,\n  15 |    exportToSvg\n  16 |  } from \"@excalidraw/utils/export\";\n     |          ^\n`@excalidraw/utils/export` does not exist: import exportToCanvas / exportToSvg from the editor's scene export module (packages/excalidraw/scene/export.ts) or the package index as it exports them; MAIN_MENU_SEARCH_TAB is not exported from @excalidraw/common (find the right constant or select the search tab another way); do not read the private App.excalidrawContainerRef — use the rendered container from the test's render result.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pagesCollabAndStorage.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false fails:\nTypeError: collab.handleRemoteSceneUpdate is not a function\n ❯ excalidraw-app/tests/pagesCollabAndStorage.test.tsx:193:23\n    191| \n    192|     act(() => {\n    193|       (collab as any).handleRemoteSceneUpdate(\n       |                       ^\n    194|         [\n    195|           localRectOnPage2 as OrderedExcalidrawElement,\n ❯ node_modules/@testing-library/react/dist/act-compat.js:48:24\n ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22\n ❯ Module.<anonymous> node_modules/@testing-library/react/dist/act-compat.js:47:25\n ❯ excalidraw-app/tests/pagesCollabAndStorage.test.tsx:192:5\n\n⎯⎯\nencrypts and loads the room page list on the Firebase room document (AC-10) 22ms\n     → expected false to be true // Object.is equality\n   ✓ Multi-page collaboration, Firebase room storage, and localStorage > persists and restores multi-page state and elements in browser localStorage (AC-11)\n ✓ packages/excalidraw/tests/tool.test.tsx (21 tests) 1113ms\n ✓ packages/excalidraw/tests/wheel.test.tsx (26 tests) 1969ms\n   ✓ wheel navigation > wheel button held down > while moving the pointer between zooms > keeps drawing from zoom-scaled bitmaps until the gesture is over 363ms\n ✓ packages/excalidraw/tests/pixelSnap.test.tsx (15 tests) 1333ms\n ✓ packages/excalidraw/tests/data/reconcile.test.ts (2 tests) 10ms\n ✓ packages/utils/tests/export.test.ts (19 tests) 72ms\n ✓ packages/excalidraw/tests/colorInput.test.tsx (30 tests) 1674ms\n ✓ packages/element/tests/textElement.test.ts (28 tests) 6ms\n ✓ packages/excalidraw/components/Sidebar/Sidebar.test.tsx (12 tests) 596ms\n ✓ packages/excalidraw/tests/library.test.tsx (9 tests) 759ms\n ✓ packages/excalidraw/components/TTDDialog/utils/mermaidAutoFix.test.ts (19 tests) 9ms\n ✓ packages/element/tests/recognizeShape.test.ts (21 tests) 62ms\n ✓ packages/excalidraw/components/TTDDialog/utils/mermaidError.test.ts (31 tests) 6ms\n ✓ packages/element/tests/sortElements.test.ts (4 tests | 2 skipped) 5ms\n ✓ packages/common/src/colors.test.ts (65 tests) 9ms\n ✓ packages/element/tests/embeddable.test.ts (19 tests) 6ms\n ✓ packages/element/tests/bounds.test.ts (18\nCollab has no handleRemoteSceneUpdate; drive remote updates through the method Collab.tsx actually uses for incoming SCENE_UPDATE (read the file). For isSavedToFirebase, check against excalidraw-app/data/firebase.ts as it now stores the page list.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

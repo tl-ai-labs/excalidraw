@@ -29,6 +29,7 @@ export type ActionResult =
       files?: BinaryFiles | null;
       captureUpdate: CaptureUpdateActionType;
       replaceFiles?: boolean;
+      replaceAllPages?: boolean;
     }
   | false;
 
@@ -143,7 +144,12 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleWrap"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "createPage"
+  | "switchPage"
+  | "renamePage"
+  | "reorderPages"
+  | "deletePage";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

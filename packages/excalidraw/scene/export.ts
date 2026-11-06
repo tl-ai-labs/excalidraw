@@ -15,11 +15,13 @@ import {
   toBrandedType,
   applyDarkModeFilter,
   removeDarkModeFilter,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 
 import {
+  getElementPageId,
   getInitializedImageElements,
   getLineWidth,
   getNonDeletedElements,
@@ -568,10 +570,6 @@ const configExportDimension = async ({
   // deleted ones. The type contract requires non-deleted elements already,
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
-  const elements = getNonDeletedElements(
-    restoreElements(data.elements, null, { deleteInvisibleElements: true }),
-  );
-
   // initialize defaults
   // ---------------------------------------------------------------------------
 
@@ -582,6 +580,19 @@ const configExportDimension = async ({
     cleanAppStateForExport(data.appState ?? {}),
     null,
   );
+
+  const restoredElements = getNonDeletedElements(
+    restoreElements(data.elements, null, { deleteInvisibleElements: true }),
+  );
+  const shouldFilterByPage =
+    data.appState?.activePageId != null ||
+    Array.isArray(data.appState?.pages) ||
+    restoredElements.some((el) => el.pageId && el.pageId !== DEFAULT_PAGE_ID);
+  const elements = shouldFilterByPage
+    ? restoredElements.filter(
+        (el) => getElementPageId(el) === appState.activePageId,
+      )
+    : restoredElements;
 
   const theme = cfg.theme ?? THEME.LIGHT;
 
@@ -1041,6 +1052,18 @@ const exportToSvg = async ({
   // the tempScene hack which duplicates and regenerates ids
   if (config?.embedScene) {
     try {
+      const embeddedAppState = { ...appState };
+      delete (embeddedAppState as any).pages;
+      delete (embeddedAppState as any).activePageId;
+
+      const embeddedElements = elements.map((element) => {
+        if ("pageId" in element && element.pageId !== undefined) {
+          const { pageId, ...rest } = element;
+          return rest as typeof element;
+        }
+        return element;
+      });
+
       encodeSvgBase64Payload({
         metadataElement,
         // when embedding scene, we want to embed the (restored) supplied
@@ -1048,7 +1071,12 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          embeddedElements,
+          embeddedAppState,
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);
@@ -1315,21 +1343,51 @@ const exportToBlob = async (
         if (!blob) {
           return reject(new Error("couldn't export to blob"));
         }
-        if (opts.type === "png" && opts.config?.embedScene) {
-          blob = await encodePngMetadata({
-            blob,
-            metadata: serializeAsJSON(
-              // NOTE as long as we're using the Scene hack, we need to ensure
-              // we pass the original, uncloned elements when serializing
-              // so that we keep ids stable (restoring keeps the ids)
-              restoreElements(data.elements, null),
-              data.appState ?? {},
-              data.files || {},
-              "local",
-            ),
-          });
+        try {
+          if (opts.type === "png" && opts.config?.embedScene) {
+            const restored = restoreElements(data.elements, null);
+            const activePageId =
+              data.appState?.activePageId ??
+              (Array.isArray(data.appState?.pages) &&
+                data.appState.pages[0]?.id) ??
+              DEFAULT_PAGE_ID;
+            const shouldFilterByPage =
+              data.appState?.activePageId != null ||
+              Array.isArray(data.appState?.pages) ||
+              restored.some((el) => el.pageId && el.pageId !== DEFAULT_PAGE_ID);
+            const filteredElements = shouldFilterByPage
+              ? restored.filter((el) => getElementPageId(el) === activePageId)
+              : restored;
+
+            const embeddedElements = filteredElements.map((element) => {
+              if ("pageId" in element && element.pageId !== undefined) {
+                const { pageId, ...rest } = element;
+                return rest as typeof element;
+              }
+              return element;
+            });
+
+            const embeddedAppState = { ...(data.appState ?? {}) };
+            delete (embeddedAppState as any).pages;
+            delete (embeddedAppState as any).activePageId;
+
+            blob = await encodePngMetadata({
+              blob,
+              metadata: serializeAsJSON(
+                // NOTE as long as we're using the Scene hack, we need to ensure
+                // we pass the original, uncloned elements when serializing
+                // so that we keep ids stable (restoring keeps the ids)
+                embeddedElements,
+                embeddedAppState,
+                data.files || {},
+                "local",
+              ),
+            });
+          }
+          resolve(blob);
+        } catch (error) {
+          reject(error);
         }
-        resolve(blob);
       },
       opts.type === "png" ? MIME_TYPES.png : MIME_TYPES.jpg,
       opts.type === "jpeg" ? opts.config?.quality || 0.92 : undefined,

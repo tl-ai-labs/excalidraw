@@ -1,0 +1,664 @@
+{
+  "section": "units",
+  "source": "units-003.json",
+  "value": [
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/data/blob.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Preserve multi-page viewports and normalize orphaned element pageIds when loading .excalidraw files from blobs.",
+      "rules": [
+        "1. In loadSceneOrLibraryFromBlob, restore appState first via restoreAppState (only spreading getScrollToContentState when !Array.isArray(data.appState?.pages) || data.appState.pages.length === 0), and then call restoreElements with validPageIds: appState.pages.map((p) => p.id) and defaultPageId: appState.pages[0]?.id."
+      ],
+      "exports": [],
+      "import_line": "import { loadFromBlob, loadSceneOrLibraryFromBlob } from \"./data/blob\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 162,
+          "to": 184,
+          "first_line": "if (isValidExcalidrawData(data)) {",
+          "last_line": "});",
+          "rule": "Restore appState and elements with validPageIds and defaultPageId, applying getScrollToContentState only for legacy single-page payloads without pages."
+        }
+      ],
+      "depends_on": [
+        "U09"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-13",
+        "AC-8",
+        "AC-9"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/actions/actionHistory.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Pass the full multi-page elements map into history.undo and history.redo and return replaceAllPages: true so undo/redo on the active page preserves other pages' elements in Store and Scene.",
+      "rules": [
+        "1. In executeHistoryAction, include replaceAllPages: true in the returned ActionResult when result is non-empty.",
+        "2. In createUndoAction.perform and createRedoAction.perform, pass app.scene.getAllElementsMapIncludingDeleted() as SceneElementsMap (falling back to arrayToMap(elements) as SceneElementsMap if unavailable) to history.undo and history.redo."
+      ],
+      "exports": [
+        {
+          "name": "createUndoAction",
+          "kind": "const",
+          "params": [
+            {
+              "name": "history",
+              "type": "History"
+            }
+          ],
+          "returns": "Action"
+        },
+        {
+          "name": "createRedoAction",
+          "kind": "const",
+          "params": [
+            {
+              "name": "history",
+              "type": "History"
+            }
+          ],
+          "returns": "Action"
+        }
+      ],
+      "import_line": "import { createRedoAction, createUndoAction } from \"../actions/actionHistory\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 57,
+          "to": 62,
+          "first_line": "return {",
+          "last_line": "};",
+          "rule": "Add replaceAllPages: true to the ActionResult returned by executeHistoryAction."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 78,
+          "to": 83,
+          "first_line": "history.undo(",
+          "last_line": "),",
+          "rule": "Pass app.scene.getAllElementsMapIncludingDeleted() as SceneElementsMap to history.undo."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 122,
+          "to": 127,
+          "first_line": "history.redo(",
+          "last_line": "),",
+          "rule": "Pass app.scene.getAllElementsMapIncludingDeleted() as SceneElementsMap to history.redo."
+        }
+      ],
+      "depends_on": [
+        "U04",
+        "U08",
+        "U12"
+      ],
+      "covers": [
+        "FR-10",
+        "AC-5"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/actions/actionExport.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Include all pages' elements when saving to .excalidraw files and replace all pages when loading a scene from a file.",
+      "rules": [
+        "1. In actionSaveToActiveFile and actionSaveFileToDisk, pass app.scene.getAllElementsIncludingDeleted() instead of active-page elements to prepareDataForJSONExport.",
+        "2. In actionLoadScene, pass app.scene.getAllElementsIncludingDeleted() to loadFromJSON and return replaceAllPages: true in the ActionResult."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 274,
+          "to": 280,
+          "first_line": "const { abortController, data: exportedDataPromise } =",
+          "last_line": ");",
+          "rule": "Pass app.scene.getAllElementsIncludingDeleted() to prepareDataForJSONExport in actionSaveToActiveFile."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 345,
+          "to": 351,
+          "first_line": "const { abortController, data: exportedDataPromise } =",
+          "last_line": ");",
+          "rule": "Pass app.scene.getAllElementsIncludingDeleted() to prepareDataForJSONExport in actionSaveFileToDisk."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 418,
+          "to": 428,
+          "first_line": "} = await loadFromJSON(",
+          "last_line": "};",
+          "rule": "Pass app.scene.getAllElementsIncludingDeleted() to loadFromJSON and include replaceAllPages: true in the returned ActionResult."
+        }
+      ],
+      "depends_on": [
+        "U04",
+        "U12",
+        "U15"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-13",
+        "AC-8",
+        "AC-9"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U18",
+      "path": "packages/excalidraw/components/PageTabBar.scss",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Style the page tab bar, active tab highlight, inline rename input, reorder/delete action buttons, and add-page button across light and dark themes.",
+      "rules": [
+        "1. Scope styles under .excalidraw .page-tab-bar with pointer-events: var(--ui-pointer-events), horizontal flex layout, overflow-x: auto, rounded border, and theme-aware surface colors.",
+        "2. Style .page-tab-bar__tab and .page-tab-bar__tab--active with clear visual distinction for the active page tab, compact action buttons (.page-tab-bar__action-btn), inline rename input (.page-tab-bar__rename-input), and add button (.page-tab-bar__add-btn)."
+      ],
+      "exports": [],
+      "import_line": "import \"./PageTabBar.scss\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 4,
+          "first_line": "@use \"../css/variables.module\" as *;",
+          "last_line": ".page-tab-bar {",
+          "rule": "Scope styles under .excalidraw .page-tab-bar."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-2"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U19",
+      "path": "packages/excalidraw/components/PageTabBar.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render the interactive page tab bar allowing users to view ordered pages, switch pages, create pages, rename pages inline, reorder pages, and delete pages.",
+      "rules": [
+        "1. Export PageTabBar component accepting { appState: UIAppState; actionManager: ActionManager }.",
+        "2. Render a container <div className={clsx(\"page-tab-bar\", \"zen-mode-transition\", { \"layer-ui__wrapper__footer-left--transition-bottom\": appState.zenModeEnabled })} data-testid=\"page-tab-bar\" role=\"tablist\" aria-label={t(\"pages.title\")}>.",
+        "3. For each page in appState.pages (with index), render a tab wrapper containing: (a) when renamingPageId === page.id and !appState.viewModeEnabled, an <input data-testid=\"page-rename-input\" className=\"page-tab-bar__rename-input\" aria-label={t(\"pages.pageName\")} ... /> that commits via actionManager.executeAction(actionRenamePage, \"ui\", { id: page.id, name: draftName }) on Enter or blur and cancels without renaming on Escape; (b) otherwise a <button type=\"button\" role=\"tab\" aria-selected={isActive} data-testid={`page-tab-${page.id}`} className={clsx(\"page-tab-bar__tab\", { \"page-tab-bar__tab--active\": isActive })} onClick={() => actionManager.executeAction(actionSwitchPage, \"ui\", page.id)} onDoubleClick={() => !appState.viewModeEnabled && startRenaming(page)}>{page.name}</button>.",
+        "4. When !appState.viewModeEnabled, render per-tab control buttons for the active tab (or on each tab): rename trigger <button type=\"button\" data-testid={`page-rename-${page.id}`} aria-label={t(\"pages.renamePage\")} onClick={() => startRenaming(page)} />, move-left <button type=\"button\" data-testid={`page-move-left-${page.id}`} aria-label={t(\"pages.moveLeft\")} disabled={index === 0} onClick={() => actionManager.executeAction(actionReorderPages, \"ui\", { fromIndex: index, toIndex: index - 1 })} />, move-right <button type=\"button\" data-testid={`page-move-right-${page.id}`} aria-label={t(\"pages.moveRight\")} disabled={index === appState.pages.length - 1} onClick={() => actionManager.executeAction(actionReorderPages, \"ui\", { fromIndex: index, toIndex: index + 1 })} />, and delete <button type=\"button\" data-testid={`page-delete-${page.id}`} aria-label={t(\"pages.deletePage\")} disabled={appState.pages.length <= 1} onClick={() => actionManager.executeAction(actionDeletePage, \"ui\", page.id)} />.",
+        "5. When !appState.viewModeEnabled, render the add-page button <button type=\"button\" className=\"page-tab-bar__add-btn\" data-testid=\"page-add-button\" aria-label={t(\"pages.addPage\")} title={t(\"pages.addPage\")} onClick={() => actionManager.executeAction(actionCreatePage, \"ui\")}>+</button>."
+      ],
+      "exports": [
+        {
+          "name": "PageTabBar",
+          "kind": "const",
+          "params": [
+            {
+              "name": "props",
+              "type": "{ appState: UIAppState; actionManager: ActionManager }"
+            }
+          ],
+          "returns": "JSX.Element"
+        }
+      ],
+      "import_line": "import { PageTabBar } from \"../PageTabBar\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 18,
+          "to": 25,
+          "first_line": "type Props = {",
+          "last_line": "const [draftName, setDraftName] = useState(\"\");",
+          "rule": "Export PageTabBar component accepting { appState: UIAppState; actionManager: ActionManager }."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U11",
+        "U13",
+        "U14",
+        "U18"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U20",
+      "path": "packages/excalidraw/components/footer/Footer.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Render PageTabBar inside the desktop Footer when defaultUIEnabled is true without modifying FooterCenterTunnel.Out.",
+      "rules": [
+        "1. Import { PageTabBar } from \"../PageTabBar\".",
+        "2. Inside <footer ...>, render {defaultUIEnabled && <PageTabBar appState={appState} actionManager={actionManager} />} right before <FooterCenterTunnel.Out /> so .footer-center children remain unchanged."
+      ],
+      "exports": [],
+      "import_line": "import Footer from \"./footer/Footer\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 9,
+          "to": 10,
+          "first_line": "import Stack from \"../Stack\";",
+          "last_line": "import { PageTabBar } from \"../PageTabBar\";",
+          "rule": "Import { PageTabBar } from \"../PageTabBar\"."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 61,
+          "to": 64,
+          "first_line": "{defaultUIEnabled && (",
+          "last_line": "<FooterCenterTunnel.Out />",
+          "rule": "Render {defaultUIEnabled && <PageTabBar appState={appState} actionManager={actionManager} />} before <FooterCenterTunnel.Out />."
+        }
+      ],
+      "depends_on": [
+        "U19"
+      ],
+      "covers": [
+        "FR-2",
+        "AC-1"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "packages/excalidraw/components/LayerUI.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Pass all pages' non-deleted elements to JSONExportDialog so exporting to .excalidraw file or shareable link from the export dialog includes all pages.",
+      "rules": [
+        "1. In renderJSONExportDialog, pass elements={app.scene.getAllNonDeletedElements()} to <JSONExportDialog />."
+      ],
+      "exports": [],
+      "import_line": "",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 206,
+          "to": 208,
+          "first_line": "<JSONExportDialog",
+          "last_line": "appState={appState}",
+          "rule": "Pass elements={app.scene.getAllNonDeletedElements()} to JSONExportDialog."
+        }
+      ],
+      "depends_on": [
+        "U04"
+      ],
+      "covers": [
+        "FR-12",
+        "AC-8"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/components/SearchMenu.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Search non-deleted text and frame elements across all pages, display page name on results, and switch to the matched element's page on selection.",
+      "rules": [
+        "1. Import getElementPageId from @excalidraw/element and actionSwitchPage from ../actions.",
+        "2. Add pageId: string and pageName: string to SearchMatchItem.",
+        "3. In SearchMenu, observe allElements = app.scene.getAllNonDeletedElements() in the search useEffect dependency list so changes on any page re-run search; in goToNextItem and goToPreviousItem treat focusIndex === null || focusIndex < 0 as starting at index 0.",
+        "4. In the focusIndex navigation useEffect, when match is present and getElementPageId(match.element) !== app.state.activePageId, call app.actionManager.executeAction(actionSwitchPage, \"ui\", getElementPageId(match.element)) before checking viewport visibility and calling app.viewport.setViewport.",
+        "5. Pass pageName={app.state.pages.length > 1 ? searchMatch.pageName : undefined} to ListItem and render a <span className=\"search-result-page-badge\" data-testid=\"search-result-page-badge\">{props.pageName}</span> inside ListItem when props.pageName is defined.",
+        "6. In handleSearch, read const elements = app.scene.getAllNonDeletedElements(), resolve each element's pageId via getElementPageId(el) and pageName from app.state.pages.find((p) => p.id === pageId)?.name ?? app.state.pages[0]?.name ?? \"\", attach pageId and pageName to each SearchMatchItem, and set initial focusIndex to the first visible match on the active page (or 0 when matchItems.length > 0 and none are currently in visibleIds, else null)."
+      ],
+      "exports": [],
+      "import_line": "import { SearchMenu } from \"./SearchMenu\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 27,
+          "to": 38,
+          "first_line": "import { newTextElement, getElementPageId } from \"@excalidraw/element\";",
+          "last_line": "import { actionSwitchPage } from \"../actions\";",
+          "rule": "Import getElementPageId from @excalidraw/element and actionSwitchPage from ../actions."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 65,
+          "to": 78,
+          "first_line": "type SearchMatchItem = {",
+          "last_line": "};",
+          "rule": "Add pageId: string; and pageName: string; to SearchMatchItem."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 105,
+          "to": 107,
+          "first_line": "const [focusIndex, setFocusIndex] = useAtom(searchItemInFocusAtom);",
+          "last_line": "const allElements = app.scene.getAllNonDeletedElements();",
+          "rule": "Read allElements = app.scene.getAllNonDeletedElements() alongside elementsMap."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 139,
+          "to": 174,
+          "first_line": "}, [",
+          "last_line": "};",
+          "rule": "Include allElements in search useEffect dependencies and handle focusIndex < 0 in goToNextItem and goToPreviousItem."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 201,
+          "to": 211,
+          "first_line": "useEffect(() => {",
+          "last_line": "const zoomValue = app.state.zoom.value;",
+          "rule": "If getElementPageId(match.element) !== app.state.activePageId, execute actionSwitchPage with getElementPageId(match.element) before computing viewport bounds."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 445,
+          "to": 493,
+          "first_line": "const ListItem = (props: {",
+          "last_line": "};",
+          "rule": "Accept optional pageName?: string on ListItem and render <span className=\"search-result-page-badge\" data-testid=\"search-result-page-badge\">{props.pageName}</span> when present."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 502,
+          "to": 560,
+          "first_line": "const MatchListBase = (props: MatchListProps) => {",
+          "last_line": ")}",
+          "rule": "Pass pageName={searchMatch.pageName} to ListItem in MatchListBase."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 831,
+          "to": 938,
+          "first_line": "const elements = app.scene.getAllNonDeletedElements();",
+          "last_line": "},",
+          "rule": "Use app.scene.getAllNonDeletedElements() in handleSearch, populate pageId and pageName on each match, and compute focusIndex safely."
+        }
+      ],
+      "depends_on": [
+        "U04",
+        "U13",
+        "U14"
+      ],
+      "covers": [
+        "FR-14",
+        "AC-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/components/App.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Wire Scene and History activePageId synchronization, multi-page Store commits and onChange emissions (without mutating pages on every scroll/zoom), multi-page initializeScene/resetScene/updateScene/loadFileToCanvas, and full-scene getSceneElementsIncludingDeleted.",
+      "rules": [
+        "1. In getSceneElementsIncludingDeleted and getSceneElementsMapIncludingDeleted, return this.scene.getAllElementsIncludingDeleted() and this.scene.getAllElementsMapIncludingDeleted() so host apps, storage, and collab receive all pages' elements while getSceneElements() continues returning active-page non-deleted elements.",
+        "2. In syncActionResult, if typeof actionResult.appState?.activePageId === \"string\", call this.scene.setActivePageId(actionResult.appState.activePageId, { informMutation: false }) and this.history.setActivePageId(actionResult.appState.activePageId); when actionResult.elements is present, call this.scene.replaceAllElements(actionResult.elements, { replaceAllPages: Boolean(actionResult.replaceAllPages || actionResult.replaceFiles || (actionResult.appState && \"pages\" in actionResult.appState)) }).",
+        "3. In resetScene, read const defaultAppState = getDefaultAppState(); call this.scene.setActivePageId(defaultAppState.activePageId, { informMutation: false }), this.history.setActivePageId(defaultAppState.activePageId), and this.scene.replaceAllElements([], { replaceAllPages: true }).",
+        "4. In initializeScene, call let restoredAppState = restoreAppState(initialData?.appState, null); before restoreElements, then call restoreElements(initialData?.elements, null, { repairBindings: true, deleteInvisibleElements: true, validPageIds: restoredAppState.pages.map((p) => p.id), defaultPageId: restoredAppState.pages[0]?.id }).",
+        "5. In componentDidUpdate, pass this.scene.getAllElementsMapIncludingDeleted() to this.store.commit and pass this.scene.getAllElementsIncludingDeleted() to this.props.onChange and this.onChangeEmitter.trigger; do NOT update this.state.pages or call setState on scroll or zoom in componentDidUpdate (scrollX, scrollY, and zoom are saved into the page entry only when leaving a page or exporting).",
+        "6. In updateScene, when appState && \"activePageId\" in appState && typeof appState.activePageId === \"string\", call this.scene.setActivePageId(appState.activePageId, { informMutation: false }) and this.history.setActivePageId(appState.activePageId) before this.setState; when elements is provided, call this.scene.replaceAllElements(elements, { replaceAllPages: Boolean((appState && \"pages\" in appState) || elements.some((el) => el.pageId && el.pageId !== this.scene.getActivePageId())) }); in applyDeltas, initialize nextElements from this.scene.getAllElementsMapIncludingDeleted().",
+        "7. In loadFileToCanvas, read const elements = this.scene.getAllElementsIncludingDeleted(); before calling loadSceneOrLibraryFromBlob."
+      ],
+      "exports": [],
+      "import_line": "import App from \"./components/App\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 2761,
+          "to": 2766,
+          "first_line": "public getSceneElementsIncludingDeleted = () => {",
+          "last_line": "return this.scene.getElementsMapIncludingDeleted();",
+          "rule": "Return this.scene.getAllElementsIncludingDeleted() and this.scene.getAllElementsMapIncludingDeleted()."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 3138,
+          "to": 3145,
+          "first_line": "let editingTextElement: AppState[\"editingTextElement\"] | null = null;",
+          "last_line": "this.addMissingFiles(actionResult.files, actionResult.replaceFiles);",
+          "rule": "Sync activePageId on this.scene and this.history when actionResult.appState?.activePageId is a string, and pass { replaceAllPages: Boolean(actionResult.replaceAllPages || actionResult.replaceFiles || (actionResult.appState && \"pages\" in actionResult.appState)) } to this.scene.replaceAllElements."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 3553,
+          "to": 3560,
+          "first_line": "private resetScene = withBatchedUpdates(",
+          "last_line": "isLoading: opts?.resetLoadingState ? false : state.isLoading,",
+          "rule": "Reset scene and history activePageId to defaultAppState.activePageId and call this.scene.replaceAllElements([], { replaceAllPages: true })."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 3621,
+          "to": 3626,
+          "first_line": "const restoredElements = restoreElements(initialData?.elements, null, {",
+          "last_line": "const activeTool = restoredAppState.activeTool;",
+          "rule": "Restore restoredAppState first and pass validPageIds and defaultPageId from restoredAppState.pages to restoreElements."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 4497,
+          "to": 4505,
+          "first_line": "this.store.commit(elementsMap, this.state);",
+          "last_line": "this.onChangeEmitter.trigger(elements, this.state, this.files);",
+          "rule": "Pass this.scene.getAllElementsMapIncludingDeleted() to this.store.commit and this.scene.getAllElementsIncludingDeleted() to this.props.onChange and this.onChangeEmitter.trigger without mutating pages in componentDidUpdate."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 5010,
+          "to": 5020,
+          "first_line": "if (appState) {",
+          "last_line": "this.setState({ collaborators });",
+          "rule": "Sync scene and history activePageId when appState.activePageId is passed to updateScene, and pass replaceAllPages when pages or cross-page elements are passed."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 5054,
+          "to": 5062,
+          "first_line": "const aggregatedDelta = StoreDelta.squash(...deltas);",
+          "last_line": "return StoreDelta.applyTo(aggregatedDelta, nextElements, nextAppState, {",
+          "rule": "Initialize nextElements from this.scene.getAllElementsMapIncludingDeleted() in applyDeltas."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 10921,
+          "to": 10926,
+          "first_line": "file = await normalizeFile(file);",
+          "last_line": "ret = await loadSceneOrLibraryFromBlob(",
+          "rule": "Read const elements = this.scene.getAllElementsIncludingDeleted(); in loadFileToCanvas."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U04",
+        "U05",
+        "U07",
+        "U08",
+        "U09",
+        "U12",
+        "U14",
+        "U15"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-4",
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "FR-13",
+        "FR-17",
+        "FR-18",
+        "NFR-1",
+        "NFR-2",
+        "NFR-4",
+        "NFR-5",
+        "AC-1",
+        "AC-4",
+        "AC-5",
+        "AC-8",
+        "AC-9"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U24",
+      "path": "packages/excalidraw/index.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Export restore and ExcalidrawPage from the @excalidraw/excalidraw package entrypoint.",
+      "rules": [
+        "1. Add restore to the value exports from ./data/restore.",
+        "2. Add ExcalidrawPage to the type exports from ./types."
+      ],
+      "exports": [
+        {
+          "name": "restore",
+          "kind": "function",
+          "params": [
+            {
+              "name": "data",
+              "type": "ImportedDataState | null"
+            },
+            {
+              "name": "localAppState",
+              "type": "Partial<AppState> | null | undefined"
+            },
+            {
+              "name": "localElements",
+              "type": "Readonly<ElementsMapOrArray> | null | undefined"
+            },
+            {
+              "name": "opts",
+              "type": "{ refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean } | undefined"
+            }
+          ],
+          "returns": "RestoredDataState"
+        },
+        {
+          "name": "ExcalidrawPage",
+          "kind": "type",
+          "params": [],
+          "returns": "ExcalidrawPage"
+        }
+      ],
+      "import_line": "import { Excalidraw, restore, type ExcalidrawPage } from \"@excalidraw/excalidraw\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 417,
+          "to": 422,
+          "first_line": "export {",
+          "last_line": "} from \"./data/restore\";",
+          "rule": "Export restore alongside restoreAppState, restoreElement, restoreElements, and restoreLibraryItems."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 497,
+          "to": 501,
+          "first_line": "export type {",
+          "last_line": "} from \"./types\";",
+          "rule": "Export ExcalidrawPage type from ./types."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U09",
+        "U23"
+      ],
+      "covers": [
+        "FR-17"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/data/blob.ts": "bf63c008bfc8db06c2bdaa0a831b10d07280cd40a11e8f35e7f1de04a6b0d3cd",
+    "packages/excalidraw/actions/actionHistory.tsx": "57c12aaf3a1bb5ecc361a67e3fc98bea33071879b3a2617f04e2c8ed4bf1d965",
+    "packages/excalidraw/actions/actionExport.tsx": "732eec923713c8266cdb4996cd6fee50f18699e567a18d4cc8fbca763c1676ed",
+    "packages/excalidraw/components/PageTabBar.scss": "3e262278c40550cf183da716291e1969407c0b2cc6d30e1bde868fc33189a1e2",
+    "packages/excalidraw/components/PageTabBar.tsx": "d3a021043ca2b2ba88dd916f0c82bcc0a43412fefcfc4e92d680f47e60771fd8",
+    "packages/excalidraw/components/footer/Footer.tsx": "fb2efed6f6077649f38d8079a09c9c7a9998f5180db135388548863663d116e1",
+    "packages/excalidraw/components/LayerUI.tsx": "4afedc307d425b7ad3b23ee589940117c1ebe1e1e48901496d8b992ebb9d3a06",
+    "packages/excalidraw/components/SearchMenu.tsx": "032a5f32186aafacfbb2b3c814af349ed479134cdba49a305432da9b0639dac1",
+    "packages/excalidraw/components/App.tsx": "36fd13a5d52c9730f2bf0c5fe6d451ba18a329d55abd57485e1a4f8cdafa6c6c",
+    "packages/excalidraw/index.tsx": "8a3218f932b2aa396b0bc3616bf43ade4eabfac8a3ee231788fa7673daf69132"
+  }
+}

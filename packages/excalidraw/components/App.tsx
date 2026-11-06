@@ -632,7 +632,7 @@ class App extends React.Component<AppProps, AppState> {
   public libraryItemsFromStorage: LibraryItems | undefined;
   public id: string;
   public store: Store;
-  private history: History;
+  public history: History;
   public excalidrawContainerValue: {
     container: HTMLDivElement | null;
     id: string;
@@ -2759,11 +2759,11 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public getSceneElementsIncludingDeleted = () => {
-    return this.scene.getElementsIncludingDeleted();
+    return this.scene.getAllElementsIncludingDeleted();
   };
 
   public getSceneElementsMapIncludingDeleted = () => {
-    return this.scene.getElementsMapIncludingDeleted();
+    return this.scene.getAllElementsMapIncludingDeleted();
   };
 
   public getSceneElements = () => {
@@ -3136,8 +3136,21 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    if (typeof actionResult.appState?.activePageId === "string") {
+      this.scene.setActivePageId(actionResult.appState.activePageId, {
+        informMutation: false,
+      });
+      this.history.setActivePageId(actionResult.appState.activePageId);
+    }
+
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      this.scene.replaceAllElements(actionResult.elements, {
+        replaceAllPages: Boolean(
+          actionResult.replaceAllPages ||
+            actionResult.replaceFiles ||
+            (actionResult.appState && "pages" in actionResult.appState),
+        ),
+      });
       didUpdate = true;
     }
 
@@ -3552,11 +3565,16 @@ class App extends React.Component<AppProps, AppState> {
    */
   private resetScene = withBatchedUpdates(
     (opts?: { resetLoadingState: boolean }) => {
+      const defaultAppState = getDefaultAppState();
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
-      this.scene.replaceAllElements([]);
+      this.scene.setActivePageId(defaultAppState.activePageId, {
+        informMutation: false,
+      });
+      this.history.setActivePageId(defaultAppState.activePageId);
+      this.scene.replaceAllElements([], { replaceAllPages: true });
       this.setState((state) => ({
-        ...getDefaultAppState(),
+        ...defaultAppState,
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
         theme: this.state.theme,
       }));
@@ -3618,11 +3636,13 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
+    let restoredAppState = restoreAppState(initialData?.appState, null);
     const restoredElements = restoreElements(initialData?.elements, null, {
       repairBindings: true,
       deleteInvisibleElements: true,
+      validPageIds: restoredAppState.pages.map((p) => p.id),
+      defaultPageId: restoredAppState.pages[0]?.id,
     });
-    let restoredAppState = restoreAppState(initialData?.appState, null);
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -4318,7 +4338,6 @@ class App extends React.Component<AppProps, AppState> {
 
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
-    const elementsMap = this.scene.getElementsMapIncludingDeleted();
 
     const shouldExportWithDarkMode =
       (this.sessionExportThemeOverride ?? this.state.theme) === THEME.DARK;
@@ -4494,15 +4513,19 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ scrolledOutside });
     }
 
-    this.store.commit(elementsMap, this.state);
+    this.store.commit(
+      this.scene.getAllElementsMapIncludingDeleted(),
+      this.state,
+    );
 
     // Do not notify consumers if we're still loading the scene. Among other
     // potential issues, this fixes a case where the tab isn't focused during
     // init, which would trigger onChange with empty elements, which would then
     // override whatever is in localStorage currently.
     if (!this.state.isLoading) {
-      this.props.onChange?.(elements, this.state, this.files);
-      this.onChangeEmitter.trigger(elements, this.state, this.files);
+      const allElements = this.scene.getAllElementsIncludingDeleted();
+      this.props.onChange?.(allElements, this.state, this.files);
+      this.onChangeEmitter.trigger(allElements, this.state, this.files);
     }
   }
 
@@ -5008,11 +5031,27 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (appState) {
+        if (
+          "activePageId" in appState &&
+          typeof appState.activePageId === "string"
+        ) {
+          this.scene.setActivePageId(appState.activePageId, {
+            informMutation: false,
+          });
+          this.history.setActivePageId(appState.activePageId);
+        }
         this.setState(appState as Pick<AppState, K> | null);
       }
 
       if (elements) {
-        this.scene.replaceAllElements(elements);
+        this.scene.replaceAllElements(elements, {
+          replaceAllPages: Boolean(
+            (appState && "pages" in appState) ||
+              elements.some(
+                (el) => el.pageId && el.pageId !== this.scene.getActivePageId(),
+              ),
+          ),
+        });
       }
 
       if (collaborators) {
@@ -5056,7 +5095,7 @@ class App extends React.Component<AppProps, AppState> {
     // create new instance of elements map & appState, so we don't accidentaly mutate existing ones
     const nextAppState = { ...this.state };
     const nextElements = new Map(
-      this.scene.getElementsMapIncludingDeleted(),
+      this.scene.getAllElementsMapIncludingDeleted(),
     ) as SceneElementsMap;
 
     return StoreDelta.applyTo(aggregatedDelta, nextElements, nextAppState, {
@@ -10920,7 +10959,7 @@ class App extends React.Component<AppProps, AppState> {
   ) => {
     file = await normalizeFile(file);
     try {
-      const elements = this.scene.getElementsIncludingDeleted();
+      const elements = this.scene.getAllElementsIncludingDeleted();
       let ret;
       try {
         ret = await loadSceneOrLibraryFromBlob(

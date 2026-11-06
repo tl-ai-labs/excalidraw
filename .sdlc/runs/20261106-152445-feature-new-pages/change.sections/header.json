@@ -1,0 +1,89 @@
+{
+  "conventions": [
+    "TypeScript strict mode across monorepo packages (@excalidraw/common, @excalidraw/element, @excalidraw/excalidraw) and excalidraw-app.",
+    "Formatting via Prettier (npx prettier --check / --write) and linting via ESLint (yarn eslint --max-warnings=0).",
+    "Default page ID is the fixed constant DEFAULT_PAGE_ID = \"page-default\" and default page name is DEFAULT_PAGE_NAME = \"Page 1\" in @excalidraw/common; never call randomId(), randomInteger(), or Math.random() when creating the default page on mount, restore, or legacy load, or when creating elements.",
+    "Elements on the default page omit pageId (or treat undefined as DEFAULT_PAGE_ID) so single-page element objects and snapshots remain unchanged; elements created on non-default pages have pageId set to the active page ID.",
+    "Existing snapshot files (__snapshots__/) are never hand-edited and never updated with a blanket yarn test:update; only the 3 affected test files (contextmenu.test.tsx, history.test.tsx, regressionTests.test.tsx) are updated individually via tooling units.",
+    "Only packages/excalidraw/locales/en.json is edited for localization strings; other locale files are managed by Crowdin.",
+    "Tests use Vitest and @testing-library/react with the shared window.h harness and API helper from packages/excalidraw/tests/helpers/api.ts."
+  ],
+  "decisions": [
+    {
+      "topic": "Element-to-page association and Scene storage (OQ-1)",
+      "choice": "Option A: optional pageId?: string on _ExcalidrawElementBase with DEFAULT_PAGE_ID (\"page-default\") fallback, a single master elements array in Scene, active-page filtering on Scene canvas queries (getNonDeletedElements, getElementsIncludingDeleted), and all-page accessors (getAllElementsIncludingDeleted, getAllElementsMapIncludingDeleted, getAllNonDeletedElements) for persistence, serialization, search, and collaboration.",
+      "rejected": [
+        "Option B: Record<PageId, ExcalidrawElement[]> map in Scene",
+        "Separate Scene instance per page"
+      ],
+      "reason": "Confirmed by user at Gate 1; keeps flat element array compatibility for .excalidraw files, Store, and collaboration."
+    },
+    {
+      "topic": "Collaboration page list persistence and backend export",
+      "choice": "Store the room's page list as its own encrypted field (pagesCiphertext and pagesIv) on the Firebase room document in excalidraw-app/data/firebase.ts alongside elements, load it back on join and reload, and send every page's elements plus the page list in share links and Excalidraw+ exports (onExportToBackend and exportToExcalidrawPlus).",
+      "rejected": [
+        "Sentinel element in elements array",
+        "Ephemeral WebSocket-only page sync"
+      ],
+      "reason": "Persists page metadata across room reloads and late joins without polluting the elements array, and ensures shared links and Excalidraw+ exports carry all pages."
+    },
+    {
+      "topic": "Per-page undo/redo history filing",
+      "choice": "History.record(delta) files each HistoryDelta into the undo stack of the page whose elements the delta changes (resolved from the changed elements' pageId in Scene/Store, falling back to activePageId only when no element pageId is present), rather than the page active when Store commits.",
+      "rejected": [
+        "Filing undo entries by the activePageId at Store commit time",
+        "Single shared undo/redo stack across all pages"
+      ],
+      "reason": "Prevents an edit committed around a page switch from landing on another page's undo stack."
+    },
+    {
+      "topic": "Page deletion element tombstones",
+      "choice": "actionDeletePage marks every element belonging to the deleted page as isDeleted: true with bumped version and versionNonce (newElementWith(el, { isDeleted: true })) instead of removing them from the elements array.",
+      "rejected": [
+        "Filtering deleted page's elements out of the master array"
+      ],
+      "reason": "Preserves element tombstones so collaborators reconcile and delete the page's elements too."
+    },
+    {
+      "topic": "Per-page viewport persistence timing",
+      "choice": "Save scrollX, scrollY, and zoom into the outgoing page entry in appState.pages only when leaving a page (switch, create, or delete), not from App.componentDidUpdate on every scroll or zoom.",
+      "rejected": [
+        "Calling setState in App.componentDidUpdate whenever scrollX, scrollY, or zoom changes"
+      ],
+      "reason": "Avoids extra setState calls in componentDidUpdate so render counts remain unchanged."
+    },
+    {
+      "topic": "Embedded scene in image exports (SVG/PNG embedScene)",
+      "choice": "SVG and PNG embedScene metadata serializes only the exported active page's elements and strips pages and activePageId from the embedded appState, while saved .excalidraw files serialize all pages' elements and appState.pages / appState.activePageId.",
+      "rejected": [
+        "Embedding all pages and pages/activePageId into PNG/SVG embedScene metadata"
+      ],
+      "reason": "Single-page image exports carry only the exported page's scene and keep export.test.tsx.snap unchanged."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "prettier",
+      "run": "npx prettier --check {path}",
+      "fix": "npx prettier --write {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "vitest",
+      "run": "yarn test:app --watch=false {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "verify",
+      "run": "yarn test:typecheck && yarn test:code && yarn test:app --watch=false"
+    }
+  ]
+}

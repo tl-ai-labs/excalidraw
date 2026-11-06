@@ -1,0 +1,116 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/blob.ts",
+    "instruction": "Fix `packages/excalidraw/data/blob.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise from the user: in loadSceneOrLibraryFromBlob (around lines 163-172), keep the imported file's saved viewport only for files with MORE THAN ONE page. Today the spread `...(localAppState ? getScrollToContentState(data.elements || [], localAppState) : {})` always runs. Change its condition to `localAppState && !(Array.isArray(data.appState?.pages) && data.appState.pages.length > 1)`, so single-page and legacy files (no pages, or exactly one page) keep scrolling to content exactly as HEAD does. Change nothing else in the file. Constraint: no existing snapshot may change; history.test.tsx > should create new history entry on scene import via drag&drop imports a one-page file and must keep scrollX/scrollY -50.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/blob.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/blob.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/blob.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise from the user: add three new tests to this file, inside its existing describe, leaving every existing test unchanged.\n(a) AC-2 renderable elements: `import * as StaticScene from \"../renderer/staticScene\";` and `const renderStaticScene = vi.spyOn(StaticScene, \"renderStaticScene\");` (the pattern contextmenu.test.tsx:10 and :49 use). Create one element on page A and one on page B, switch to page B, wait for a render, then read `renderStaticScene.mock.lastCall![0]` and assert its `visibleElements` ids and the keys of its `elementsMap` (StaticSceneRenderConfig in packages/excalidraw/scene/types.ts lines ~111-144) contain page B's element id and not page A's.\n(b) AC-2 hit-testing: with a page-A element at known coordinates, switch to page B, then `mouse.click` on the centre of where the page-A element sits (Pointer/mouse helpers from ./helpers/ui as the file already uses), and assert `Object.keys(h.state.selectedElementIds)` is empty.\n(c) AC-7 reorder round trip: create two more pages so there are three, reorder them with `h.app.actionManager.executeAction(actionReorderPages, \"ui\", { fromIndex, toIndex })` (actionPages.tsx line 159), place an element on each page, then `serializeAsJSON(h.scene.getAllElementsIncludingDeleted(), h.state, h.app.files, \"local\")`, `JSON.parse`, and `restore(parsed, null, null)`. Assert `restored.appState.pages.map(p => p.id)` equals the reordered order, and for every element `getElementPageId(restored el)` equals `getElementPageId(original el)`.\nThese are new tests only: no toMatchSnapshot, and no change to existing snapshot or render-count assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/contextmenu.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/scene/types.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/data/json.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

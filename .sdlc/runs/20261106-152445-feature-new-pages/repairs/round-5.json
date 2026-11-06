@@ -1,0 +1,165 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. pages.test.tsx > round-trips multi-page JSON and restores legacy and orphaned-pageId payloads cleanly (AC-8, AC-9) fails: a container on one page keeps boundElements [{id:'arrow-b',type:'arrow'}] after restore although arrow-b is on another page:\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > round-trips multi-page JSON and restores legacy and orphaned-pageId payloads cleanly (AC-8, AC-9)\nAssertionError: expected [ { id: 'arrow-b', type: 'arrow' } ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   {\n+     \"id\": \"arrow-b\",\n+     \"type\": \"arrow\",\n+   },\n+ ]\n\n ❯ packages/excalidraw/tests/pages.test.tsx:695:51\n    693|       (el) => el.id === \"arrow-b\",\n    694|     )!;\n    695|     expect(restoredContainer.boundElements ?? []).toEqual([]);\n       |                                                   ^\n    696|     expect(\n    697|       restoredArrow.type === \"arrow\" ? restoredArrow.startBinding : nu…\n\n\nPer the plan (U09 rule 4), restoreElements / repairContainerElement must drop a boundElements entry whose element is on a different page (getElementPageId differs), and likewise clear the arrow's start/endBinding to a cross-page element. Make the cross-page strip apply in the restore path the test uses (restore() / restoreElements with repairBindings).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\npackages/excalidraw/tests/pages.test.tsx(8,3): error TS2305: Module '\"@excalidraw/common\"' has no exported member 'SEARCH_SIDEBAR_TAB'.\npackages/excalidraw/tests/pages.test.tsx(26,3): error TS2305: Module '\"../index\"' has no exported member 'exportToBlob'.\npackages/excalidraw/tests/pages.test.tsx(27,3): error TS2305: Module '\"../index\"' has no exported member 'exportToCanvas'.\npackages/excalidraw/tests/pages.test.tsx(28,3): error TS2305: Module '\"../index\"' has no exported member 'exportToSvg'.\n\nyarn test:app --watch=false fails:\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > files undo entries by the edited element's page when switching from page A to page B straight away (AC-5)\nTypeError: Cannot read properties of undefined (reading 'x')\n ❯ packages/excalidraw/tests/pages.test.tsx:369:31\n    367|     });\n    368|     const rectAfterPageAUndo = h.scene.getNonDeletedElements()[0];\n    369|     expect(rectAfterPageAUndo.x).toBe(rectPageA.x);\n       |                               ^\n    370|   });\n    371| \n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > exports only the active page in visual exports and omits page list and pageId from embedded scenes (AC-6)\nTypeError: (0 , exportToSvg) is not a function\n ❯ packages/excalidraw/tests/pages.test.tsx:412:23\n    410| \n    411|     // exportToSvg with exportEmbedScene: true\n    412|     const svg = await exportToSvg({\n       |                       ^\n    413|       elements: allElements,\n    414|       appState: {\n\n\n FAIL  packages/excalidraw/tests/pages.test.tsx > Multi-page support > searches across all pages and switches to the matched element's page on selection (AC-7)\nError: [vitest] No \"SEARCH_SIDEBAR_TAB\" export is defined on the \"@excalidraw/common\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n\nvi.mock(import(\"@excalidraw/common\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})\n\n ❯ packages/excalidraw/tests/pages.test.tsx:504:57\n    502|     act(() => {\n    503|       h.setState({\n    504|         openSidebar: { name: DEFAULT_SIDEBAR.name, tab: SEARCH_SIDEBAR…\n       |                                                         ^\n    505|       });\n    506|     });\n ❯ node_modules/@testing-library/react/dist/act-compat.js:48:24\n ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22\n ❯ node_modules/@testing-library/react/dist/act-compat.js:47:25\n ❯ packages/excalidraw/tests/pages.test.tsx:502:5\n\n\n\nFixes: exportToBlob/exportToCanvas/exportToSvg are not exported from ../index or from @excalidraw/utils; they are module-private in packages/excalidraw/scene/export.ts. Use exportScene, exported from ../index (index.tsx line 427): it takes ONE options object, exportScene({ type: \"svg\" | \"canvas\" | \"png\", ...ExportSceneOptions }) (packages/excalidraw/scene/export.ts ~line 1418); read ExportSceneOptions there for the elements, appState, files and embed-scene fields. SEARCH_SIDEBAR_TAB does not exist in @excalidraw/common: the constant is CANVAS_SEARCH_TAB, and the file's vi.mock of @excalidraw/common must spread importOriginal() so real exports stay available. For the undo test: read history.ts and App.tsx; if the test's page-A step creates the element and then undoes, undo correctly removes it — make the test edit an existing page-A element (e.g. move it) before switching, and assert the edit is undone on page A and nothing changes on page B. Do not weaken the page-isolation assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pagesCollabAndStorage.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\nexcalidraw-app/tests/pagesCollabAndStorage.test.tsx(320,38): error TS2345: Argument of type 'RemoteExcalidrawElement[]' is not assignable to parameter of type 'readonly SyncableExcalidrawElement[]'.\nCast or build the elements as SyncableExcalidrawElement (as excalidraw-app/data/index.ts defines it) when passing them to that function.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pagesCollabAndStorage.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/index.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/pagesCollabAndStorage.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

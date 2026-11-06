@@ -204,7 +204,7 @@ const LayerUI = ({
 
     return (
       <JSONExportDialog
-        elements={elements}
+        elements={app.scene.getAllNonDeletedElements()}
         appState={appState}
         files={files}
         actionManager={actionManager}

@@ -7,6 +7,7 @@ import { useApp } from "../App";
 import { HelpButton } from "../HelpButton";
 import { Section } from "../Section";
 import Stack from "../Stack";
+import { PageTabBar } from "../PageTabBar";
 
 import type { ActionManager } from "../../actions/manager";
 import type { UIAppState } from "../../types";
@@ -56,6 +57,9 @@ const Footer = ({
             </Section>
           </Stack.Col>
         </div>
+      )}
+      {defaultUIEnabled && (
+        <PageTabBar appState={appState} actionManager={actionManager} />
       )}
       <FooterCenterTunnel.Out />
       {(defaultUIEnabled || renderWelcomeScreen) && (

@@ -13,6 +13,8 @@ import {
   DEFAULT_GRID_STEP,
   isTestEnv,
   DEFAULT_STICKY_NOTE_BG,
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
 } from "@excalidraw/common";
 
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
@@ -149,6 +151,18 @@ export const getDefaultAppState = (): Omit<
       stickyNoteBackground: null,
     },
     fontTopPicks: null,
+    pages: [
+      {
+        id: DEFAULT_PAGE_ID,
+        name: DEFAULT_PAGE_NAME,
+        scrollX: 0,
+        scrollY: 0,
+        zoom: {
+          value: 1 as NormalizedZoomValue,
+        },
+      },
+    ],
+    activePageId: DEFAULT_PAGE_ID,
   };
 };
 
@@ -294,6 +308,8 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: false },
 });
 
 const _clearAppStateForStorage = <
@@ -325,7 +341,28 @@ export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
 };
 
 export const cleanAppStateForExport = (appState: Partial<AppState>) => {
-  return _clearAppStateForStorage(appState, "export");
+  const stateForExport = _clearAppStateForStorage(appState, "export");
+  if (Array.isArray(stateForExport.pages) && stateForExport.pages.length > 0) {
+    const activePageId =
+      stateForExport.activePageId ?? stateForExport.pages[0].id;
+    stateForExport.pages = stateForExport.pages.map((page) =>
+      page.id === activePageId
+        ? {
+            ...page,
+            scrollX:
+              typeof appState.scrollX === "number"
+                ? Math.floor(appState.scrollX)
+                : page.scrollX,
+            scrollY:
+              typeof appState.scrollY === "number"
+                ? Math.floor(appState.scrollY)
+                : page.scrollY,
+            zoom: appState.zoom ?? page.zoom,
+          }
+        : page,
+    );
+  }
+  return stateForExport;
 };
 
 export const clearAppStateForDatabase = (appState: Partial<AppState>) => {

@@ -1,0 +1,5 @@
+Changes asked for this step:
+
+One point of the user's Gate 2 revise is not yet met: "split the App.tsx unit into several smaller units with few, unique search sites each". The spec still has a single unit U23 for packages/excalidraw/components/App.tsx with 12 sites (S1–S12); that single unit failed 6 typing attempts. Change only this: replace U23 with several App.tsx units of at most 3 sites each (for example: imports S1+S2; scene accessors and action-result sync S3+S4; reset and initial-data load S5+S6+S7; store commit and history S8+S9+S10; file drop and load S11+S12), each anchored on the current, unchanged App.tsx lines, each site's line range short and its first and last line text unique in the file. Chain them with depends_on (each App.tsx unit depends on the previous one) so no two type App.tsx at once, and re-point every unit that depended on U23 (U24, U29, U30, U35, U36, U38, U39 and the first snapshot tooling unit) to the last App.tsx unit. Keep every other unit, decision and rule as it is.
+
+Edit the pieces you handed in and hand each changed one in again.

@@ -327,6 +327,14 @@ export type ScrollConstraints = {
   offsets?: Offsets;
 };
 
+export type ExcalidrawPage = {
+  id: string;
+  name: string;
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
+};
+
 export interface AppState {
   contextMenu: {
     items: ContextMenuItems;
@@ -381,6 +389,8 @@ export interface AppState {
    * device detection exists — see `resolveInputDevice`
    */
   inputDevice: InputDevice;
+  pages: readonly ExcalidrawPage[];
+  activePageId: string;
   /**
    * The bindable element the UI highlights for the user when an arrow is
    * dragged or otherwise its endpoint being close to said element.
@@ -1224,6 +1234,7 @@ export type AppClassProperties = {
   >;
   files: BinaryFiles;
   editorInterface: App["editorInterface"];
+  actionManager: App["actionManager"];
   scene: App["scene"];
   syncActionResult: App["syncActionResult"];
   fonts: App["fonts"];

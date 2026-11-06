@@ -160,25 +160,34 @@ export const loadSceneOrLibraryFromBlob = async (
       throw error;
     }
     if (isValidExcalidrawData(data)) {
+      const appState = restoreAppState(
+        {
+          theme: localAppState?.theme,
+          fileHandle: fileHandle || blob.handle || null,
+          ...cleanAppStateForExport(data.appState || {}),
+          ...(localAppState &&
+          !(
+            Array.isArray(data.appState?.pages) &&
+            data.appState.pages.length > 1
+          )
+            ? getScrollToContentState(data.elements || [], localAppState)
+            : {}),
+        },
+        localAppState,
+      );
+
       const elements = restoreElements(data.elements, localElements, {
         repairBindings: true,
         deleteInvisibleElements: true,
+        validPageIds: appState.pages.map((p) => p.id),
+        defaultPageId: appState.pages[0]?.id,
       });
+
       return {
         type: MIME_TYPES.excalidraw,
         data: {
           elements,
-          appState: restoreAppState(
-            {
-              theme: localAppState?.theme,
-              fileHandle: fileHandle || blob.handle || null,
-              ...cleanAppStateForExport(data.appState || {}),
-              ...(localAppState
-                ? getScrollToContentState(elements, localAppState)
-                : {}),
-            },
-            localAppState,
-          ),
+          appState,
           files: data.files || {},
         },
       };

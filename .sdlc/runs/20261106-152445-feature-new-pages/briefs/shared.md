@@ -1,0 +1,91 @@
+## Conventions
+
+- TypeScript strict mode across monorepo packages (@excalidraw/common, @excalidraw/element, @excalidraw/excalidraw) and excalidraw-app.
+- Formatting via Prettier (npx prettier --check / --write) and linting via ESLint (yarn eslint --max-warnings=0).
+- Default page ID is the fixed constant DEFAULT_PAGE_ID = "page-default" and default page name is DEFAULT_PAGE_NAME = "Page 1" in @excalidraw/common; never call randomId(), randomInteger(), or Math.random() when creating the default page on mount, restore, or legacy load, or when creating elements.
+- Elements on the default page omit pageId (or treat undefined as DEFAULT_PAGE_ID) so single-page element objects and snapshots remain unchanged; elements created on non-default pages have pageId set to the active page ID.
+- Existing snapshot files (__snapshots__/) are never hand-edited and never updated with a blanket yarn test:update; only the 3 affected test files (contextmenu.test.tsx, history.test.tsx, regressionTests.test.tsx) are updated individually via tooling units.
+- Only packages/excalidraw/locales/en.json is edited for localization strings; other locale files are managed by Crowdin.
+- Tests use Vitest and @testing-library/react with the shared window.h harness and API helper from packages/excalidraw/tests/helpers/api.ts.
+
+## Decisions
+
+- Element-to-page association and Scene storage (OQ-1): Option A: optional pageId?: string on _ExcalidrawElementBase with DEFAULT_PAGE_ID ("page-default") fallback, a single master elements array in Scene, active-page filtering on Scene canvas queries (getNonDeletedElements, getElementsIncludingDeleted), and all-page accessors (getAllElementsIncludingDeleted, getAllElementsMapIncludingDeleted, getAllNonDeletedElements) for persistence, serialization, search, and collaboration. (not Option B: Record<PageId, ExcalidrawElement[]> map in Scene; not Separate Scene instance per page) — Confirmed by user at Gate 1; keeps flat element array compatibility for .excalidraw files, Store, and collaboration.
+- Collaboration page list persistence and backend export: Store the room's page list as its own encrypted field (pagesCiphertext and pagesIv) on the Firebase room document in excalidraw-app/data/firebase.ts alongside elements, load it back on join and reload, and send every page's elements plus the page list in share links and Excalidraw+ exports (onExportToBackend and exportToExcalidrawPlus). (not Sentinel element in elements array; not Ephemeral WebSocket-only page sync) — Persists page metadata across room reloads and late joins without polluting the elements array, and ensures shared links and Excalidraw+ exports carry all pages.
+- Per-page undo/redo history filing: History.record(delta) files each HistoryDelta into the undo stack of the page whose elements the delta changes (resolved from the changed elements' pageId in Scene/Store, falling back to activePageId only when no element pageId is present), rather than the page active when Store commits. (not Filing undo entries by the activePageId at Store commit time; not Single shared undo/redo stack across all pages) — Prevents an edit committed around a page switch from landing on another page's undo stack.
+- Page deletion element tombstones: actionDeletePage marks every element belonging to the deleted page as isDeleted: true with bumped version and versionNonce (newElementWith(el, { isDeleted: true })) instead of removing them from the elements array. (not Filtering deleted page's elements out of the master array) — Preserves element tombstones so collaborators reconcile and delete the page's elements too.
+- Per-page viewport persistence timing: Save scrollX, scrollY, and zoom into the outgoing page entry in appState.pages only when leaving a page (switch, create, or delete), not from App.componentDidUpdate on every scroll or zoom. (not Calling setState in App.componentDidUpdate whenever scrollX, scrollY, or zoom changes) — Avoids extra setState calls in componentDidUpdate so render counts remain unchanged.
+- Embedded scene in image exports (SVG/PNG embedScene): SVG and PNG embedScene metadata serializes only the exported active page's elements and strips pages and activePageId from the embedded appState, while saved .excalidraw files serialize all pages' elements and appState.pages / appState.activePageId. (not Embedding all pages and pages/activePageId into PNG/SVG embedScene metadata) — Single-page image exports carry only the exported page's scene and keep export.test.tsx.snap unchanged.
+
+## Files of this change
+
+- `packages/common/src/constants.ts` (U01, edit) — import: `import { DEFAULT_PAGE_ID, DEFAULT_PAGE_NAME } from "@excalidraw/common";`
+  - `const DEFAULT_PAGE_ID(): "page-default"`
+  - `const DEFAULT_PAGE_NAME(): "Page 1"`
+- `packages/element/src/types.ts` (U02, edit) — import: `import type { ExcalidrawElement } from "@excalidraw/element/types";`
+- `packages/element/src/newElement.ts` (U03, edit) — import: `import { newElement } from "@excalidraw/element";`
+- `packages/element/src/Scene.ts` (U04, edit) — import: `import { Scene, getElementPageId } from "@excalidraw/element";`
+  - `function getElementPageId(element: Pick<ExcalidrawElement, "pageId">): string`
+  - `class Scene(): Scene`
+- `packages/element/src/store.ts` (U05, edit) — import: `import { Store, CaptureUpdateAction } from "@excalidraw/element";`
+- `packages/excalidraw/types.ts` (U06, edit) — import: `import type { AppState, ExcalidrawPage } from "./types";`
+  - `type ExcalidrawPage(): { id: string; name: string; scrollX: number; scrollY: number; zoom: Zoom }`
+  - `interface AppState(): AppState`
+- `packages/excalidraw/appState.ts` (U07, edit) — import: `import { getDefaultAppState, cleanAppStateForExport, clearAppStateForLocalStorage } from "./appState";`
+  - `function getDefaultAppState(): Omit<AppState, "offsetTop" | "offsetLeft" | "width" | "height">`
+- `packages/excalidraw/history.ts` (U08, edit) — import: `import { History, HistoryChangedEvent } from "./history";`
+  - `class History(store: Store): History`
+- `packages/excalidraw/data/restore.ts` (U09, edit) — import: `import { restore, restoreAppState, restoreElement, restoreElements, restoreLibraryItems } from "./data/restore";`
+  - `function restoreElements(targetElements: readonly T[] | undefined | null, existingElements: Readonly<ElementsMapOrArray> | null | undefined, opts: { refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean; validPageIds?: readonly string[]; defaultPageId?: string } | undefined): CombineBrandsIfNeeded<T, OrderedExcalidrawElement>`
+  - `function restoreAppState(appState: ImportedDataState["appState"], localAppState: Partial<AppState> | null | undefined): RestoredAppState`
+  - `function restore(data: ImportedDataState | null, localAppState: Partial<AppState> | null | undefined, localElements: Readonly<ElementsMapOrArray> | null | undefined, opts: { refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean } | undefined): RestoredDataState`
+- `packages/excalidraw/scene/export.ts` (U10, edit) — import: `import { exportScene, exportToClipboard } from "./scene/export";`
+- `packages/excalidraw/locales/en.json` (U11, edit)
+- `packages/excalidraw/actions/types.ts` (U12, edit) — import: `import type { Action, ActionName, ActionResult } from "./types";`
+  - `type ActionResult(): ActionResult`
+  - `type ActionName(): ActionName`
+- `packages/excalidraw/actions/actionPages.tsx` (U13, edit) — import: `import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPages, actionSwitchPage, getNextDefaultPageName } from "./actionPages";`
+  - `function getNextDefaultPageName(pages: readonly ExcalidrawPage[]): string`
+  - `const actionSwitchPage(): Action`
+  - `const actionCreatePage(): Action`
+  - `const actionRenamePage(): Action`
+  - `const actionReorderPages(): Action`
+  - `const actionDeletePage(): Action`
+- `packages/excalidraw/actions/index.ts` (U14, edit) — import: `import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPages, actionSwitchPage } from "../actions";`
+  - `const actionCreatePage(): Action`
+  - `const actionSwitchPage(): Action`
+  - `const actionRenamePage(): Action`
+  - `const actionReorderPages(): Action`
+  - `const actionDeletePage(): Action`
+- `packages/excalidraw/data/blob.ts` (U15, edit) — import: `import { loadFromBlob, loadSceneOrLibraryFromBlob } from "./data/blob";`
+- `packages/excalidraw/actions/actionHistory.tsx` (U16, edit) — import: `import { createRedoAction, createUndoAction } from "../actions/actionHistory";`
+  - `const createUndoAction(history: History): Action`
+  - `const createRedoAction(history: History): Action`
+- `packages/excalidraw/actions/actionExport.tsx` (U17, edit)
+- `packages/excalidraw/components/PageTabBar.scss` (U18, edit) — import: `import "./PageTabBar.scss";`
+- `packages/excalidraw/components/PageTabBar.tsx` (U19, edit) — import: `import { PageTabBar } from "../PageTabBar";`
+  - `const PageTabBar(props: { appState: UIAppState; actionManager: ActionManager }): JSX.Element`
+- `packages/excalidraw/components/footer/Footer.tsx` (U20, edit) — import: `import Footer from "./footer/Footer";`
+- `packages/excalidraw/components/LayerUI.tsx` (U21, edit)
+- `packages/excalidraw/components/SearchMenu.tsx` (U22, edit) — import: `import { SearchMenu } from "./SearchMenu";`
+- `packages/excalidraw/components/App.tsx` (U23, edit) — import: `import App from "./components/App";`
+- `packages/excalidraw/index.tsx` (U24, edit) — import: `import { Excalidraw, restore, type ExcalidrawPage } from "@excalidraw/excalidraw";`
+  - `function restore(data: ImportedDataState | null, localAppState: Partial<AppState> | null | undefined, localElements: Readonly<ElementsMapOrArray> | null | undefined, opts: { refreshDimensions?: boolean; repairBindings?: boolean; deleteInvisibleElements?: boolean } | undefined): RestoredDataState`
+  - `type ExcalidrawPage(): ExcalidrawPage`
+- `excalidraw-app/data/index.ts` (U25, edit) — import: `import type { SocketUpdateDataSource } from "../data";`
+  - `type SocketUpdateDataSource(): SocketUpdateDataSource`
+- `excalidraw-app/collab/Portal.tsx` (U26, edit) — import: `import Portal from "./Portal";`
+- `packages/excalidraw/data/index.ts` (U27, edit) — import: `import { exportCanvas, prepareElementsForExport } from "./data";`
+- `excalidraw-app/data/firebase.ts` (U28, edit) — import: `import { isSavedToFirebase, loadFromFirebase, saveToFirebase } from "../data/firebase";`
+  - `const isSavedToFirebase(portal: Portal, elements: readonly ExcalidrawElement[], appState: Pick<AppState, "pages"> | undefined): boolean`
+  - `const saveToFirebase(portal: Portal, elements: readonly SyncableExcalidrawElement[], appState: AppState): Promise<ReconciledExcalidrawElement[] | null>`
+  - `const loadFromFirebase(roomId: string, roomKey: string, socket: Socket | null): Promise<readonly SyncableExcalidrawElement[] | null>`
+- `excalidraw-app/collab/Collab.tsx` (U29, edit) — import: `import Collab from "./collab/Collab";`
+- `excalidraw-app/App.tsx` (U30, edit)
+- `packages/element/tests/scenePages.test.ts` (U34, edit)
+- `packages/excalidraw/tests/pages.test.tsx` (U35, create)
+- `excalidraw-app/tests/pagesCollabAndStorage.test.tsx` (U36, create)
+- `dev-docs/docs/codebase/json-schema.mdx` (U37, edit)
+- `dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx` (U38, edit)
+- `dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx` (U39, edit)
+- `dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx` (U40, edit)

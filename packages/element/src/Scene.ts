@@ -1,6 +1,7 @@
 import throttle from "lodash.throttle";
 
 import {
+  DEFAULT_PAGE_ID,
   randomInteger,
   arrayToMap,
   toBrandedType,
@@ -46,6 +47,10 @@ type SceneStateCallback = () => void;
 type SceneStateCallbackRemover = () => void;
 
 type SelectionHash = string & { __brand: "selectionHash" };
+
+export const getElementPageId = (
+  element: Pick<ExcalidrawElement, "pageId">,
+): string => element.pageId || DEFAULT_PAGE_ID;
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
   allElements: readonly T[],
@@ -119,6 +124,9 @@ export class Scene {
   );
   // ideally all elements within the scene should be wrapped around with `Ordered` type, but right now there is no real benefit doing so
   private elements: readonly OrderedExcalidrawElement[] = [];
+  private allElements: readonly OrderedExcalidrawElement[] = [];
+  private allElementsMap = toBrandedType<SceneElementsMap>(new Map());
+  private activePageId: string = DEFAULT_PAGE_ID;
   private nonDeletedFramesLikes: readonly NonDeleted<ExcalidrawFrameLikeElement>[] =
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
@@ -144,6 +152,50 @@ export class Scene {
     return this.sceneNonce;
   }
 
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  setActivePageId(pageId: string, opts?: { informMutation?: boolean }) {
+    if (!pageId || pageId === this.activePageId) {
+      return;
+    }
+
+    this.activePageId = pageId;
+
+    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+    const activePageElements: OrderedExcalidrawElement[] = [];
+    this.elementsMap.clear();
+
+    for (const element of this.allElements) {
+      if (getElementPageId(element) === this.activePageId) {
+        activePageElements.push(element);
+        if (isFrameLikeElement(element)) {
+          nextFrameLikes.push(element);
+        }
+        this.elementsMap.set(element.id, element);
+      }
+    }
+
+    this.elements = activePageElements;
+    const nonDeletedElements = getNonDeletedElements(this.elements);
+    this.nonDeletedElements = nonDeletedElements.elements;
+    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+
+    this.frames = nextFrameLikes;
+    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
+
+    this.sceneNonce = ((this.sceneNonce ?? 0) + 1) | 0;
+
+    if (opts?.informMutation !== false) {
+      this.triggerUpdate();
+    }
+  }
+
   getNonDeletedElementsMap() {
     return this.nonDeletedElementsMap;
   }
@@ -152,16 +204,65 @@ export class Scene {
     return this.elements;
   }
 
+  getAllElementsIncludingDeleted() {
+    return this.allElements;
+  }
+
   getElementsMapIncludingDeleted() {
     return this.elementsMap;
+  }
+
+  getAllElementsMapIncludingDeleted() {
+    return this.allElementsMap;
   }
 
   getNonDeletedElements() {
     return this.nonDeletedElements;
   }
 
+  getAllNonDeletedElements(): readonly NonDeletedExcalidrawElement[] {
+    return getNonDeletedElements(this.allElements).elements;
+  }
+
   getFramesIncludingDeleted() {
     return this.frames;
+  }
+
+  getMergedElements(
+    nextElements: ElementsMapOrArray,
+  ): readonly ExcalidrawElement[] {
+    const _nextElements = toArray(nextElements);
+    const inputIds = new Set(_nextElements.map((el) => el.id));
+
+    const inactiveElements: OrderedExcalidrawElement[] = [];
+    for (const el of this.allElements) {
+      if (getElementPageId(el) !== this.activePageId && !inputIds.has(el.id)) {
+        inactiveElements.push(el);
+      }
+    }
+
+    const stampedNextElements = _nextElements.map((element) => {
+      if (!element.pageId) {
+        const existingPageId = this.allElementsMap.get(element.id)?.pageId;
+        if (existingPageId) {
+          return {
+            ...element,
+            pageId: existingPageId,
+          };
+        } else if (
+          !this.allElementsMap.has(element.id) &&
+          this.activePageId !== DEFAULT_PAGE_ID
+        ) {
+          return {
+            ...element,
+            pageId: this.activePageId,
+          };
+        }
+      }
+      return element;
+    });
+
+    return [...inactiveElements, ...stampedNextElements];
   }
 
   constructor(
@@ -272,24 +373,79 @@ export class Scene {
     nextElements: ElementsMapOrArray,
     options?: {
       skipValidation?: true;
+      replaceAllPages?: boolean;
     },
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
     const _nextElements = toArray(nextElements);
-    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
 
-    if (!options?.skipValidation) {
-      validateIndicesThrottled(_nextElements);
+    if (!options?.replaceAllPages) {
+      for (const element of _nextElements) {
+        if (!element.pageId) {
+          const existingPageId = this.allElementsMap.get(element.id)?.pageId;
+          if (existingPageId) {
+            (element as Mutable<ExcalidrawElement>).pageId = existingPageId;
+          } else if (
+            !this.allElementsMap.has(element.id) &&
+            this.activePageId !== DEFAULT_PAGE_ID
+          ) {
+            (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+          }
+        }
+      }
+
+      const inputIds = new Set(_nextElements.map((el) => el.id));
+      const inactiveElements: OrderedExcalidrawElement[] = [];
+      for (const el of this.allElements) {
+        if (
+          getElementPageId(el) !== this.activePageId &&
+          !inputIds.has(el.id)
+        ) {
+          inactiveElements.push(el);
+        }
+      }
+
+      if (inactiveElements.length > 0) {
+        this.allElements = syncInvalidIndices([
+          ...inactiveElements,
+          ..._nextElements,
+        ]);
+        if (!options?.skipValidation) {
+          validateIndicesThrottled(this.allElements);
+        }
+      } else {
+        if (!options?.skipValidation) {
+          validateIndicesThrottled(_nextElements);
+        }
+        this.allElements = syncInvalidIndices(_nextElements);
+      }
+    } else {
+      if (!options?.skipValidation) {
+        validateIndicesThrottled(_nextElements);
+      }
+      this.allElements = syncInvalidIndices(_nextElements);
     }
 
-    this.elements = syncInvalidIndices(_nextElements);
+    this.allElementsMap.clear();
+    for (const element of this.allElements) {
+      this.allElementsMap.set(element.id, element);
+    }
+
+    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+    const activePageElements: OrderedExcalidrawElement[] = [];
     this.elementsMap.clear();
-    this.elements.forEach((element) => {
-      if (isFrameLikeElement(element)) {
-        nextFrameLikes.push(element);
+
+    for (const element of this.allElements) {
+      if (getElementPageId(element) === this.activePageId) {
+        activePageElements.push(element);
+        if (isFrameLikeElement(element)) {
+          nextFrameLikes.push(element);
+        }
+        this.elementsMap.set(element.id, element);
       }
-      this.elementsMap.set(element.id, element);
-    });
+    }
+
+    this.elements = activePageElements;
     const nonDeletedElements = getNonDeletedElements(this.elements);
     this.nonDeletedElements = nonDeletedElements.elements;
     this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
@@ -324,6 +480,9 @@ export class Scene {
   }
 
   destroy() {
+    this.allElements = [];
+    this.allElementsMap.clear();
+    this.activePageId = DEFAULT_PAGE_ID;
     this.elements = [];
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];

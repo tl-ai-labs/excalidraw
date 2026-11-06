@@ -1,0 +1,57 @@
+{
+  "module": "multi-page-support",
+  "verdict": "needs_changes",
+  "tool_calls": 74,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/pages.test.tsx",
+      "line": 342,
+      "issue": "Three defects cause typecheck and test failures in pages.test.tsx: (1) line 342 calls h.store.scheduleCapture(CaptureUpdateAction.IMMEDIATELY) with 1 argument, but Store.scheduleCapture() takes 0 arguments (TS2554); (2) in AC-6 (line 454), exportScene({ type: 'png', config: { embedScene: true } }) calls HTMLCanvasElement.prototype.toBlob which in JSDOM produces an empty non-PNG blob that fails PNG chunk decoding and times out after 5000ms; (3) in AC-7 (line 516), container.querySelector('.search-menu input') returns null because SearchMenu renders its input under `.${CLASSES.SEARCH_MENU_INPUT_WRAPPER} input` (and ListItem calls HTMLElement.prototype.scrollIntoView which is undefined in JSDOM unless mocked).",
+      "fix": "Call h.store.scheduleCapture() with 0 arguments at line 342; in AC-6, spy on HTMLCanvasElement.prototype.toBlob to pass a valid PNG fixture blob (`const basePng = await API.loadFile('./fixtures/smiley.png')`) before calling exportScene({ type: 'png', ... }) and restore the spy afterward; in AC-7, mock `window.HTMLElement.prototype.scrollIntoView = vi.fn()` and query `.${CLASSES.SEARCH_MENU_INPUT_WRAPPER} input` (importing CLASSES from @excalidraw/common)."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/scene/export.ts",
+      "line": 1342,
+      "issue": "In exportToBlob, the async callback passed to canvas.toBlob awaits encodePngMetadata without a try/catch block, so any error thrown during PNG metadata encoding results in an unhandled promise rejection and leaves the exportToBlob Promise unsettled forever.",
+      "fix": "Wrap the PNG embedScene block and resolve(blob) inside canvas.toBlob's async callback in a try { ... } catch (error) { reject(error); } block so errors properly reject the returned promise."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/data/blob.ts",
+      "line": 168,
+      "issue": "In loadSceneOrLibraryFromBlob, getScrollToContentState(data.elements || [], localAppState) is spread whenever localAppState is truthy, even when data.appState.pages is a non-empty multi-page array, overwriting the active page's saved scrollX/scrollY against U15 Rule 1.",
+      "fix": "Guard the getScrollToContentState spread with `localAppState && (!Array.isArray(data.appState?.pages) || data.appState.pages.length === 0)` so multi-page files preserve their saved per-page viewport."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/arrows/helpers.ts",
+      "line": 11,
+      "issue": "Unplanned edit changed the app parameter type of maybeHandleArrowPointlikeDrag from App to AppClassProperties; this is unnecessary now that App and AppClassProperties are aligned.",
+      "fix": "Revert packages/element/src/arrows/helpers.ts to HEAD by importing `type { App } from '@excalidraw/excalidraw/types'` and typing `app: App`."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/App.selectionTool.ts",
+      "line": 93,
+      "issue": "Unplanned edit changed the AppSelectionTool constructor parameter from `private app: App` to `private app: App & AppClassProperties`; this is unnecessary now that App and AppClassProperties are aligned.",
+      "fix": "Revert packages/excalidraw/components/App.selectionTool.ts to HEAD by removing AppClassProperties from the ../types import and restoring `constructor(private app: App) {}`."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/App.wrap.ts",
+      "line": 91,
+      "issue": "Unplanned edit changed the AppWrap constructor parameter from `private app: App` to `private app: AppClassProperties`; this is unnecessary now that App and AppClassProperties are aligned.",
+      "fix": "Revert packages/excalidraw/components/App.wrap.ts to HEAD by restoring `import type App from './App';` and `constructor(private app: App) {}`."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+      "line": 848,
+      "issue": "Unplanned edit changed the app parameter of convertElementType from AppClassProperties to App; this is unnecessary now that App and AppClassProperties are aligned.",
+      "fix": "Revert packages/excalidraw/components/ConvertElementTypePopup.tsx to HEAD by restoring `import type { AppClassProperties } from '../types';` and typing `app: AppClassProperties` on convertElementType."
+    }
+  ],
+  "refinement_packets": []
+}

@@ -24,7 +24,7 @@ import {
   getFontString,
 } from "@excalidraw/common";
 
-import { newTextElement } from "@excalidraw/element";
+import { newTextElement, getElementPageId } from "@excalidraw/element";
 import { isTextElement, isFrameLikeElement } from "@excalidraw/element";
 
 import { getDefaultFrameName } from "@excalidraw/element/frame";
@@ -34,6 +34,8 @@ import type {
   ExcalidrawFrameLikeElement,
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
+
+import { actionSwitchPage } from "../actions";
 
 import { atom, useAtom } from "../editor-jotai";
 
@@ -71,6 +73,8 @@ type SearchMatchItem = {
     moreAfter: boolean;
   };
   matchedLines: SearchMatch["matchedLines"];
+  pageId: string;
+  pageName: string;
 };
 
 type SearchMatches = {
@@ -100,6 +104,7 @@ export const SearchMenu = () => {
 
   const [focusIndex, setFocusIndex] = useAtom(searchItemInFocusAtom);
   const elementsMap = app.scene.getNonDeletedElementsMap();
+  const allElements = app.scene.getAllNonDeletedElements();
 
   useEffect(() => {
     if (isSearching) {
@@ -135,6 +140,7 @@ export const SearchMenu = () => {
     isSearching,
     searchQuery,
     elementsMap,
+    allElements,
     app,
     setAppState,
     setFocusIndex,
@@ -144,7 +150,7 @@ export const SearchMenu = () => {
   const goToNextItem = () => {
     if (searchMatches.items.length > 0) {
       setFocusIndex((focusIndex) => {
-        if (focusIndex === null) {
+        if (focusIndex === null || focusIndex < 0) {
           return 0;
         }
 
@@ -156,7 +162,7 @@ export const SearchMenu = () => {
   const goToPreviousItem = () => {
     if (searchMatches.items.length > 0) {
       setFocusIndex((focusIndex) => {
-        if (focusIndex === null) {
+        if (focusIndex === null || focusIndex < 0) {
           return 0;
         }
 
@@ -197,6 +203,11 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        const matchPageId = getElementPageId(match.element);
+        if (matchPageId !== app.state.activePageId) {
+          app.actionManager.executeAction(actionSwitchPage, "ui", matchPageId);
+        }
+
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -435,6 +446,7 @@ const ListItem = (props: {
   preview: SearchMatchItem["preview"];
   searchQuery: SearchQuery;
   highlighted: boolean;
+  pageName?: string;
   onClick?: () => void;
 }) => {
   const preview = [
@@ -468,6 +480,14 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName && (
+        <span
+          className="search-result-page-badge"
+          data-testid="search-result-page-badge"
+        >
+          {props.pageName}
+        </span>
+      )}
     </div>
   );
 };
@@ -480,6 +500,8 @@ interface MatchListProps {
 }
 
 const MatchListBase = (props: MatchListProps) => {
+  const app = useApp();
+
   const frameNameMatches = useMemo(
     () =>
       props.matches.items.filter((match) => isFrameLikeElement(match.element)),
@@ -504,6 +526,9 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={
+                app.state.pages.length > 1 ? searchMatch.pageName : undefined
+              }
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
             />
@@ -524,6 +549,9 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={
+                app.state.pages.length > 1 ? searchMatch.pageName : undefined
+              }
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
             />
@@ -800,7 +828,7 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene.getAllNonDeletedElements();
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -811,6 +839,17 @@ const handleSearch = debounce(
 
     texts.sort((a, b) => a.y - b.y);
     frames.sort((a, b) => a.y - b.y);
+
+    const getPageDetails = (
+      element: ExcalidrawTextElement | ExcalidrawFrameLikeElement,
+    ) => {
+      const pageId = getElementPageId(element);
+      const pageName =
+        app.state.pages.find((p) => p.id === pageId)?.name ??
+        app.state.pages[0]?.name ??
+        "";
+      return { pageId, pageName };
+    };
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -830,12 +869,15 @@ const handleSearch = debounce(
         );
 
         if (matchedLines.length > 0) {
+          const { pageId, pageName } = getPageDetails(textEl);
           textMatches.push({
             element: textEl,
             searchQuery,
             preview,
             index: match.index,
             matchedLines,
+            pageId,
+            pageName,
           });
         }
       }
@@ -858,12 +900,15 @@ const handleSearch = debounce(
         );
 
         if (matchedLines.length > 0) {
+          const { pageId, pageName } = getPageDetails(frame);
           frameMatches.push({
             element: frame,
             searchQuery,
             preview,
             index: match.index,
             matchedLines,
+            pageId,
+            pageName,
           });
         }
       }
@@ -876,10 +921,18 @@ const handleSearch = debounce(
     // putting frame matches first
     const matchItems: SearchMatchItem[] = [...frameMatches, ...textMatches];
 
-    const focusIndex =
-      matchItems.findIndex((matchItem) =>
+    let focusIndex: number | null = null;
+    const firstVisibleIndex = matchItems.findIndex(
+      (matchItem) =>
+        matchItem.pageId === app.state.activePageId &&
         visibleIds.has(matchItem.element.id),
-      ) ?? null;
+    );
+
+    if (firstVisibleIndex !== -1) {
+      focusIndex = firstVisibleIndex;
+    } else if (matchItems.length > 0) {
+      focusIndex = 0;
+    }
 
     cb(matchItems, focusIndex);
   },

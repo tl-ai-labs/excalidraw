@@ -1,0 +1,240 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [blocker] at line 342: Three defects cause typecheck and test failures in pages.test.tsx: (1) line 342 calls h.store.scheduleCapture(CaptureUpdateAction.IMMEDIATELY) with 1 argument, but Store.scheduleCapture() takes 0 arguments (TS2554); (2) in AC-6 (line 454), exportScene({ type: 'png', config: { embedScene: true } }) calls HTMLCanvasElement.prototype.toBlob which in JSDOM produces an empty non-PNG blob that fails PNG chunk decoding and times out after 5000ms; (3) in AC-7 (line 516), container.querySelector('.search-menu input') returns null because SearchMenu renders its input under `.${CLASSES.SEARCH_MENU_INPUT_WRAPPER} input` (and ListItem calls HTMLElement.prototype.scrollIntoView which is undefined in JSDOM unless mocked).\nFix: Call h.store.scheduleCapture() with 0 arguments at line 342; in AC-6, spy on HTMLCanvasElement.prototype.toBlob to pass a valid PNG fixture blob (`const basePng = await API.loadFile('./fixtures/smiley.png')`) before calling exportScene({ type: 'png', ... }) and restore the spy afterward; in AC-7, mock `window.HTMLElement.prototype.scrollIntoView = vi.fn()` and query `.${CLASSES.SEARCH_MENU_INPUT_WRAPPER} input` (importing CLASSES from @excalidraw/common).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U35.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/store.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/scene/export.ts",
+    "instruction": "Fix `packages/excalidraw/scene/export.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [major] at line 1342: In exportToBlob, the async callback passed to canvas.toBlob awaits encodePngMetadata without a try/catch block, so any error thrown during PNG metadata encoding results in an unhandled promise rejection and leaves the exportToBlob Promise unsettled forever.\nFix: Wrap the PNG embedScene block and resolve(blob) inside canvas.toBlob's async callback in a try { ... } catch (error) { reject(error); } block so errors properly reject the returned promise.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/scene/export.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/scene/export.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn eslint --max-warnings=0 '{path}'",
+          "fix": "yarn eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx prettier --check '{path}'",
+          "fix": "npx prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/element/src/arrows/helpers.ts",
+    "instruction": "Fix `packages/element/src/arrows/helpers.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [minor] at line 11: Unplanned edit changed the app parameter type of maybeHandleArrowPointlikeDrag from App to AppClassProperties; this is unnecessary now that App and AppClassProperties are aligned.\nFix: Revert packages/element/src/arrows/helpers.ts to HEAD by importing `type { App } from '@excalidraw/excalidraw/types'` and typing `app: App`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/arrows/helpers.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/arrows/helpers.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/element/src/arrows/helpers.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.selectionTool.ts",
+    "instruction": "Fix `packages/excalidraw/components/App.selectionTool.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [minor] at line 93: Unplanned edit changed the AppSelectionTool constructor parameter from `private app: App` to `private app: App & AppClassProperties`; this is unnecessary now that App and AppClassProperties are aligned.\nFix: Revert packages/excalidraw/components/App.selectionTool.ts to HEAD by removing AppClassProperties from the ../types import and restoring `constructor(private app: App) {}`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.selectionTool.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.selectionTool.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/App.selectionTool.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.wrap.ts",
+    "instruction": "Fix `packages/excalidraw/components/App.wrap.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [minor] at line 91: Unplanned edit changed the AppWrap constructor parameter from `private app: App` to `private app: AppClassProperties`; this is unnecessary now that App and AppClassProperties are aligned.\nFix: Revert packages/excalidraw/components/App.wrap.ts to HEAD by restoring `import type App from './App';` and `constructor(private app: App) {}`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.wrap.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.wrap.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/App.wrap.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-152445-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+    "instruction": "Fix `packages/excalidraw/components/ConvertElementTypePopup.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review finding [minor] at line 848: Unplanned edit changed the app parameter of convertElementType from AppClassProperties to App; this is unnecessary now that App and AppClassProperties are aligned.\nFix: Revert packages/excalidraw/components/ConvertElementTypePopup.tsx to HEAD by restoring `import type { AppClassProperties } from '../types';` and typing `app: AppClassProperties` on convertElementType.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/ConvertElementTypePopup.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/ConvertElementTypePopup.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-152445-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "packages/excalidraw/components/ConvertElementTypePopup.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  }
+]

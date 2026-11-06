@@ -66,6 +66,7 @@ import type { RestoredDataState } from "@excalidraw/excalidraw/data/restore";
 import type {
   FileId,
   NonDeletedExcalidrawElement,
+  Ordered,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 import type {
@@ -239,13 +240,18 @@ const initializeScene = async (opts: {
     "files"
   > & {
     scrollToContent?: boolean;
-  } = {
-    elements: restoreElements(localDataState?.elements, null, {
-      repairBindings: true,
-      deleteInvisibleElements: true,
-    }),
-    appState: restoreAppState(localDataState?.appState, null),
-  };
+  } = (() => {
+    const appState = restoreAppState(localDataState?.appState, null);
+    return {
+      elements: restoreElements(localDataState?.elements, null, {
+        repairBindings: true,
+        deleteInvisibleElements: true,
+        validPageIds: appState.pages.map((p) => p.id),
+        defaultPageId: appState.pages[0]?.id,
+      }),
+      appState,
+    };
+  })();
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
   const isExternalScene = !!(id || jsonBackendMatch || roomLinkData);
@@ -264,20 +270,23 @@ const initializeScene = async (opts: {
           jsonBackendMatch[2],
         );
 
+        const appState = restoreAppState(
+          imported.appState,
+          // local appState when importing from backend to ensure we restore
+          // localStorage user settings which we do not persist on server.
+          localDataState?.appState,
+        );
         scene = {
           elements: bumpElementVersions(
             restoreElements(imported.elements, null, {
               repairBindings: true,
               deleteInvisibleElements: true,
+              validPageIds: appState.pages.map((p) => p.id),
+              defaultPageId: appState.pages[0]?.id,
             }),
             localDataState?.elements,
           ),
-          appState: restoreAppState(
-            imported.appState,
-            // local appState when importing from backend to ensure we restore
-            // localStorage user settings which we do not persist on server.
-            localDataState?.appState,
-          ),
+          appState,
         };
       }
       scene.scrollToContent = true;
@@ -342,6 +351,11 @@ const initializeScene = async (opts: {
             {
               ...scene?.appState,
               theme: localDataState?.appState?.theme || scene?.appState?.theme,
+              pages:
+                scene?.appState?.pages ?? excalidrawAPI.getAppState().pages,
+              activePageId:
+                scene?.appState?.activePageId ??
+                excalidrawAPI.getAppState().activePageId,
             },
             excalidrawAPI.getAppState(),
           ),
@@ -607,8 +621,18 @@ const ExcalidrawWrapper = () => {
           const localDataState = importFromLocalStorage();
           const username = importUsernameFromLocalStorage();
           setLangCode(getPreferredLanguage());
+          const appState = restoreAppState(
+            localDataState.appState,
+            excalidrawAPI.getAppState(),
+          );
           excalidrawAPI.updateScene({
-            ...localDataState,
+            elements: restoreElements(localDataState.elements, null, {
+              repairBindings: true,
+              deleteInvisibleElements: true,
+              validPageIds: appState.pages.map((p) => p.id),
+              defaultPageId: appState.pages[0]?.id,
+            }),
+            appState,
             captureUpdate: CaptureUpdateAction.NEVER,
           });
           LibraryIndexedDBAdapter.load().then((data) => {
@@ -694,7 +718,9 @@ const ExcalidrawWrapper = () => {
       if (
         excalidrawAPI &&
         LocalData.fileStorage.shouldPreventUnload(
-          excalidrawAPI.getSceneElements(),
+          excalidrawAPI
+            .getSceneElementsIncludingDeleted()
+            .filter((el) => !el.isDeleted),
         )
       ) {
         if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
@@ -773,14 +799,22 @@ const ExcalidrawWrapper = () => {
     appState: Partial<AppState>,
     files: BinaryFiles,
   ) => {
-    if (exportedElements.length === 0) {
+    const allElements = excalidrawAPI
+      ? excalidrawAPI
+          .getSceneElementsIncludingDeleted()
+          .filter(
+            (el): el is Ordered<NonDeletedExcalidrawElement> => !el.isDeleted,
+          )
+      : exportedElements;
+    if (allElements.length === 0) {
       throw new Error(t("alerts.cannotExportEmptyCanvas"));
     }
     try {
       const { url, errorMessage } = await exportToBackend(
-        exportedElements,
+        allElements,
         {
           ...appState,
+          pages: appState.pages ?? excalidrawAPI?.getAppState().pages,
           viewBackgroundColor: appState.exportBackground
             ? appState.viewBackgroundColor
             : getDefaultAppState().viewBackgroundColor,
@@ -967,10 +1001,15 @@ const ExcalidrawWrapper = () => {
             export: {
               onExportToBackend,
               renderCustomUI: excalidrawAPI
-                ? (elements, appState, files) => {
+                ? (_elements, appState, files) => {
                     return (
                       <ExportToExcalidrawPlus
-                        elements={elements}
+                        elements={excalidrawAPI
+                          .getSceneElementsIncludingDeleted()
+                          .filter(
+                            (el): el is Ordered<NonDeletedExcalidrawElement> =>
+                              !el.isDeleted,
+                          )}
                         appState={appState}
                         files={files}
                         name={excalidrawAPI.getName()}
@@ -1055,7 +1094,12 @@ const ExcalidrawWrapper = () => {
               actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
               onClick={() => {
                 exportToExcalidrawPlus(
-                  excalidrawAPI.getSceneElements(),
+                  excalidrawAPI
+                    .getSceneElementsIncludingDeleted()
+                    .filter(
+                      (el): el is Ordered<NonDeletedExcalidrawElement> =>
+                        !el.isDeleted,
+                    ),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                   excalidrawAPI.getName(),
@@ -1097,7 +1141,12 @@ const ExcalidrawWrapper = () => {
             if (excalidrawAPI) {
               try {
                 await onExportToBackend(
-                  excalidrawAPI.getSceneElements(),
+                  excalidrawAPI
+                    .getSceneElementsIncludingDeleted()
+                    .filter(
+                      (el): el is Ordered<NonDeletedExcalidrawElement> =>
+                        !el.isDeleted,
+                    ),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                 );
@@ -1273,7 +1322,12 @@ const ExcalidrawWrapper = () => {
               perform: () => {
                 if (excalidrawAPI) {
                   exportToExcalidrawPlus(
-                    excalidrawAPI.getSceneElements(),
+                    excalidrawAPI
+                      .getSceneElementsIncludingDeleted()
+                      .filter(
+                        (el): el is Ordered<NonDeletedExcalidrawElement> =>
+                          !el.isDeleted,
+                      ),
                     excalidrawAPI.getAppState(),
                     excalidrawAPI.getFiles(),
                     excalidrawAPI.getName(),

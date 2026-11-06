@@ -1,9 +1,10 @@
-import { Emitter } from "@excalidraw/common";
+import { DEFAULT_PAGE_ID, Emitter } from "@excalidraw/common";
 
 import {
   CaptureUpdateAction,
   StoreChange,
   StoreDelta,
+  getElementPageId,
 } from "@excalidraw/element";
 
 import type {
@@ -99,8 +100,31 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private activePageId: string = DEFAULT_PAGE_ID;
+  private readonly undoStacks = new Map<string, HistoryDelta[]>([
+    [DEFAULT_PAGE_ID, []],
+  ]);
+  private readonly redoStacks = new Map<string, HistoryDelta[]>([
+    [DEFAULT_PAGE_ID, []],
+  ]);
+
+  public get undoStack(): HistoryDelta[] {
+    let stack = this.undoStacks.get(this.activePageId);
+    if (!stack) {
+      stack = [];
+      this.undoStacks.set(this.activePageId, stack);
+    }
+    return stack;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    let stack = this.redoStacks.get(this.activePageId);
+    if (!stack) {
+      stack = [];
+      this.redoStacks.set(this.activePageId, stack);
+    }
+    return stack;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -112,9 +136,92 @@ export class History {
 
   constructor(private readonly store: Store) {}
 
+  public setActivePageId(pageId: string) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    if (!this.undoStacks.has(pageId)) {
+      this.undoStacks.set(pageId, []);
+    }
+    if (!this.redoStacks.has(pageId)) {
+      this.redoStacks.set(pageId, []);
+    }
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  public deletePage(pageId: string) {
+    this.undoStacks.delete(pageId);
+    this.redoStacks.delete(pageId);
+  }
+
   public clear() {
+    for (const stack of this.undoStacks.values()) {
+      stack.length = 0;
+    }
+    for (const stack of this.redoStacks.values()) {
+      stack.length = 0;
+    }
     this.undoStack.length = 0;
     this.redoStack.length = 0;
+  }
+
+  private getUndoStackForPage(pageId: string): HistoryDelta[] {
+    let stack = this.undoStacks.get(pageId);
+    if (!stack) {
+      stack = [];
+      this.undoStacks.set(pageId, stack);
+    }
+    return stack;
+  }
+
+  private getRedoStackForPage(pageId: string): HistoryDelta[] {
+    let stack = this.redoStacks.get(pageId);
+    if (!stack) {
+      stack = [];
+      this.redoStacks.set(pageId, stack);
+    }
+    return stack;
+  }
+
+  private resolveDeltaPageId(delta: StoreDelta): string {
+    for (const [id, entry] of Object.entries(delta.elements.added)) {
+      const pageId =
+        entry.inserted?.pageId ??
+        entry.deleted?.pageId ??
+        this.store.snapshot.elements.get(id)?.pageId;
+      return getElementPageId({ pageId });
+    }
+    for (const [id, entry] of Object.entries(delta.elements.updated)) {
+      const pageId =
+        entry.inserted?.pageId ??
+        entry.deleted?.pageId ??
+        this.store.snapshot.elements.get(id)?.pageId;
+      return getElementPageId({ pageId });
+    }
+    for (const [id, entry] of Object.entries(delta.elements.removed)) {
+      const pageId =
+        entry.inserted?.pageId ??
+        entry.deleted?.pageId ??
+        this.store.snapshot.elements.get(id)?.pageId;
+      return getElementPageId({ pageId });
+    }
+
+    const selectedElementIds =
+      delta.appState.delta.inserted.selectedElementIds ??
+      delta.appState.delta.deleted.selectedElementIds;
+    if (selectedElementIds) {
+      for (const id of Object.keys(selectedElementIds)) {
+        const element = this.store.snapshot.elements.get(id);
+        if (element) {
+          return getElementPageId({ pageId: element.pageId });
+        }
+      }
+    }
+
+    return this.activePageId;
   }
 
   /**
@@ -129,13 +236,14 @@ export class History {
     // construct history entry, so once it's emitted, it's not recorded again
     const historyDelta = HistoryDelta.inverse(delta);
 
-    this.undoStack.push(historyDelta);
+    const targetPageId = this.resolveDeltaPageId(delta);
+    this.getUndoStackForPage(targetPageId).push(historyDelta);
 
     if (!historyDelta.elements.isEmpty()) {
       // don't reset redo stack on local appState changes,
       // as a simple click (unselect) could lead to losing all the redo entries
       // only reset on non empty elements changes!
-      this.redoStack.length = 0;
+      this.getRedoStackForPage(targetPageId).length = 0;
     }
 
     this.onHistoryChangedEmitter.trigger(

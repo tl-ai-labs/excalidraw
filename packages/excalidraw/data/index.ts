@@ -184,12 +184,26 @@ export const exportCanvas = async (
 
     if (appState.exportEmbedScene) {
       blob = blob.then((blob) =>
-        import("./image").then(({ encodePngMetadata }) =>
-          encodePngMetadata({
+        import("./image").then(({ encodePngMetadata }) => {
+          const embedElements = elements.map(
+            ({ pageId: _pageId, ...el }) => el as NonDeletedExcalidrawElement,
+          );
+          const {
+            pages: _pages,
+            activePageId: _activePageId,
+            ...embedAppState
+          } = appState;
+
+          return encodePngMetadata({
             blob,
-            metadata: serializeAsJSON(elements, appState, files, "local"),
-          }),
-        ),
+            metadata: serializeAsJSON(
+              embedElements,
+              embedAppState,
+              files,
+              "local",
+            ),
+          });
+        }),
       );
     }
 

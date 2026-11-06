@@ -1,0 +1,244 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/common/src/constants.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Export DEFAULT_PAGE_ID and DEFAULT_PAGE_NAME shared constants for default page initialization and fallback resolution.",
+      "rules": [
+        "1. Export DEFAULT_PAGE_ID = \"page-default\" and DEFAULT_PAGE_NAME = \"Page 1\" as string constants at the end of packages/common/src/constants.ts.",
+        "2. Do not invoke any random or dynamic function when defining these constants."
+      ],
+      "exports": [
+        {
+          "name": "DEFAULT_PAGE_ID",
+          "kind": "const",
+          "params": [],
+          "returns": "\"page-default\""
+        },
+        {
+          "name": "DEFAULT_PAGE_NAME",
+          "kind": "const",
+          "params": [],
+          "returns": "\"Page 1\""
+        }
+      ],
+      "import_line": "import { DEFAULT_PAGE_ID, DEFAULT_PAGE_NAME } from \"@excalidraw/common\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 626,
+          "to": 629,
+          "first_line": "export const DEFAULT_STROKE_STREAMLINE_PRECISE = 0.2;",
+          "last_line": "export const DEFAULT_PAGE_NAME = \"Page 1\";",
+          "rule": "Export DEFAULT_PAGE_ID = \"page-default\" and DEFAULT_PAGE_NAME = \"Page 1\"."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-6",
+        "FR-16",
+        "NFR-2",
+        "AC-5",
+        "AC-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Add optional pageId?: string property to _ExcalidrawElementBase so every ExcalidrawElement can carry page membership.",
+      "rules": [
+        "1. Add optional pageId?: string; to _ExcalidrawElementBase right after customData?: Record<string, any>;."
+      ],
+      "exports": [],
+      "import_line": "import type { ExcalidrawElement } from \"@excalidraw/element/types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 86,
+          "to": 88,
+          "first_line": "customData?: Record<string, any>;",
+          "last_line": "}>;",
+          "rule": "Add optional pageId?: string; to _ExcalidrawElementBase."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "NFR-4",
+        "NFR-5"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/newElement.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Allow optional pageId in ElementConstructorOpts and attach pageId to newly created elements only when explicitly provided and non-default.",
+      "rules": [
+        "1. Import DEFAULT_PAGE_ID from @excalidraw/common.",
+        "2. Add \"pageId\" to the MarkOptional union of ElementConstructorOpts.",
+        "3. In _newElementBase, spread ...(rest.pageId && rest.pageId !== DEFAULT_PAGE_ID ? { pageId: rest.pageId } : {}) onto the returned element object so default-page elements do not gain an own pageId property and existing snapshots do not change."
+      ],
+      "exports": [],
+      "import_line": "import { newElement } from \"@excalidraw/element\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 17,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/common\";",
+          "rule": "Add DEFAULT_PAGE_ID to the import from @excalidraw/common."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 86,
+          "to": 89,
+          "first_line": "| \"customData\"",
+          "last_line": ">;",
+          "rule": "Add | \"pageId\" to ElementConstructorOpts."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 173,
+          "to": 177,
+          "first_line": "customData: rest.customData,",
+          "last_line": "};",
+          "rule": "Conditionally spread pageId onto element only when rest.pageId is truthy and not DEFAULT_PAGE_ID."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-6",
+        "NFR-2",
+        "AC-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/Scene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Filter Scene active-page element getters and maps by activePageId while maintaining all-pages element collections and casting Mutable<ExcalidrawElement> when stamping pageId in replaceAllElements.",
+      "rules": [
+        "1. In Scene.replaceAllElements, cast (element as Mutable<ExcalidrawElement>).pageId = existingPageId and (element as Mutable<ExcalidrawElement>).pageId = this.activePageId instead of assigning directly to read-only element.pageId so TypeScript compilation succeeds."
+      ],
+      "exports": [
+        {
+          "name": "getElementPageId",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Pick<ExcalidrawElement, \"pageId\">"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "Scene",
+          "kind": "class",
+          "params": [],
+          "returns": "Scene"
+        }
+      ],
+      "import_line": "import { Scene, getElementPageId } from \"@excalidraw/element\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 380,
+          "to": 393,
+          "first_line": "if (!options?.replaceAllPages) {",
+          "last_line": "}",
+          "rule": "Cast element to Mutable<ExcalidrawElement> when assigning element.pageId in replaceAllElements."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "NFR-2",
+        "AC-2"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/element/src/store.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Use all-pages element maps and merged elements in Store.scheduleMicroAction so active-page updates never mark inactive-page elements as deleted.",
+      "rules": [
+        "1. In Store.scheduleMicroAction, pass this.app.scene.getAllElementsMapIncludingDeleted() to StoreSnapshot.create.",
+        "2. Pass this.app.scene.getMergedElements(params.elements) into syncInvalidIndicesImmutable when params.elements is defined."
+      ],
+      "exports": [],
+      "import_line": "import { Store, CaptureUpdateAction } from \"@excalidraw/element\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 147,
+          "to": 163,
+          "first_line": "const currentSnapshot = StoreSnapshot.create(",
+          "last_line": ");",
+          "rule": "Use getAllElementsMapIncludingDeleted() and getMergedElements(params.elements) in scheduleMicroAction."
+        }
+      ],
+      "depends_on": [
+        "U04"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-11",
+        "AC-3"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/common/src/constants.ts": "fde6a6ae0497014e9369307eca5eb0d5eb2080ea6d9a76d12e9a6b9a0550c3db",
+    "packages/element/src/types.ts": "c932084be61d32d8610a1dac17255daaa9e6d97662a9b4004594904fad38c844",
+    "packages/element/src/newElement.ts": "22a906db99c2cb8b7b14beceea1481f2a48285b1f98948c48822c32672bebdab",
+    "packages/element/src/Scene.ts": "7af49f874a4a8c2fb39d8489bbbe09fe35697977fcb641ab4f1e99b94e15c4a4",
+    "packages/element/src/store.ts": "3bde6883a1b4a37b4e79b25d22508da1fc583e6326b968ddc76cd4ee14ad0570"
+  }
+}

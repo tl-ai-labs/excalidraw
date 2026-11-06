@@ -624,3 +624,6 @@ export const MOBILE_ACTION_BUTTON_BG = {
 
 export const DEFAULT_STROKE_STREAMLINE = 0.5;
 export const DEFAULT_STROKE_STREAMLINE_PRECISE = 0.2;
+
+export const DEFAULT_PAGE_ID = "page-default";
+export const DEFAULT_PAGE_NAME = "Page 1";
