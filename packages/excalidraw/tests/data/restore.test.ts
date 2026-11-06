@@ -1611,6 +1611,47 @@ describe("repairing bindings", () => {
       }),
     ]);
   });
+
+  it("should default missing textStyleRanges to [] on legacy text elements and normalize provided ranges", () => {
+    const legacyText: any = API.createElement({
+      type: "text",
+      text: "hello",
+    });
+    delete legacyText.textStyleRanges;
+
+    const styledText: any = API.createElement({
+      type: "text",
+      text: "hello",
+    });
+    styledText.originalText = "hello";
+    styledText.textStyleRanges = [
+      { start: -3, end: 2, strokeColor: "#ff0000" },
+      { start: 1, end: 99, backgroundColor: "#00ff00" },
+      { start: 3, end: 1, strokeColor: "#0000ff" },
+      { start: 0, end: 1, backgroundColor: "transparent" },
+    ];
+
+    const [restoredLegacy, restoredStyled] = restore.restoreElements(
+      [legacyText, styledText],
+      null,
+    ) as ExcalidrawTextElement[];
+
+    expect(restoredLegacy.textStyleRanges).toEqual([]);
+
+    const ranges = restoredStyled.textStyleRanges ?? [];
+    expect(restoredStyled.textStyleRanges).toBeDefined();
+    expect(ranges.length).toBeGreaterThan(0);
+    let prevEnd = 0;
+    for (const range of ranges) {
+      expect(range.start).toBeGreaterThanOrEqual(prevEnd);
+      expect(range.end).toBeGreaterThan(range.start);
+      expect(range.end).toBeLessThanOrEqual("hello".length);
+      expect(range.backgroundColor).not.toBe("transparent");
+      prevEnd = range.end;
+    }
+    expect(ranges[0].start).toBe(0);
+    expect(ranges[ranges.length - 1].end).toBe(5);
+  });
 });
 
 describe("restoreLibraryItems creation timestamps", () => {

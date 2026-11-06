@@ -33,6 +33,7 @@ import {
   isArrowElement,
   isBoundToContainer,
   isFrameLikeElement,
+  isTextElement,
 } from "./typeChecks";
 
 import { getBoundTextElement, getContainerElement } from "./textElement";
@@ -689,7 +690,15 @@ const _deepCopyElement = (val: any, depth: number = 0) => {
 export const deepCopyElement = <T extends ExcalidrawElement>(
   val: T,
 ): Mutable<T> => {
-  return _deepCopyElement(val);
+  const cloned = _deepCopyElement(val);
+
+  if (isTextElement(val)) {
+    cloned.textStyleRanges = val.textStyleRanges
+      ? val.textStyleRanges.map((range) => ({ ...range }))
+      : [];
+  }
+
+  return cloned;
 };
 
 const __test__defineOrigId = (clonedObj: object, origId: string) => {

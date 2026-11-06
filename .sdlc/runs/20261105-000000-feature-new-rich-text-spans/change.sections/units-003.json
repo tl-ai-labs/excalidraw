@@ -1,0 +1,326 @@
+[
+  {
+    "id": "U17",
+    "path": "packages/element/tests/textStyleRanges.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit-test `normalizeTextStyleRanges`, `applyTextStyleRange`, `shiftTextStyleRangesOnEdit`, `getWrappedLineTextRuns`, `getTextElementLineRuns`, `getSelectionTextStyle`, `areTextStyleRangesEqual`, `newTextElement`, `newElementWith`, `deepCopyElement`, `duplicateElement`, `convertToExcalidrawElements`, and `ElementsDelta`.",
+    "rules": [
+      "1. Import range helpers from `../src/textStyleRanges`, `newTextElement` from `../src/newElement`, `newElementWith` from `../src/mutateElement`, `deepCopyElement` and `duplicateElement` from `../src/duplicate`, `convertToExcalidrawElements` from `../src/transform`, and `ElementsDelta` from `../src/delta`.",
+      "2. Verify pure range operations never mutate input arrays or range objects in place (NFR-2).",
+      "3. Cover clamping, empty/invalid input handling, overlap resolution with orthogonal `strokeColor` and `backgroundColor`, adjacent merging, clearing via `\"transparent\"` and `elementStrokeColor`, edit shifting across insertions/deletions/replacements, wrapped-line run slicing, and lifecycle preservation across `newTextElement`, `newElementWith` updates (verifying both styled and unstyled `[]` text elements retain `textStyleRanges` across object spreads and JSON round-trips), `duplicateElement`, `convertToExcalidrawElements`, and `ElementsDelta`."
+    ],
+    "exports": [],
+    "import_line": "",
+    "style_from": {
+      "path": "packages/element/tests/newElement.test.ts",
+      "lines": [1, 52],
+      "reason": "Follow `@excalidraw/element` Vitest unit test structure and imports."
+    },
+    "uses": [
+      {
+        "path": "packages/element/src/newElement.ts",
+        "lines": [335, 395],
+        "reason": "Call `newTextElement` with and without `textStyleRanges`."
+      },
+      {
+        "path": "packages/element/src/mutateElement.ts",
+        "lines": [145, 197],
+        "reason": "Call `newElementWith` to verify `textStyleRanges` (including `[]` on unstyled text elements) survives object spread updates."
+      },
+      {
+        "path": "packages/element/src/duplicate.ts",
+        "lines": [103, 134],
+        "reason": "Call `duplicateElement` and `deepCopyElement` on text elements with `textStyleRanges`."
+      },
+      {
+        "path": "packages/element/src/transform.ts",
+        "lines": [680, 775],
+        "reason": "Call `convertToExcalidrawElements` with text skeletons carrying `textStyleRanges`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U03",
+      "U04",
+      "U06",
+      "U07",
+      "U08"
+    ],
+    "covers": [
+      "AC-1",
+      "AC-2",
+      "AC-3",
+      "AC-6",
+      "NFR-2",
+      "NFR-5"
+    ],
+    "tests": [
+      {
+        "name": "normalizes, clamps, resolves overlaps, and merges adjacent textStyleRanges",
+        "given": "out-of-bounds, inverted, transparent, overlapping, and adjacent ranges on a text string",
+        "expect": "normalizeTextStyleRanges returns sorted, disjoint, clamped, adjacent-merged canonical ranges while preserving orthogonal strokeColor/backgroundColor properties"
+      },
+      {
+        "name": "applies and clears strokeColor and backgroundColor on character selections without mutating inputs",
+        "given": "existing ranges and a selection [start, end) with new strokeColor, backgroundColor, \"transparent\", or base elementStrokeColor",
+        "expect": "applyTextStyleRange splits partially overlapping ranges, updates only the target property, clears overrides when set to \"transparent\" or elementStrokeColor, and leaves input arrays unmutated"
+      },
+      {
+        "name": "shifts ranges accurately on text insertion, deletion, and replacement",
+        "given": "ranges before, inside, spanning, and after single-character and multi-character edits",
+        "expect": "shiftTextStyleRangesOnEdit preserves preceding ranges, shifts following ranges by delta, expands/shrinks edited ranges, and removes ranges deleted in full"
+      },
+      {
+        "name": "maps originalText ranges onto wrapped visual lines and runs",
+        "given": "multiline and soft-wrapped text lines from getWrappedTextLines with ranges spanning across soft-wrap spaces and hard newlines",
+        "expect": "getWrappedLineTextRuns and getTextElementLineRuns emit contiguous runs covering each line's [start, end) with matching substrings and styles"
+      },
+      {
+        "name": "preserves and clones textStyleRanges across newTextElement, newElementWith, JSON copy, duplicateElement, convertToExcalidrawElements, and ElementsDelta",
+        "given": "styled and unstyled text elements constructed with newTextElement, updated with newElementWith, serialized with JSON.stringify/parse, duplicated, converted from a skeleton, and diffed/inverted with ElementsDelta",
+        "expect": "newTextElement normalizes ranges and defaults to enumerable [], newElementWith and JSON round-trips preserve [] and non-empty ranges, duplicateElement clones range objects, convertToExcalidrawElements preserves ranges, and ElementsDelta applies and undoes range changes"
+      }
+    ],
+    "checks": [
+      "vitest"
+    ]
+  },
+  {
+    "id": "U18",
+    "path": "packages/element/tests/textWrapping.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Verify `getWrappedLineTextRuns` and `getTextElementLineRuns` map `originalText` ranges onto wrapped lines across soft breaks, trimmed whitespace, hard newlines, and reflow.",
+    "rules": [
+      "1. Import `getWrappedLineTextRuns` and `getTextElementLineRuns` from `../src/textStyleRanges` and `newTextElement` from `../src/newElement`.",
+      "2. Add a test verifying that a `TextStyleRange` spanning across soft-wrapped words (with discarded break-point whitespace) and hard newlines maps to the exact word substrings on each wrapped line and stays bound to the same words when `maxWidth` changes."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 5,
+        "to": 5,
+        "first_line": "} from \"../src/textWrapping\";",
+        "rule": "Import `getWrappedLineTextRuns` and `getTextElementLineRuns` from `../src/textStyleRanges` and `newTextElement` from `../src/newElement`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 172,
+        "to": 172,
+        "first_line": "});",
+        "rule": "Add a test case verifying `getWrappedLineTextRuns` and `getTextElementLineRuns` across soft wraps, trimmed whitespace, hard newlines, and reflow when `maxWidth` changes."
+      }
+    ],
+    "depends_on": [
+      "U02",
+      "U04"
+    ],
+    "covers": [
+      "AC-3"
+    ],
+    "tests": [
+      {
+        "name": "should map textStyleRanges onto wrapped visual line runs across soft breaks and reflow",
+        "given": "a text string \"  Hello  World\\nNext\" with ranges on \"Hello\", \"World\", and spanning across the soft break",
+        "expect": "getWrappedLineTextRuns and getTextElementLineRuns slice each wrapped line into runs matching the exact characters at both narrow and wide maxWidth values"
+      }
+    ],
+    "checks": [
+      "vitest"
+    ]
+  },
+  {
+    "id": "U19",
+    "path": "packages/excalidraw/tests/colorTargets.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Verify `resolveColorTarget` preserves element-wide and sticky-note colour targets when `editingTextElement` has no active inline range selection.",
+    "rules": [
+      "1. Add a test inside `describe(\"resolveColorTarget\", ...)` verifying that when `editingTextElement` is set on a sticky note label without an active inline selection, both `strokeColor` and `backgroundColor` resolve to the `sticky` domain."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 129,
+        "to": 130,
+        "first_line": "});",
+        "last_line": "});",
+        "rule": "Add a test verifying `resolveColorTarget` for `backgroundColor` while editing a sticky note label without an inline selection resolves to `sticky`."
+      }
+    ],
+    "depends_on": [
+      "U12"
+    ],
+    "covers": [
+      "AC-1"
+    ],
+    "tests": [
+      {
+        "name": "keeps sticky background domain while editing a sticky label without an active inline range selection",
+        "given": "appState with editingTextElement set to a sticky note label and no active WYSIWYG substring selection",
+        "expect": "resolveColorTarget(state, elements, \"backgroundColor\") returns kind \"sticky\""
+      }
+    ],
+    "checks": [
+      "vitest"
+    ]
+  },
+  {
+    "id": "U20",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Verify `restoreElements` defaults missing `textStyleRanges` to `[]` on legacy text elements and normalises out-of-bounds or overlapping ranges.",
+    "rules": [
+      "1. Add tests at the end of `describe(\"restoreElements\", ...)` verifying that a legacy text element without `textStyleRanges` restores with `restoredText.textStyleRanges` equal to `[]`, and that a text element with out-of-bounds, inverted, transparent, or overlapping `textStyleRanges` restores with normalised ranges."
+    ],
+    "exports": [],
+    "import_line": "",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1613,
+        "to": 1614,
+        "first_line": "});",
+        "last_line": "});",
+        "rule": "Add tests verifying `restoreElements` defaults missing `textStyleRanges` to `[]` and normalises malformed/overlapping `textStyleRanges`."
+      }
+    ],
+    "depends_on": [
+      "U14"
+    ],
+    "covers": [
+      "AC-6",
+      "NFR-1"
+    ],
+    "tests": [
+      {
+        "name": "should default missing textStyleRanges to [] on legacy text elements and normalize provided ranges",
+        "given": "a legacy text element without textStyleRanges and a text element with out-of-bounds, inverted, and overlapping textStyleRanges",
+        "expect": "restoreElements sets textStyleRanges to [] on the legacy element and normalizes/clamps the ranges on the styled element"
+      }
+    ],
+    "checks": [
+      "vitest"
+    ]
+  },
+  {
+    "id": "U21",
+    "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Integration-test WYSIWYG inline substring styling, live edit range shifting, reflow invariance, Canvas 2D run/highlight rendering, SVG `<rect>`/`<tspan>` export, clipboard copy/paste, undo/redo, duplication, and reconciliation.",
+    "rules": [
+      "1. Render `<Excalidraw handleKeyboardGlobally={true} />` and test opening the WYSIWYG editor on a text element, selecting a substring `[start, end)` via `setSelectionRange`, and executing `actionChangeStrokeColor` and `actionChangeBackgroundColor` (as well as clicking top-pick swatches in the properties panel) to apply, split, merge, and clear (`\"transparent\"` and base `element.strokeColor`) inline ranges while verifying initial auto-select and collapsed caret apply element-wide / sticky-note colours (AC-1).",
+      "2. Test typing/editing in `.excalidraw-wysiwyg` (`updateTextEditor` / `fireEvent.input`) to verify `textStyleRanges` shift on insertion, deletion, and replacement before, inside, and across ranges on both the scene element and `h.state.editingTextElement` (AC-2).",
+      "3. Test changing font size (`actionChangeFontSize`), font family (`actionChangeFontFamily`), text alignment (`actionChangeTextAlign`), and bound container width to verify `textStyleRanges` are preserved and map onto newly wrapped lines (AC-3, FR-10).",
+      "4. Test `exportScene({ type: \"canvas\", ... })` and `exportScene({ type: \"svg\", ... })` in both light and dark themes (`THEME.DARK`) to verify Canvas `fillRect` highlights and per-run `fillText` calls, SVG `<rect>` highlight elements and `<tspan fill=\"...\">` child elements, dark-mode `applyDarkModeFilter` inversion, and unchanged output for unstyled text elements (AC-4, AC-5, NFR-3, NFR-4).",
+      "5. Test clipboard copy/paste via `serializeAsClipboardJSON`, `createPasteEvent`, `parseClipboard`, and `h.app.pasteFromClipboard` on both styled and legacy unstyled text elements to verify `textStyleRanges` survives clipboard copy/paste with normalised, deep-cloned range arrays (FR-12, AC-6).",
+      "6. Test `Keyboard.undo()` / `Keyboard.redo()`, `duplicateElements`, `reconcileElements`, and `convertToExcalidrawElements` to verify `textStyleRanges` round-trip fidelity (AC-6, AC-7)."
+    ],
+    "exports": [],
+    "import_line": "",
+    "style_from": {
+      "path": "packages/excalidraw/tests/colorTargets.test.ts",
+      "lines": [1, 130],
+      "reason": "Follow `@excalidraw/excalidraw` test conventions and helper imports."
+    },
+    "uses": [
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "lines": [366, 559],
+        "reason": "Execute `actionChangeStrokeColor`, `actionChangeBackgroundColor`, `actionChangeFontSize`, `actionChangeFontFamily`, and `actionChangeTextAlign`."
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "lines": [248, 285],
+        "reason": "Interact with `.excalidraw-wysiwyg` textarea and `getActiveTextWysiwygSelection`."
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "lines": [779, 850],
+        "reason": "Verify SVG `<rect>` and `<tspan>` output via `exportScene`."
+      },
+      {
+        "path": "packages/excalidraw/clipboard.ts",
+        "lines": [143, 195],
+        "reason": "Call `serializeAsClipboardJSON`, `createPasteEvent`, and `parseClipboard` to verify clipboard copy/paste preservation of `textStyleRanges`."
+      }
+    ],
+    "depends_on": [
+      "U01",
+      "U02",
+      "U03",
+      "U04",
+      "U05",
+      "U06",
+      "U07",
+      "U08",
+      "U09",
+      "U10",
+      "U11",
+      "U12",
+      "U13",
+      "U14",
+      "U15"
+    ],
+    "covers": [
+      "AC-1",
+      "AC-2",
+      "AC-3",
+      "AC-4",
+      "AC-5",
+      "AC-6",
+      "AC-7",
+      "NFR-1",
+      "NFR-3",
+      "NFR-4",
+      "NFR-5"
+    ],
+    "tests": [
+      {
+        "name": "applies, splits, merges, and clears inline strokeColor and backgroundColor ranges in WYSIWYG editor",
+        "given": "a text element being edited in .excalidraw-wysiwyg with an explicit substring selection [start, end)",
+        "expect": "actionChangeStrokeColor and actionChangeBackgroundColor update element.textStyleRanges, split/merge overlapping ranges, clear highlights on \"transparent\", clear ink overrides on element.strokeColor, and keep element-wide semantics on untouched initial auto-select"
+      },
+      {
+        "name": "shifts textStyleRanges when inserting, deleting, and replacing text in WYSIWYG editor",
+        "given": "a text element with textStyleRanges edited live via textarea input events",
+        "expect": "ranges before the edit stay unchanged, ranges after shift by delta, ranges inside expand/shrink, and ranges deleted across are removed on both scene element and appState.editingTextElement"
+      },
+      {
+        "name": "preserves textStyleRanges across font size, font family, text align, and container resize reflow",
+        "given": "a wrapped text element with textStyleRanges when font size, font family, alignment, or container width is changed",
+        "expect": "originalText and textStyleRanges remain intact and getTextElementLineRuns maps the ranges onto the newly wrapped visual lines"
+      },
+      {
+        "name": "renders styled runs and highlight rects on Canvas 2D and exports <rect> and <tspan> in SVG for light and dark themes",
+        "given": "a text element with strokeColor and backgroundColor ranges exported via exportScene to canvas and svg in light and dark mode",
+        "expect": "canvas context records fillRect for highlights and fillText for runs with dark-mode filtered colors, and SVG contains highlight <rect> nodes before <text> and <tspan fill> nodes inside <text>"
+      },
+      {
+        "name": "preserves and normalizes textStyleRanges across clipboard copy and paste",
+        "given": "styled and legacy unstyled text elements serialized with serializeAsClipboardJSON and pasted via createPasteEvent / parseClipboard / pasteFromClipboard",
+        "expect": "pasted text elements retain normalized textStyleRanges (and [] for legacy elements) with deep-cloned range objects"
+      },
+      {
+        "name": "preserves textStyleRanges across undo/redo, duplication, reconcileElements, and convertToExcalidrawElements",
+        "given": "a text element with textStyleRanges subjected to undo/redo, duplicateElements, reconcileElements, and skeleton conversion",
+        "expect": "textStyleRanges is preserved and restored across all lifecycle operations"
+      }
+    ],
+    "checks": [
+      "vitest"
+    ]
+  }
+]

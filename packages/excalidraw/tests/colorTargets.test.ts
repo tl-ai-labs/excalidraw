@@ -127,4 +127,18 @@ describe("resolveColorTarget", () => {
       getColorTargetAppStateUpdates(regular, COLOR_PALETTE.transparent),
     ).toEqual({ currentItemBackgroundColor: COLOR_PALETTE.transparent });
   });
+
+  it("keeps sticky background domain while editing a sticky label without an active inline range selection", () => {
+    const target = resolveColorTarget(
+      appState({ editingTextElement: label }),
+      elements,
+      "backgroundColor",
+    );
+    expect(target.kind).toBe("sticky");
+    expect(target.appStateKeys).toEqual([
+      "currentItemStickynoteBackgroundColor",
+    ]);
+    expect(target.topPicks).toBe(STICKY_NOTE_BACKGROUND_PICKS);
+    expect(target.excludedColors).toContain(COLOR_PALETTE.transparent);
+  });
 });

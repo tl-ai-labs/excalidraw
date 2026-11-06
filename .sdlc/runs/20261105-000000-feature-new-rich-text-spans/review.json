@@ -1,0 +1,22 @@
+{
+  "module": "excalidraw",
+  "verdict": "needs_changes",
+  "tool_calls": 26,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "line": 51,
+      "issue": "yarn test:typecheck fails with TS2345 at line 51 because `overrides` in `createStyledText` is typed as `Partial<ExcalidrawTextElement>`, which includes readonly metadata fields (`id`, `version`, `versionNonce`, `updated`) that are not assignable to `ElementUpdate<NonDeleted<ExcalidrawTextElement>>` in `newElementWith`.",
+      "fix": "Type `overrides` in `createStyledText` as `Omit<Partial<ExcalidrawTextElement>, \"id\" | \"version\" | \"versionNonce\" | \"updated\"> = {}` (or remove the unused `overrides` parameter) and remove the unnecessary `as any` casts on `mutateElement` and `reconcileElements`."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "line": 78,
+      "issue": "`actionChangeStrokeColor` and `actionChangeBackgroundColor` are invoked with `{ currentItemStrokeColor }` / `{ currentItemBackgroundColor }` instead of `{ color }`, causing `perform` to return early without modifying `textStyleRanges` while the test only asserts `Array.isArray(current.textStyleRanges)`, and the `// undo/redo` block at line 227 never executes `Keyboard.undo()` or `Keyboard.redo()`.",
+      "fix": "Pass `{ color: \"#e03131\" }` and `{ color: \"#ffec99\" }` (and test splitting, merging, and clearing via `\"transparent\"` and `#1e1e1e`) to `executeAction` with concrete `expect(current.textStyleRanges).toEqual(...)` assertions, and exercise `Keyboard.undo()` and `Keyboard.redo()` in the undo/redo test."
+    }
+  ],
+  "refinement_packets": []
+}

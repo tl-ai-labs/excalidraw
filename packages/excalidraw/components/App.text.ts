@@ -39,10 +39,13 @@ import {
   makeNextSelectedElementIds,
   newElementWith,
   newTextElement,
+  normalizeTextStyleRanges,
   refreshTextDimensions,
+  shiftTextStyleRangesOnEdit,
   updateBoundElements,
 } from "@excalidraw/element";
 
+import type { Mutable } from "@excalidraw/common/utility-types";
 import type { ArrowEndpoint } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
@@ -220,9 +223,24 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
+            const hasRanges = (_element.textStyleRanges?.length ?? 0) > 0;
+            const nextTextStyleRanges = !hasRanges
+              ? _element.textStyleRanges
+              : _element.originalText === nextOriginalText
+              ? normalizeTextStyleRanges(
+                  _element.textStyleRanges,
+                  nextOriginalText.length,
+                  _element.strokeColor,
+                )
+              : shiftTextStyleRangesOnEdit(
+                  _element.textStyleRanges,
+                  _element.originalText,
+                  nextOriginalText,
+                );
             return newElementWith(_element, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
+              ...(hasRanges ? { textStyleRanges: nextTextStyleRanges } : null),
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
                 refreshTextDimensions(
@@ -242,6 +260,17 @@ export class AppText {
       const updatedTextElement = this.app.scene.getNonDeletedElement(
         latestTextElement.id,
       );
+      if (
+        !isDeleted &&
+        updatedTextElement &&
+        isTextElement(updatedTextElement) &&
+        this.app.state.editingTextElement?.id === updatedTextElement.id &&
+        ((latestTextElement.textStyleRanges?.length ?? 0) > 0 ||
+          (updatedTextElement.textStyleRanges?.length ?? 0) > 0)
+      ) {
+        (this.app.state as Mutable<AppState>).editingTextElement =
+          updatedTextElement;
+      }
       if (
         latestTextElement.autoResize &&
         updatedTextElement &&

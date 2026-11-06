@@ -1,0 +1,49 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-000000-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. The tests pass, but yarn test:typecheck fails in this file: (52,3) error TS2322: Type 'NonDeleted<ExcalidrawGenericElement>' is not assignable to type 'NonDeleted<ExcalidrawTextElement>'. (52,31) error TS2345: Argument of type '{ ...; textStyleRanges: readonly TextStyleRange[] | ({ ...; } | { ...; })[]; }' is not assignable to parameter of type 'ElementUpdate<NonDeleted<ExcalidrawGenericElement>>' — newElementWith is being called on an element typed as generic; type the element as ExcalidrawTextElement (e.g. API.createElement({ type: \"text\", ... }) returns the text type, or narrow with isTextElement) before calling newElementWith. (82,9) error TS2559: Type '\"#e03131\"' has no properties in common with type 'Partial<AppState> & { color?: string | undefined; }'. (89,9) error TS2559: Type '\"#ffec99\"' has no properties in common with type 'Partial<AppState> & { color?: string | undefined; }' — pass an object such as { currentItemStrokeColor: \"#e03131\" } / { currentItemBackgroundColor: \"#ffec99\" } (see how actionChangeStrokeColor / actionChangeBackgroundColor read their value). (220,71) error TS2554: Expected 1 arguments, but got 2. Keep every test's behaviour; fix types only, and keep the file prettier-clean.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-000000-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-000000-feature-new-rich-text-spans/briefs/U21.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "yarn test:app --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

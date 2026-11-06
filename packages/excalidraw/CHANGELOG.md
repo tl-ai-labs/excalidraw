@@ -13,6 +13,12 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Inline text style ranges: `textStyleRanges` (2026-11-05)
+
+- Text elements (`ExcalidrawTextElement`) now support `textStyleRanges?: readonly TextStyleRange[]` (`{ start, end, strokeColor?, backgroundColor? }`) in `originalText` character offsets for inline text color and background highlight ranges.
+- Selecting a character range in the WYSIWYG text editor allows applying or clearing inline `strokeColor` and `backgroundColor` styles from the properties panel without mutating element-level or sticky-note defaults, while typing shifts, expands, splits, or removes ranges around the edit.
+- Styled runs and inline highlight rectangles render on the interactive/static canvas and in SVG exports (`<tspan>` and `<rect>` nodes), and `textStyleRanges` are normalized and preserved across `restoreElements`, clipboard copy/paste, duplication, `convertToExcalidrawElements`, and undo/redo history deltas.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

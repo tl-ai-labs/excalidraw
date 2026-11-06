@@ -13,6 +13,8 @@ import { deepCopyElement } from "@excalidraw/element";
 import {
   isFrameLikeElement,
   isInitializedImageElement,
+  isTextElement,
+  normalizeTextStyleRanges,
 } from "@excalidraw/element";
 
 import { getContainingFrame } from "@excalidraw/element";
@@ -173,6 +175,7 @@ export const serializeAsClipboardJSON = ({
   const contents: ElementsClipboard = {
     type: EXPORT_DATA_TYPES.excalidrawClipboard,
     elements: elements.map((element) => {
+      let result: NonDeletedExcalidrawElement = element;
       if (
         getContainingFrame(element, elementsMap) &&
         !framesToCopy.has(getContainingFrame(element, elementsMap)!)
@@ -181,10 +184,21 @@ export const serializeAsClipboardJSON = ({
         mutateElement(copiedElement, elementsMap, {
           frameId: null,
         });
-        return copiedElement;
+        result = copiedElement;
       }
 
-      return element;
+      if (isTextElement(result)) {
+        return {
+          ...result,
+          textStyleRanges: normalizeTextStyleRanges(
+            result.textStyleRanges,
+            (result.originalText ?? result.text ?? "").length,
+            result.strokeColor,
+          ).map((range) => ({ ...range })),
+        };
+      }
+
+      return result;
     }),
     files: files ? _files : undefined,
   };
@@ -541,7 +555,19 @@ export const parseClipboard = async (
       systemClipboardData.type === EXPORT_DATA_TYPES.excalidrawClipboardWithAPI;
     if (clipboardContainsElements(systemClipboardData)) {
       return {
-        elements: systemClipboardData.elements,
+        elements: systemClipboardData.elements.map((element) => {
+          if (isTextElement(element)) {
+            return {
+              ...element,
+              textStyleRanges: normalizeTextStyleRanges(
+                element.textStyleRanges,
+                (element.originalText ?? element.text ?? "").length,
+                element.strokeColor,
+              ).map((range) => ({ ...range })),
+            };
+          }
+          return element;
+        }),
         files: systemClipboardData.files,
         text: isPlainPaste
           ? JSON.stringify(systemClipboardData.elements, null, 2)

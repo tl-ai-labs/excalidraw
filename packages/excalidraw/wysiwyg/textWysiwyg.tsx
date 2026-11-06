@@ -247,6 +247,47 @@ const getLineCaretXFromNativeLayout = ({
 
 type SubmitHandler = () => void;
 
+let activeWysiwygSelectionState: {
+  elementId: string;
+  editable: HTMLTextAreaElement;
+  isInitialAutoSelect: boolean;
+  lastSelection: { start: number; end: number } | null;
+} | null = null;
+
+// set while the editor changes the selection itself (init, normalization)
+let suppressSelectionTracking = false;
+
+export const getActiveTextWysiwygSelection = (
+  element?: Pick<ExcalidrawTextElement, "id" | "originalText"> | null,
+): { start: number; end: number } | null => {
+  const state = activeWysiwygSelectionState;
+  if (!state || (element && state.elementId !== element.id)) {
+    return null;
+  }
+  const { editable } = state;
+  const textLength = element?.originalText.length ?? editable.value.length;
+  const start = Math.min(editable.selectionStart ?? 0, textLength);
+  const end = Math.min(editable.selectionEnd ?? 0, textLength);
+
+  if (start !== 0 || end !== editable.value.length) {
+    state.isInitialAutoSelect = false;
+  }
+
+  if (!state.isInitialAutoSelect && start >= 0 && start < end) {
+    state.lastSelection = { start, end };
+    return { start, end };
+  }
+
+  if (!state.isInitialAutoSelect && state.lastSelection) {
+    const lastEnd = Math.min(state.lastSelection.end, textLength);
+    if (state.lastSelection.start >= 0 && state.lastSelection.start < lastEnd) {
+      return { start: state.lastSelection.start, end: lastEnd };
+    }
+  }
+
+  return null;
+};
+
 export const textWysiwyg = ({
   onChange,
   onSubmit,
@@ -854,13 +895,25 @@ export const textWysiwyg = ({
       const normalized = normalizeText(editable.value);
       if (editable.value !== normalized) {
         const selectionStart = editable.selectionStart;
-        editable.value = normalized;
-        // put the cursor at some position close to where it was before
-        // normalization (otherwise it'll end up at the end of the text)
-        editable.selectionStart = selectionStart;
-        editable.selectionEnd = selectionStart;
+        suppressSelectionTracking = true;
+        try {
+          editable.value = normalized;
+          // put the cursor at some position close to where it was before
+          // normalization (otherwise it'll end up at the end of the text)
+          editable.selectionStart = selectionStart;
+          editable.selectionEnd = selectionStart;
+        } finally {
+          suppressSelectionTracking = false;
+        }
       }
       onChange(editable.value);
+      if (activeWysiwygSelectionState?.editable === editable) {
+        activeWysiwygSelectionState.isInitialAutoSelect = false;
+        const start = editable.selectionStart ?? 0;
+        const end = editable.selectionEnd ?? 0;
+        activeWysiwygSelectionState.lastSelection =
+          start < end ? { start, end } : null;
+      }
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1093,6 +1146,12 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.removeEventListener("select", onSelectEvent);
+    editable.removeEventListener("keyup", onSelectionSyncEvent);
+    editable.removeEventListener("pointerup", onSelectionSyncEvent);
+    if (activeWysiwygSelectionState?.editable === editable) {
+      activeWysiwygSelectionState = null;
+    }
 
     if (observer) {
       observer.disconnect();
@@ -1151,10 +1210,25 @@ export const textWysiwyg = ({
       editable.onblur = handleSubmit;
       editable.focus({ preventScroll: true });
       if (pendingInitialSelection) {
-        editable.setSelectionRange(
-          pendingInitialSelection.start,
-          pendingInitialSelection.end,
-        );
+        suppressSelectionTracking = true;
+        try {
+          editable.setSelectionRange(
+            pendingInitialSelection.start,
+            pendingInitialSelection.end,
+          );
+        } finally {
+          suppressSelectionTracking = false;
+        }
+        if (
+          activeWysiwygSelectionState?.editable === editable &&
+          pendingInitialSelection.start < pendingInitialSelection.end
+        ) {
+          activeWysiwygSelectionState.isInitialAutoSelect = false;
+          activeWysiwygSelectionState.lastSelection = {
+            start: pendingInitialSelection.start,
+            end: pendingInitialSelection.end,
+          };
+        }
         pendingInitialSelection = null;
       }
     });
@@ -1222,6 +1296,8 @@ export const textWysiwyg = ({
       isPropertiesTrigger ||
       isPropertiesContent
     ) {
+      // keep the selection across the blur caused by the properties UI
+      getActiveTextWysiwygSelection(element);
       temporarilyDisableSubmit();
     } else if (
       event.target instanceof ownerWindow.HTMLCanvasElement &&
@@ -1256,6 +1332,22 @@ export const textWysiwyg = ({
     );
     if (!isPopupOpened) {
       editable.focus({ preventScroll: true });
+      const state = activeWysiwygSelectionState;
+      if (
+        state?.editable === editable &&
+        !state.isInitialAutoSelect &&
+        state.lastSelection
+      ) {
+        suppressSelectionTracking = true;
+        try {
+          editable.setSelectionRange(
+            state.lastSelection.start,
+            state.lastSelection.end,
+          );
+        } finally {
+          suppressSelectionTracking = false;
+        }
+      }
     }
   });
 
@@ -1298,10 +1390,121 @@ export const textWysiwyg = ({
 
   let isDestroyed = false;
 
-  if (autoSelect && !pendingInitialSelection) {
+  const selectionState = {
+    elementId: element.id,
+    editable,
+    isInitialAutoSelect: false,
+    lastSelection: null as { start: number; end: number } | null,
+  };
+  activeWysiwygSelectionState = selectionState;
+
+  const syncSelection = () => {
+    if (activeWysiwygSelectionState?.editable !== editable) {
+      return;
+    }
+    const start = editable.selectionStart ?? 0;
+    const end = editable.selectionEnd ?? 0;
+    selectionState.isInitialAutoSelect = false;
+    selectionState.lastSelection = start < end ? { start, end } : null;
+  };
+
+  // events must not turn the untouched mount select-all into an inline range
+  const onSelectionSyncEvent = () => {
+    if (suppressSelectionTracking || isDestroyed) {
+      return;
+    }
+    if (
+      selectionState.isInitialAutoSelect &&
+      editable.selectionStart === 0 &&
+      editable.selectionEnd === editable.value.length
+    ) {
+      return;
+    }
+    syncSelection();
+  };
+  const onSelectEvent = () => {
+    if (suppressSelectionTracking || isDestroyed) {
+      return;
+    }
+    const prevStart = selectionState.lastSelection?.start ?? -1;
+    const prevEnd = selectionState.lastSelection?.end ?? -1;
+    const wasAutoSelect = selectionState.isInitialAutoSelect;
+    onSelectionSyncEvent();
+    const nextStart = selectionState.lastSelection?.start ?? -1;
+    const nextEnd = selectionState.lastSelection?.end ?? -1;
+    if (
+      app.state.editingTextElement?.id === element.id &&
+      (wasAutoSelect !== selectionState.isInitialAutoSelect ||
+        prevStart !== nextStart ||
+        prevEnd !== nextEnd)
+    ) {
+      app.setState({});
+    }
+  };
+
+  const nativeSetSelectionRange = editable.setSelectionRange.bind(editable);
+  editable.setSelectionRange = (start, end, direction) => {
+    nativeSetSelectionRange(start, end, direction);
+    if (!suppressSelectionTracking && !isDestroyed) {
+      syncSelection();
+      if (app.state.editingTextElement?.id === element.id) {
+        app.setState({});
+      }
+    }
+  };
+  const defineSelectionPropertyHook = (
+    key: "selectionStart" | "selectionEnd",
+  ) => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      ownerWindow.HTMLTextAreaElement.prototype,
+      key,
+    );
+    if (descriptor?.get && descriptor.set) {
+      const { get, set } = descriptor;
+      Object.defineProperty(editable, key, {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return get.call(editable);
+        },
+        set(value: number | null) {
+          set.call(editable, value);
+          if (!suppressSelectionTracking && !isDestroyed) {
+            syncSelection();
+          }
+        },
+      });
+    }
+  };
+  defineSelectionPropertyHook("selectionStart");
+  defineSelectionPropertyHook("selectionEnd");
+  editable.addEventListener("select", onSelectEvent);
+  editable.addEventListener("keyup", onSelectionSyncEvent);
+  editable.addEventListener("pointerup", onSelectionSyncEvent);
+
+  if (initialSelection && initialSelection.start < initialSelection.end) {
+    selectionState.isInitialAutoSelect = false;
+    selectionState.lastSelection = {
+      start: initialSelection.start,
+      end: initialSelection.end,
+    };
+    suppressSelectionTracking = true;
+    try {
+      nativeSetSelectionRange(initialSelection.start, initialSelection.end);
+    } finally {
+      suppressSelectionTracking = false;
+    }
+  } else if (autoSelect && !pendingInitialSelection) {
     // select on init (focusing is done separately inside the bindBlurEvent()
     // because we need it to happen *after* the blur event from `pointerdown`)
-    editable.select();
+    selectionState.isInitialAutoSelect = true;
+    selectionState.lastSelection = null;
+    suppressSelectionTracking = true;
+    try {
+      editable.select();
+    } finally {
+      suppressSelectionTracking = false;
+    }
   }
   bindBlurEvent();
 

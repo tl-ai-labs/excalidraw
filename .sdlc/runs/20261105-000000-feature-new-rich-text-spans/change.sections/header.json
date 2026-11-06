@@ -1,0 +1,69 @@
+{
+  "conventions": [
+    "Use TypeScript with strict null checks and explicit `readonly` array/object types for element data models.",
+    "Use 2-space indentation, double quotes, trailing commas, and semicolons matching the repository Prettier and ESLint configuration.",
+    "Order imports with external/workspace packages (`@excalidraw/common`, `@excalidraw/math`, `@excalidraw/element`) first, followed by relative imports and `import type` declarations.",
+    "Keep all functions in `packages/element/src/textStyleRanges.ts` pure and side-effect-free: never mutate input range arrays or range objects in place.",
+    "Write tests using Vitest (`describe`, `it`, `expect`, `vi`) and `@testing-library/react` helpers (`render`, `fireEvent`, `act`, `API`, `UI`, `Keyboard`, `Pointer`)."
+  ],
+  "decisions": [
+    {
+      "topic": "Persisted `textStyleRanges` representation on `ExcalidrawTextElement`",
+      "choice": "Store `TextStyleRange` entries as `{ readonly start: number; readonly end: number; readonly strokeColor?: string; readonly backgroundColor?: string }` in 0-based end-exclusive UTF-16 code-unit offsets into `element.originalText`, and set `textStyleRanges` as a standard enumerable own property (`normalizeTextStyleRanges(...)`, defaulting to `[]`) on `ExcalidrawTextElement` in `newTextElement`, `restoreElement`, `deepCopyElement`, `ElementsDelta.applyDelta`, and clipboard serialize/parse.",
+      "rejected": [
+        "Storing line-relative offsets into `element.text`",
+        "Defining a non-enumerable hidden accessor via `Object.defineProperty` on text elements",
+        "Embedding HTML/Markdown tags in `originalText`"
+      ],
+      "reason": "`originalText` offsets survive line wrapping and reflow, and a standard enumerable own `textStyleRanges` array (defaulting to `[]`) is preserved across all object spreads (`newElementWith` / `mutateElement`), JSON serialisation, clipboard copy/paste, restore, duplication, and history deltas."
+    },
+    {
+      "topic": "Canonical range normalisation and overlap resolution",
+      "choice": "Use elementary interval decomposition over all range boundary points in `normalizeTextStyleRanges` and `applyTextStyleRange` so later ranges override earlier ranges per property (`strokeColor` vs `backgroundColor` independently), drop ranges with `start >= end` or neither style set, drop `backgroundColor: \"transparent\"` and `strokeColor === elementStrokeColor`, sort by `start`, and merge adjacent intervals with identical `strokeColor` and `backgroundColor`.",
+      "rejected": [
+        "Allowing overlapping ranges at render time",
+        "Replacing the entire style object when only one of `strokeColor` or `backgroundColor` is applied"
+      ],
+      "reason": "Elementary interval decomposition guarantees deterministic, non-overlapping canonical ranges while preserving orthogonal inline styles (`strokeColor` when applying `backgroundColor`, and vice versa)."
+    },
+    {
+      "topic": "WYSIWYG inline selection tracking vs initial mount auto-select",
+      "choice": "Track the active textarea selection in `packages/excalidraw/wysiwyg/textWysiwyg.tsx` and expose `getActiveTextWysiwygSelection(element?)`, treating the initial mount `editable.select()` (when `autoSelect && !pendingInitialSelection`) as non-inline until the selection is set via `initialSelection` or changed after mount via `setSelectionRange`, `selectionStart`/`selectionEnd` setters, or user selection events, and preserving the last active selection when clicking properties UI.",
+      "rejected": [
+        "Treating `editable.selectionStart < editable.selectionEnd` on initial mount as an active inline range selection",
+        "Reading `document.activeElement` only at action execution time without preserving selection across properties UI pointerdown"
+      ],
+      "reason": "On editor open, `editable.select()` selects all text by default; excluding the untouched initial auto-select preserves existing element-wide and sticky-note colour picker behaviour when no explicit substring selection has been made."
+    },
+    {
+      "topic": "Inline highlight colour picker availability during text editing",
+      "choice": "Render `app.actionManager.renderAction(\"changeBackgroundColor\")` inside `actionChangeStrokeColor.PanelComponent` when `appState.editingTextElement` is active and not bound to a sticky note (since sticky-note labels already render `changeBackgroundColor`), and resolve `resolveColorTarget` for `backgroundColor` to the `regular` domain (including `\"transparent\"`) when `getActiveTextWysiwygSelection` is active.",
+      "rejected": [
+        "Modifying `getShapeActionPredicates` in `shapeActionPredicates.ts` to enable `backgroundColor` for all text elements",
+        "Creating a separate action registration for text highlight colour"
+      ],
+      "reason": "Existing tests assert `getShapeActionPredicates(...).backgroundColor === false` for plain text elements and `shapeActionPredicates.ts` is outside the write allowlist; rendering `changeBackgroundColor` inside `actionChangeStrokeColor.PanelComponent` when editing non-sticky text exposes inline highlight controls and allows `\"transparent\"` to clear highlights."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "vitest",
+      "run": "yarn test:app --watch=false {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lint-code",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "test-app",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}
