@@ -1,0 +1,274 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 162): The undo/redo test fails at line 175, and the test is what's wrong, not the FR-24 history capture. beforeEach seeds the scene with API.setElements, which goes through the h.elements setter: replaceAllElements with no capture, so the store's committed snapshot never contains the text. The range pick's IMMEDIATELY capture therefore records the text as an *added* element whose inserted side already carries the red styleRanges. Keyboard.undo() reverts that entry by setting isDeleted: true. The deleted element keeps its red range, and getText() reads it through scene.getElement, which also returns deleted elements. That is exactly the failure reported (red range still present after undo). The capture code is correct: once the text is committed, the pick's delta is { deleted: { styleRanges: undefined }, inserted: { styleRanges: [...] } }, which undo and redo apply both ways. Confidence: high (worked out from history.ts / delta.ts ElementsDelta.calculate 'added' path and the h.elements setter; not run). — fix: In this test, before editText, commit the text as a baseline: `API.updateScene({ elements: [text], captureUpdate: CaptureUpdateAction.IMMEDIATELY })`, importing CaptureUpdateAction from @excalidraw/element. Also assert `getText(text.id).isDeleted` is false after undo, so the test can't pass or fail on a deleted element. Do not change actionProperties.tsx or textWysiwyg.tsx. Note that this departs from U19 rule 1, which only uses API.setElements.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}' --watch=false"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 388): DRY: the stroke range branch (lines ~388-416) and the background range branch (~534-561) are the same 25-line block. Only the style object and the property passed to getEditingTextRange differ. — fix: Pull out a local helper, e.g. `applyRangeStylePick(elements, appState, appStateUpdates, range, style)`, that returns the ActionResult (elements mapped with newElementWith + applyTextStyle, merged appState, CaptureUpdateAction.IMMEDIATELY). Call it from both performs.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/actions/colorTargets.ts",
+    "instruction": "Fix `packages/excalidraw/actions/colorTargets.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 228): getEditingTextRange builds arrayToMap(elements) on every call. The stroke PanelComponent calls it twice per render, the background PanelComponent once, and these panels re-render on every appState change. That is several O(n) map builds per render on large scenes, just to look up one id. — fix: Look up the candidate with a single elements.find(el => el.id === selection.elementId). Build the map only in the whole-text branch, where getColorTargetElement needs it.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/colorTargets.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "instruction": "Fix `packages/element/src/textStyleRanges.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 330): getStyledLines departs from rule 7. While looking for the next soft-wrapped line, the loop skips any character that is not '\\n' (not just whitespace) until startsWith matches. If the wrapped text ever differs from originalText (for example a normalisation mismatch), runs are silently attached to the wrong offsets further along, instead of falling back to one unstyled run at p. — fix: Skip only whitespace characters other than '\\n' (e.g. `/\\s/.test(ch) && ch !== \"\\n\"`). Let the existing `!matched` branch handle any line that doesn't start there.\n2. minor (line 60): DRY: the conditional `...(x.color !== undefined ? { color } : {}), ...(x.highlight !== undefined ? { highlight } : {})` range-building spread appears about 8 times (normalize, merge, the applyTextStyle before/inside/after/gap parts, shift, sanitize). — fix: Add a private `makeRange(start, end, color?, highlight?)` that omits undefined keys, and use it at every site.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/textStyleRanges.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/textStyleRanges.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textStyleRanges.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "instruction": "Fix `packages/element/src/renderElement.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 679): getFontString(element) is recomputed for every run of every line inside the styled canvas branch. — fix: Compute `const font = getFontString(element)` once, before the line loop, and pass it to getLineWidth.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/export.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/export.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 335): The highlight-rect test checks the rect height against textElement.height (hard-coded to 25). U18 asks for the line height in px. The two only match by coincidence (fontSize 20 x lineHeight 1.25), so the assertion pins the wrong quantity. — fix: Assert against `getLineHeightInPx(textElement.fontSize, textElement.lineHeight)` (from @excalidraw/element) instead of textElement.height.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/export.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/export.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/export.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}' --watch=false"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

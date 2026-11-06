@@ -1,0 +1,65 @@
+{
+  "module": "rich-text-spans (feature-new, brownfield)",
+  "verdict": "needs_changes",
+  "tool_calls": 17,
+  "findings": [
+    {
+      "severity": "blocker",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "line": 162,
+      "issue": "The undo/redo test fails at line 175, and the test is what's wrong, not the FR-24 history capture. beforeEach seeds the scene with API.setElements, which goes through the h.elements setter: replaceAllElements with no capture, so the store's committed snapshot never contains the text. The range pick's IMMEDIATELY capture therefore records the text as an *added* element whose inserted side already carries the red styleRanges. Keyboard.undo() reverts that entry by setting isDeleted: true. The deleted element keeps its red range, and getText() reads it through scene.getElement, which also returns deleted elements. That is exactly the failure reported (red range still present after undo). The capture code is correct: once the text is committed, the pick's delta is { deleted: { styleRanges: undefined }, inserted: { styleRanges: [...] } }, which undo and redo apply both ways. Confidence: high (worked out from history.ts / delta.ts ElementsDelta.calculate 'added' path and the h.elements setter; not run).",
+      "fix": "In this test, before editText, commit the text as a baseline: `API.updateScene({ elements: [text], captureUpdate: CaptureUpdateAction.IMMEDIATELY })`, importing CaptureUpdateAction from @excalidraw/element. Also assert `getText(text.id).isDeleted` is false after undo, so the test can't pass or fail on a deleted element. Do not change actionProperties.tsx or textWysiwyg.tsx. Note that this departs from U19 rule 1, which only uses API.setElements."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 388,
+      "issue": "DRY: the stroke range branch (lines ~388-416) and the background range branch (~534-561) are the same 25-line block. Only the style object and the property passed to getEditingTextRange differ.",
+      "fix": "Pull out a local helper, e.g. `applyRangeStylePick(elements, appState, appStateUpdates, range, style)`, that returns the ActionResult (elements mapped with newElementWith + applyTextStyle, merged appState, CaptureUpdateAction.IMMEDIATELY). Call it from both performs."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/colorTargets.ts",
+      "line": 228,
+      "issue": "getEditingTextRange builds arrayToMap(elements) on every call. The stroke PanelComponent calls it twice per render, the background PanelComponent once, and these panels re-render on every appState change. That is several O(n) map builds per render on large scenes, just to look up one id.",
+      "fix": "Look up the candidate with a single elements.find(el => el.id === selection.elementId). Build the map only in the whole-text branch, where getColorTargetElement needs it."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textStyleRanges.ts",
+      "line": 330,
+      "issue": "getStyledLines departs from rule 7. While looking for the next soft-wrapped line, the loop skips any character that is not '\\n' (not just whitespace) until startsWith matches. If the wrapped text ever differs from originalText (for example a normalisation mismatch), runs are silently attached to the wrong offsets further along, instead of falling back to one unstyled run at p.",
+      "fix": "Skip only whitespace characters other than '\\n' (e.g. `/\\s/.test(ch) && ch !== \"\\n\"`). Let the existing `!matched` branch handle any line that doesn't start there."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/textStyleRanges.ts",
+      "line": 60,
+      "issue": "DRY: the conditional `...(x.color !== undefined ? { color } : {}), ...(x.highlight !== undefined ? { highlight } : {})` range-building spread appears about 8 times (normalize, merge, the applyTextStyle before/inside/after/gap parts, shift, sanitize).",
+      "fix": "Add a private `makeRange(start, end, color?, highlight?)` that omits undefined keys, and use it at every site."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/renderElement.ts",
+      "line": 679,
+      "issue": "getFontString(element) is recomputed for every run of every line inside the styled canvas branch.",
+      "fix": "Compute `const font = getFontString(element)` once, before the line loop, and pass it to getLineWidth."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/export.test.tsx",
+      "line": 335,
+      "issue": "The highlight-rect test checks the rect height against textElement.height (hard-coded to 25). U18 asks for the line height in px. The two only match by coincidence (fontSize 20 x lineHeight 1.25), so the assertion pins the wrong quantity.",
+      "fix": "Assert against `getLineHeightInPx(textElement.fontSize, textElement.lineHeight)` (from @excalidraw/element) instead of textElement.height."
+    }
+  ],
+  "passing_checks": [
+    "Correctness vs change_plan U01-U18: matches (types, model, newElement/refresh clamp, redraw clamp, canvas runs + cache key, restore sanitising, selection atom, wysiwyg shifting incl. indent/outdent, range picks, SVG tspans/rects, i18n, changelog).",
+    "Type safety: no `any` in non-test code; unknown input narrowed in sanitizeStyleRanges; `any` in restore.test.ts follows the plan.",
+    "Error handling: no swallowed errors; cleanup removes all four selection listeners and resets the atom.",
+    "Authz / PII: not applicable (client-side editor, no routes or PII fields).",
+    "Sensitive files: en.json only adds two keys; no manifest, env, CLAUDE.md or settings touched.",
+    "Env fixtures: not applicable (no validating config module in this stack)."
+  ],
+  "refinement_packets": []
+}

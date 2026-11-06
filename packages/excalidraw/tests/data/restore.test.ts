@@ -174,6 +174,72 @@ describe("restoreElements", () => {
     });
   });
 
+  it("restores a legacy text element without a styleRanges key", () => {
+    const textElement = API.createElement({
+      type: "text",
+      text: "legacy",
+    });
+    const restored = restore.restoreElements([textElement], null)[0];
+    expect(Object.prototype.hasOwnProperty.call(restored, "styleRanges")).toBe(
+      false,
+    );
+  });
+
+  it("sanitises malformed style ranges", () => {
+    const textElement: any = {
+      ...API.createElement({
+        type: "text",
+        text: "abcdef",
+      }),
+      styleRanges: [
+        { start: 0, end: 2, color: "red" },
+        { start: 1.5, end: 3, color: "blue" },
+        { start: 3, end: 99, highlight: "yellow" },
+        { start: 4, end: 4, color: "red" },
+        { start: 0, end: 1, color: 5 },
+      ],
+    };
+    const restored = restore.restoreElements(
+      [textElement],
+      null,
+    )[0] as ExcalidrawTextElement;
+    expect(restored.styleRanges).toEqual([
+      { start: 0, end: 2, color: "red" },
+      { start: 3, end: 6, highlight: "yellow" },
+    ]);
+  });
+
+  it("drops a styleRanges value that sanitises to nothing", () => {
+    const nonArrayText: any = {
+      ...API.createElement({
+        type: "text",
+        text: "abcdef",
+      }),
+      styleRanges: "bad",
+    };
+    const invalidRangesText: any = {
+      ...API.createElement({
+        type: "text",
+        text: "abcdef",
+      }),
+      styleRanges: [
+        { start: 2, end: 2, color: "red" },
+        { start: 5, end: 1, color: "blue" },
+        { start: 0, end: 2, color: 123 },
+      ],
+    };
+    const [restoredNonArray, restoredInvalid] = restore.restoreElements(
+      [nonArrayText, invalidRangesText],
+      null,
+    );
+    expect(
+      Object.prototype.hasOwnProperty.call(restoredNonArray, "styleRanges"),
+    ).toBe(false);
+    expect(
+      Object.prototype.hasOwnProperty.call(restoredInvalid, "styleRanges"),
+    ).toBe(false);
+  });
+
   it("should not delete empty text element when opts.deleteInvisibleElements is not defined", () => {
     const textElement = API.createElement({
       type: "text",

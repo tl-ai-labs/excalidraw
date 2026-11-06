@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261105-213840-feature-new-rich-text-spans",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. 1) yarn test:typecheck: textStyleRanges.test.tsx(29,28) and (190,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement' (API.setSelectedElements needs NonDeleted elements; type the helper parameter / cast as other tests do). 2) yarn test:app: 'textStyleRanges > undo restores the previous ranges and redo re-applies them' fails at line 175: after Keyboard.undo() a range with the red colour is still present (expected false, received true). Senior review diagnosis: beforeEach adds the text with API.setElements, which records no history, so the range pick's IMMEDIATELY capture records the text as an added element; undo then only marks it isDeleted and getText (scene.getElement) still returns it with its range. Fix: commit the text to history before editing in this test with API.updateScene({ elements: [text], captureUpdate: CaptureUpdateAction.IMMEDIATELY }) (CaptureUpdateAction from @excalidraw/element), assert after undo that the element is not deleted and has no red range, and after redo that the range is back. Keep the other 7 tests as they are.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261105-213840-feature-new-rich-text-spans/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "lint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "test",
+          "run": "yarn -s vitest run '{path}' --watch=false"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 300,
+      "max_retries": 2
+    }
+  }
+]

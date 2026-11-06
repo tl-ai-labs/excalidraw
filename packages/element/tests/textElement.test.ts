@@ -3,14 +3,19 @@ import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 
 import { FONT_FAMILY, TEXT_ALIGN, VERTICAL_ALIGN } from "@excalidraw/common";
 
+import { Scene } from "../src/Scene";
+import { syncInvalidIndices } from "../src/fractionalIndex";
+import { newElementWith } from "../src/mutateElement";
 import {
   computeContainerDimensionForBoundText,
   getContainerCoords,
   getBoundTextMaxWidth,
   getBoundTextMaxHeight,
   computeBoundTextPosition,
+  redrawTextBoundingBox,
 } from "../src/textElement";
 import { detectLineHeight, getLineHeightInPx } from "../src/textMeasurements";
+import { getStyledLines } from "../src/textStyleRanges";
 
 import type { ExcalidrawTextElementWithContainer } from "../src/types";
 
@@ -375,5 +380,91 @@ describe("Test computeBoundTextPosition", () => {
       expect(result.x).toBeCloseTo(135, 1);
       expect(result.y).toBeCloseTo(185, 1);
     });
+  });
+});
+
+describe("style ranges through re-wrapping", () => {
+  it("re-wrapping a bound text at a new container width keeps its ranges", () => {
+    const container = API.createElement({
+      type: "rectangle",
+      width: 400,
+      height: 200,
+      boundElements: [{ type: "text", id: "bound-text-1" }],
+    });
+    const boundText = newElementWith(
+      API.createElement({
+        type: "text",
+        id: "bound-text-1",
+        text: "hello world foo",
+        containerId: container.id,
+      }),
+      {
+        styleRanges: [{ start: 6, end: 11, color: "#ff0000" }],
+      },
+    ) as ExcalidrawTextElementWithContainer;
+
+    const scene = new Scene(syncInvalidIndices([container, boundText]));
+
+    // Make container narrow so "hello world foo" must wrap
+    scene.mutateElement(container, { width: 80 });
+    redrawTextBoundingBox(boundText, container, scene);
+
+    const updatedText = scene.getNonDeletedElement(
+      boundText.id,
+    ) as ExcalidrawTextElementWithContainer;
+    expect(updatedText.text).toContain("\n");
+    expect(updatedText.styleRanges).toEqual([
+      { start: 6, end: 11, color: "#ff0000" },
+    ]);
+
+    const styledLines = getStyledLines(
+      updatedText.originalText,
+      updatedText.text,
+      updatedText.styleRanges!,
+    );
+    const styledRuns = styledLines.flat().filter((r) => r.color === "#ff0000");
+    expect(styledRuns.length).toBe(1);
+    expect(styledRuns[0].text).toBe("world");
+  });
+
+  it("changing font size re-wraps without changing ranges", () => {
+    const container = API.createElement({
+      type: "rectangle",
+      width: 400,
+      height: 200,
+      boundElements: [{ type: "text", id: "bound-text-2" }],
+    });
+    let boundText = newElementWith(
+      API.createElement({
+        type: "text",
+        id: "bound-text-2",
+        text: "hello world foo",
+        containerId: container.id,
+      }),
+      {
+        styleRanges: [{ start: 6, end: 11, color: "#00ff00" }],
+      },
+    ) as ExcalidrawTextElementWithContainer;
+
+    const scene = new Scene(syncInvalidIndices([container, boundText]));
+
+    boundText = scene.mutateElement(boundText, { fontSize: 40 });
+    redrawTextBoundingBox(boundText, container, scene);
+
+    const updatedText = scene.getNonDeletedElement(
+      boundText.id,
+    ) as ExcalidrawTextElementWithContainer;
+    expect(updatedText.styleRanges).toEqual([
+      { start: 6, end: 11, color: "#00ff00" },
+    ]);
+
+    const styledLines = getStyledLines(
+      updatedText.originalText,
+      updatedText.text,
+      updatedText.styleRanges!,
+    );
+    const styledRuns = styledLines.flat().filter((r) => r.color === "#00ff00");
+    expect(styledRuns.length).toBe(1);
+    expect(styledRuns[0].text).toBe("world");
   });
 });

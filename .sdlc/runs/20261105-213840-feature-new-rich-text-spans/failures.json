@@ -1,0 +1,33 @@
+[
+  {
+    "path": "packages/element/src/textStyleRanges.ts",
+    "problem": "Security finding 1 (medium, Gate 3): a crafted scene can hang rendering. sanitizeStyleRanges (~L473) accepts an unbounded number of ranges, and normalizeStyleRanges (~L107) checks every range against every boundary segment (quadratic); getStyledLines re-normalises on every canvas redraw (renderElement.ts ~L713) and SVG export (staticSvgScene.ts ~L823). Fix: cap the range count in sanitizeStyleRanges (export a MAX_STYLE_RANGES constant, e.g. 1000, and drop ranges beyond it after sorting); rewrite normalizeStyleRanges as one sort plus a single linear pass (boundary sweep), same output contract (sorted, non-overlapping, clamped, empty/style-less dropped, equal-style neighbours merged); in getStyledLines use the stored ranges as already normalised (clamp only), never re-normalise at draw time. Security finding 2 (low): color and highlight only need to be non-empty strings and reach SVG fill attributes. Fix: in sanitizeStyleRanges accept a colour only if it is a valid CSS colour (use the same validity check the codebase already uses for colours, e.g. isColorValid / tinycolor from @excalidraw/common if exported; otherwise a strict #hex / rgb()/rgba()/hsl()/named-colour regex that rejects url( and any parenthesised function other than rgb/rgba/hsl/hsla) and its length is at most 64 characters; drop the invalid property, and drop the range if it has neither. Keep every existing export and signature.",
+    "context_paths": [
+      "packages/excalidraw/data/restore.ts",
+      "packages/element/tests/textStyleRanges.test.ts"
+    ]
+  },
+  {
+    "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "problem": "FR-24 defect (Gate 3): undo does not reverse a range colour applied while editing. Failing test packages/excalidraw/tests/textStyleRanges.test.tsx > 'undo restores the previous ranges and redo re-applies them': after picking red on range [12,19) in the editor, exiting the editor and pressing undo, the red range is still on the element (expected false, received true), even with the text committed to history beforehand. Suspected cause: shiftRangesTo calls mutateElement with informMutation: false, so styleRanges changes made while the editor is open never reach the store/history, and the editor's exit commit then folds them into a state history already treats as the baseline. Fix so that range changes made while editing are recorded by the store like the text change itself (the editor's onChange / exit commit must carry the element's current styleRanges, and no styleRanges write may bypass the store's change detection). Do not change the textarea behaviour or the range-shifting rules.",
+    "context_paths": [
+      "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "packages/excalidraw/actions/actionProperties.tsx"
+    ]
+  },
+  {
+    "path": "packages/excalidraw/actions/actionProperties.tsx",
+    "problem": "FR-24 defect (Gate 3): undo does not reverse a range colour applied while editing. Failing test packages/excalidraw/tests/textStyleRanges.test.tsx > 'undo restores the previous ranges and redo re-applies them' (red range still present after undo). The range-pick branch (applyRangeStylePick, ~L202) returns the new element with captureUpdate: CaptureUpdateAction.IMMEDIATELY while a text element is being edited; check that this capture actually records a history entry for styleRanges while appState.editingTextElement is set (the store/history may skip or overwrite the element being edited, and the editor's later commit can replace it). Make a range pick one undoable history entry: undo restores the previous styleRanges, redo re-applies them, and the editor's later commit must not erase that entry. Element-level colour behaviour must not change.",
+    "context_paths": [
+      "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "packages/excalidraw/wysiwyg/textWysiwyg.tsx"
+    ]
+  },
+  {
+    "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "problem": "yarn test:typecheck: packages/excalidraw/tests/textStyleRanges.test.tsx(29,28) and (190,30): error TS2322: Type 'ExcalidrawTextElement' is not assignable to type 'NonDeletedExcalidrawElement'. API.setSelectedElements takes NonDeleted elements: type the editText helper's parameter (and the value at line 190) as NonDeleted<ExcalidrawTextElement> (from @excalidraw/element/types), or cast as other tests in packages/excalidraw/tests do. Change only what the type errors need; keep all 8 tests and their assertions.",
+    "context_paths": [
+      "packages/excalidraw/tests/helpers/api.ts"
+    ]
+  }
+]

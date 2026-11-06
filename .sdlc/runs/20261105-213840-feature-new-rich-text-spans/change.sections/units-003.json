@@ -1,0 +1,144 @@
+[
+  {
+    "id": "U14",
+    "path": "packages/element/tests/textStyleRanges.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit tests for the pure range model.",
+    "rules": [
+      "1. Import the helpers from \"../src/textStyleRanges\" and `import type { TextStyleRange } from \"../src/types\";`; no DOM, no API helper."
+    ],
+    "tests": [
+      { "name": "normalize sorts, clamps and drops empty or style-less ranges", "given": "unsorted ranges including one with start >= end, one with no colour and one ending past a text length of 10", "expect": "sorted ranges clamped to 10 with the empty and style-less ones gone" },
+      { "name": "normalize merges adjacent ranges with identical style and resolves overlaps", "given": "[0,3) red, [3,5) red, and [4,8) highlight yellow", "expect": "[0,4) red, [4,5) red + yellow, [5,8) yellow" },
+      { "name": "applyTextStyle splits a range and keeps the other property", "given": "[0,10) color red + highlight yellow, apply { color: blue } to [3,6)", "expect": "[0,3) red+yellow, [3,6) blue+yellow, [6,10) red+yellow" },
+      { "name": "applyTextStyle with null removes only that property", "given": "[0,10) red + yellow, apply { highlight: null } to [2,4) and separately { color: null } to [0,10)", "expect": "the highlight is gone only on [2,4); the second call leaves only the yellow highlight" },
+      { "name": "applyTextStyle fills uncovered gaps", "given": "no ranges, apply { highlight: yellow } to [2,5) of a length-8 text", "expect": "[{ start: 2, end: 5, highlight: yellow }] with no color key" },
+      { "name": "diffText derives a single replacement", "given": "pairs: identical strings; insertion in the middle; deletion at the end; replacement of a repeated character", "expect": "null; { from, to: from, insertLength }; { from, to, insertLength: 0 }; a minimal edit that never has to < from" },
+      { "name": "shiftStyleRanges moves ranges after an insertion and keeps those before", "given": "[0,2) and [5,8), insert 3 characters at 3", "expect": "[0,2) and [8,11)" },
+      { "name": "insertion strictly inside a range extends it, at a boundary it does not", "given": "[2,5), insert 1 character at 3, then separately at 2 and at 5", "expect": "[2,6); [3,6); [2,5)" },
+      { "name": "deletion shrinks overlapping ranges and drops emptied ones", "given": "[2,6) and [7,9), delete [4,8)", "expect": "[2,4) and [4,5)" },
+      { "name": "getStyledLines maps ranges across a soft wrap that dropped whitespace", "given": "originalText \"hello world\", text \"hello\\nworld\", range [4,7) red", "expect": "line 0 runs \"hell\" plain and \"o\" red; line 1 runs \"w\" red and \"orld\" plain" },
+      { "name": "getStyledLines maps ranges across hard newlines and kept whitespace", "given": "originalText \"ab\\ncd ef\", text \"ab\\ncd \\nef\", range [1,7) highlight yellow", "expect": "runs carry yellow on \"b\", \"cd \" and \"e\" with correct start offsets" },
+      { "name": "getStyledLines with no ranges returns one plain run per non-empty line", "given": "text with an empty middle line", "expect": "[[run], [], [run]] with color and highlight null" },
+      { "name": "getStyledRunPositions honours alignment and RTL", "given": "widths [10, 20] in a box of width 100 for left, center, right and right+rtl", "expect": "[0,10], [35,45], [70,80], [90,70]" },
+      { "name": "getUniformRangeStyle reports a shared value only", "given": "[0,4) red and [4,8) blue", "expect": "red for [1,3); null for [2,6); null for a gap" },
+      { "name": "sanitizeStyleRanges drops malformed entries", "given": "a string; and an array with non-integer offsets, a numeric colour, an entry with no colour and an out-of-bound end", "expect": "null; only valid entries, clamped and normalised" }
+    ],
+    "style_from": { "path": "packages/element/tests/textWrapping.test.ts", "lines": [1, 20], "reason": "pure-function unit test layout in this package" },
+    "depends_on": ["U02"],
+    "covers": ["AC-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U15",
+    "path": "packages/element/tests/textElement.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Re-wrapping and container resize keep stored ranges and map them onto the new lines.",
+    "rules": [
+      "1. Add `import { newElementWith } from \"../src/mutateElement\";`, `import { Scene } from \"../src/Scene\";`, `import { redrawTextBoundingBox } from \"../src/textElement\";` (merged into the existing textElement import) and `import { getStyledLines } from \"../src/textStyleRanges\";`.",
+      "2. Build a rectangle and a bound text \"hello world foo\" (containerId set, container boundElements pointing at it) with API.createElement, add styleRanges via newElementWith, and put both in `new Scene(syncInvalidIndices([...]))` (syncInvalidIndices imported from \"../src/fractionalIndex\"); resize by scene.mutateElement(container, { width }) then redrawTextBoundingBox(text, container, scene)."
+    ],
+    "tests": [
+      { "name": "re-wrapping a bound text at a new container width keeps its ranges", "given": "a styled bound text in a wide container, then the container made narrow and the text redrawn", "expect": "text now contains a soft line break, styleRanges are deep-equal to before, and getStyledLines places the styled run on the wrapped line holding those characters" },
+      { "name": "changing font size re-wraps without changing ranges", "given": "the same bound text after newElementWith(text, { fontSize: 40 }) and redrawTextBoundingBox", "expect": "styleRanges unchanged and the styled characters still map to a run with the range colour" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 6, "to": 13, "first_line": "import {", "last_line": "import { detectLineHeight, getLineHeightInPx } from \"../src/textMeasurements\";", "rule": "The same imports plus those of rule 1, in import-order groups." },
+      { "id": "S2", "at": "insert_before", "from": 379, "to": 379, "first_line": "});", "rule": "Insert a `describe(\"style ranges through re-wrapping\", ...)` block with the two cases (rule 2)." }
+    ],
+    "uses": [{ "path": "packages/element/tests/dragElements.test.ts", "lines": [1, 13], "reason": "Scene construction in element tests" }],
+    "depends_on": ["U04", "U05"],
+    "covers": ["AC-3", "FR-10"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U16",
+    "path": "packages/excalidraw/tests/data/restore.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Restore keeps legacy text without ranges and sanitises malformed ranges.",
+    "tests": [
+      { "name": "restores a legacy text element without a styleRanges key", "given": "API.createElement text \"legacy\" (no styleRanges)", "expect": "the restored element has no own property styleRanges" },
+      { "name": "sanitises malformed style ranges", "given": "a text \"abcdef\" whose styleRanges is [{start:0,end:2,color:\"red\"},{start:1.5,end:3,color:\"blue\"},{start:3,end:99,highlight:\"yellow\"},{start:4,end:4,color:\"red\"},{start:0,end:1,color:5}]", "expect": "styleRanges equal [{start:0,end:2,color:\"red\"},{start:3,end:6,highlight:\"yellow\"}]" },
+      { "name": "drops a styleRanges value that sanitises to nothing", "given": "a text whose styleRanges is the string \"bad\", and another whose ranges are all invalid", "expect": "neither restored element has the styleRanges key" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 174, "to": 174, "first_line": "});", "rule": "After the 'passing value for each attribute' case, insert a blank line and the three cases; set the raw styleRanges by spreading the created element into an object typed `any`, as the neighbouring legacy-font case does." }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/data/restore.test.ts", "lines": [194, 240], "reason": "restore cases that mutate a created element into legacy shape" },
+    "depends_on": ["U07"],
+    "covers": ["AC-2", "FR-15", "FR-16"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U17",
+    "path": "packages/excalidraw/tests/data/reconcile.test.ts",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "Reconciliation keeps a text element's ranges with the text of the winning version.",
+    "rules": [
+      "1. Build local and remote versions of one text element id with different originalText and styleRanges as plain objects with index \"a0\", version 2 vs 3, and call reconcileElements(local, remote as RemoteExcalidrawElement[], {} as AppState)."
+    ],
+    "tests": [
+      { "name": "the winning text version brings its own ranges", "given": "local v2 \"hello\" with [0,5) red, remote v3 \"hello world\" with [6,11) blue", "expect": "the reconciled element has remote originalText and remote styleRanges; with the versions swapped it has the local pair" },
+      { "name": "an edited local text keeps its ranges against a newer remote", "given": "the same pair with localAppState.editingTextElement set to the local element", "expect": "the local originalText and styleRanges are kept together" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 386, "to": 386, "first_line": "});", "rule": "Insert `it(\"keeps text style ranges with the winning text\", ...)` covering both cases (rule 1); import ExcalidrawTextElement types as needed in the existing type import." }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["AC-7", "FR-17"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U18",
+    "path": "packages/excalidraw/tests/export.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "SVG export writes tspans per run and highlight rects for styled text, and plain text exports without tspans.",
+    "rules": [
+      "1. Import newElementWith from \"@excalidraw/element\"; export with exportScene({ type: \"svg\", data: { elements, appState: getDefaultAppState(), files: {} }, config: { canvasBackgroundColor: false } }) and query the returned SVGSVGElement."
+    ],
+    "tests": [
+      { "name": "exports styled text as tspans with per-run fill", "given": "a text \"hello world\" (index a0, width/height set) with styleRanges [{start:6,end:11,color:\"#e03131\"}]", "expect": "one <text> with two <tspan>s: \"hello \" with fill equal to the element strokeColor and \"world\" with fill \"#e03131\"" },
+      { "name": "exports a highlight rect behind a highlighted run", "given": "the same text with [{start:0,end:5,highlight:\"#ffec99\"}]", "expect": "a <rect> with fill \"#ffec99\" and height equal to the line height px, appearing before the <text> in its group" },
+      { "name": "plain text exports without tspans", "given": "the existing testElements", "expect": "the SVG contains a <text> and no <tspan>" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 264, "to": 264, "first_line": "});", "rule": "Insert the three cases inside the export describe (rule 1)." },
+      { "id": "S2", "at": "insert_after", "from": 3, "to": 3, "first_line": "import { SVG_NS } from \"@excalidraw/common\";", "rule": "Insert `import { newElementWith } from \"@excalidraw/element\";`." }
+    ],
+    "depends_on": ["U11"],
+    "covers": ["AC-6", "FR-27", "FR-28", "FR-29"],
+    "checks": ["lint", "test"]
+  },
+  {
+    "id": "U19",
+    "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "jsdom editor flow: select a sub-range, pick text colour and highlight, shift on typing, undo, and copy/paste styles.",
+    "rules": [
+      "1. render(<Excalidraw handleKeyboardGlobally={true} />); create the text with API.createElement({ type: \"text\", text: \"Bid request timeout\" }), API.setElements, API.setSelectedElements, Keyboard.keyPress(KEYS.ENTER), then `const editor = await getTextEditor();`.",
+      "2. Select a range with editor.setSelectionRange(start, end) followed by fireEvent.select(editor); pick colours with act(() => h.app.actionManager.executeAction(actionChangeStrokeColor | actionChangeBackgroundColor, \"ui\", { color })).",
+      "3. Type with updateTextEditor(editor, nextValue); read the element with API.getElement or h.elements; leave the editor with Keyboard.exitTextEditor(editor) before undo/redo (Keyboard.undo / Keyboard.redo)."
+    ],
+    "tests": [
+      { "name": "a stroke pick on a selected range sets its text colour only", "given": "free text being edited with [12,19) selected, stroke pick COLOR_PALETTE.red[4]", "expect": "styleRanges equal [{ start: 12, end: 19, color: red }]; strokeColor, backgroundColor and currentItemStrokeColor unchanged" },
+      { "name": "a background pick on a selected range sets its highlight only", "given": "the same text, [4,11) selected, background pick COLOR_PALETTE.yellow[1]", "expect": "a range [4,11) with highlight yellow and no color; backgroundColor and currentItemBackgroundColor unchanged" },
+      { "name": "picking the element's stroke colour clears a range's text colour", "given": "a red range then the same selection picked with the element strokeColor", "expect": "no styleRanges entry carries a color" },
+      { "name": "a bound label's highlight does not change its container", "given": "a rectangle with a bound text, editing the label with a sub-range selected, background pick", "expect": "the label has the highlight range and the rectangle backgroundColor is unchanged" },
+      { "name": "typing before a range shifts it", "given": "range [12,19) then the value changed to \"A Bid request timeout\"", "expect": "the range becomes [14,21)" },
+      { "name": "with no selection the stroke pick changes strokeColor", "given": "editing with a collapsed caret, stroke pick red", "expect": "strokeColor is red and styleRanges is absent" },
+      { "name": "undo restores the previous ranges and redo re-applies them", "given": "a range pick, then exit the editor, undo, redo", "expect": "after undo no range carries the picked colour; after redo the range is back" },
+      { "name": "paste styles does not copy ranges", "given": "a styled text A and a plain text B, copy styles from A (actionCopyStyles) and paste onto B (actionPasteStyles)", "expect": "B has no styleRanges and A keeps its own" }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/stickyNotes.test.tsx", "lines": [590, 660], "reason": "editor-open colour picks through actionManager.executeAction" },
+    "uses": [{ "path": "packages/excalidraw/tests/queries/dom.ts", "lines": [1, 38], "reason": "getTextEditor and updateTextEditor helpers" }],
+    "depends_on": ["U09", "U10"],
+    "covers": ["AC-4", "AC-5", "AC-8", "NFR-5", "FR-18", "FR-19", "FR-21", "FR-22", "FR-23", "FR-24", "FR-26"],
+    "checks": ["lint", "test"]
+  }
+]

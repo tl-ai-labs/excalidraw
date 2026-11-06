@@ -26,6 +26,7 @@ import { getPositionAfterHeightChange } from "./sizeHelpers";
 import { updateStickyNoteLayout } from "./stickyNote";
 import { measureText } from "./textMeasurements";
 import { wrapText } from "./textWrapping";
+import { getStyleRangesClampUpdate } from "./textStyleRanges";
 
 import {
   isBoundToContainer,
@@ -158,7 +159,10 @@ export const redrawTextBoundingBox = (
     boundTextUpdates.y = y;
   }
 
-  scene.mutateElement(textElement, boundTextUpdates);
+  scene.mutateElement(textElement, {
+    ...boundTextUpdates,
+    ...getStyleRangesClampUpdate(textElement, textElement.originalText.length),
+  });
 };
 
 export const handleBindTextResize = (

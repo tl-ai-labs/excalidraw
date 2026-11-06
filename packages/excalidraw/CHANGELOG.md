@@ -13,6 +13,13 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Per-range text color and highlight (2026-11-05)
+
+- Selecting part of a text while editing and picking a stroke colour colours that part and a background colour highlights it.
+- The new optional text element field `styleRanges` (`{ start, end, color?, highlight? }[]`, UTF-16 offsets into `originalText`, normalised).
+- Canvas and SVG export (`<tspan>` runs and highlight `<rect>`s) render it.
+- Text without styling serialises as before and older clients ignore the field; copy/paste styles never carries ranges.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.
