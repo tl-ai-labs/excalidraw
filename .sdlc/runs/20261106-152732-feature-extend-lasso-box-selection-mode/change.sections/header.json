@@ -1,0 +1,63 @@
+{
+  "conventions": [
+    "TypeScript strict mode with explicit types; never use any casts or @ts-ignore in production code.",
+    "Formatting follows @excalidraw/prettier-config (double quotes, trailing commas, 2-space indentation) and @excalidraw/eslint-config.",
+    "Import order: external packages first, then @excalidraw/* workspace packages (value imports before type imports), then relative imports (value imports before type imports), separated by blank lines.",
+    "Tests use Vitest and Testing Library helpers from ./test-utils and ./helpers/api and ./helpers/ui."
+  ],
+  "decisions": [
+    {
+      "topic": "Default value and type of boxSelectionMode in getLassoSelectedElementIds",
+      "choice": "Accept optional boxSelectionMode?: \"contain\" | \"overlap\" defaulting to \"overlap\" when omitted.",
+      "rejected": [
+        "Defaulting boxSelectionMode to \"contain\" in getLassoSelectedElementIds",
+        "Importing AppState from ../types"
+      ],
+      "reason": "Defaulting to \"overlap\" preserves backwards compatibility for existing direct callers of getLassoSelectedElementIds, while literal union \"contain\" | \"overlap\" matches AppState[\"boxSelectionMode\"] without importing off-limits ../types."
+    },
+    {
+      "topic": "Contain vs overlap geometry evaluation in getLassoSelectedElementIds",
+      "choice": "In \"contain\" mode, select an element only when enclosureTest returns true (all points of all element segments, and any bound text segments, are inside lassoPolygon via polygonIncludesPointNonZero) and intersectionTest returns false; in \"overlap\" mode, select when enclosureTest returns true (any segment point inside lassoPolygon) or intersectionTest returns true.",
+      "rejected": [
+        "Checking only element bounding box corners in contain mode",
+        "Skipping intersectionTest in contain mode when segment endpoints are inside the lasso polygon"
+      ],
+      "reason": "A concave lasso or a lasso crossing curved/long edges can include all segment endpoints while still intersecting the element outline; requiring both all segment points inside and zero outline intersections ensures true full enclosure across all shapes."
+    },
+    {
+      "topic": "Bound text handling in getLassoSelectedElementIds",
+      "choice": "Skip bound text elements (isBoundToContainer(element) whose containerId is in elementsMap) as standalone candidates, and include a container's bound text segments and bounds in the container's own contain/overlap evaluation.",
+      "rejected": [
+        "Evaluating bound text independently in the element loop during contain mode"
+      ],
+      "reason": "In contain mode, a lasso enclosing only bound text inside a container must not select the container via LassoTrail.selectElementsFromIds; in overlap mode, touching or enclosing bound text selects the container."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn eslint --max-warnings=0 {path}",
+      "fix": "yarn eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "vitest",
+      "run": "yarn test:app --watch=false {path}",
+      "timeout_s": 120
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lint",
+      "run": "yarn test:code"
+    },
+    {
+      "id": "tests",
+      "run": "yarn test:app --watch=false"
+    }
+  ]
+}
