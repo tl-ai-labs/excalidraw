@@ -1,0 +1,198 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/excalidraw/lasso/utils.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "getLassoSelectedElementIds takes an optional boxSelectionMode (default \"overlap\"); \"overlap\" runs today's enclosure-or-crossing algorithm unchanged, \"contain\" selects only elements whose whole outline (and whole positioned label) is inside the lasso polygon and not crossed by the lasso path.",
+      "rules": [
+        "1. Imports: add getElementLineSegments and isBoundToContainer to the existing `@excalidraw/element` import (names kept alphabetical); add LineSegment and Polygon to the existing `@excalidraw/math/types` type import; add a new last import `import type { AppState } from \"../types\";` separated by a blank line from the package type imports. No other import changes.",
+        "2. Input type gains `boxSelectionMode?: AppState[\"boxSelectionMode\"];` after simplifyDistance; the destructuring gains `boxSelectionMode = \"overlap\",` after simplifyDistance. The return type and value stay `{ selectedElementIds: string[] }` built as `[...intersectedElements, ...enclosedElements]`.",
+        "3. Simplification, the unlockedElements filter, the two clear() calls and the lassoBounds reduce stay exactly as they are and in the same order.",
+        "4. After lassoBounds and before the element loop, build the Wrap inputs once: `const wrapLasso = boxSelectionMode === \"contain\" && path.length > 0 ? { polygon: polygonFromPoints(path), segments: getLassoSegments(path) } : null;` (from the simplified `path`).",
+        "5. The element loop keeps the same AABB pre-filter condition (doBoundsIntersect(lassoBounds, elementBounds) and not already in either set). Inside it: when boxSelectionMode === \"contain\", add element.id to enclosedElements only if `!isBoundToContainer(element) && wrapLasso && wrapTest(wrapLasso.polygon, wrapLasso.segments, element, elementsMap, elementsSegments)`; never add to intersectedElements in this branch. Otherwise (overlap) run today's code verbatim: enclosureTest, then intersectionTest only when not enclosed.",
+        "6. New module-private `const getLassoSegments = (lassoPath: GlobalPoint[]): LineSegment<GlobalPoint>[]` returns the consecutive segments `lineSegment(lassoPath[index], point)` over `lassoPath.slice(1)` followed by the closing segment `lineSegment(lassoPath[lassoPath.length - 1], lassoPath[0])`, exactly the expression intersectionTest uses today.",
+        "7. intersectionTest's `const lassoSegments = ...` expression becomes `const lassoSegments = getLassoSegments(lassoPath);`; the rest of intersectionTest and all of enclosureTest are unchanged.",
+        "8. New module-private `const isOutlineInside = (segments: LineSegment<GlobalPoint>[], lassoPolygon: Polygon<GlobalPoint>): boolean` returns false for an empty array, else true only when every point of every segment satisfies polygonIncludesPointNonZero(point, lassoPolygon).",
+        "9. New module-private `const isCrossedByLasso = (element: ExcalidrawElement, elementsMap: ElementsMap, lassoSegments: LineSegment<GlobalPoint>[]): boolean` returns true when some lasso segment gives `intersectElementWithLineSegment(element, elementsMap, lassoSegment, 0, true).length > 0`.",
+        "10. New module-private `const wrapTest = (lassoPolygon: Polygon<GlobalPoint>, lassoSegments: LineSegment<GlobalPoint>[], element: ExcalidrawElement, elementsMap: ElementsMap, elementsSegments: ElementsSegmentsMap): boolean`, evaluated in this order: (a) segments = elementsSegments.get(element.id); return false when undefined; (b) return false unless isOutlineInside(segments, lassoPolygon); (c) return false when isCrossedByLasso(element, elementsMap, lassoSegments); (d) boundTextElement = getBoundTextElement(element, elementsMap); when it is null return true; (e) positionedLabel = `{ ...boundTextElement, ...computeBoundTextPosition(element, boundTextElement, elementsMap) }`; return false unless isOutlineInside(getElementLineSegments(positionedLabel, elementsMap), lassoPolygon); (f) return !isCrossedByLasso(positionedLabel, elementsMap, lassoSegments).",
+        "11. The new helpers are appended after intersectionTest as `const` arrow functions; none is exported. Add no comments beyond one short line above wrapTest stating it implements the Wrap (contain) rule."
+      ],
+      "exports": [
+        {
+          "name": "getLassoSelectedElementIds",
+          "kind": "function",
+          "params": [
+            {
+              "name": "input",
+              "type": "{ lassoPath: GlobalPoint[]; elements: readonly ExcalidrawElement[]; elementsMap: ElementsMap; elementsSegments: ElementsSegmentsMap; intersectedElements: Set<ExcalidrawElement[\"id\"]>; enclosedElements: Set<ExcalidrawElement[\"id\"]>; simplifyDistance?: number; boxSelectionMode?: AppState[\"boxSelectionMode\"] }"
+            }
+          ],
+          "returns": "{ selectedElementIds: string[] }"
+        }
+      ],
+      "import_line": "import { getLassoSelectedElementIds } from \"./utils\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 11,
+          "to": 20,
+          "first_line": "import {",
+          "last_line": "import type { ElementsMap, ExcalidrawElement } from \"@excalidraw/element/types\";",
+          "rule": "Rule 1: the element import gains getElementLineSegments and isBoundToContainer, the math type import gains LineSegment and Polygon, then a blank line and `import type { AppState } from \"../types\";`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 22,
+          "to": 41,
+          "first_line": "export const getLassoSelectedElementIds = (input: {",
+          "last_line": "} = input;",
+          "rule": "Rule 2: add the optional boxSelectionMode field to the input type and `boxSelectionMode = \"overlap\",` to the destructuring."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 62,
+          "to": 83,
+          "first_line": "for (const element of unlockedElements) {",
+          "last_line": "}",
+          "rule": "Rules 4 and 5: the wrapLasso constant before the loop, then the loop with the unchanged pre-filter, a contain branch and the verbatim overlap branch (keep its existing comment about the AABB check)."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 115,
+          "to": 118,
+          "first_line": "const lassoSegments = lassoPath",
+          "last_line": ".concat([lineSegment(lassoPath[lassoPath.length - 1], lassoPath[0])]);",
+          "rule": "Rule 7: `const lassoSegments = getLassoSegments(lassoPath);`."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 143,
+          "to": 143,
+          "first_line": "};",
+          "rule": "Rules 6, 8, 9, 10, 11: a blank line, then getLassoSegments, isOutlineInside, isCrossedByLasso and wrapTest, each separated by a blank line."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/lasso/utils.ts",
+        "reason": "The new helpers copy enclosureTest and intersectionTest's shape: const arrow functions with typed params and early returns."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            299,
+            302
+          ],
+          "reason": "getElementLineSegments signature, used for the positioned label outline."
+        },
+        {
+          "path": "packages/element/src/textElement.ts",
+          "lines": [
+            229,
+            233
+          ],
+          "reason": "computeBoundTextPosition signature and return (x, y)."
+        },
+        {
+          "path": "packages/element/src/typeChecks.ts",
+          "lines": [
+            294,
+            303
+          ],
+          "reason": "isBoundToContainer predicate, exported from @excalidraw/element."
+        },
+        {
+          "path": "packages/math/src/types.ts",
+          "lines": [
+            80,
+            130
+          ],
+          "reason": "LineSegment and Polygon types exported from @excalidraw/math/types."
+        },
+        {
+          "path": "packages/excalidraw/types.ts",
+          "lines": [
+            278,
+            282
+          ],
+          "reason": "BoxSelectionMode is \"contain\" | \"overlap\"; AppState[\"boxSelectionMode\"] is that type."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1",
+        "FR-2",
+        "FR-3",
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "NFR-1",
+        "NFR-2",
+        "NFR-3",
+        "NFR-4"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/excalidraw/lasso/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "LassoTrail.updateSelection passes the live appState.boxSelectionMode to getLassoSelectedElementIds on every update.",
+      "rules": [
+        "1. Add exactly one property, `boxSelectionMode: this.app.state.boxSelectionMode,`, as the last property of the object passed to getLassoSelectedElementIds, after simplifyDistance.",
+        "2. Do not cache the mode on the class; selectElementsFromIds and every other line stay unchanged."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 204,
+          "to": 204,
+          "first_line": "simplifyDistance: 5 / this.app.state.zoom.value,",
+          "rule": "Rule 1: the boxSelectionMode property line, indented like simplifyDistance."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/lasso/index.ts",
+        "lines": [
+          196,
+          208
+        ],
+        "reason": "The call's existing object-literal formatting."
+      },
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-7",
+        "FR-8"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/lasso/utils.ts": "a54dc5ff0acc15179b93e84db8526c63eaa081b95caebc0ca25d37085d180b12",
+    "packages/element/src/bounds.ts": "1ab5191224ccf8200f4bdd09071da50385a4c1d7d297ba8681f620c39ea7d2f7",
+    "packages/element/src/textElement.ts": "8d6b44ce19ff9ecff25aea0d06b7fc6c5be3268f93e3479d14ff8bcf6dd04036",
+    "packages/element/src/typeChecks.ts": "2bb586c050977f596532faf635a0938e2c2717ef81d1bc14026ac6efcfd1965f",
+    "packages/math/src/types.ts": "4543449aac4fec77437bcb2a3ffdd29a4bd26b986a64ce85db931c38c79edb52",
+    "packages/excalidraw/types.ts": "8ca5f76727990bc1c1ea024188466ce10832ed4ae0e9e91e05e72317ab5da529",
+    "packages/excalidraw/lasso/index.ts": "2045fb75d7375172d1aea5f500b77d946b5d9f377b61a195c5f63971a3e6f9fd"
+  }
+}

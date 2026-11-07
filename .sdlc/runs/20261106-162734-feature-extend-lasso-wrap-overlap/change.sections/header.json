@@ -1,0 +1,94 @@
+{
+  "conventions": [
+    "Formatting is Prettier 2.6 with @excalidraw/prettier-config: 2-space indent, double quotes, semicolons, trailing commas everywhere (\"all\"), 80-column print width, Markdown proseWrap never.",
+    "ESLint import/order: groups builtin, external (with @excalidraw/** placed after other externals), internal, parent, sibling, index, then type imports last; a blank line between groups is allowed and used as in the surrounding file.",
+    "Type-only imports are separate `import type { ... } from \"...\";` statements (@typescript-eslint/consistent-type-imports, separate-type-imports style).",
+    "Every if/else body uses braces (curly); no console.log; no unused variables; prefer optional chaining and ?? over manual null checks.",
+    "TypeScript strict: no `any`, no `@ts-ignore`/`@ts-expect-error`, no eslint-disable comments, no non-null assertions on values that can be undefined.",
+    "Internal packages are imported by their package names (`@excalidraw/math`, `@excalidraw/element`, `@excalidraw/common`); types from `@excalidraw/math/types` and `@excalidraw/element/types`; editor types from `../types`.",
+    "Tests use Vitest globals (describe, it, beforeEach, expect without importing them) and the repo helpers: `render`/`act`/`assertSelectedElements` from ./test-utils, `API` from ./helpers/api, `Pointer`/`Keyboard` from ./helpers/ui; `const { h } = window;` gives the app handle.",
+    "Change only the lines a site names; every other line of an edited file stays byte-for-byte as it is.",
+    "No new dependency and no new file."
+  ],
+  "decisions": [
+    {
+      "topic": "How \"fully inside\" is judged for bound text in Wrap mode (assumption A-2)",
+      "choice": "The label is copied with its computed position (`{ ...boundText, ...computeBoundTextPosition(container, boundText, elementsMap) }`, exactly as intersectionTest positions it) and its outline is `getElementLineSegments(positionedLabel, elementsMap)`; every point of those segments must be inside the lasso polygon and no lasso segment may intersect the positioned label.",
+      "rejected": [
+        "elementsSegments.get(boundText.id): built from the label's stored x/y, which can lag its computed position, and the test helper builds it from the map including deleted elements",
+        "corners of getElementBounds(label): an axis-aligned box is larger than a rotated label, so rotated containers would be wrongly rejected"
+      ],
+      "reason": "Same outline function as A-1 and the same position the crossing test already uses, so enclosure and crossing judge one shape."
+    },
+    {
+      "topic": "Bound text elements as their own candidates in Wrap mode",
+      "choice": "In \"contain\" mode an element for which isBoundToContainer(element) is true is never added to the result; it is judged only through its container (decision above). In \"overlap\" mode bound text is handled exactly as today.",
+      "rejected": [
+        "judge bound text on its own in contain mode: a lasso around only the label would select it and selectElementsFromIds would promote it to the container, selecting a container that is not wrapped"
+      ],
+      "reason": "Matches rectangle box selection, which ignores bound text (shouldIgnoreElementFromSelection), and keeps FR-4: a container is selected only when both it and its label are wrapped."
+    },
+    {
+      "topic": "Where Wrap results go and what Overlap keeps",
+      "choice": "The \"overlap\" branch keeps today's enclosureTest-then-intersectionTest code unchanged; the \"contain\" branch adds a wrapped element's id to enclosedElements and never touches intersectedElements; the returned array is still `[...intersectedElements, ...enclosedElements]`.",
+      "rejected": [
+        "a third result set for wrapped elements: changes the function's state contract for no gain"
+      ],
+      "reason": "FR-2 and FR-6: Overlap is byte-for-byte today's algorithm and the result shape is unchanged."
+    },
+    {
+      "topic": "Building the lasso polygon and segments in Wrap mode",
+      "choice": "Built once per call, before the element loop, from the simplified `path`, and only when mode is \"contain\" and `path.length > 0`; with an empty path Wrap selects nothing. Lasso segments are consecutive path points plus the closing segment last-to-first, produced by one shared helper getLassoSegments that intersectionTest also calls.",
+      "rejected": [
+        "build per element as enclosureTest does: repeats work per candidate (NFR-3)",
+        "build unconditionally: polygonFromPoints on an empty path reads an undefined first point"
+      ],
+      "reason": "NFR-3 allows one build per call, and the shared helper keeps the two modes' notion of the lasso path identical."
+    },
+    {
+      "topic": "Default mode and where the live value is read",
+      "choice": "getLassoSelectedElementIds destructures `boxSelectionMode = \"overlap\"`; LassoTrail.updateSelection passes `boxSelectionMode: this.app.state.boxSelectionMode` on every call; no caching of the mode in LassoTrail.",
+      "rejected": [
+        "default \"contain\" to match the app default: would change the existing test helper's results (AC-1)"
+      ],
+      "reason": "FR-1 and FR-7: omitted input keeps today's behaviour and a preference change applies to the next lasso."
+    },
+    {
+      "topic": "How the new tests drive the lasso",
+      "choice": "Mode tests drive the real lasso tool with a Pointer (`mouse.downAt`, `mouse.moveTo`, `mouse.up`) after `API.setAppState({ boxSelectionMode })`, on scenes built with API.createElement (roughness 0) and API.setElements; one test calls getLassoSelectedElementIds directly to pin the omitted/overlap/contain inputs. The existing updatePath helper and existing cases are not changed.",
+      "rejected": [
+        "add a mode argument to updatePath: updatePath also runs the live LassoTrail, so it would not show which mode LassoTrail read"
+      ],
+      "reason": "AC-6 needs the real tool reading live state, and AC-1 keeps the existing cases untouched."
+    }
+  ],
+  "file_checks": [
+    {
+      "id": "eslint",
+      "run": "yarn -s eslint --max-warnings=0 {path}",
+      "fix": "yarn -s eslint --fix {path}",
+      "timeout_s": 60
+    },
+    {
+      "id": "prettier",
+      "run": "npx --no-install prettier --check {path}",
+      "fix": "npx --no-install prettier --write {path}",
+      "timeout_s": 30
+    },
+    {
+      "id": "vitest-file",
+      "run": "yarn -s vitest run --watch=false {path}",
+      "timeout_s": 240
+    }
+  ],
+  "project_checks": [
+    {
+      "id": "typecheck",
+      "run": "yarn test:typecheck"
+    },
+    {
+      "id": "lasso-selection-tests",
+      "run": "yarn test:app --watch=false packages/excalidraw/tests/lasso.test.tsx packages/excalidraw/tests/selection.test.tsx"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "module": "packages/excalidraw/lasso (lasso Wrap/Overlap boxSelectionMode)",
+  "mode": "brownfield",
+  "intent": "feature-extend",
+  "verdict": "approved",
+  "tool_calls": 4,
+  "findings": [],
+  "refinement_packets": [],
+  "checks": {
+    "correctness": "pass - utils.ts S1-S5, index.ts S1, tests S1-S2, CHANGELOG S1 and .gitignore S1 match change_plan.md rules 1:1; overlap branch is the original enclosureTest/intersectionTest code unchanged; contain branch writes only enclosedElements, skips bound text, builds polygon/segments once per call and guards path.length > 0",
+    "type_safety": "pass - no any, no non-null assertions, type-only imports kept separate, AppState['boxSelectionMode'] reused instead of a new union; typecheck passed",
+    "error_handling": "pass - pure functions; missing segments and empty outline return false; empty lasso path selects nothing in contain mode",
+    "authz": "n/a - client-side editor code, no routes",
+    "pii": "n/a - no PII fields",
+    "dry": "pass - getLassoSegments is shared by intersectionTest and wrapTest; isOutlineInside/isCrossedByLasso are reused for container and label",
+    "tests": "pass - all 17 planned cases are present: contain/overlap partial, crossing and enclosed cases, rotated, linear, bound-text container, labelled arrow, label-only, locked, group, frame, shift, live preference switch and the direct-call default pin; existing updatePath and existing describes are unchanged",
+    "env_fixtures": "n/a - no validating config module in this stack",
+    "sensitive_files": "pass - .gitignore only appends .sdlc/; no manifest, settings, CLAUDE.md or .env.example touched"
+  },
+  "advisory": [
+    "packages/excalidraw/tests/lasso.test.tsx: the new describe builds the same 100x100 rectangle at 300,300 in about 8 cases; a local factory would shorten it. Not a defect and not required by the plan.",
+    "packages/excalidraw/lasso/utils.ts: isCrossedByLasso repeats the intersectElementWithLineSegment(..., 0, true) predicate inside intersectionTest. The plan kept intersectionTest unchanged on purpose, so it can be folded in a later refactor."
+  ],
+  "known_failures_excluded": [
+    "selection.test.tsx 'lasso reselection > should allow ctrl+alt lasso reselection' - accepted at Gate 2; the file is outside the allowlist"
+  ]
+}
