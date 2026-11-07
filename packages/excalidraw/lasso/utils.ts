@@ -13,11 +13,20 @@ import {
   doBoundsIntersect,
   getBoundTextElement,
   getElementBounds,
+  getElementLineSegments,
   intersectElementWithLineSegment,
+  isBoundToContainer,
 } from "@excalidraw/element";
 
-import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
+import type {
+  ElementsSegmentsMap,
+  GlobalPoint,
+  LineSegment,
+  Polygon,
+} from "@excalidraw/math/types";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
+
+import type { AppState } from "../types";
 
 export const getLassoSelectedElementIds = (input: {
   lassoPath: GlobalPoint[];
@@ -27,6 +36,7 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  boxSelectionMode?: AppState["boxSelectionMode"];
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +48,7 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "overlap",
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -59,6 +70,13 @@ export const getLassoSelectedElementIds = (input: {
     },
     [Infinity, Infinity, -Infinity, -Infinity],
   ) as Bounds;
+  const wrapLasso =
+    boxSelectionMode === "contain" && path.length > 0
+      ? {
+          polygon: polygonFromPoints(path),
+          segments: getLassoSegments(path),
+        }
+      : null;
   for (const element of unlockedElements) {
     // First check if the lasso segment intersects the element's axis-aligned
     // bounding box as it is much faster than checking intersection against
@@ -70,13 +88,29 @@ export const getLassoSelectedElementIds = (input: {
       !intersectedElements.has(element.id) &&
       !enclosedElements.has(element.id)
     ) {
-      const enclosed = enclosureTest(path, element, elementsSegments);
-      if (enclosed) {
-        enclosedElements.add(element.id);
+      if (boxSelectionMode === "contain") {
+        if (
+          !isBoundToContainer(element) &&
+          wrapLasso &&
+          wrapTest(
+            wrapLasso.polygon,
+            wrapLasso.segments,
+            element,
+            elementsMap,
+            elementsSegments,
+          )
+        ) {
+          enclosedElements.add(element.id);
+        }
       } else {
-        const intersects = intersectionTest(path, element, elementsMap);
-        if (intersects) {
-          intersectedElements.add(element.id);
+        const enclosed = enclosureTest(path, element, elementsSegments);
+        if (enclosed) {
+          enclosedElements.add(element.id);
+        } else {
+          const intersects = intersectionTest(path, element, elementsMap);
+          if (intersects) {
+            intersectedElements.add(element.id);
+          }
         }
       }
     }
@@ -112,10 +146,7 @@ const intersectionTest = (
   element: ExcalidrawElement,
   elementsMap: ElementsMap,
 ): boolean => {
-  const lassoSegments = lassoPath
-    .slice(1)
-    .map((point: GlobalPoint, index) => lineSegment(lassoPath[index], point))
-    .concat([lineSegment(lassoPath[lassoPath.length - 1], lassoPath[0])]);
+  const lassoSegments = getLassoSegments(lassoPath);
 
   const boundTextElement = getBoundTextElement(element, elementsMap);
 
@@ -140,4 +171,79 @@ const intersectionTest = (
           true,
         ).length > 0),
   );
+};
+
+const getLassoSegments = (
+  lassoPath: GlobalPoint[],
+): LineSegment<GlobalPoint>[] => {
+  return lassoPath
+    .slice(1)
+    .map((point: GlobalPoint, index) => lineSegment(lassoPath[index], point))
+    .concat([lineSegment(lassoPath[lassoPath.length - 1], lassoPath[0])]);
+};
+
+const isOutlineInside = (
+  segments: LineSegment<GlobalPoint>[],
+  lassoPolygon: Polygon<GlobalPoint>,
+): boolean => {
+  if (segments.length === 0) {
+    return false;
+  }
+  return segments.every((segment) =>
+    segment.every((point) => polygonIncludesPointNonZero(point, lassoPolygon)),
+  );
+};
+
+const isCrossedByLasso = (
+  element: ExcalidrawElement,
+  elementsMap: ElementsMap,
+  lassoSegments: LineSegment<GlobalPoint>[],
+): boolean => {
+  return lassoSegments.some(
+    (lassoSegment) =>
+      intersectElementWithLineSegment(
+        element,
+        elementsMap,
+        lassoSegment,
+        0,
+        true,
+      ).length > 0,
+  );
+};
+
+// implements the Wrap (contain) rule
+const wrapTest = (
+  lassoPolygon: Polygon<GlobalPoint>,
+  lassoSegments: LineSegment<GlobalPoint>[],
+  element: ExcalidrawElement,
+  elementsMap: ElementsMap,
+  elementsSegments: ElementsSegmentsMap,
+): boolean => {
+  const segments = elementsSegments.get(element.id);
+  if (!segments) {
+    return false;
+  }
+  if (!isOutlineInside(segments, lassoPolygon)) {
+    return false;
+  }
+  if (isCrossedByLasso(element, elementsMap, lassoSegments)) {
+    return false;
+  }
+  const boundTextElement = getBoundTextElement(element, elementsMap);
+  if (boundTextElement === null) {
+    return true;
+  }
+  const positionedLabel = {
+    ...boundTextElement,
+    ...computeBoundTextPosition(element, boundTextElement, elementsMap),
+  };
+  if (
+    !isOutlineInside(
+      getElementLineSegments(positionedLabel, elementsMap),
+      lassoPolygon,
+    )
+  ) {
+    return false;
+  }
+  return !isCrossedByLasso(positionedLabel, elementsMap, lassoSegments);
 };

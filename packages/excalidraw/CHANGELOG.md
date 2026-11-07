@@ -13,6 +13,8 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+- Lasso selection now respects the "Select on: Wrap / Overlap" preference (`appState.boxSelectionMode`): in Wrap mode only elements fully enclosed by the lasso, including their bound text, are selected; Overlap keeps the previous behavior.
+
 ## Excalidraw API
 
 ### Host-controlled active tool (2026-07-14) [#11665](https://github.com/excalidraw/excalidraw/pull/11665)

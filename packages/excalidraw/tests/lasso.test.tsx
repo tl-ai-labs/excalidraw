@@ -32,7 +32,11 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
-import { act, render } from "./test-utils";
+import { API } from "./helpers/api";
+
+import { Keyboard, Pointer } from "./helpers/ui";
+
+import { act, assertSelectedElements, render } from "./test-utils";
 
 const { h } = window;
 
@@ -1800,5 +1804,536 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso respects boxSelectionMode", () => {
+  const mouse = new Pointer("mouse");
+
+  beforeEach(() => {
+    mouse.reset();
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+  });
+
+  const lassoAround = (points: [number, number][], shift = false) => {
+    const draw = () => {
+      mouse.downAt(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i++) {
+        mouse.moveTo(points[i][0], points[i][1]);
+      }
+      mouse.moveTo(points[0][0], points[0][1]);
+      mouse.up();
+    };
+
+    if (shift) {
+      Keyboard.withModifierKeys({ shift: true }, draw);
+    } else {
+      draw();
+    }
+  };
+
+  it("contain: partly enclosed rectangle is not selected", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 260],
+      [350, 260],
+      [350, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements();
+  });
+
+  it("overlap: partly enclosed rectangle is selected", () => {
+    API.setAppState({ boxSelectionMode: "overlap" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 260],
+      [350, 260],
+      [350, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements(rect);
+  });
+
+  it("contain: rectangle the lasso only crosses is not selected", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 340],
+      [440, 340],
+      [440, 360],
+      [260, 360],
+    ]);
+
+    assertSelectedElements();
+  });
+
+  it("overlap: rectangle the lasso only crosses is selected", () => {
+    API.setAppState({ boxSelectionMode: "overlap" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 340],
+      [440, 340],
+      [440, 360],
+      [260, 360],
+    ]);
+
+    assertSelectedElements(rect);
+  });
+
+  it("contain: fully enclosed rectangle is selected", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 260],
+      [440, 260],
+      [440, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements(rect);
+  });
+
+  it("contain: fully enclosed rotated rectangle is selected", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 160,
+      height: 60,
+      angle: 0.6,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [240, 240],
+      [520, 240],
+      [520, 420],
+      [240, 420],
+    ]);
+
+    assertSelectedElements(rect);
+  });
+
+  it("contain: fully enclosed line and arrow are selected, a partly enclosed arrow is not", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const line = API.createElement({
+      type: "line",
+      x: 300,
+      y: 300,
+      roughness: 0,
+    });
+    const arrow = API.createElement({
+      type: "arrow",
+      x: 300,
+      y: 500,
+      roughness: 0,
+    });
+    API.setElements([line, arrow]);
+
+    lassoAround([
+      [260, 260],
+      [440, 260],
+      [440, 440],
+      [260, 440],
+    ]);
+    assertSelectedElements(line);
+
+    lassoAround([
+      [260, 460],
+      [350, 460],
+      [350, 640],
+      [260, 640],
+    ]);
+    assertSelectedElements();
+
+    lassoAround([
+      [260, 460],
+      [440, 460],
+      [440, 640],
+      [260, 640],
+    ]);
+    assertSelectedElements(arrow);
+  });
+
+  it("contain: container is selected only when its label is enclosed too", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const [container, text] = API.createTextContainer({
+      label: { text: "label" },
+    });
+    API.updateElement(container, {
+      x: 300,
+      y: 300,
+      width: 300,
+      height: 100,
+      roughness: 0,
+    });
+    API.updateElement(text, { roughness: 0 });
+    API.setElements([container, text]);
+
+    lassoAround([
+      [260, 260],
+      [640, 260],
+      [640, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements(container);
+  });
+
+  it("contain: lasso enclosing an arrow but crossing its label does not select it", () => {
+    const [arrow, text] = API.createLabeledArrow();
+    API.updateElement(arrow, {
+      x: 300,
+      y: 300,
+      roughness: 0,
+    });
+    API.updateElement(text, { roughness: 0 });
+    API.setElements([arrow, text]);
+
+    const bandPoints: [number, number][] = [
+      [296, 276],
+      [424, 404],
+      [404, 424],
+      [276, 296],
+    ];
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoAround(bandPoints);
+    assertSelectedElements();
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoAround(bandPoints);
+    assertSelectedElements(arrow);
+  });
+
+  it("contain: lasso around only the label selects nothing", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const [container, text] = API.createTextContainer({
+      label: { text: "label" },
+    });
+    API.updateElement(container, {
+      x: 300,
+      y: 300,
+      width: 300,
+      height: 100,
+      roughness: 0,
+    });
+    API.updateElement(text, { roughness: 0 });
+    API.setElements([container, text]);
+
+    lassoAround([
+      [295, 295],
+      [365, 295],
+      [365, 335],
+      [295, 335],
+    ]);
+
+    assertSelectedElements();
+  });
+
+  it("contain: locked element is ignored", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      locked: true,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    lassoAround([
+      [260, 260],
+      [440, 260],
+      [440, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements();
+  });
+
+  it("contain: wrapping one group member selects the whole group", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      groupIds: ["g1"],
+      roughness: 0,
+    });
+    const rectB = API.createElement({
+      type: "rectangle",
+      x: 600,
+      y: 300,
+      width: 100,
+      height: 100,
+      groupIds: ["g1"],
+      roughness: 0,
+    });
+    API.setElements([rectA, rectB]);
+
+    lassoAround([
+      [260, 260],
+      [440, 260],
+      [440, 440],
+      [260, 440],
+    ]);
+
+    assertSelectedElements(rectA, rectB);
+    expect(h.state.selectedGroupIds.g1).toBe(true);
+  });
+
+  it("overlap: crossing one group member selects the whole group", () => {
+    API.setAppState({ boxSelectionMode: "overlap" });
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      groupIds: ["g1"],
+      roughness: 0,
+    });
+    const rectB = API.createElement({
+      type: "rectangle",
+      x: 600,
+      y: 300,
+      width: 100,
+      height: 100,
+      groupIds: ["g1"],
+      roughness: 0,
+    });
+    API.setElements([rectA, rectB]);
+
+    lassoAround([
+      [260, 340],
+      [440, 340],
+      [440, 360],
+      [260, 360],
+    ]);
+
+    assertSelectedElements(rectA, rectB);
+  });
+
+  it("contain: wrapped frame drops its wrapped children", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const frame = API.createElement({
+      type: "frame",
+      x: 200,
+      y: 200,
+      width: 300,
+      height: 300,
+      roughness: 0,
+    });
+    const child = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      frameId: frame.id,
+      roughness: 0,
+    });
+    API.setElements([frame, child]);
+
+    lassoAround([
+      [160, 160],
+      [540, 160],
+      [540, 540],
+      [160, 540],
+    ]);
+
+    assertSelectedElements(frame);
+  });
+
+  it("contain: shift keeps the previous selection", () => {
+    API.setAppState({ boxSelectionMode: "contain" });
+    const rectA = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    const rectB = API.createElement({
+      type: "rectangle",
+      x: 500,
+      y: 500,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rectA, rectB]);
+
+    lassoAround([
+      [60, 60],
+      [240, 60],
+      [240, 240],
+      [60, 240],
+    ]);
+    assertSelectedElements(rectA);
+
+    lassoAround(
+      [
+        [460, 460],
+        [640, 460],
+        [640, 640],
+        [460, 640],
+      ],
+      true,
+    );
+    assertSelectedElements(rectA, rectB);
+  });
+
+  it("switching the preference changes the next lasso", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    const partialLasso: [number, number][] = [
+      [260, 260],
+      [350, 260],
+      [350, 440],
+      [260, 440],
+    ];
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoAround(partialLasso);
+    assertSelectedElements();
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoAround(partialLasso);
+    assertSelectedElements(rect);
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoAround(partialLasso);
+    assertSelectedElements();
+  });
+
+  it("omitted boxSelectionMode behaves as overlap", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 300,
+      width: 100,
+      height: 100,
+      roughness: 0,
+    });
+    API.setElements([rect]);
+
+    const partialPath: GlobalPoint[] = [
+      pointFrom<GlobalPoint>(260, 260),
+      pointFrom<GlobalPoint>(350, 260),
+      pointFrom<GlobalPoint>(350, 440),
+      pointFrom<GlobalPoint>(260, 440),
+    ];
+
+    const elementsSegments: ElementsSegmentsMap = new Map();
+    for (const element of h.elements) {
+      const segments = getElementLineSegments(
+        element,
+        h.app.scene.getElementsMapIncludingDeleted(),
+      );
+      elementsSegments.set(element.id, segments);
+    }
+
+    const elementsMap = h.scene.getNonDeletedElementsMap();
+
+    const resultOmitted = getLassoSelectedElementIds({
+      lassoPath: partialPath,
+      elements: h.elements,
+      elementsMap,
+      elementsSegments,
+      intersectedElements: new Set(),
+      enclosedElements: new Set(),
+    });
+
+    const resultOverlap = getLassoSelectedElementIds({
+      lassoPath: partialPath,
+      elements: h.elements,
+      elementsMap,
+      elementsSegments,
+      intersectedElements: new Set(),
+      enclosedElements: new Set(),
+      boxSelectionMode: "overlap",
+    });
+
+    const resultContain = getLassoSelectedElementIds({
+      lassoPath: partialPath,
+      elements: h.elements,
+      elementsMap,
+      elementsSegments,
+      intersectedElements: new Set(),
+      enclosedElements: new Set(),
+      boxSelectionMode: "contain",
+    });
+
+    expect(resultOmitted.selectedElementIds).toEqual([rect.id]);
+    expect(resultOverlap.selectedElementIds).toEqual([rect.id]);
+    expect(resultContain.selectedElementIds).toEqual([]);
   });
 });
