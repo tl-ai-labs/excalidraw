@@ -1,0 +1,160 @@
+{
+  "section": "units",
+  "source": "units-008.json",
+  "value": [
+    {
+      "id": "U24",
+      "path": "packages/excalidraw/components/SearchMenu.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Searches the text and frame names of every page, labels each match with its page, and switches to a match's page before focusing it.",
+      "rules": [
+        "`SearchMatchItem` gains `pageId: string` and `pageName: string | null` (null when the drawing has a single visible page).",
+        "`handleSearch` scans `app.scene.getAllPagesElementsIncludingDeleted()` filtered to non-deleted elements instead of `app.scene.getNonDeletedElements()`; each pushed item sets `pageId: element.pageId ?? app.state.activePageId` and `pageName` from a `Map` of `getVisiblePages(app.state.pages)` ids to names (null when there is at most one visible page); items whose pageId names no visible page are skipped; the initial `focusIndex` computation is unchanged.",
+        "Both `setAppState({ searchMatches })` mappings add `pageId: searchMatch.pageId` to each match.",
+        "In the focus effect, right after `if (match) {`: when `match.pageId !== app.state.activePageId`, call `app.setActivePage(match.pageId)` and `return`; the scene nonce change re-runs the search, and the effect then focuses the match on its page.",
+        "`ListItem` gains an optional `pageName?: string | null` prop; when it is a non-empty string, a `<div className=\"preview-page\">{t(\"search.onPage\", { name: props.pageName })}</div>` follows the `preview-text` div.",
+        "Both `ListItem` usages in `MatchListBase` pass `pageName={searchMatch.pageName}`.",
+        "`getVisiblePages` is imported from `@excalidraw/element` by extending the existing `isTextElement, isFrameLikeElement` import."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { isTextElement, isFrameLikeElement } from \"@excalidraw/element\";",
+          "rule": "Add `getVisiblePages` to this import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 73,
+          "to": 73,
+          "first_line": "matchedLines: SearchMatch[\"matchedLines\"];",
+          "rule": "Add `pageId` and `pageName` fields."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 127,
+          "to": 127,
+          "first_line": "matchedLines: searchMatch.matchedLines,",
+          "rule": "Add `pageId: searchMatch.pageId,`."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 199,
+          "to": 199,
+          "first_line": "if (match) {",
+          "rule": "Switch to the match's page first, per the rules."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 373,
+          "to": 373,
+          "first_line": "matchedLines: searchMatch.matchedLines,",
+          "rule": "Add `pageId: searchMatch.pageId,`."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 438,
+          "to": 438,
+          "first_line": "onClick?: () => void;",
+          "rule": "Add `pageName?: string | null;`."
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 470,
+          "to": 470,
+          "first_line": "</div>",
+          "rule": "Render the page label when pageName is set."
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 507,
+          "to": 507,
+          "first_line": "highlighted={index === props.focusIndex}",
+          "rule": "Pass `pageName={searchMatch.pageName}`."
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 527,
+          "to": 527,
+          "first_line": "highlighted={index + frameNameMatches.length === props.focusIndex}",
+          "rule": "Pass `pageName={searchMatch.pageName}`."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 803,
+          "to": 803,
+          "first_line": "const elements = app.scene.getNonDeletedElements();",
+          "rule": "Scan every page's non-deleted elements and build the page-name map."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/SearchMenu.tsx",
+          "lines": [
+            820,
+            887
+          ],
+          "reason": "Where match items are pushed in handleSearch, to add pageId/pageName."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U05",
+        "U06",
+        "U14",
+        "U19"
+      ],
+      "covers": [
+        "FR-14",
+        "AC-11"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U25",
+      "path": "packages/excalidraw/components/SearchMenu.scss",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Styles the page label under a search result.",
+      "rules": [
+        "Add a `.preview-page` rule next to the existing `.preview-text` rule: `font-size: 0.75rem; color: var(--color-gray-50); margin-top: 0.125rem;`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 127,
+          "to": 127,
+          "first_line": "}",
+          "rule": "After the `.preview-text` block add a blank line and the `.preview-page` rule."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-14"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/components/SearchMenu.tsx": "ed57ee578a7eab16d68932b9dec54e54420af5e7114c88ade18e62019afd6f28",
+    "packages/excalidraw/components/SearchMenu.scss": "87b4388596a8844c01d26b87e03876f8752f9bc75371167970f30a4630b6e7e5"
+  }
+}

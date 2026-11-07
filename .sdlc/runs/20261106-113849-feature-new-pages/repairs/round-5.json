@@ -1,0 +1,177 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app regression introduced by the last review fix (26 history.test.tsx tests passed before it), e.g.:\n FAIL  packages/excalidraw/tests/history.test.tsx > history > singleplayer undo/redo > should support bidirectional bindings > should unbind rectangles from arrow on deletion and rebind on undo\nAssertionError: expected null to be 'id0' // Object.is equality\n\n- Expected: \n\"id0\"\n\n+ Received: \nnull\n\n ❯ packages/excalidraw/tests/history.test.tsx:1578:34\n    1576| \n    1577|         expect(API.getUndoStack().length).toBe(4);\n    1578|         expect(text.containerId).toBe(rect1.id);\n       |                                  ^\n    1579|         expect(rect1.boundElements).toStrictEqual([\n    1580|           { id: text.id, type: \"text\" },\nCause: the new stampPageIds() returns SHALLOW COPIES ({ ...element, pageId }) for elements without a pageId, in updateScene and applySceneElements. Callers (tests and hosts) keep references to the element objects they passed to updateScene (e.g. `text`, `rect1`), and those references no longer live in the scene, so bindings/containerId seen through them are stale and render counts drop (snapshot `number of renders` expected 15, received 7). Fix: keep object identity. Stamp pageId IN PLACE on the passed element objects by direct assignment ((element as Mutable<ExcalidrawElement>).pageId = pageId, no version bump, exactly as Scene.replaceAllElements does), and do it at the START of updateScene / applySceneElements, BEFORE the elements reach this.store (scheduleMicroAction or commit), so the Store snapshot already holds pageId and no spurious pageId undefined -> page-1 delta is recorded. Remove stampPageIds' copying. Keep withValidActivePage/resolveActivePageId and every other change of the last round.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/Scene.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6015
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6016,
+          11605
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck (this error was fixed in an earlier round and came back in the last review fix):\nexcalidraw-app/collab/Collab.tsx(878,7): error TS2322: Type '{ contextMenu?: { items: ContextMenuItems; top: number; left: number; } | null | undefined; showWelcomeScreen?: boolean | undefined; isLoading?: boolean | undefined; ... 97 more ...; pageViewports?: Readonly<...> | undefined; }' is not assignable to type 'Pick<AppState, \"name\" | \"width\" | \"height\" | \"zoom\" | \"viewModeEnabled\" | \"activeTo\n  Types of property 'name' are incompatible.\n    Type 'string | null | undefined' is not assignable to type 'string | null'.\n      Type 'undefined' is not assignable to type 'string | null'.\nAt handleRemotePagesUpdate (~line 868-881) `appState: { pages, ...switchState }` spreads switchState, a full AppState from getSwitchPageAppState, into a type whose optional fields become `| undefined`, so `name: string | null | undefined` is not assignable. Build the updateScene appState explicitly: `const nextAppState: Pick<AppState, \"pages\"> & Partial<Pick<AppState, \"activePageId\" | \"scrollX\" | \"scrollY\" | \"zoom\" | \"pageViewports\" | \"selectedElementIds\" | \"selectedGroupIds\" | \"editingGroupId\">> = { pages }` and, when switching, copy only those keys from switchState. Keep the early return when the pages did not change (the review fix).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r5_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.collab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pages.collab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. The review asked this test to exercise the real collab/Firebase/LocalData code for AC-12/AC-13; that fix failed its own check 3 times and the file is still the earlier pure-helper version. Last attempts failed with:\nverify failed: node_modules/.bin/vitest run --watch=false 'excalidraw-app/tests/pages.collab.test.tsx' (exit 1)\nRUN  v3.0.6 /Users/macbook/Desktop/Work/AI studies TL/ex-wt/EX-NF-12\n\nstderr | excalidraw-app/tests/pages.collab.test.tsx > page persistence in the Firebase room > the Firebase room keeps every page\nError JSON parsing firebase config. Supplied value: undefined\n\n ❯ excalidraw-app/tests/pages.collab.test.tsx (8 tests | 1 failed) 223ms\n   ✓ page collaboration (pure helpers) > reconcilePages merges remote create, rename, reorder and delete\n   ✓ page collaboration (pure helpers) > reconcileElements keeps per-page elements of both clients\n   × page collaboration (Collab) > remote page cr\n---\nverify failed: node_modules/.bin/vitest run --watch=false 'excalidraw-app/tests/pages.collab.test.tsx' (exit 1)\n undefined\n\n ❯ excalidraw-app/tests/pages.collab.test.tsx (8 tests | 1 failed) 1236ms\n   ✓ page collaboration (pure helpers) > reconcilePages merges remote create, rename, reorder and delete\n   ✓ page collaboration (pure helpers) > reconcileElements keeps per-page elements of both clients\n   × page collaboration (Collab) > remote page create, rename, reorder and delete reach the local client 1122ms\n     → expected false to be true // Object.is equality\n   ✓ page collaboration (Collab) > concurrent edits on different pages do not clobber each other\n   ✓ page collaboration (Collab) >\n---\nverify failed: node_modules/.bin/vitest run --watch=false 'excalidraw-app/tests/pages.collab.test.tsx' (exit 1)\nobber each other\nError: [vitest] No \"CaptureUpdateAction\" export is defined on the \"@excalidraw/common\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n\nvi.mock(import(\"@excalidraw/common\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})\n\n ❯ excalidraw-app/tests/pages.co\nRewrite it to cover AC-12/AC-13 through the changed code while staying fast (no real timers/network): (a) Collab.handleRemotePagesUpdate applied to a rendered excalidraw-app (follow excalidraw-app/tests/collab.test.tsx exactly for rendering, its vi.mock of firebase/socket, and use `waitFor` on h.state.pages), asserting a remote page create, rename, reorder and delete (the remote copy of the default page with a HIGHER version and isDeleted: true) reach h.state.pages; (b) the broadcast payload carries pages; (c) firebase.ts encryption of pages round-trips and a stored scene without pagesCiphertext loads onto the default page; (d) LocalData/importFromLocalStorage keeps all pages across a reload. When mocking a module that other code imports from (e.g. @excalidraw/common) use vi.mock with importOriginal and spread the actual exports; better, do not mock @excalidraw/common at all. Import CaptureUpdateAction from @excalidraw/element. Answer with one JSON object {path, content} only.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pages.collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pages.collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U39.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/pages.collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run --watch=false '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]
