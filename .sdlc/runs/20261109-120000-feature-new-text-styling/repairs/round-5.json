@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tp_debug_r5_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Senior review findings on this test file (keep every existing test passing; no snapshots; no `toEqual([])` for styleRanges):\n1 (major) Add a test: open the editor on 'hello world', colour 6..11, then setSelectionRange(0, 11) + fireEvent.select and run actionChangeStrokeColor {color:'#1971c2'}. Expect strokeColor '#1971c2' and the element to have no styleRanges key (or no range with `color`). The source now does this: a whole-text selection takes the element-wide path and clears every range's `color` (actionProperties.tsx).\n2 (minor) Add a test that selects 6..11 and runs fireEvent.click(screen.getByTestId('text-highlight-#ffec99')) (check the real test id in components/TextHighlightPicker.tsx), then asserts styleRanges has a range 6..11 with that backgroundColor.\n3 (minor) Replace `as any` reads of results with `isTextElement` narrowing (keep `as any` only for deliberately invalid restore input). Move the repeated open-editor-and-select sequence into a local `openEditorWithSelection(text, start, end)` helper.\nA previous attempt failed only because staticSvgScene.ts was broken at the time (0 <text> nodes); that is fixed now and the current file passes all 16 tests.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/TextHighlightPicker.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

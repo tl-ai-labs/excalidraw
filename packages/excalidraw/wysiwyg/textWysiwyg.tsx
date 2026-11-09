@@ -72,6 +72,11 @@ import {
   actionZoomIn,
   actionZoomOut,
 } from "../actions/actionCanvas";
+import {
+  notifyTextEditorSelectionChange,
+  setTextEditorSelectionSource,
+  type TextEditorSelectionSource,
+} from "../actions/colorTargets";
 
 import type { ParsedDataTranferList } from "../clipboard";
 
@@ -1088,6 +1093,15 @@ export const textWysiwyg = ({
     });
   };
 
+  const onTextEditorSelectionChange = () =>
+    notifyTextEditorSelectionChange(app);
+  const TEXT_EDITOR_SELECTION_EVENTS = [
+    "select",
+    "keyup",
+    "pointerup",
+    "input",
+  ] as const;
+
   const cleanup = () => {
     // remove events to ensure they don't late-fire
     editable.onblur = null;
@@ -1112,6 +1126,17 @@ export const textWysiwyg = ({
     editorBox?.removeEventListener("scroll", onEditorBoxScroll);
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
+
+    TEXT_EDITOR_SELECTION_EVENTS.forEach((event) => {
+      editable.removeEventListener(event, onTextEditorSelectionChange);
+    });
+    ownerDocument.removeEventListener(
+      "selectionchange",
+      onTextEditorSelectionChange,
+    );
+    if (selectionSource) {
+      setTextEditorSelectionSource(app, null, selectionSource);
+    }
 
     editable.remove();
   };
@@ -1304,6 +1329,21 @@ export const textWysiwyg = ({
     editable.select();
   }
   bindBlurEvent();
+  const selectionSource: TextEditorSelectionSource | null = {
+    elementId: element.id,
+    read: () => ({
+      start: editable.selectionStart,
+      end: editable.selectionEnd,
+    }),
+  };
+  setTextEditorSelectionSource(app, selectionSource);
+  TEXT_EDITOR_SELECTION_EVENTS.forEach((event) => {
+    editable.addEventListener(event, onTextEditorSelectionChange);
+  });
+  ownerDocument.addEventListener(
+    "selectionchange",
+    onTextEditorSelectionChange,
+  );
 
   // reposition wysiwyg in case of canvas is resized. Using ResizeObserver
   // is preferred so we catch changes from host, where window may not resize.

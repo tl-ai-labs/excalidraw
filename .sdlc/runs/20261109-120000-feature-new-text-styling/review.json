@@ -1,0 +1,58 @@
+{
+  "module": "text-styling (styleRanges)",
+  "mode": "brownfield",
+  "intent": "feature-new",
+  "verdict": "needs_changes",
+  "tool_calls": 7,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 416,
+      "issue": "Round-1 fix: when the textarea selection covers the whole text (isWholeText), actionChangeStrokeColor goes through the element-wide path. That path only writes element.strokeColor and leaves any existing styleRanges[].color in place. Those ranges still override the new colour when drawn, so select-all and pick red leaves earlier coloured spans in their old colour. This is the default case when an existing text is opened for editing, because textWysiwyg calls editable.select() on open. The fallback also differs from change_plan.md (decision 'Stroke colour with a text selection' / U12 rule 4), which does not mention it, and the CHANGELOG does not either.",
+      "fix": "In the isWholeText case, keep the element-wide update but also clear `color` on every range of that text element. Use applyStyleToRange(el.styleRanges ?? [], 0, len, { color: null }) and drop the key with withoutStyleRanges when the result is empty, so the whole text takes the new strokeColor. Add a short comment explaining why whole-text selections go element-wide (sticky-note / select-on-open)."
+    },
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "issue": "The whole-text selection branch from the round-1 fix has no test. No test covers selecting 0..originalText.length and picking a stroke colour, either on plain text or on text that already has coloured ranges. The regression it fixed is not pinned by the new suite, and the leftover-range bug above goes undetected.",
+      "fix": "Add a test: open the editor on 'hello world', colour 6..11, then setSelectionRange(0, 11) + fireEvent.select and run actionChangeStrokeColor {color:'#1971c2'}. Expect strokeColor '#1971c2' and the element to have no styleRanges key (or no range with `color`)."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "issue": "Every action test calls h.app.actionManager.executeAction directly. Nothing exercises the TextHighlightPicker click path (PanelComponent onChange -> updateData -> perform while the textarea is blurred by the panel click). The styled-line canvas branch in renderElement.ts (measureText/fillRect/per-run fillText and the fillStyle/textAlign restore) is never run by any test.",
+      "fix": "Add a test that selects 6..11 and runs fireEvent.click(screen.getByTestId('text-highlight-#ffec99')), then asserts styleRanges. Add a canvas render assertion for a styled element (for example, spy on fillRect/fillText through the existing canvas mock) that checks per-run fillText calls and that a plain line after a styled one still uses the element textAlign."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+      "issue": "Results are read through `as any` casts that are not needed: `(restoredMixed as any).styleRanges`, `(reconciled1[0] as any)`, `(reconciled2[0] as any)`, `(duplicate as any).styleRanges`. isTextElement narrowing would do the same job. The plan allows `any` only where the surrounding code already casts. The deliberately invalid input values (`'bad' as any`, `'1' as any`, `7 as any`) are fine. The open-editor/type/select setup is also copied verbatim into 6 tests.",
+      "fix": "Narrow with `isTextElement(x)` (or `expect(isTextElement(x)).toBe(true)` and then read the field) instead of casting. Move the click-tool/clickAt/getTextEditor/updateTextEditor/setSelectionRange/fireEvent.select sequence into a local `openEditorWithSelection(text, start, end)` helper."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "line": 1292,
+      "issue": "cleanup calls setTextEditorSelectionSource(app, null), which deletes whatever source is registered for the app. If editor B registers before editor A's cleanup runs (for example, when switching straight from one text to another), A's cleanup removes B's source. Partial colouring and the highlight picker then stop working for B without any error. Confidence: medium. getTextEditorSelection's id check covers a stale source but not a missing one.",
+      "fix": "Keep a reference to the registered source object and clear it only if it is still current. For example, add `clearTextEditorSelectionSource(app, source)` in colorTargets.ts that deletes only when `textEditorSelectionSources.get(app) === source`, and call it from cleanup."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "line": 857,
+      "issue": "The line-start x calculation `horizontalOffset - lineWidth * (textAlign center ? 0.5 : right ? 1 : 0)` appears twice, here and in packages/element/src/renderElement.ts:656. The canvas and SVG highlight positions can drift apart if one copy changes.",
+      "fix": "Export a small helper from packages/element/src/textStyleRanges.ts (for example `getTextAlignFactor(textAlign)`) and use it in both renderers."
+    }
+  ],
+  "passing_checks": [
+    "Correctness vs change_plan: U01-U19 implemented as specified except the isWholeText deviation above. omit-when-empty holds in newTextElement, restore, App.text and the actions. Offsets index originalText, and the splice semantics match decision 4.",
+    "Type safety: no `any` in production code; the casts in sanitizeTextStyleRanges run only after Number.isInteger narrowing.",
+    "Error handling: getTextStyleLineRuns returns null on misalignment and RTL is skipped, so both renderers fall back to today's output. Restore sanitises untrusted input and strips an incoming key before spreading.",
+    "Security (NFR-7): colours are allowlisted and url( is rejected. SVG nodes are built with ownerDocument.createElementNS, setAttribute and textContent only.",
+    "Authz / PII: not applicable (client-side rendering feature, no routes or personal data).",
+    "Sensitive files: no manifest, .env.example, CLAUDE.md, settings or .mcp.json touched. en.json changes are additions only.",
+    "Env fixtures: not applicable (no validating config module; change_plan adds no env vars)."
+  ],
+  "refinement_packets": []
+}

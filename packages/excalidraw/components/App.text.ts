@@ -40,7 +40,9 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  shiftRangesForEdit,
   updateBoundElements,
+  withoutStyleRanges,
 } from "@excalidraw/element";
 
 import type { ArrowEndpoint } from "@excalidraw/element";
@@ -220,7 +222,18 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
-            return newElementWith(_element, {
+            const nextStyleRanges = shiftRangesForEdit(
+              _element.styleRanges,
+              _element.originalText,
+              nextOriginalText,
+            );
+            const styleRangesChanged = nextStyleRanges !== _element.styleRanges;
+            const baseElement =
+              styleRangesChanged && !nextStyleRanges?.length
+                ? withoutStyleRanges(_element)
+                : _element;
+
+            return newElementWith(baseElement, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
@@ -233,6 +246,9 @@ export class AppText {
                   maxWidth,
                   this.app.renderEnvironment,
                 )),
+              ...(styleRangesChanged && nextStyleRanges?.length
+                ? { styleRanges: nextStyleRanges }
+                : {}),
             });
           }
           return _element;

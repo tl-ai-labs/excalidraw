@@ -1,0 +1,1292 @@
+[
+  {
+    "id": "tp_codegen_U01",
+    "unit": "U01",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/src/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/types.ts` (unit U01) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 253 (line 253 reads `export type ExcalidrawTextElement = _ExcalidrawElementBase &`) — Insert the JSDoc'd `export type TextStyleRange` (rule 1) followed by a blank line.\n- S2: insert after line 290 (line 290 reads `labelPosition?: number | null;`) — Insert the JSDoc'd `styleRanges?: readonly TextStyleRange[];` member (rule 2), indented like `labelPosition`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U01.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 253,
+          "to": 253
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 290,
+          "to": 290
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U02",
+    "unit": "U02",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/src/textStyleRanges.ts",
+    "depends_on": [
+      "tp_codegen_U01"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/element/src/textStyleRanges.ts` (unit U02) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/textWrapping.ts",
+        "lines": [
+          392,
+          481
+        ],
+        "reason": "style file: pure helper module with JSDoc'd exports and offset bookkeeping"
+      },
+      {
+        "path": "packages/element/src/textWrapping.ts",
+        "lines": [
+          409,
+          481
+        ],
+        "reason": "uses: how wrapped lines map to originalText offsets (soft breaks trim trailing whitespace; hard breaks split on \\n), which rule 10 must mirror"
+      },
+      {
+        "path": "packages/element/src/textWrapping.ts",
+        "lines": [
+          655,
+          724
+        ],
+        "reason": "uses: trimLine / trimLineEndAtSoftBreak behaviour the alignment relies on"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/src/textWrapping.ts",
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U03",
+    "unit": "U03",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/src/index.ts",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/index.ts` (unit U03) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 101 (line 101 reads `export * from \"./textMeasurements\";`) — Insert `export * from \"./textStyleRanges\";`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U04",
+    "unit": "U04",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/src/newElement.ts",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/newElement.ts` (unit U04) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 33 (line 33 reads `import { wrapText } from \"./textWrapping\";`) — Insert `import { clampRanges } from \"./textStyleRanges\";`.\n- S2: insert after line 349 (line 349 reads `baseFontSize?: ExcalidrawTextElement[\"baseFontSize\"];`) — Insert the `styleRanges?` opts member (rule 2).\n- S3: insert before line 370 (line 370 reads `const textElementProps: NonDeleted<ExcalidrawTextElement> = {`) — Insert the `styleRanges` const (rule 3) followed by a blank line.\n- S4: insert after line 386 (line 386 reads `labelPosition: opts.labelPosition ?? null,`) — Insert the conditional `styleRanges` spread (rule 4).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/newElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/newElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/newElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 349,
+          "to": 349
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 370,
+          "to": 370
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 386,
+          "to": 386
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U05",
+    "unit": "U05",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/src/renderElement.ts",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/element/src/renderElement.ts` (unit U05) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 61 (line 61 reads `import { getLineHeightInPx } from \"./textMeasurements\";`) — Insert `import { getTextStyleLineRuns } from \"./textStyleRanges\";`.\n- S2: replace lines 706-712 (line 706 reads `for (let index = 0; index < lines.length; index++) {`, line 712 reads `}`) — Replace the per-line fillText loop with the lineRuns computation and the plain/styled branching of rules 2-6.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/renderElement.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/renderElement.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U05.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/renderElement.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 61,
+          "to": 61
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 706,
+          "to": 712
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U06",
+    "unit": "U06",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/actions/colorTargets.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/colorTargets.ts` (unit U06) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 192 (line 192 reads `};`) — Append the selection registry (rules 1-7) after the last function, separated by a blank line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/colorTargets.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U06.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/colorTargets.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 192,
+          "to": 192
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U07",
+    "unit": "U07",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "depends_on": [
+      "tp_codegen_U06"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/wysiwyg/textWysiwyg.tsx` (unit U07) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 74 (line 74 reads `} from \"../actions/actionCanvas\";`) — Insert the colorTargets import (rule 1).\n- S2: insert before line 1091 (line 1091 reads `const cleanup = () => {`) — Insert the listener and event-list constants (rule 2) followed by a blank line.\n- S3: insert before line 1116 (line 1116 reads `editable.remove();`) — Insert listener removal and source clearing (rule 4).\n- S4: insert after line 1306 (line 1306 reads `bindBlurEvent();`) — Insert source registration and listener wiring (rule 3).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 74,
+          "to": 74
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 1091,
+          "to": 1091
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 1116,
+          "to": 1116
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1306,
+          "to": 1306
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U08",
+    "unit": "U08",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/components/App.text.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/App.text.ts` (unit U08) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 42 (line 42 reads `refreshTextDimensions,`) — Insert `shiftRangesForEdit,`.\n- S3: insert after line 43 (line 43 reads `updateBoundElements,`) — Insert `withoutStyleRanges,`.\n- S2: replace lines 222-237 (line 222 reads `if (_element.id === latestTextElement.id && isTextElement(_element)) {`, line 237 reads `}`) — Same branch with the nextStyleRanges/styleRangesChanged computation, the base-element choice and the conditional spread of rules 2-4; keep the existing comment and arguments.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.text.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.text.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.text.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 222,
+          "to": 237
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U09",
+    "unit": "U09",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/components/TextHighlightPicker.tsx",
+    "depends_on": [
+      "tp_codegen_U01",
+      "tp_codegen_U06"
+    ],
+    "subtype": "new_file_add",
+    "instruction": "Write `packages/excalidraw/components/TextHighlightPicker.tsx` (unit U09) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/ColorPicker/TopPicks.tsx",
+        "reason": "style file: swatch button markup, classes and dark-mode swatch colour"
+      },
+      {
+        "path": "packages/excalidraw/components/Actions.tsx",
+        "lines": [
+          403,
+          487
+        ],
+        "reason": "uses: how a panel component reads UIAppState.editingTextElement and lays out compact items"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/components/ColorPicker/TopPicks.tsx",
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U10",
+    "unit": "U10",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/actions/types.ts",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/types.ts` (unit U10) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 67 (line 67 reads `| \"changeBackgroundColor\"`) — Insert `| \"changeTextHighlight\"`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/types.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/types.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/types.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 67,
+          "to": 67
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U11",
+    "unit": "U11",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/locales/en.json",
+    "depends_on": [],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/locales/en.json` (unit U11) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 36 (line 36 reads `\"changeBackground\": \"Change background color\",`) — Insert the two label entries (rule 1), same indentation.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/locales/en.json\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/locales/en.json\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U11.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/locales/en.json",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 36,
+          "to": 36
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U12",
+    "unit": "U12",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "depends_on": [
+      "tp_codegen_U03",
+      "tp_codegen_U06",
+      "tp_codegen_U09",
+      "tp_codegen_U10",
+      "tp_codegen_U11"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/actionProperties.tsx` (unit U12) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: replace line 45 (line 45 reads `import { newElementWith } from \"@excalidraw/element\";`) — Rule 1.\n- S2: insert after line 110 (line 110 reads `import { Range } from \"../components/Range\";`) — Insert the TextHighlightPicker import.\n- S3: replace lines 175-178 (line 175 reads `import {`, line 178 reads `} from \"./colorTargets\";`) — The extended colorTargets import of rule 2.\n- S4: insert before line 364 (line 364 reads `// -----------------------------------------------------------------------------`) — Insert applyStyleToTextEditorSelection (rule 3) followed by a blank line.\n- S5: replace line 372 (line 372 reads `perform: (elements, appState, value) => {`) — `perform: (elements, appState, value, app) => {`.\n- S6: insert after line 379 (line 379 reads `}`) — Insert the text-selection branch of rule 4 (with a one-line comment) before `const target = ...`.\n- S7: insert after line 559 (line 559 reads `});`) — Insert a blank line and actionChangeTextHighlight (rules 5-7).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 45,
+          "to": 45
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 110,
+          "to": 110
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 175,
+          "to": 178
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 364,
+          "to": 364
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 372,
+          "to": 372
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 379,
+          "to": 379
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 559,
+          "to": 559
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U13",
+    "unit": "U13",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/actions/index.ts",
+    "depends_on": [
+      "tp_codegen_U12"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/actions/index.ts` (unit U13) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 13 (line 13 reads `actionChangeBucketFillBackgroundColor,`) — Insert `actionChangeTextHighlight,`.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/index.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/index.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/index.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U14",
+    "unit": "U14",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/components/Actions.tsx",
+    "depends_on": [
+      "tp_codegen_U10",
+      "tp_codegen_U12"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/components/Actions.tsx` (unit U14) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 162 (line 162 reads `<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>`) — Rule 1.\n- S2: insert after line 634 (line 634 reads `)}`) — Rule 2.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/Actions.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U14.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/Actions.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 162,
+          "to": 162
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 634,
+          "to": 634
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U15",
+    "unit": "U15",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/renderer/staticSvgScene.ts` (unit U15) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 8 (line 8 reads `getFontFamilyString,`) — Insert `getFontString,`.\n- S2: insert after line 28 (line 28 reads `import { getLineHeightInPx } from \"@excalidraw/element\";`) — Insert the getLineWidth/getTextStyleLineRuns import.\n- S3: replace lines 815-834 (line 815 reads `for (let i = 0; i < lines.length; i++) {`, line 834 reads `}`) — The lineRuns computation and plain/styled line loop of rules 2-6.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 815,
+          "to": 834
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_codegen_U16",
+    "unit": "U16",
+    "phase": "codegen",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "depends_on": [
+      "tp_codegen_U03"
+    ],
+    "subtype": "existing_file_edit",
+    "instruction": "Edit `packages/excalidraw/data/restore.ts` (unit U16) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert after line 81 (line 81 reads `import { refreshTextDimensions } from \"@excalidraw/element\";`) — Insert `import { sanitizeTextStyleRanges, withoutStyleRanges } from \"@excalidraw/element\";`.\n- S3: insert after line 576 (line 576 reads `restoreLineHeight({ ...element, fontSize, fontFamily, text });`) — Insert the `styleRanges` const (rule 2).\n- S4: replace line 577 (line 577 reads `element = restoreElementWithProperties(element, {`) — `element = restoreElementWithProperties(withoutStyleRanges(element), {` (rule 3).\n- S2: insert after line 584 (line 584 reads `originalText: element.originalText || text,`) — Insert the conditional styleRanges spread (rule 4).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U16.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 576,
+          "to": 576
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 577,
+          "to": 577
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 584,
+          "to": 584
+        }
+      ],
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_docs_U17",
+    "unit": "U17",
+    "phase": "docs",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/CHANGELOG.md",
+    "depends_on": [],
+    "subtype": "doc_update",
+    "instruction": "Edit `packages/excalidraw/CHANGELOG.md` (unit U17) at these sites only, as its brief says, following the conventions in the shared brief:\n- S1: insert before line 16 (line 16 reads `### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)`) — Insert the new subsection (rules 1-4) followed by a blank line.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/CHANGELOG.md\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U17.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 16,
+          "to": 16
+        }
+      ],
+      "verify_timeout_sec": 60,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U18",
+    "unit": "U18",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/element/tests/textStyleRanges.test.ts",
+    "depends_on": [
+      "tp_codegen_U02"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/element/tests/textStyleRanges.test.ts` (unit U18) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U18.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/textWrapping.test.ts",
+        "lines": [
+          1,
+          41
+        ],
+        "reason": "style file: element-package unit test imports, font fixture and describe/it shape"
+      }
+    ],
+    "acceptance": [
+      "insert before a range shifts it: given [{start:6,end:11,color:'#e03131'}], shiftRangesForEdit from 'hello world' to 'XXhello world', expect [{start:8,end:13,color:'#e03131'}]",
+      "insert at a range start shifts it, at its end leaves it: given [{start:2,end:4,color:'red'}], shiftRangesForSplice(r,2,0,1) and shiftRangesForSplice(r,4,0,1), expect [{start:3,end:5,...}] and [{start:2,end:4,...}]",
+      "insert inside a range grows it: given [{start:2,end:6,color:'red'}], shiftRangesForSplice(r,4,0,3), expect [{start:2,end:9,color:'red'}]",
+      "delete inside a range shrinks it: given [{start:2,end:8,color:'red'}], shiftRangesForSplice(r,3,2,0), expect [{start:2,end:6,color:'red'}]",
+      "delete across a boundary trims the range: given [{start:4,end:8,color:'red'}], shiftRangesForSplice(r,2,4,0) and shiftRangesForSplice(r,6,4,0), expect [{start:2,end:4,...}] and [{start:4,end:6,...}]",
+      "delete covering a range removes it: given [{start:4,end:6,color:'red'}], shiftRangesForSplice(r,3,5,0), expect []",
+      "edit after a range leaves it alone: given [{start:0,end:5,color:'red'}], shiftRangesForEdit from 'hello world' to 'hello worlds', expect deep-equal [{start:0,end:5,color:'red'}]",
+      "unchanged text or no ranges returns the same reference: given ranges array r; shiftRangesForEdit(r,'abc','abc'), shiftRangesForEdit([],'a','b'), shiftRangesForEdit(undefined,'a','b'), expect toBe r, toBe the same [] instance, undefined",
+      "applyStyleToRange splits an existing range: given [{start:0,end:10,color:'red'}], applyStyleToRange(r,3,6,{backgroundColor:'#ffec99'}), expect [{0,3,color red},{3,6,color red,backgroundColor #ffec99},{6,10,color red}]",
+      "applyStyleToRange fills gaps and merges equal neighbours: given [{start:0,end:2,color:'red'},{start:5,end:7,color:'red'}], applyStyleToRange(r,2,5,{color:'red'}), expect [{start:0,end:7,color:'red'}]",
+      "applyStyleToRange clears a style with null: given [{start:0,end:4,color:'red',backgroundColor:'#ffec99'}], applyStyleToRange(r,0,4,{backgroundColor:null}) then {color:null}, expect [{start:0,end:4,color:'red'}] then []",
+      "applyStyleToRange with an empty span changes nothing: given r, applyStyleToRange(r,3,3,{color:'blue'}), expect deep-equal normalizeRanges(r)",
+      "normalizeRanges sorts, drops invalid and resolves overlaps: given [{start:5,end:9,color:'a'},{start:2,end:2,color:'b'},{start:0,end:6,color:'c'},{start:9,end:10}], expect [{start:0,end:6,color:'c'},{start:6,end:9,color:'a'}]",
+      "clampRanges clamps to the text length: given [{start:-3,end:4,color:'a'},{start:8,end:20,color:'b'},{start:12,end:15,color:'c'}], length 10, expect [{start:0,end:4,color:'a'},{start:8,end:10,color:'b'}]",
+      "sanitizeTextStyleRanges drops corrupt entries: given input 'nope', null, and an array with: valid entry, start 1.5, start >= end, no style, color 42, color 'url(http://x)', color 'x'.repeat(65), end beyond length, expect [] for non-arrays; only the valid entry and the clamped out-of-range entry survive, as fresh objects without extra keys",
+      "getTextStyleLineRuns returns null without ranges or on mismatch: given ranges [] / undefined; and text 'abc' with originalText 'xyz' and a range, expect null in all cases",
+      "unwrapped multi-line text maps runs per line: given originalText 'ab\\ncd', text identical, range {start:1,end:4,color:'red'}, expect [[{a,null},{b,red}],[{c,red},{d,null}]] (backgroundColor null everywhere); the \\n is never part of a run",
+      "wrapped runs cover exactly the styled characters: given originalText 'Bid request timeout 120ms and more   words here', ranges on '120ms' (color) and 'more   words' (backgroundColor), wrapped at several widths, expect styled run text concatenates to '120ms' for color and to the styled characters that remain visible for the highlight (trimmed soft-break whitespace is never drawn), at every width",
+      "withoutStyleRanges drops the key only when present: given an object with styleRanges [{start:0,end:1,color:'red'}] and another without the key, expect first: a new object with every other key equal and `'styleRanges' in result` false, input untouched; second: toBe the same object",
+      "hard line starting with whitespace stays aligned: given originalText 'alpha beta\\n  gamma', range on 'gamma', wrapped at width 50 and Infinity, expect the run with color is exactly 'gamma' on the last line"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/element/tests/textWrapping.test.ts",
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_tests_U19",
+    "unit": "U19",
+    "phase": "tests",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "depends_on": [
+      "tp_codegen_U04",
+      "tp_codegen_U07",
+      "tp_codegen_U08",
+      "tp_codegen_U12",
+      "tp_codegen_U13",
+      "tp_codegen_U14",
+      "tp_codegen_U15",
+      "tp_codegen_U16"
+    ],
+    "subtype": "test_add",
+    "instruction": "Write `packages/excalidraw/tests/textStyleRanges.test.tsx` (unit U19) as its brief says: its behaviour, rules and exports, importing other files exactly as their import lines say, in the shape of the style file, following the conventions in the shared brief. Return JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+        "lines": [
+          1,
+          90
+        ],
+        "reason": "style file: jsdom editor test scaffolding, helpers and text editor flow"
+      },
+      {
+        "path": "packages/excalidraw/tests/scene/export.test.ts",
+        "lines": [
+          1,
+          80
+        ],
+        "reason": "uses: how exportScene builds an SVG in tests"
+      },
+      {
+        "path": "packages/excalidraw/tests/data/restore.test.ts",
+        "lines": [
+          42,
+          90
+        ],
+        "reason": "uses: restore.restoreElements call shape"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "lines": [
+          65,
+          151
+        ],
+        "reason": "uses: Keyboard helpers (undo, redo, exitTextEditor, withModifierKeys)"
+      },
+      {
+        "path": "packages/excalidraw/data/reconcile.ts",
+        "lines": [
+          17,
+          77
+        ],
+        "reason": "uses: reconcileElements signature and RemoteExcalidrawElement brand"
+      }
+    ],
+    "acceptance": [
+      "stroke colour applies to the selected range only: given editor open on 'hello world', selection 6..11, actionChangeStrokeColor with {color:'#e03131'}, expect text styleRanges equal [{start:6,end:11,color:'#e03131'}]; element strokeColor unchanged; h.state.currentItemStrokeColor unchanged",
+      "highlight sets and clears backgroundColor on the range: given same editor and selection, actionChangeTextHighlight with {color:'#ffec99'}, then with {color:'transparent'}, expect [{start:6,end:11,backgroundColor:'#ffec99'}] then the element has no styleRanges key (the cleared highlight was its only style)",
+      "highlight picker shows only with a selection: given editor open; selection 6..11 then collapsed to 3..3, each followed by fireEvent.select(editor), expect screen.queryByTestId('text-highlight-#ffec99') present with the selection, null when collapsed and after the editor is closed",
+      "typing before a styled range shifts it and submit keeps it: given range 6..11 coloured, then updateTextEditor(editor, 'XXhello world'), then Keyboard.exitTextEditor(editor), expect styleRanges [{start:8,end:13,color:'#e03131'}] after the change and after submit",
+      "no selection keeps element-wide stroke colour: given editor open with selection collapsed (3..3), actionChangeStrokeColor {color:'#e03131'}, expect element strokeColor is '#e03131' and the element has no styleRanges key",
+      "new and restored legacy text have no styleRanges key: given API.createElement({type:'text'}); a newTextElement with styleRanges [] and one with only out-of-text ranges; and a text element object without styleRanges passed through restore.restoreElements([...], null), expect not.toHaveProperty('styleRanges') on all of them",
+      "deleting every styled character removes the key: given range 6..11 coloured, then updateTextEditor(editor, 'hello '), expect the element has no styleRanges key",
+      "restore sanitises corrupt ranges: given text 'hello' restored with styleRanges 'bad', with [], with only invalid entries, and with [{start:0,end:2,color:'red'},{start:3,end:99,backgroundColor:'#ffec99'},{start:'1',end:2,color:'red'},{start:1,end:2,color:7}], expect no styleRanges key for 'bad', [] and the all-invalid list; [{start:0,end:2,color:'red'},{start:3,end:5,backgroundColor:'#ffec99'}] for the mixed array",
+      "svg export writes tspans and highlight rects: given text 'hello world' with styleRanges [{start:6,end:11,color:'#e03131',backgroundColor:'#ffec99'}], exported with exportScene({type:'svg', data:{elements:[text], appState:{viewBackgroundColor:'#ffffff'}, files:{}}, config:{canvasBackgroundColor:false}}), expect one <text> with two <tspan>s: 'hello ' with fill = element strokeColor and 'world' with fill '#e03131'; one <rect> with fill '#ffec99' and positive width, placed before the <text>",
+      "unstyled text exports as before: given the same text without a styleRanges key exported the same way, expect no <tspan> and no highlight <rect> inside the text group; <text> textContent 'hello world'",
+      "ranges survive a bound container's wrapping: given rectangle 90x75, Enter to edit its label, type 'Bid request timeout 120ms', select 20..25, stroke colour '#e03131', exit editor, expect label text contains '\\n'; styleRanges [{start:20,end:25,color:'#e03131'}]; styled runs of getTextStyleLineRuns(text, originalText, styleRanges) concatenate to '120ms'",
+      "ranges survive a font family change: given styled text selected, actionChangeFontFamily with {currentItemFontFamily: FONT_FAMILY.Nunito}, expect fontFamily changed and styleRanges deep-equal to before",
+      "undo and redo restore ranges: given text added with API.updateScene captureUpdate NEVER, then API.updateScene with newElementWith(text,{styleRanges:[{start:0,end:5,color:'#e03131'}]}) captureUpdate IMMEDIATELY, expect Keyboard.undo() gives styleRanges undefined (toBeUndefined); Keyboard.redo() gives [{start:0,end:5,color:'#e03131'}]",
+      "reconcile keeps the winning element's ranges intact: given local text version 3 with ranges A, remote copy version 4 with ranges B (and a second pair where local has the higher version), expect reconcileElements returns the remote element with exactly B in the first case and the local with exactly A in the second; no mixing",
+      "paste styles does not copy ranges onto another text: given styled text A (ranges set) copied with actionCopyStyles, plain text B selected, actionPasteStyles, expect B still has no styleRanges key while its strokeColor matches A",
+      "duplicate carries ranges: given styled text selected, Ctrl+D (Keyboard.withModifierKeys({ctrl:true}, () => Keyboard.keyPress(KEYS.D))), expect the duplicate has styleRanges deep-equal to the original's"
+    ],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline_from": "packages/excalidraw/wysiwyg/textWysiwyg.test.tsx",
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    },
+    "verify_deferred": [
+      "yarn test:typecheck",
+      "yarn test:code",
+      "yarn test:app --watch=false"
+    ]
+  }
+]

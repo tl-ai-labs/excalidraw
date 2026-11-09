@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. `yarn test:typecheck` still fails in this file (reconcile test, ~lines 440-480). `newElementWith` takes an ElementUpdate which has no `id` key: build the local/remote copies with a spread instead (e.g. `{ ...base, version: 3, versionNonce: 1, styleRanges: [...] } as ExcalidrawTextElement`, cast to OrderedExcalidrawElement / RemoteExcalidrawElement as needed). `reconcileElements` takes a full AppState: pass `{ ...getDefaultAppState(), width: 0, height: 0, offsetTop: 0, offsetLeft: 0 } as AppState` or `h.state`. Keep the assertions:\npackages/excalidraw/tests/textStyleRanges.test.tsx(447,7): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'ElementUpdate<NonDeleted<ExcalidrawTextElement>>'.\npackages/excalidraw/tests/textStyleRanges.test.tsx(452,7): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'ElementUpdate<NonDeleted<ExcalidrawTextElement>>'.\npackages/excalidraw/tests/textStyleRanges.test.tsx(460,7): error TS2345: Argument of type 'Omit<AppState, \"width\" | \"height\" | \"offsetTop\" | \"offsetLeft\">' is not assignable to parameter of type 'AppState'.\npackages/excalidraw/tests/textStyleRanges.test.tsx(466,7): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'ElementUpdate<NonDeleted<ExcalidrawTextElement>>'.\npackages/excalidraw/tests/textStyleRanges.test.tsx(471,7): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'ElementUpdate<NonDeleted<ExcalidrawTextElement>>'.\npackages/excalidraw/tests/textStyleRanges.test.tsx(479,7): error TS2345: Argument of type 'Omit<AppState, \"width\" | \"height\" | \"offsetTop\" | \"offsetLeft\">' is not assignable to parameter of type 'AppState'.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/reconcile.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/appState.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

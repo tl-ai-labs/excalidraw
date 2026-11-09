@@ -1,0 +1,10 @@
+[
+ {
+  "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+  "problem": "Senior review findings on this test file (keep every existing test passing; no snapshots; no `toEqual([])` for styleRanges):\n1 (major) Add a test: open the editor on 'hello world', colour 6..11, then setSelectionRange(0, 11) + fireEvent.select and run actionChangeStrokeColor {color:'#1971c2'}. Expect strokeColor '#1971c2' and the element to have no styleRanges key (or no range with `color`). The source now does this: a whole-text selection takes the element-wide path and clears every range's `color` (actionProperties.tsx).\n2 (minor) Add a test that selects 6..11 and runs fireEvent.click(screen.getByTestId('text-highlight-#ffec99')) (check the real test id in components/TextHighlightPicker.tsx), then asserts styleRanges has a range 6..11 with that backgroundColor.\n3 (minor) Replace `as any` reads of results with `isTextElement` narrowing (keep `as any` only for deliberately invalid restore input). Move the repeated open-editor-and-select sequence into a local `openEditorWithSelection(text, start, end)` helper.\nA previous attempt failed only because staticSvgScene.ts was broken at the time (0 <text> nodes); that is fixed now and the current file passes all 16 tests.",
+  "context_paths": [
+   "packages/excalidraw/components/TextHighlightPicker.tsx",
+   "packages/excalidraw/actions/actionProperties.tsx"
+  ]
+ }
+]

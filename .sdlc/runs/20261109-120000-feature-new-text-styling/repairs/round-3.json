@@ -1,0 +1,182 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/actions/actionProperties.tsx",
+    "instruction": "Fix `packages/excalidraw/actions/actionProperties.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 416): Round-1 fix: when the textarea selection covers the whole text (isWholeText), actionChangeStrokeColor goes through the element-wide path. That path only writes element.strokeColor and leaves any existing styleRanges[].color in place. Those ranges still override the new colour when drawn, so select-all and pick red leaves earlier coloured spans in their old colour. This is the default case when an existing text is opened for editing, because textWysiwyg calls editable.select() on open. The fallback also differs from change_plan.md (decision 'Stroke colour with a text selection' / U12 rule 4), which does not mention it, and the CHANGELOG does not either. — fix: In the isWholeText case, keep the element-wide update but also clear `color` on every range of that text element. Use applyStyleToRange(el.styleRanges ?? [], 0, len, { color: null }) and drop the key with withoutStyleRanges when the result is empty, so the whole text takes the new strokeColor. Add a short comment explaining why whole-text selections go element-wide (sticky-note / select-on-open).\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionProperties.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U12.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionProperties.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/textStyleRanges.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major: The whole-text selection branch from the round-1 fix has no test. No test covers selecting 0..originalText.length and picking a stroke colour, either on plain text or on text that already has coloured ranges. The regression it fixed is not pinned by the new suite, and the leftover-range bug above goes undetected. — fix: Add a test: open the editor on 'hello world', colour 6..11, then setSelectionRange(0, 11) + fireEvent.select and run actionChangeStrokeColor {color:'#1971c2'}. Expect strokeColor '#1971c2' and the element to have no styleRanges key (or no range with `color`).\n2. minor: Every action test calls h.app.actionManager.executeAction directly. Nothing exercises the TextHighlightPicker click path (PanelComponent onChange -> updateData -> perform while the textarea is blurred by the panel click). The styled-line canvas branch in renderElement.ts (measureText/fillRect/per-run fillText and the fillStyle/textAlign restore) is never run by any test. — fix: Add a test that selects 6..11 and runs fireEvent.click(screen.getByTestId('text-highlight-#ffec99')), then asserts styleRanges. Add a canvas render assertion for a styled element (for example, spy on fillRect/fillText through the existing canvas mock) that checks per-run fillText calls and that a plain line after a styled one still uses the element textAlign.\n3. minor: Results are read through `as any` casts that are not needed: `(restoredMixed as any).styleRanges`, `(reconciled1[0] as any)`, `(reconciled2[0] as any)`, `(duplicate as any).styleRanges`. isTextElement narrowing would do the same job. The plan allows `any` only where the surrounding code already casts. The deliberately invalid input values (`'bad' as any`, `'1' as any`, `7 as any`) are fine. The open-editor/type/select setup is also copied verbatim into 6 tests. — fix: Narrow with `isTextElement(x)` (or `expect(isTextElement(x)).toBe(true)` and then read the field) instead of casting. Move the click-tool/clickAt/getTextEditor/updateTextEditor/setSelectionRange/fireEvent.select sequence into a local `openEditorWithSelection(text, start, end)` helper.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/textStyleRanges.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/textStyleRanges.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+    "instruction": "Fix `packages/excalidraw/wysiwyg/textWysiwyg.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 1292): cleanup calls setTextEditorSelectionSource(app, null), which deletes whatever source is registered for the app. If editor B registers before editor A's cleanup runs (for example, when switching straight from one text to another), A's cleanup removes B's source. Partial colouring and the highlight picker then stop working for B without any error. Confidence: medium. getTextEditorSelection's id check covers a stale source but not a missing one. — fix: Keep a reference to the registered source object and clear it only if it is still current. For example, add `clearTextEditorSelectionSource(app, source)` in colorTargets.ts that deletes only when `textEditorSelectionSources.get(app) === source`, and call it from cleanup.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/wysiwyg/textWysiwyg.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U07.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-120000-feature-new-text-styling",
+    "artifact_path": "packages/excalidraw/renderer/staticSvgScene.ts",
+    "instruction": "Fix `packages/excalidraw/renderer/staticSvgScene.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 857): The line-start x calculation `horizontalOffset - lineWidth * (textAlign center ? 0.5 : right ? 1 : 0)` appears twice, here and in packages/element/src/renderElement.ts:656. The canvas and SVG highlight positions can drift apart if one copy changes. — fix: Export a small helper from packages/element/src/textStyleRanges.ts (for example `getTextAlignFactor(textAlign)`) and use it in both renderers.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/renderer/staticSvgScene.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-120000-feature-new-text-styling/briefs/U15.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

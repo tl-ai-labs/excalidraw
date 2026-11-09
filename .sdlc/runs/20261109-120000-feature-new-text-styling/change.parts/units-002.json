@@ -1,0 +1,698 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U06",
+      "path": "packages/excalidraw/actions/colorTargets.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the per-app registry through which the open text editor exposes its live textarea selection to colour actions and the highlight picker.",
+      "rules": [
+        "1. Append after `getColorTargetAppStateUpdates`, under a short comment explaining that while a text is edited a colour pick may target a span of it (see the decision on exposing the selection).",
+        "2. Export `type TextEditorSelection = { elementId: string; start: number; end: number }` and `type TextEditorSelectionSource = { elementId: string; read: () => { start: number; end: number } }`.",
+        "3. Module-level `const textEditorSelectionSources = new WeakMap<object, TextEditorSelectionSource>()` and `const textEditorSelectionListeners = new WeakMap<object, Set<() => void>>()`; `app` parameters are typed `object` (the App instance; actions pass `AppClassProperties`).",
+        "4. `setTextEditorSelectionSource(app, source | null)`: set or delete the source for `app`, then call notifyTextEditorSelectionChange(app).",
+        "5. `notifyTextEditorSelectionChange(app)`: call every listener registered for `app` (iterate a copy of the set).",
+        "6. `subscribeToTextEditorSelection(app, listener)`: add the listener to the app's set (creating it) and return an unsubscribe function that removes it.",
+        "7. `getTextEditorSelection(app, appState: Pick<AppState, \"editingTextElement\">)`: return null unless a source exists for `app` and `appState.editingTextElement?.id === source.elementId`; read the source, take start = Math.min(a, b) and end = Math.max(a, b), return null when start === end, else `{ elementId, start, end }`."
+      ],
+      "exports": [
+        {
+          "name": "TextEditorSelection",
+          "kind": "type",
+          "params": [],
+          "returns": "{ elementId: string; start: number; end: number }"
+        },
+        {
+          "name": "TextEditorSelectionSource",
+          "kind": "type",
+          "params": [],
+          "returns": "{ elementId: string; read: () => { start: number; end: number } }"
+        },
+        {
+          "name": "setTextEditorSelectionSource",
+          "kind": "function",
+          "params": [
+            {
+              "name": "app",
+              "type": "object"
+            },
+            {
+              "name": "source",
+              "type": "TextEditorSelectionSource | null"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "notifyTextEditorSelectionChange",
+          "kind": "function",
+          "params": [
+            {
+              "name": "app",
+              "type": "object"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "subscribeToTextEditorSelection",
+          "kind": "function",
+          "params": [
+            {
+              "name": "app",
+              "type": "object"
+            },
+            {
+              "name": "listener",
+              "type": "() => void"
+            }
+          ],
+          "returns": "() => void"
+        },
+        {
+          "name": "getTextEditorSelection",
+          "kind": "function",
+          "params": [
+            {
+              "name": "app",
+              "type": "object"
+            },
+            {
+              "name": "appState",
+              "type": "Pick<AppState, \"editingTextElement\">"
+            }
+          ],
+          "returns": "TextEditorSelection | null"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 192,
+          "to": 192,
+          "first_line": "};",
+          "rule": "Append the selection registry (rules 1-7) after the last function, separated by a blank line."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-7",
+        "FR-8",
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The text editor registers its textarea as the app's live selection source while open, notifies on selection-changing events, and unregisters on cleanup.",
+      "rules": [
+        "1. Import `notifyTextEditorSelectionChange` and `setTextEditorSelectionSource` from `../actions/colorTargets` right after the `../actions/actionCanvas` import.",
+        "2. Just before `const cleanup = () => {`, define `const onTextEditorSelectionChange = () => notifyTextEditorSelectionChange(app);` and `const TEXT_EDITOR_SELECTION_EVENTS = [\"select\", \"keyup\", \"pointerup\", \"input\"] as const;`.",
+        "3. Right after the initial `bindBlurEvent();` call: `setTextEditorSelectionSource(app, { elementId: element.id, read: () => ({ start: editable.selectionStart, end: editable.selectionEnd }) })`, then add onTextEditorSelectionChange as a listener for each TEXT_EDITOR_SELECTION_EVENTS type on `editable`, and for `selectionchange` on `ownerDocument` (never the global document).",
+        "4. In `cleanup`, just before `editable.remove();`: remove those listeners from `editable` and `ownerDocument`, then call `setTextEditorSelectionSource(app, null)`.",
+        "5. Do not change `onChange`/`onSubmit` signatures, `oninput`, or any existing behaviour; range shifting lives in App.text.ts."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 74,
+          "to": 74,
+          "first_line": "} from \"../actions/actionCanvas\";",
+          "rule": "Insert the colorTargets import (rule 1)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 1091,
+          "to": 1091,
+          "first_line": "const cleanup = () => {",
+          "rule": "Insert the listener and event-list constants (rule 2) followed by a blank line."
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 1116,
+          "to": 1116,
+          "first_line": "editable.remove();",
+          "rule": "Insert listener removal and source clearing (rule 4)."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1306,
+          "to": 1306,
+          "first_line": "bindBlurEvent();",
+          "rule": "Insert source registration and listener wiring (rule 3)."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+          "lines": [
+            1091,
+            1117
+          ],
+          "reason": "cleanup's existing listener removal pattern"
+        },
+        {
+          "path": "packages/excalidraw/wysiwyg/textWysiwyg.tsx",
+          "lines": [
+            1297,
+            1333
+          ],
+          "reason": "editor setup tail where the source is registered"
+        }
+      ],
+      "depends_on": [
+        "U06"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/components/App.text.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Every editor change and submit shifts the text element's style ranges from the previous `originalText` to the next one.",
+      "rules": [
+        "1. Add `shiftRangesForEdit,` to the `@excalidraw/element` value import list after `refreshTextDimensions,`, and `withoutStyleRanges,` after `updateBoundElements,`.",
+        "2. In `updateElement`, inside the branch for the edited text element: compute `const nextStyleRanges = shiftRangesForEdit(_element.styleRanges, _element.originalText, nextOriginalText);` and `const styleRangesChanged = nextStyleRanges !== _element.styleRanges;` before building the update.",
+        "3. The first argument of the existing `newElementWith` call becomes `styleRangesChanged && !nextStyleRanges?.length ? withoutStyleRanges(_element) : _element`, so an edit that deletes every styled character removes the key instead of storing `[]`.",
+        "4. Keep the existing updates `{ originalText, isDeleted, ...(stickyLayout?.text ?? refreshTextDimensions(...)) }` unchanged and add `...(styleRangesChanged && nextStyleRanges?.length ? { styleRanges: nextStyleRanges } : {})` as the last spread; a text without ranges never gains the key, and an unchanged text never bumps the version through `styleRanges`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "refreshTextDimensions,",
+          "rule": "Insert `shiftRangesForEdit,`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43,
+          "first_line": "updateBoundElements,",
+          "rule": "Insert `withoutStyleRanges,`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 222,
+          "to": 237,
+          "first_line": "if (_element.id === latestTextElement.id && isTextElement(_element)) {",
+          "last_line": "}",
+          "rule": "Same branch with the nextStyleRanges/styleRangesChanged computation, the base-element choice and the conditional spread of rules 2-4; keep the existing comment and arguments."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-7",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/excalidraw/components/TextHighlightPicker.tsx",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Compact swatch strip for the text highlight, rendered only while a text is edited with a non-empty textarea selection.",
+      "rules": [
+        "1. Props: `{ app: AppClassProperties; appState: UIAppState; compact: boolean; onChange: (color: string) => void }`; named export `TextHighlightPicker`, no default export, no new stylesheet (reuse the `color-picker__*` classes).",
+        "2. `const subscribe = useCallback((listener: () => void) => subscribeToTextEditorSelection(app, listener), [app]);` and `const selectionKey = useSyncExternalStore(subscribe, () => { const s = getTextEditorSelection(app, appState); return s ? `${s.elementId}:${s.start}:${s.end}` : \"\"; });` — the snapshot is a primitive string so it is stable between calls.",
+        "3. When selectionKey is \"\" return null (after all hooks).",
+        "4. Active colour: read the selection again and the element via `app.scene.getElement(selection.elementId)`; if it is a text element and one of its `styleRanges` with a `backgroundColor` covers the whole selection, that colour is active; if no range with a `backgroundColor` overlaps the selection, `COLOR_PALETTE.transparent` is active; otherwise none.",
+        "5. Swatches are `DEFAULT_ELEMENT_BACKGROUND_PICKS` in order. Each is a `<button type=\"button\">` with className clsx(\"color-picker__button\", { active, \"is-transparent\": color === COLOR_PALETTE.transparent, \"has-outline\": !isColorDark(color, COLOR_OUTLINE_CONTRAST_THRESHOLD) }), style `{ \"--swatch-color\": applyDarkModeFilter(color, appState.theme === THEME.DARK) }`, `title` and `aria-label` = t(\"labels.textHighlightNone\") for transparent else the colour, `data-testid={`text-highlight-${color}`}`, `onClick={() => onChange(color)}`, and a child `<div className=\"color-picker__button-outline\" />`.",
+        "6. The swatches sit in `<div className=\"color-picker__top-picks\" role=\"group\" aria-label={t(\"labels.textHighlight\")}>`. When `compact` is true wrap that in `<div className=\"compact-action-item\">`; otherwise render `<h3 aria-hidden=\"true\">{t(\"labels.textHighlight\")}</h3>` followed by the strip, inside a fragment.",
+        "7. Never read the textarea from the DOM; only through getTextEditorSelection."
+      ],
+      "exports": [
+        {
+          "name": "TextHighlightPicker",
+          "kind": "component",
+          "params": [
+            {
+              "name": "props",
+              "type": "{ app: AppClassProperties; appState: UIAppState; compact: boolean; onChange: (color: string) => void }"
+            }
+          ],
+          "returns": "React.JSX.Element | null"
+        }
+      ],
+      "import_line": "import { TextHighlightPicker } from \"../components/TextHighlightPicker\";",
+      "style_from": {
+        "path": "packages/excalidraw/components/ColorPicker/TopPicks.tsx",
+        "reason": "swatch button markup, classes and dark-mode swatch colour"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/Actions.tsx",
+          "lines": [
+            403,
+            487
+          ],
+          "reason": "how a panel component reads UIAppState.editingTextElement and lays out compact items"
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U06"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the `changeTextHighlight` action name.",
+      "rules": [
+        "1. Add `| \"changeTextHighlight\"` to `ActionName` right after `| \"changeBackgroundColor\"`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 67,
+          "to": 67,
+          "first_line": "| \"changeBackgroundColor\"",
+          "rule": "Insert `| \"changeTextHighlight\"`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "English labels for the text highlight control.",
+      "rules": [
+        "1. In `labels`, right after `\"changeBackground\"`, add `\"textHighlight\": \"Text highlight\",` and `\"textHighlightNone\": \"No highlight\",`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 36,
+          "to": 36,
+          "first_line": "\"changeBackground\": \"Change background color\",",
+          "rule": "Insert the two label entries (rule 1), same indentation."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/actions/actionProperties.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Stroke colour applies to the selected span while editing with a selection; new `actionChangeTextHighlight` sets or clears the span's highlight and renders the TextHighlightPicker.",
+      "rules": [
+        "1. Replace `import { newElementWith } from \"@excalidraw/element\";` with `import { applyStyleToRange, newElementWith, type TextStyleUpdate, withoutStyleRanges } from \"@excalidraw/element\";`.",
+        "2. Import `TextHighlightPicker` from `../components/TextHighlightPicker` after the `../components/Range` import; extend the `./colorTargets` import to `getColorTargetAppStateUpdates, getTextEditorSelection, resolveColorTarget, type TextEditorSelection`.",
+        "3. Before the `// ----` divider that precedes actionChangeStrokeColor, add a module-local `applyStyleToTextEditorSelection(elements: readonly ExcalidrawElement[], selection: TextEditorSelection, getStyle: (element: ExcalidrawTextElement) => TextStyleUpdate)` that maps elements: for the non-deleted text element with id selection.elementId, next = applyStyleToRange(el.styleRanges ?? [], Math.min(selection.start, len), Math.min(selection.end, len), getStyle(el)) with len = el.originalText.length; when next is non-empty it becomes `newElementWith(el, { styleRanges: next })`; when next is empty and `el.styleRanges?.length` it becomes `newElementWith(withoutStyleRanges(el), {}, true)` (key removed, version bumped); when next is empty and el had no ranges it is returned as is (never `styleRanges: []`). Every other element is returned as is.",
+        "4. actionChangeStrokeColor.perform takes `app` as 4th parameter. After the `color === undefined` early return: `const textSelection = getTextEditorSelection(app, appState);` and when non-null return `{ elements: applyStyleToTextEditorSelection(elements, textSelection, (el) => ({ color: color === el.strokeColor ? null : color })), appState: { ...appState, ...appStateUpdates }, captureUpdate: CaptureUpdateAction.IMMEDIATELY }`. The rest of perform and the PanelComponent stay unchanged.",
+        "5. After actionChangeBackgroundColor, export `actionChangeTextHighlight = register<{ color?: string | null }>({ name: \"changeTextHighlight\", label: \"labels.textHighlight\", trackEvent: false, perform, PanelComponent })`.",
+        "6. Its perform(elements, appState, value, app): `const textSelection = getTextEditorSelection(app, appState)`; return `false` when textSelection is null or value?.color is undefined; backgroundColor = value.color === null || isTransparent(value.color) ? null : value.color; return `{ elements: applyStyleToTextEditorSelection(elements, textSelection, () => ({ backgroundColor })), captureUpdate: CaptureUpdateAction.IMMEDIATELY }` (no appState change, no currentItem* change).",
+        "7. Its PanelComponent `({ appState, updateData, app })` returns `<TextHighlightPicker app={app} appState={appState} compact={getStylesPanelInfo(app).isCompact} onChange={(color) => updateData({ color })} />`."
+      ],
+      "exports": [
+        {
+          "name": "actionChangeTextHighlight",
+          "kind": "action",
+          "params": [],
+          "returns": "Action<{ color?: string | null }>"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 45,
+          "to": 45,
+          "first_line": "import { newElementWith } from \"@excalidraw/element\";",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 110,
+          "to": 110,
+          "first_line": "import { Range } from \"../components/Range\";",
+          "rule": "Insert the TextHighlightPicker import."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 175,
+          "to": 178,
+          "first_line": "import {",
+          "last_line": "} from \"./colorTargets\";",
+          "rule": "The extended colorTargets import of rule 2."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 364,
+          "to": 364,
+          "first_line": "// -----------------------------------------------------------------------------",
+          "rule": "Insert applyStyleToTextEditorSelection (rule 3) followed by a blank line."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 372,
+          "to": 372,
+          "first_line": "perform: (elements, appState, value) => {",
+          "rule": "`perform: (elements, appState, value, app) => {`."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 379,
+          "to": 379,
+          "first_line": "}",
+          "rule": "Insert the text-selection branch of rule 4 (with a one-line comment) before `const target = ...`."
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 559,
+          "to": 559,
+          "first_line": "});",
+          "rule": "Insert a blank line and actionChangeTextHighlight (rules 5-7)."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/actions/actionProperties.tsx",
+          "lines": [
+            364,
+            559
+          ],
+          "reason": "stroke and background colour actions this edit extends and mirrors"
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U06",
+        "U09",
+        "U10",
+        "U11"
+      ],
+      "covers": [
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U13",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-exports the new highlight action.",
+      "rules": [
+        "1. Add `actionChangeTextHighlight,` to the `./actionProperties` export list after `actionChangeBucketFillBackgroundColor,`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13,
+          "first_line": "actionChangeBucketFillBackgroundColor,",
+          "rule": "Insert `actionChangeTextHighlight,`."
+        }
+      ],
+      "depends_on": [
+        "U12"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/components/Actions.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Renders the highlight action next to the stroke colour in the full and compact styles panels (the action renders nothing without an editor selection).",
+      "rules": [
+        "1. In SelectedShapeActions, directly after the stroke-colour `<div>` line, add `{renderAction(\"changeTextHighlight\")}`.",
+        "2. In CompactShapeActions, directly after the `predicates.strokeColor && (...)` block, add `{renderAction(\"changeTextHighlight\")}`.",
+        "3. Do not add it to MobileShapeActions or any popover."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 162,
+          "to": 162,
+          "first_line": "<div>{predicates.strokeColor && renderAction(\"changeStrokeColor\")}</div>",
+          "rule": "Rule 1."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 634,
+          "to": 634,
+          "first_line": ")}",
+          "rule": "Rule 2."
+        }
+      ],
+      "depends_on": [
+        "U10",
+        "U12"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "SVG export writes styled lines as `<tspan>` runs with per-run `fill`, preceded by a `<rect>` per highlighted run; unstyled text exports byte-identically.",
+      "rules": [
+        "1. Add `getFontString,` to the `@excalidraw/common` import after `getFontFamilyString,`; add `import { getLineWidth, getTextStyleLineRuns } from \"@excalidraw/element\";` after the `getLineHeightInPx` import.",
+        "2. Replace only the per-line `for` loop. Before it: `const lineRuns = direction === \"ltr\" && element.styleRanges?.length ? getTextStyleLineRuns(lines.join(\"\\n\"), element.originalText, element.styleRanges) : null;` and `const font = getFontString(element);` (only used for styled lines).",
+        "3. Per line: build the `<text>` node with exactly today's attributes in today's order (x, y, font-family, font-size, fill, text-anchor, style, direction, dominant-baseline). If the line's runs are missing or all unstyled, set `textContent = lines[i]` as today and append it.",
+        "4. For a styled line: lineWidth = getLineWidth(lines[i], font, renderConfig.renderEnvironment); x0 = horizontalOffset - lineWidth * (textAlign center ? 0.5 : right ? 1 : 0). For each run with a backgroundColor, create a `rect` (svgRoot.ownerDocument.createElementNS(SVG_NS, \"rect\")) with x = x0 + width of the preceding runs, y = i * lineHeightPx, width = getLineWidth(run.text, font, renderConfig.renderEnvironment), height = lineHeightPx, fill = applyDarkModeFilter(run.backgroundColor, renderConfig.theme === THEME.DARK), and append it to `node` before the line's `<text>`.",
+        "5. Then give the `<text>` one `tspan` child per run (createElementNS(SVG_NS, \"tspan\")), `textContent = run.text`, attribute `fill` = applyDarkModeFilter(run.color ?? element.strokeColor, renderConfig.theme === THEME.DARK), and append the `<text>` to `node`.",
+        "6. All values are set with setAttribute/textContent; no markup strings."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 8,
+          "to": 8,
+          "first_line": "getFontFamilyString,",
+          "rule": "Insert `getFontString,`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 28,
+          "to": 28,
+          "first_line": "import { getLineHeightInPx } from \"@excalidraw/element\";",
+          "rule": "Insert the getLineWidth/getTextStyleLineRuns import."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 815,
+          "to": 834,
+          "first_line": "for (let i = 0; i < lines.length; i++) {",
+          "last_line": "}",
+          "rule": "The lineRuns computation and plain/styled line loop of rules 2-6."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/excalidraw/renderer/staticSvgScene.ts",
+          "lines": [
+            778,
+            845
+          ],
+          "reason": "the full SVG text branch: node, direction, horizontalOffset, lineHeightPx, verticalOffset"
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-11",
+        "NFR-1",
+        "NFR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Restoring a text element writes a sanitised `styleRanges` only when at least one valid range survives; legacy input, an empty list and fully corrupt input restore with no `styleRanges` key.",
+      "rules": [
+        "1. Import `sanitizeTextStyleRanges` and `withoutStyleRanges` from `@excalidraw/element` in one import on its own line after the `refreshTextDimensions` import.",
+        "2. After the `lineHeight` const in `case \"text\"`, compute `const styleRanges = sanitizeTextStyleRanges(element.styleRanges, (element.originalText || text).length);` so the clamp length is that of the restored originalText.",
+        "3. Pass `withoutStyleRanges(element)` instead of `element` as the first argument of that restoreElementWithProperties call, because it spreads the raw input first and would otherwise carry an unsanitised or empty `styleRanges` through; the `extra` expressions keep reading `element`.",
+        "4. In the `extra` object, after `originalText: element.originalText || text,` add `...(styleRanges.length ? { styleRanges } : {}),` so the key is written only when a range survives.",
+        "5. Nothing else changes; untrusted input reaches the field only through this sanitiser."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 81,
+          "to": 81,
+          "first_line": "import { refreshTextDimensions } from \"@excalidraw/element\";",
+          "rule": "Insert `import { sanitizeTextStyleRanges, withoutStyleRanges } from \"@excalidraw/element\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 576,
+          "to": 576,
+          "first_line": "restoreLineHeight({ ...element, fontSize, fontFamily, text });",
+          "rule": "Insert the `styleRanges` const (rule 2)."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 577,
+          "to": 577,
+          "first_line": "element = restoreElementWithProperties(element, {",
+          "rule": "`element = restoreElementWithProperties(withoutStyleRanges(element), {` (rule 3)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 584,
+          "to": 584,
+          "first_line": "originalText: element.originalText || text,",
+          "rule": "Insert the conditional styleRanges spread (rule 4)."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-12",
+        "FR-13",
+        "FR-14",
+        "NFR-1",
+        "NFR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Unreleased entry describing styled text ranges.",
+      "rules": [
+        "1. Under `## Unreleased`, before the first `###` subsection, add `### Styled text ranges (2026-11-09)` followed by a blank line and bullets, then a blank line.",
+        "2. Bullets: while editing a text, select part of it and pick a stroke colour to colour only that part, or use the new \"Text highlight\" swatches to highlight it; the element's own stroke colour is untouched; works for standalone and container/arrow labels, survives wrapping, font changes, undo/redo, copy/paste and collaboration, and is kept in SVG export (`<tspan>` fills and highlight `<rect>`s).",
+        "3. Bullet on the element model: new optional `ExcalidrawTextElement.styleRanges` (`{ start, end, color?, backgroundColor? }[]`, half-open offsets into `originalText`), present only when a text has at least one styled range, so existing elements and files are unchanged; helpers `applyStyleToRange`, `shiftRangesForEdit`, `normalizeRanges`, `clampRanges`, `getTextStyleLineRuns`, `withoutStyleRanges` exported from `@excalidraw/element`.",
+        "4. Bullet on limits: right-to-left texts render without per-range styling; the editor textarea itself still shows plain text."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 16,
+          "to": 16,
+          "first_line": "### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)",
+          "rule": "Insert the new subsection (rules 1-4) followed by a blank line."
+        }
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/CHANGELOG.md",
+        "lines": [
+          43,
+          48
+        ],
+        "reason": "subsection heading and bullet style of Unreleased entries"
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-15"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/actions/colorTargets.ts": "8b38fa8105245da99df44e83e38892f834a93542f05010019e74727a83a19c74",
+    "packages/excalidraw/wysiwyg/textWysiwyg.tsx": "2103a65baf937d5b3ceb71e16791e16ede789d1377e804d706e8873b9b3e46c6",
+    "packages/excalidraw/components/App.text.ts": "5966da8ebbb773047222b5824f9e50389bdb9ba27172752b1061b29eb030dee8",
+    "packages/excalidraw/components/ColorPicker/TopPicks.tsx": "daa7b920c523cd3b585c46faf99c04fea9bc6c99e92f0bb8247c2bac3a03ee4d",
+    "packages/excalidraw/components/Actions.tsx": "7a174738df8cde4700f5729d7a6deca49ea17c9990913859d6de541372556f2c",
+    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339",
+    "packages/excalidraw/locales/en.json": "07a8de221b3bcc8fa3c7f2241ecc7acec0a95fec27f2599c776a2b83c6c06296",
+    "packages/excalidraw/actions/actionProperties.tsx": "0fe8177b5fd59019728d562ade54dacf6573b118699a95d57fcb69be4deb6230",
+    "packages/excalidraw/actions/index.ts": "460b9cd44005a87c92d73ae1cfb77302bcf08f83b5ca677c55a7dbfbea16b724",
+    "packages/excalidraw/renderer/staticSvgScene.ts": "4b2a086d26cd48b70468d0272b397eda9167420011753ec760c052cae6fffafa",
+    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f",
+    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811"
+  }
+}

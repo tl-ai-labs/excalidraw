@@ -190,3 +190,88 @@ export const getColorTargetAppStateUpdates = (
   }
   return updates;
 };
+
+/**
+ * While a text element is being edited, a color pick or highlight pick may target
+ * an active selection range within the text rather than the whole element.
+ */
+export type TextEditorSelection = {
+  elementId: string;
+  start: number;
+  end: number;
+};
+
+export type TextEditorSelectionSource = {
+  elementId: string;
+  read: () => { start: number; end: number };
+};
+
+const textEditorSelectionSources = new WeakMap<
+  object,
+  TextEditorSelectionSource
+>();
+const textEditorSelectionListeners = new WeakMap<object, Set<() => void>>();
+
+export const setTextEditorSelectionSource = (
+  app: object,
+  source: TextEditorSelectionSource | null,
+  expected?: TextEditorSelectionSource,
+): void => {
+  if (source) {
+    textEditorSelectionSources.set(app, source);
+  } else if (expected !== undefined) {
+    if (textEditorSelectionSources.get(app) === expected) {
+      textEditorSelectionSources.delete(app);
+    } else {
+      return;
+    }
+  } else {
+    textEditorSelectionSources.delete(app);
+  }
+  notifyTextEditorSelectionChange(app);
+};
+
+export const notifyTextEditorSelectionChange = (app: object): void => {
+  const listeners = textEditorSelectionListeners.get(app);
+  if (listeners) {
+    for (const listener of Array.from(listeners)) {
+      listener();
+    }
+  }
+};
+
+export const subscribeToTextEditorSelection = (
+  app: object,
+  listener: () => void,
+): (() => void) => {
+  let listeners = textEditorSelectionListeners.get(app);
+  if (!listeners) {
+    listeners = new Set();
+    textEditorSelectionListeners.set(app, listeners);
+  }
+  listeners.add(listener);
+  return () => {
+    listeners?.delete(listener);
+  };
+};
+
+export const getTextEditorSelection = (
+  app: object,
+  appState: Pick<AppState, "editingTextElement">,
+): TextEditorSelection | null => {
+  const source = textEditorSelectionSources.get(app);
+  if (!source || appState.editingTextElement?.id !== source.elementId) {
+    return null;
+  }
+  const { start: a, end: b } = source.read();
+  const start = Math.min(a, b);
+  const end = Math.max(a, b);
+  if (start === end) {
+    return null;
+  }
+  return {
+    elementId: source.elementId,
+    start,
+    end,
+  };
+};
