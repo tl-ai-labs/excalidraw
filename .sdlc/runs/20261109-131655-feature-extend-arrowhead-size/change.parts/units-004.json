@@ -1,0 +1,322 @@
+{
+  "section": "units",
+  "source": "units-004.json",
+  "value": [
+    {
+      "id": "U20",
+      "path": "packages/element/tests/arrowheadSize.test.ts",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Element-level tests for scaled arrowhead geometry, its composition with short-segment fitting, bounds, factories and the skeleton pass-through.",
+      "rules": [
+        "1. Build arrows with API.createElement({ type: \"arrow\", points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(L, 0)], roughness: 0, strokeWidth: 2, endArrowhead }) and give a size by spreading a new object `{ ...arrow, arrowheadSize }` (a new object, so ShapeCache starts fresh).",
+        "2. Read head points with getArrowheadPoints(arrow, ShapeCache.generateElementShape(arrow, null), \"end\", head) from ../src/bounds and ../src/shape; a \"circle\" head returns [x, y, diameter] where diameter equals the head size at strokeWidth 2; an \"arrow\" head returns [tipX, tipY, x3, y3, x4, y4].",
+        "3. Read bounds with getElementBounds(arrow, arrayToMap([arrow])) from ../src/bounds and arrayToMap from @excalidraw/common; compare numbers with toBeCloseTo.",
+        "4. Create elements directly with newArrowElement / newLinearElement from ../src/newElement and skeletons with convertToExcalidrawElements from ../src/transform.",
+        "5. Use it.each for the size and length tables; no snapshots."
+      ],
+      "style_from": {
+        "path": "packages/element/tests/shape.test.ts",
+        "lines": [
+          1,
+          35
+        ],
+        "reason": "Imports API from the editor helpers, builds arrows with points/endArrowhead and reads ShapeCache shapes."
+      },
+      "uses": [
+        {
+          "path": "packages/element/src/bounds.ts",
+          "lines": [
+            992,
+            1100
+          ],
+          "reason": "getArrowheadPoints' signature, result layouts and the fitting rule the expectations compute."
+        }
+      ],
+      "depends_on": [
+        "U04",
+        "U05"
+      ],
+      "covers": [
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "FR-2",
+        "FR-3",
+        "FR-5",
+        "FR-6",
+        "NFR-2"
+      ],
+      "tests": [
+        {
+          "name": "keeps today's head without a size",
+          "given": "an arrow L=100 with endArrowhead \"arrow\" and no arrowheadSize",
+          "expect": "the element has no own arrowheadSize key; the tip is (100, 0) and each wing point is 25 from the tip"
+        },
+        {
+          "name": "drops the default size at creation",
+          "given": "newArrowElement and newLinearElement called with arrowheadSize \"medium\", an invalid string cast to ArrowheadSize, and \"small\"",
+          "expect": "\"medium\" and the invalid value leave no own arrowheadSize key; \"small\" is stored"
+        },
+        {
+          "name": "scales a head proportionally",
+          "given": "it.each small/medium/large on an arrow L=200 with a \"circle\" head and again with an \"arrow\" head",
+          "expect": "circle diameter is 15 * scale (7.5, 15, 22.5); arrow wing distance from the tip is 25 * scale and the wing angle to the shaft equals the default's"
+        },
+        {
+          "name": "composes with short-segment fitting",
+          "given": "it.each L in [10, 20, 100] for default and small with a \"circle\" head on a two-point arrow",
+          "expect": "diameter equals Math.min(15 * scale, L * 0.5): the smaller of the chosen size and the auto-shrunk size"
+        },
+        {
+          "name": "grows bounds only for a larger head",
+          "given": "a horizontal arrow L=100 with endArrowhead \"arrow\" at default, small and large, plus the same arrow with endArrowhead null",
+          "expect": "default bounds equal the no-head bounds; small bounds equal default bounds; large bounds are taller (maxY - minY > 0) and contain both wing points"
+        },
+        {
+          "name": "passes the size through the skeleton API",
+          "given": "convertToExcalidrawElements([{ type: \"arrow\", x: 0, y: 0, arrowheadSize: \"small\" }, { type: \"arrow\", x: 0, y: 50 }])",
+          "expect": "the first arrow has arrowheadSize \"small\"; the second has no own arrowheadSize key"
+        },
+        {
+          "name": "renders an unknown size at default",
+          "given": "an arrow spread with arrowheadSize \"huge\" (cast) and a \"circle\" head on L=200",
+          "expect": "its head points equal the default arrow's head points"
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U21",
+      "path": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "action": "create",
+      "phase": "tests",
+      "behaviour": "Editor-level jsdom tests for the arrowhead size control, undo, new arrows, paste styles, restore and SVG export.",
+      "rules": [
+        "1. `beforeEach(async () => { await render(<Excalidraw />); })` with Excalidraw from \"../index\" and render from \"./test-utils\"; read state through window.h (`const { h } = window;`).",
+        "2. Arrows come from API.createElement({ type: \"arrow\", points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)], roughness: 0, endArrowhead: \"arrow\" }); a size is given by spreading `{ ...arrow, arrowheadSize }`; put them in the scene with API.setElements and select with API.setSelectedElements.",
+        "3. Click the control with UI.clickOnTestId(\"arrowheadSize-small\" | \"arrowheadSize-medium\" | \"arrowheadSize-large\"); read the element back with API.getElement(arrow); undo with Keyboard.undo().",
+        "4. Restore with restoreElements(elements, null) and restoreAppState(appState, null) from \"../data/restore\"; cast invalid inputs with `as any` only at the call site.",
+        "5. Export with exportScene({ type: \"svg\", data: { elements, appState: { viewBackgroundColor: \"#ffffff\" }, files: {} }, config: { canvasBackgroundColor: false } }) from \"../scene/export\"; measure a head as the largest |y| over all number pairs parsed from every <path> d attribute (the shaft lies on local y = 0).",
+        "6. Copy and paste styles with API.executeAction(actionCopyStyles) / API.executeAction(actionPasteStyles) from \"../actions\" after selecting the source, then the target."
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionProperties.test.tsx",
+        "lines": [
+          1,
+          40
+        ],
+        "reason": "Editor test scaffolding: render(<Excalidraw />), API, UI and data-testid queries."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/tests/scene/export.test.ts",
+          "lines": [
+            1,
+            80
+          ],
+          "reason": "How exportScene is imported and called for SVG."
+        },
+        {
+          "path": "packages/excalidraw/tests/helpers/ui.ts",
+          "lines": [
+            65,
+            140
+          ],
+          "reason": "Keyboard.undo and modifier helpers."
+        },
+        {
+          "path": "packages/excalidraw/tests/helpers/ui.ts",
+          "lines": [
+            449,
+            520
+          ],
+          "reason": "UI.clickTool, UI.clickOnTestId and UI.createElement signatures."
+        }
+      ],
+      "depends_on": [
+        "U10",
+        "U13",
+        "U14",
+        "U15",
+        "U16",
+        "U17"
+      ],
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-5",
+        "AC-6",
+        "FR-7",
+        "FR-8",
+        "FR-9",
+        "FR-10",
+        "FR-11",
+        "FR-12"
+      ],
+      "tests": [
+        {
+          "name": "sets the size of the selected arrow and the default",
+          "given": "one selected default arrow, then a click on arrowheadSize-small",
+          "expect": "the arrow's arrowheadSize is \"small\" and h.state.currentItemArrowheadSize is \"small\""
+        },
+        {
+          "name": "undo restores the previous size",
+          "given": "the arrow after choosing small, then Keyboard.undo()",
+          "expect": "the arrow has arrowheadSize undefined (default) again"
+        },
+        {
+          "name": "choosing medium clears the size",
+          "given": "a selected arrow with arrowheadSize \"large\", then a click on arrowheadSize-medium",
+          "expect": "arrowheadSize is undefined, JSON.stringify of the element has no arrowheadSize, currentItemArrowheadSize is \"medium\""
+        },
+        {
+          "name": "new arrows take the chosen size",
+          "given": "API.setAppState({ currentItemArrowheadSize: \"large\" }), then UI.createElement(\"arrow\", { x: 0, y: 0, width: 100, height: 0 })",
+          "expect": "the drawn arrow's arrowheadSize is \"large\""
+        },
+        {
+          "name": "paste styles carries the size",
+          "given": "styles copied from a small arrow and pasted onto a default arrow",
+          "expect": "the target's arrowheadSize is \"small\""
+        },
+        {
+          "name": "exports a smaller head to SVG",
+          "given": "restoreElements of a two-point arrow with arrowheadSize \"small\" and of the same arrow without it, each exported to SVG",
+          "expect": "the small arrow's largest path |y| is smaller than the default arrow's"
+        },
+        {
+          "name": "restores an arrow without a size unchanged",
+          "given": "restoreElements([arrow without the key], null)",
+          "expect": "the restored arrow has no own arrowheadSize key and the same points and endArrowhead"
+        },
+        {
+          "name": "restore drops invalid and default sizes",
+          "given": "restoreElements of arrows with arrowheadSize \"huge\", \"medium\" and \"small\"",
+          "expect": "the first two have no own arrowheadSize key; the third keeps \"small\""
+        },
+        {
+          "name": "appState restore defaults the size",
+          "given": "restoreAppState({}, null), restoreAppState({ currentItemArrowheadSize: \"huge\" } as any, null) and restoreAppState({ currentItemArrowheadSize: \"large\" }, null)",
+          "expect": "\"medium\", \"medium\" and \"large\""
+        }
+      ],
+      "checks": [
+        "eslint",
+        "vitest"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/tests/__snapshots__/regressionTests.test.tsx.snap",
+      "action": "tooling",
+      "phase": "tests",
+      "behaviour": "Updates vitest snapshots under packages/ so appState-capturing snapshots (regressionTests and the other appState snapshots) gain currentItemArrowheadSize.",
+      "run": "yarn test:app --update --watch=false packages",
+      "depends_on": [
+        "U01",
+        "U02",
+        "U03",
+        "U04",
+        "U05",
+        "U06",
+        "U07",
+        "U08",
+        "U09",
+        "U10",
+        "U11",
+        "U12",
+        "U13",
+        "U14",
+        "U15",
+        "U16",
+        "U17",
+        "U18",
+        "U19",
+        "U20",
+        "U21"
+      ],
+      "covers": [
+        "AC-7",
+        "NFR-1",
+        "NFR-4"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/CHANGELOG.md",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Notes the new element property, appState key and action under Unreleased.",
+      "rules": [
+        "1. New section `### Arrowhead size (2026-11-09) [#6712](https://github.com/excalidraw/excalidraw/issues/6712)` followed by a blank line and three bullets, then a blank line.",
+        "2. Bullet: linear elements gain optional `arrowheadSize` (`\"small\" | \"medium\" | \"large\"`, type `ArrowheadSize`) scaling both arrowheads; absent means `\"medium\"`, today's size, so existing scenes render, export and hit-test as before; invalid values restore to the default.",
+        "3. Bullet: new `appState.currentItemArrowheadSize` (default `\"medium\"`, persisted in browser storage only) applied to newly created arrows, and a properties-panel control (action `changeArrowheadSize`) next to the arrowhead pickers; copy/paste styles carries the size.",
+        "4. Bullet: `convertToExcalidrawElements` passes `arrowheadSize` through; arrows larger than default include their heads in their bounds."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 16,
+          "to": 16,
+          "first_line": "### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)",
+          "rule": "Insert the section per rules 1-4 so it is the first entry under ## Unreleased."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-13"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U24",
+      "path": "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx",
+      "action": "edit",
+      "phase": "docs",
+      "behaviour": "Documents arrowheadSize in the skeleton API's lines-and-arrows example.",
+      "rules": [
+        "1. In the \"With Addtional properties\" arrow example add `arrowheadSize: \"large\",` right after `endArrowhead: \"triangle\",` with the same indentation.",
+        "2. After that example's image add a blank line and one paragraph: `arrowheadSize` (`\"small\"`, `\"medium\"` or `\"large\"`) scales both arrowheads of an arrow; leave it out for the default `\"medium\"` size."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 176,
+          "to": 176,
+          "first_line": "endArrowhead: \"triangle\",",
+          "rule": "Insert the arrowheadSize line per rule 1."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 191,
+          "to": 191,
+          "first_line": "![image](https://github.com/excalidraw/excalidraw/assets/11256141/14f1bf3f-ad81-4096-8c1c-f35235084ec5)",
+          "rule": "Insert a blank line and the paragraph per rule 2."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-6",
+        "FR-13"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/element/tests/shape.test.ts": "be8da3ae42bf34bda244b2f68698db3f3f368d22eed86e4822a75967a0894892",
+    "packages/element/src/bounds.ts": "4552af671de75dcd05e902ef5c84a76876318c84bad7cc209fdeda088a73db2e",
+    "packages/excalidraw/actions/actionProperties.test.tsx": "52827700cb9f35fa1fc2118e659a223d44c45e779f9085a41e3dc4738c99346b",
+    "packages/excalidraw/tests/scene/export.test.ts": "6b95ead53d7991ba611f7777910e2f2fc8e55825d9e574a1e85b8cb756db9a74",
+    "packages/excalidraw/tests/helpers/ui.ts": "4bd2537e19101df4b051808dfb802df4e12574960374d4f922480c5afc2f5b8b",
+    "packages/excalidraw/CHANGELOG.md": "ac0972db0682aa533fd76e05239f3fab48844764be42de23f6c3acff1ccb5811",
+    "dev-docs/docs/@excalidraw/excalidraw/api/excalidraw-element-skeleton.mdx": "bdce842a1f27e1a2ba6777d62aba125d1b857143f3f05bb654287f3bc8a2795f"
+  }
+}

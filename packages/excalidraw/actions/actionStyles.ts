@@ -8,7 +8,11 @@ import {
   arrayToMap,
 } from "@excalidraw/common";
 
-import { newElementWith, syncStickyNoteInk } from "@excalidraw/element";
+import {
+  newElementWith,
+  normalizeArrowheadSize,
+  syncStickyNoteInk,
+} from "@excalidraw/element";
 
 import {
   normalizeStickyNote,
@@ -186,10 +190,32 @@ export const actionPasteStyles = register({
               newElement.type === "arrow" &&
               isArrowElement(elementStylesToCopyFrom)
             ) {
-              newElement = newElementWith(newElement, {
-                startArrowhead: elementStylesToCopyFrom.startArrowhead,
-                endArrowhead: elementStylesToCopyFrom.endArrowhead,
-              });
+              const arrowheadSize = normalizeArrowheadSize(
+                elementStylesToCopyFrom.arrowheadSize,
+              );
+              if (
+                arrowheadSize === undefined &&
+                newElement.arrowheadSize !== undefined
+              ) {
+                const { arrowheadSize: _, ...rest } = newElement;
+                newElement = newElementWith(
+                  rest as typeof newElement,
+                  {
+                    startArrowhead: elementStylesToCopyFrom.startArrowhead,
+                    endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                  },
+                  true,
+                );
+              } else {
+                newElement = newElementWith(newElement, {
+                  startArrowhead: elementStylesToCopyFrom.startArrowhead,
+                  endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                  ...(arrowheadSize !==
+                  normalizeArrowheadSize(newElement.arrowheadSize)
+                    ? { arrowheadSize }
+                    : {}),
+                });
+              }
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(
                   newElement,

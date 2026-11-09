@@ -39,6 +39,8 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  isArrowheadSize,
+  normalizeArrowheadSize,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -538,6 +540,20 @@ const restoreElementWithProperties = <
   return ret;
 };
 
+/** Restores arrowheadSize on linear elements, dropping default or invalid values. */
+const restoreArrowheadSize = <T extends ExcalidrawLinearElement>(
+  element: T,
+): T => {
+  if (
+    !("arrowheadSize" in element) ||
+    normalizeArrowheadSize(element.arrowheadSize) === element.arrowheadSize
+  ) {
+    return element;
+  }
+  const { arrowheadSize, ...rest } = element;
+  return rest as T;
+};
+
 export const restoreElement = (
   /** element to be restored */
   element: Exclude<ExcalidrawElement, ExcalidrawSelectionElement>,
@@ -666,7 +682,7 @@ export const restoreElement = (
         ...getSizeFromPoints(points),
       });
 
-      return handleOversizedLinearElements(restoredLine);
+      return handleOversizedLinearElements(restoreArrowheadSize(restoredLine));
     case "arrow": {
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
@@ -733,7 +749,9 @@ export const restoreElement = (
         ),
       };
 
-      return handleOversizedLinearElements(normalizedRestoredElement);
+      return handleOversizedLinearElements(
+        restoreArrowheadSize(normalizedRestoredElement),
+      );
     }
 
     // generic elements
@@ -1381,6 +1399,11 @@ export const restoreAppState = (
     currentItemStickynoteBackgroundColor: normalizeStickyNoteBackgroundColor(
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
+    currentItemArrowheadSize: isArrowheadSize(
+      nextAppState.currentItemArrowheadSize,
+    )
+      ? nextAppState.currentItemArrowheadSize
+      : defaultAppState.currentItemArrowheadSize,
     editingFrame: null,
   };
 };
