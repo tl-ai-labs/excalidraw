@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-extend",
+    "pass_id": "20261109-163500-feature-extend-lasso-wrap-overlap",
+    "artifact_path": "packages/excalidraw/tests/selection.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/selection.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app --watch=false: 4 failures in this file, all 'AssertionError: expected +0 to be 1' from assertSelectedElements.\n(1) 'lasso selection modes > should select a rectangle whose corner is clipped by the lasso in overlap mode' (line 247), '> should select a fully enclosed rectangle in both modes' (line 262), '> should apply a changed selection mode to the next lasso stroke' (line 287). Diagnosed root cause: the describe('lasso selection modes') beforeEach only calls render(<Excalidraw />); in jsdom h.state.width and h.state.height stay 0, so h.app.visibleElements is empty and the lasso trail has no elements to select (verified: with h.state.width = 1000; h.state.height = 1000; set after render, a pointer lasso around the rectangle selects it). Fix: in that describe's beforeEach, after `await render(<Excalidraw />);`, add `h.state.width = 1000;` and `h.state.height = 1000;` (as packages/excalidraw/tests/lasso.test.tsx does). Keep every case and its expectations as they are.\n(2) 'lasso reselection > should allow ctrl+alt lasso reselection when starting inside the active common bounds' (line 197, pre-existing test that passed before this run). Cause: the lasso now honours appState.boxSelectionMode, whose default is \"contain\" (Wrap); this test's diamond lasso clips rectA's corners, so in Wrap rectA is correctly not selected. The test encodes Overlap behaviour. Fix: in that test, call `API.setAppState({ boxSelectionMode: \"overlap\" });` right after `API.setElements([rectA, rectB]);` and keep its expectation assertSelectedElements([rectA.id]) unchanged. Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/selection.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163500-feature-extend-lasso-wrap-overlap/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163500-feature-extend-lasso-wrap-overlap/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/lasso.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/selection.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 420,
+      "max_retries": 2
+    }
+  }
+]

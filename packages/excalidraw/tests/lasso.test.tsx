@@ -32,7 +32,10 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
 import { act, render } from "./test-utils";
+
+import type { AppState } from "../types";
 
 const { h } = window;
 
@@ -43,8 +46,13 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  mode: AppState["boxSelectionMode"],
+) => {
   act(() => {
+    h.setState({ boxSelectionMode: mode });
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
     points.forEach((point) => {
@@ -74,6 +82,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode: mode,
     });
 
     act(() =>
@@ -454,7 +463,7 @@ describe("Basic lasso selection tests", () => {
       [1304.80078125, -70.2578125],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.app.state);
 
@@ -637,7 +646,7 @@ describe("Basic lasso selection tests", () => {
       [455.4453125, 422.06640625],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(3);
     expect(selectedElements.filter((e) => e.type === "arrow").length).toBe(1);
@@ -859,7 +868,7 @@ describe("Basic lasso selection tests", () => {
       [17.85546875, -53.44921875],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(4);
@@ -909,7 +918,7 @@ describe("Basic lasso selection tests", () => {
       [-42.0625, 102.12109375],
       [-42.0625, 102.12109375],
     ] as LocalPoint[];
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(1);
@@ -1186,7 +1195,7 @@ describe("Special cases", () => {
       [258.9296875, 170.1875],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(1);
@@ -1795,10 +1804,213 @@ describe("Special cases", () => {
       [60.09375, -1.76953125],
     ] as LocalPoint[];
 
-    updatePath(startPoint, points);
+    updatePath(startPoint, points, "overlap");
 
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso selection modes (Wrap / Overlap)", () => {
+  const lassoBox = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    mode: AppState["boxSelectionMode"],
+  ) => {
+    updatePath(
+      pointFrom<GlobalPoint>(x1, y1),
+      [
+        [0, 0],
+        [x2 - x1, 0],
+        [x2 - x1, y2 - y1],
+        [0, y2 - y1],
+        [0, 0],
+      ] as LocalPoint[],
+      mode,
+    );
+  };
+
+  const selectedIds = () =>
+    getSelectedElements(h.elements, h.state).map((element) => element.id);
+
+  it("rectangle whose corner is clipped is selected only in overlap", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rectangle]);
+
+    lassoBox(60, 60, 130, 130, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(60, 60, 130, 130, "overlap");
+    expect(selectedIds()).toEqual([rectangle.id]);
+  });
+
+  it("fully enclosed rectangle is selected in both modes", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rectangle]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([rectangle.id]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([rectangle.id]);
+  });
+
+  it("ellipse partially touched is selected only in overlap, enclosed in both", () => {
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    });
+    API.setElements([ellipse]);
+
+    lassoBox(60, 60, 160, 130, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(60, 60, 160, 130, "overlap");
+    expect(selectedIds()).toEqual([ellipse.id]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([ellipse.id]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([ellipse.id]);
+  });
+
+  it("rotated rectangle partially touched is selected only in overlap, enclosed in both", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 50,
+      angle: Math.PI / 4,
+    });
+    API.setElements([rectangle]);
+
+    lassoBox(60, 60, 150, 130, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(60, 60, 150, 130, "overlap");
+    expect(selectedIds()).toEqual([rectangle.id]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([rectangle.id]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([rectangle.id]);
+  });
+
+  it("line partially touched is selected only in overlap, enclosed in both", () => {
+    const line = API.createElement({
+      type: "line",
+      x: 100,
+      y: 100,
+    });
+    API.setElements([line]);
+
+    lassoBox(60, 60, 150, 150, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(60, 60, 150, 150, "overlap");
+    expect(selectedIds()).toEqual([line.id]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([line.id]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([line.id]);
+  });
+
+  it("freedraw partially touched is selected only in overlap, enclosed in both", () => {
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 100,
+      y: 100,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(20, 10),
+        pointFrom<LocalPoint>(40, 30),
+        pointFrom<LocalPoint>(60, 20),
+        pointFrom<LocalPoint>(80, 40),
+      ],
+    });
+    API.setElements([freedraw]);
+
+    lassoBox(60, 60, 130, 140, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(60, 60, 130, 140, "overlap");
+    expect(selectedIds()).toEqual([freedraw.id]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([freedraw.id]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([freedraw.id]);
+  });
+
+  it("container whose bound-text label pokes outside the lasso is selected only in overlap", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+      boundElements: [{ type: "text", id: "label-text" }],
+    });
+    const text = API.createElement({
+      type: "text",
+      id: "label-text",
+      containerId: rectangle.id,
+      x: 105,
+      y: 105,
+      width: 200,
+      height: 20,
+      textAlign: "left",
+      verticalAlign: "top",
+      text: "label",
+    });
+    API.setElements([rectangle, text]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([]);
+
+    lassoBox(50, 50, 250, 250, "overlap");
+    expect(selectedIds()).toEqual([rectangle.id]);
+
+    lassoBox(50, 50, 350, 250, "contain");
+    expect(selectedIds()).toEqual([rectangle.id]);
+  });
+
+  it("locked element stays unselected in wrap mode", () => {
+    const rectangle = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+      locked: true,
+    });
+    API.setElements([rectangle]);
+
+    lassoBox(50, 50, 250, 250, "contain");
+    expect(selectedIds()).toEqual([]);
   });
 });

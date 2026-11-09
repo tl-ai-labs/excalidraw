@@ -1,0 +1,32 @@
+{
+  "module": "packages/excalidraw/lasso (lasso Wrap/Overlap selection modes)",
+  "mode": "brownfield",
+  "intent": "feature-extend",
+  "verdict": "approved",
+  "tool_calls": 5,
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/selection.test.tsx",
+      "line": 180,
+      "issue": "The fix round edited the existing \"lasso reselection\" test by adding API.setAppState({ boxSelectionMode: \"overlap\" }). The plan does not allow this: U04 rule 5 says every existing describe stays untouched, and the plan's 'Existing tests this change edits' list covers only lasso.test.tsx. The edit was needed because the default boxSelectionMode is \"contain\" (appState.ts:132). Every user who never changed the preference now gets Wrap lasso instead of today's enclose-or-intersect lasso. The diff is correct for the plan's decisions, but this default behaviour change is not stated anywhere in change_plan.md.",
+      "fix": "No code change if the default flip is intended: confirm it against the requirements and record this test edit in the plan's edited-tests list. If lasso should stay Overlap for default users, the default handling has to change outside this file. Do not remove the pin in this test either way."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/lasso/utils.ts",
+      "line": 161,
+      "issue": "containmentTest repeats the same 'every point of every segment is inside lassoPolygon' nested every() for the element segments and for the label segments.",
+      "fix": "Optional: extract a module-private `allSegmentPointsInside(segments, polygon)` and call it twice. Leave enclosureTest and intersectionTest bodies unchanged, as the plan requires (rule 13)."
+    }
+  ],
+  "passing_checks": [
+    "Correctness: utils.ts follows U01 rules 1-13 (required field, bound text skipped in contain mode only, overlap branch is the original code, containmentTest steps 1-5 in order); index.ts reads this.app.state.boxSelectionMode at call time (FR-6).",
+    "Type safety: no any, no non-null assertions; AppState type-only import placed last per import/order.",
+    "Error handling: missing or empty segments return false; no throws added.",
+    "Authz / PII / env fixtures: not applicable (client-side editor change, no routes, no config schema, no new env keys).",
+    "Tests: lasso.test.tsx passes \"overlap\" explicitly at all six existing call sites with unchanged expectations; the new describe covers rectangle, ellipse, rotated rectangle, line, freedraw, bound-text container and locked elements in both modes; selection.test.tsx covers the corner-clip before/after and a live mode switch; no snapshots.",
+    "Sensitive files: no manifest, .env.example, CLAUDE.md or settings file touched."
+  ],
+  "refinement_packets": []
+}
