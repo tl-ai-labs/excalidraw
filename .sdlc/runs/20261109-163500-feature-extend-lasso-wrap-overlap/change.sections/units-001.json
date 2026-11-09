@@ -1,0 +1,336 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/excalidraw/lasso/utils.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "getLassoSelectedElementIds takes a required boxSelectionMode and, in \"contain\" (Wrap), selects only elements (with their bound-text label) fully enclosed by the lasso; \"overlap\" keeps today's enclose-or-intersect path unchanged.",
+    "rules": [
+      "1. The input object gains the required field `boxSelectionMode: AppState[\"boxSelectionMode\"]`, destructured with the other fields; the return shape `{ selectedElementIds }` is unchanged.",
+      "2. Path simplification, the unlocked filter, the clearing of both sets and the lassoBounds reduce stay exactly as they are.",
+      "3. In the loop, when boxSelectionMode === \"contain\" and isBoundToContainer(element) is true, `continue` before any other work (the label is judged as part of its container).",
+      "4. elementBounds and the existing guard (doBoundsIntersect(lassoBounds, elementBounds) and not already in either set) stay as they are.",
+      "5. Inside the guard, when boxSelectionMode === \"contain\": if containmentTest(path, element, elementBounds, lassoBounds, elementsMap, elementsSegments) is true add element.id to enclosedElements; never add to intersectedElements in this mode.",
+      "6. Otherwise (\"overlap\") run today's code verbatim: enclosureTest, else intersectionTest, adding to enclosedElements / intersectedElements as now.",
+      "7. New module-private `const containmentTest = (lassoPath: GlobalPoint[], element: ExcalidrawElement, elementBounds: Bounds, lassoBounds: Bounds, elementsMap: ElementsMap, elementsSegments: ElementsSegmentsMap): boolean`, placed right after enclosureTest.",
+      "8. containmentTest step 1: return false when !boundsContainBounds(lassoBounds, elementBounds) (cheap AABB early reject).",
+      "9. containmentTest step 2: segments = elementsSegments.get(element.id); return false when it is missing or empty.",
+      "10. containmentTest step 3: lassoPolygon = polygonFromPoints(lassoPath); return false unless every point of every segment satisfies polygonIncludesPointNonZero(point, lassoPolygon).",
+      "11. containmentTest step 4: boundTextElement = getBoundTextElement(element, elementsMap); when present, compute getElementLineSegments({ ...boundTextElement, ...computeBoundTextPosition(element, boundTextElement, elementsMap) }, elementsMap) and return false unless every point of every label segment is inside lassoPolygon.",
+      "12. containmentTest step 5: return !intersectionTest(lassoPath, element, elementsMap) (a lasso edge crossing the outline or the label, including between curve samples, rejects the element).",
+      "13. enclosureTest and intersectionTest bodies are not changed.",
+      "14. Helper signatures from @excalidraw/element: boundsContainBounds(outerBounds: Bounds, innerBounds: Bounds): boolean (inclusive corners check); getElementLineSegments(element: ExcalidrawElement, elementsMap: ElementsMap): LineSegment<GlobalPoint>[] (rotation already applied); isBoundToContainer(element: ExcalidrawElement | null): boolean."
+    ],
+    "exports": [
+      {
+        "name": "getLassoSelectedElementIds",
+        "kind": "function",
+        "params": [
+          {
+            "name": "input",
+            "type": "{ lassoPath: GlobalPoint[]; elements: readonly ExcalidrawElement[]; elementsMap: ElementsMap; elementsSegments: ElementsSegmentsMap; intersectedElements: Set<ExcalidrawElement[\"id\"]>; enclosedElements: Set<ExcalidrawElement[\"id\"]>; simplifyDistance?: number; boxSelectionMode: AppState[\"boxSelectionMode\"] }"
+          }
+        ],
+        "returns": "{ selectedElementIds: string[] }"
+      }
+    ],
+    "import_line": "import { getLassoSelectedElementIds } from \"./utils\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 11,
+        "to": 17,
+        "first_line": "import {",
+        "last_line": "} from \"@excalidraw/element\";",
+        "rule": "Same @excalidraw/element import, adding boundsContainBounds, getElementLineSegments and isBoundToContainer to the existing names, keeping the list alphabetical."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 20,
+        "to": 20,
+        "first_line": "import type { ElementsMap, ExcalidrawElement } from \"@excalidraw/element/types\";",
+        "rule": "Add a blank line, then `import type { AppState } from \"../types\";`."
+      },
+      {
+        "id": "S3",
+        "at": "insert_after",
+        "from": 29,
+        "to": 29,
+        "first_line": "simplifyDistance?: number;",
+        "rule": "Add the input field `boxSelectionMode: AppState[\"boxSelectionMode\"];` (rule 1)."
+      },
+      {
+        "id": "S4",
+        "at": "insert_after",
+        "from": 40,
+        "to": 40,
+        "first_line": "simplifyDistance,",
+        "rule": "Add `boxSelectionMode,` to the destructuring (rule 1)."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 62,
+        "to": 83,
+        "first_line": "for (const element of unlockedElements) {",
+        "last_line": "}",
+        "rule": "The element loop with the mode branch of rules 3-6; keep the existing AABB comment."
+      },
+      {
+        "id": "S6",
+        "at": "insert_after",
+        "from": 108,
+        "to": 108,
+        "first_line": "};",
+        "rule": "Add a blank line and the containmentTest helper of rules 7-12."
+      }
+    ],
+    "uses": [
+      {
+        "path": "packages/math/src/polygon.ts",
+        "lines": [12, 16],
+        "reason": "polygonFromPoints closes the lasso path."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-7", "NFR-2", "NFR-3", "NFR-4"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U02",
+    "path": "packages/excalidraw/lasso/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "LassoTrail.updateSelection passes the live this.app.state.boxSelectionMode to getLassoSelectedElementIds on every call.",
+    "rules": [
+      "1. Read the mode from this.app.state at call time; do not store it on the instance.",
+      "2. Nothing else in LassoTrail changes (segments cache, simplifyDistance, selectElementsFromIds post-processing)."
+    ],
+    "exports": [],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 204,
+        "to": 204,
+        "first_line": "simplifyDistance: 5 / this.app.state.zoom.value,",
+        "rule": "Add `boxSelectionMode: this.app.state.boxSelectionMode,` to the getLassoSelectedElementIds input."
+      }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-6", "NFR-4"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U03",
+    "path": "packages/excalidraw/tests/lasso.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "updatePath takes the selection mode; every existing case passes \"overlap\" with unchanged expectations, and a new describe covers Wrap vs Overlap per shape and for bound text.",
+    "rules": [
+      "1. updatePath signature becomes `(startPoint: GlobalPoint, points: LocalPoint[], mode: AppState[\"boxSelectionMode\"])`; first statement inside its outer act is `h.setState({ boxSelectionMode: mode });`, and getLassoSelectedElementIds receives `boxSelectionMode: mode`.",
+      "2. The six existing updatePath calls pass \"overlap\" as the third argument; no existing expectation changes.",
+      "3. New `describe(\"Lasso selection modes (Wrap / Overlap)\", ...)` appended at the end of the file; it relies on the file-level beforeEach render and builds elements with API.createElement and API.setElements.",
+      "4. Inside it define `const lassoBox = (x1: number, y1: number, x2: number, y2: number, mode: AppState[\"boxSelectionMode\"]) =>` calling updatePath(pointFrom<GlobalPoint>(x1, y1), [[0, 0], [x2 - x1, 0], [x2 - x1, y2 - y1], [0, y2 - y1], [0, 0]] as LocalPoint[], mode).",
+      "5. Inside it define `const selectedIds = () => getSelectedElements(h.elements, h.state).map((element) => element.id);` and assert with `expect(selectedIds()).toEqual([...])`.",
+      "6. Each it() covers one shape and runs its lassos in both modes in sequence; API.setElements is called once per it(), since each lassoBox starts a fresh path that clears the previous selection.",
+      "7. No snapshot assertions."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 35,
+        "to": 35,
+        "first_line": "import { act, render } from \"./test-utils\";",
+        "rule": "Becomes `import { API } from \"./helpers/api\";`, then `import { act, render } from \"./test-utils\";`, a blank line, then `import type { AppState } from \"../types\";`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 46,
+        "to": 47,
+        "first_line": "const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {",
+        "last_line": "act(() => {",
+        "rule": "New updatePath signature with the mode parameter (Prettier multi-line), then `act(() => {` and `h.setState({ boxSelectionMode: mode });` as its first statement (rule 1)."
+      },
+      {
+        "id": "S3",
+        "at": "insert_after",
+        "from": 76,
+        "to": 76,
+        "first_line": "enclosedElements: new Set(),",
+        "rule": "Add `boxSelectionMode: mode,` to the getLassoSelectedElementIds input."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 457,
+        "to": 457,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 640,
+        "to": 640,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S6",
+        "at": "replace",
+        "from": 862,
+        "to": 862,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S7",
+        "at": "replace",
+        "from": 912,
+        "to": 912,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S8",
+        "at": "replace",
+        "from": 1189,
+        "to": 1189,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S9",
+        "at": "replace",
+        "from": 1798,
+        "to": 1798,
+        "first_line": "updatePath(startPoint, points);",
+        "rule": "`updatePath(startPoint, points, \"overlap\");`"
+      },
+      {
+        "id": "S10",
+        "at": "insert_after",
+        "from": 1804,
+        "to": 1804,
+        "first_line": "});",
+        "rule": "Add a blank line and the new describe block of rules 3-6 with the cases listed in tests."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/selection.test.tsx",
+      "lines": [201, 275],
+      "reason": "API.createElement / API.setElements element setup and per-case shape of a selection-mode describe."
+    },
+    "uses": [
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "lines": [163, 215],
+        "reason": "API.createElement options (type, id, x, y, width, height, angle, points, containerId, boundElements, locked, text)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "rectangle whose corner is clipped is selected only in overlap",
+        "given": "rectangle x=100 y=100 width=100 height=100; lassoBox(60, 60, 130, 130)",
+        "expect": "\"contain\" selects []; \"overlap\" selects [rectangle.id]"
+      },
+      {
+        "name": "fully enclosed rectangle is selected in both modes",
+        "given": "rectangle x=100 y=100 width=100 height=100; lassoBox(50, 50, 250, 250)",
+        "expect": "both \"contain\" and \"overlap\" select [rectangle.id]"
+      },
+      {
+        "name": "ellipse partially touched is selected only in overlap, enclosed in both",
+        "given": "ellipse x=100 y=100 width=120 height=80; lassoBox(60, 60, 160, 130) then lassoBox(50, 50, 250, 250)",
+        "expect": "partial: \"contain\" [] and \"overlap\" [ellipse.id]; enclosed: [ellipse.id] in both modes"
+      },
+      {
+        "name": "rotated rectangle partially touched is selected only in overlap, enclosed in both",
+        "given": "rectangle x=100 y=100 width=100 height=50 angle=Math.PI / 4; lassoBox(60, 60, 150, 130) then lassoBox(50, 50, 250, 250)",
+        "expect": "partial: \"contain\" [] and \"overlap\" [rectangle.id]; enclosed: [rectangle.id] in both modes"
+      },
+      {
+        "name": "line partially touched is selected only in overlap, enclosed in both",
+        "given": "line x=100 y=100 with default points (0,0)-(100,100); lassoBox(60, 60, 150, 150) then lassoBox(50, 50, 250, 250)",
+        "expect": "partial: \"contain\" [] and \"overlap\" [line.id]; enclosed: [line.id] in both modes"
+      },
+      {
+        "name": "freedraw partially touched is selected only in overlap, enclosed in both",
+        "given": "freedraw x=100 y=100 points (0,0) (20,10) (40,30) (60,20) (80,40) as pointFrom<LocalPoint>; lassoBox(60, 60, 130, 140) then lassoBox(50, 50, 250, 250)",
+        "expect": "partial: \"contain\" [] and \"overlap\" [freedraw.id]; enclosed: [freedraw.id] in both modes"
+      },
+      {
+        "name": "container whose bound-text label pokes outside the lasso is selected only in overlap",
+        "given": "rectangle x=100 y=100 width=100 height=100 with boundElements [{ type: \"text\", id: \"label-text\" }] and text id=\"label-text\" containerId=rectangle.id x=105 y=105 width=200 height=20 textAlign=\"left\" verticalAlign=\"top\" (label spans 105..305 x 105..125); lassoBox(50, 50, 250, 250) then lassoBox(50, 50, 350, 250)",
+        "expect": "first lasso: \"contain\" [] and \"overlap\" [rectangle.id]; second lasso: \"contain\" [rectangle.id]"
+      },
+      {
+        "name": "locked element stays unselected in wrap mode",
+        "given": "rectangle x=100 y=100 width=100 height=100 locked=true; lassoBox(50, 50, 250, 250)",
+        "expect": "\"contain\" selects []"
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "FR-2", "FR-3", "FR-4", "FR-5", "FR-7", "NFR-4"],
+    "checks": ["eslint", "vitest"]
+  },
+  {
+    "id": "U04",
+    "path": "packages/excalidraw/tests/selection.test.tsx",
+    "action": "edit",
+    "phase": "tests",
+    "behaviour": "A new pointer-driven describe draws lassos with the lasso tool and checks Wrap vs Overlap, including the corner-clip Before/After and a live preference switch.",
+    "rules": [
+      "1. New `describe(\"lasso selection modes\", ...)` inserted right after the \"lasso reselection\" describe; its beforeEach is `await render(<Excalidraw />);`.",
+      "2. Inside it define `const lassoBox = (x1: number, y1: number, x2: number, y2: number) =>` that runs `act(() => { h.app.setActiveTool({ type: \"lasso\" }); });` then mouse.downAt(x1, y1), mouse.moveTo(x2, y1), mouse.moveTo(x2, y2), mouse.moveTo(x1, y2), mouse.moveTo(x1, y1), mouse.up().",
+      "3. Set the mode before each stroke with `API.setAppState({ boxSelectionMode: \"contain\" })` or `\"overlap\"`; call API.clearSelection() between two strokes in the same case.",
+      "4. Assert with assertSelectedElements([...ids]) as the file does; no snapshots; no new imports (API, act, assertSelectedElements, mouse, Excalidraw are already in the file).",
+      "5. Every existing describe, including box-selection and box-selection overlap mode, is left untouched."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 198,
+        "to": 198,
+        "first_line": "});",
+        "rule": "Add a blank line and the new describe block with the cases listed in tests."
+      }
+    ],
+    "style_from": {
+      "path": "packages/excalidraw/tests/selection.test.tsx",
+      "lines": [154, 198],
+      "reason": "Pointer-driven lasso test: render in beforeEach, API.createElement, setActiveTool lasso inside act, mouse.downAt/moveTo/up, assertSelectedElements."
+    },
+    "tests": [
+      {
+        "name": "should not select a rectangle whose corner is clipped by the lasso in wrap mode",
+        "given": "rectangle x=100 y=100 width=100 height=100; boxSelectionMode \"contain\"; lassoBox(60, 60, 130, 130)",
+        "expect": "assertSelectedElements([])"
+      },
+      {
+        "name": "should select a rectangle whose corner is clipped by the lasso in overlap mode",
+        "given": "same rectangle; boxSelectionMode \"overlap\"; lassoBox(60, 60, 130, 130)",
+        "expect": "assertSelectedElements([rectangle.id])"
+      },
+      {
+        "name": "should select a fully enclosed rectangle in both modes",
+        "given": "same rectangle; lassoBox(50, 50, 250, 250) with \"contain\", API.clearSelection(), then again with \"overlap\"",
+        "expect": "assertSelectedElements([rectangle.id]) after each stroke"
+      },
+      {
+        "name": "should apply a changed selection mode to the next lasso stroke",
+        "given": "same rectangle; \"contain\" and lassoBox(60, 60, 130, 130); then API.setAppState({ boxSelectionMode: \"overlap\" }) and the same lassoBox",
+        "expect": "assertSelectedElements([]) after the first stroke and assertSelectedElements([rectangle.id]) after the second"
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["AC-1", "AC-2", "AC-5", "AC-6", "FR-6", "NFR-1", "NFR-4"],
+    "checks": ["eslint", "vitest"]
+  }
+]

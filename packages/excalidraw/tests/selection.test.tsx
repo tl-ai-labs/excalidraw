@@ -177,6 +177,7 @@ describe("lasso reselection", () => {
     });
 
     API.setElements([rectA, rectB]);
+    API.setAppState({ boxSelectionMode: "overlap" });
     mouse.select([rectA, rectB]);
     act(() => {
       h.app.setActiveTool({ type: "lasso" });
@@ -195,6 +196,98 @@ describe("lasso reselection", () => {
     });
 
     assertSelectedElements([rectA.id]);
+  });
+});
+
+describe("lasso selection modes", () => {
+  const lassoBox = (x1: number, y1: number, x2: number, y2: number) => {
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+    mouse.downAt(x1, y1);
+    mouse.moveTo(x2, y1);
+    mouse.moveTo(x2, y2);
+    mouse.moveTo(x1, y2);
+    mouse.moveTo(x1, y1);
+    mouse.up();
+  };
+
+  beforeEach(async () => {
+    await render(<Excalidraw />);
+    h.state.width = 1000;
+    h.state.height = 1000;
+  });
+
+  it("should not select a rectangle whose corner is clipped by the lasso in wrap mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoBox(60, 60, 130, 130);
+
+    assertSelectedElements([]);
+  });
+
+  it("should select a rectangle whose corner is clipped by the lasso in overlap mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoBox(60, 60, 130, 130);
+
+    assertSelectedElements([rect.id]);
+  });
+
+  it("should select a fully enclosed rectangle in both modes", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoBox(50, 50, 250, 250);
+    assertSelectedElements([rect.id]);
+
+    API.clearSelection();
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoBox(50, 50, 250, 250);
+    assertSelectedElements([rect.id]);
+  });
+
+  it("should apply a changed selection mode to the next lasso stroke", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    API.setAppState({ boxSelectionMode: "contain" });
+    lassoBox(60, 60, 130, 130);
+    assertSelectedElements([]);
+
+    API.setAppState({ boxSelectionMode: "overlap" });
+    lassoBox(60, 60, 130, 130);
+    assertSelectedElements([rect.id]);
   });
 });
 
