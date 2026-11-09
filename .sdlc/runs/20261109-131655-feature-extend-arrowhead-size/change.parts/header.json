@@ -1,0 +1,153 @@
+{
+  "section": "header",
+  "source": "header.json",
+  "value": {
+    "conventions": [
+      "Formatter is Prettier 2.6 via @excalidraw/prettier-config: double quotes, trailing commas, 80-column lines; ESLint runs with --max-warnings=0 and enforces import/order (groups separated by blank lines, type-only imports last).",
+      "Cross-package imports use the aliases @excalidraw/common, @excalidraw/element, @excalidraw/element/types and @excalidraw/math; imports inside one package are relative (./arrowheads, ../components/RadioSelection).",
+      "Type-only imports use a separate `import type { ... }` statement (consistent-type-imports with separate-type-imports); never mix types into a value import.",
+      "Element-package code is plain exported arrow functions with explicit return types and switch over string-literal unions; no classes for new helpers.",
+      "Elements are immutable: actions update with newElementWith(el, partial) (bumps version/versionNonce, which history and collaboration rely on); never assign to an element field.",
+      "Follow AGENTS.md: use Merge<> from @excalidraw/common/utility-types instead of Omit<> & ..., and app.ownerDocument / app.ownerWindow instead of document / window in new non-test DOM code.",
+      "Geometry and render code runs per frame: the default path (no arrowheadSize key) must take no new allocations and must produce byte-identical numbers to today (multiply/divide by exactly 1).",
+      "User-facing strings go through t(\"labels.<key>\") from ../i18n; only packages/excalidraw/locales/en.json gets new keys, never another locale.",
+      "Tests use vitest globals (describe/it/expect/beforeEach without import); editor tests render <Excalidraw /> with render() from tests/test-utils and drive it through API, UI and Keyboard from tests/helpers, querying controls by data-testid.",
+      "Element-package tests import editor test helpers as @excalidraw/excalidraw/tests/helpers/api and the code under test relatively from ../src/<module>.",
+      "Names fixed by this change: element property `arrowheadSize`, type `ArrowheadSize`, appState key `currentItemArrowheadSize`, action `actionChangeArrowheadSize` named \"changeArrowheadSize\", constants ARROWHEAD_SIZE_SCALES and DEFAULT_ARROWHEAD_SIZE, helpers isArrowheadSize / normalizeArrowheadSize / getArrowheadSizeScale."
+    ],
+    "decisions": [
+      {
+        "topic": "Size representation",
+        "choice": "A closed set of named presets \"small\" | \"medium\" | \"large\" mapped by ARROWHEAD_SIZE_SCALES = { small: 0.5, medium: 1, large: 1.5 } in @excalidraw/common; \"medium\" is the default (scale 1, today's geometry) and is never stored on an element: an absent key means default.",
+        "rejected": [
+          "numeric scale values on the element",
+          "free-form pixel sizes",
+          "separate start/end sizes"
+        ],
+        "reason": "A closed union restores and validates trivially, maps to RadioSelection like stroke width, and the absent-key default keeps every existing element and snapshot unchanged."
+      },
+      {
+        "topic": "Where the scale applies",
+        "choice": "Only inside getArrowheadPoints in bounds.ts: size = getArrowheadSize(arrowhead) * getArrowheadSizeScale(element.arrowheadSize), after which the existing short-segment fitting (length multiplier and getArrowheadSizeBeyondLastSegment) runs unchanged with that size as the full size; getArrowheadSize(arrowhead) keeps its signature and per-type values.",
+        "rejected": [
+          "adding a size parameter to getArrowheadSize",
+          "scaling in shape.ts or renderElement.ts"
+        ],
+        "reason": "getArrowheadPoints is the single function canvas, SVG export, shape cache and bounds all read (NFR-3); for sizes at or below default this equals the smaller of the chosen size and today's auto-shrunk size, and elbowArrow.ts/transform.ts keep reading the unscaled per-type size."
+      },
+      {
+        "topic": "Head opening angle",
+        "choice": "getArrowheadPoints passes minSize / scale to getArrowheadAngle, so a chosen size draws the same shape as the default at full size and the existing widening still applies when the fitting shrinks the head.",
+        "rejected": [
+          "passing the absolute minSize (small heads would open wider than default)"
+        ],
+        "reason": "FR-2 asks for proportional scaling; dividing by exactly 1 keeps the default byte-identical."
+      },
+      {
+        "topic": "Bounds",
+        "choice": "Linear bounds (getLinearElementRotatedBounds) are extended by the arrowhead extents only for arrow elements whose getArrowheadSizeScale is greater than 1; default and small heads keep today's curve-only bounds.",
+        "rejected": [
+          "always including heads in bounds (changes every existing arrow's bounds and export size, breaking NFR-1)",
+          "including heads whenever the key is present (choosing small would grow the bounds)"
+        ],
+        "reason": "Today heads never define the extent; this keeps default bounds identical (AC-2), makes an enlarged head grow the bounds that export sizing, culling and the hit-test prefilter use (AC-3), and never lets a smaller choice grow them."
+      },
+      {
+        "topic": "Hit-testing",
+        "choice": "Hit-testing follows the scaled head through getElementBounds (the hitElementItself prefilter); the precise test stays against the arrow path as today.",
+        "rejected": [
+          "editing collision.ts / utils.ts to hit-test head outlines"
+        ],
+        "reason": "collision.ts and utils.ts are outside the Gate 0 allowlist and heads are not hit targets today; the head tip sits on the path end so clicks on the head near the tip still hit."
+      },
+      {
+        "topic": "Elbow arrows and rendering padding",
+        "choice": "Elbow routing does not read the size and actionChangeArrowheadSize does not re-route; renderElement.ts, shape.ts and staticSvgScene.ts are not edited.",
+        "rejected": [
+          "re-routing elbow arrows on size change",
+          "scaling getCanvasPadding"
+        ],
+        "reason": "Routing reserves space per head type; the 40px arrow canvas padding exceeds the largest lateral head extent at scale 1.5 (bar: 22.5px); shapes already come from getArrowheadPoints."
+      },
+      {
+        "topic": "Writing the default",
+        "choice": "Setting the default size writes { arrowheadSize: undefined } via newElementWith (serializes as absent); actionChangeArrowheadSize and paste-styles skip an element whose normalized size already equals the target, so untouched elements gain no key.",
+        "rejected": [
+          "rebuilding element objects without the key in actions"
+        ],
+        "reason": "newElementWith cannot delete keys; skipping no-op elements keeps existing element snapshots (e.g. paste-styles tests) free of a new key."
+      },
+      {
+        "topic": "Restore",
+        "choice": "restoreElement keeps a valid non-default arrowheadSize on line and arrow elements, deletes the key when the value is invalid or \"medium\", and leaves an element without the key untouched; restoreAppState falls back to DEFAULT_ARROWHEAD_SIZE for a missing or invalid currentItemArrowheadSize.",
+        "reason": "Canonical absence of the default keeps restored scenes byte-identical to today and makes invalid imports render at the default."
+      },
+      {
+        "topic": "Unknown values at render time",
+        "choice": "getArrowheadSizeScale returns 1 for any value that is not a key of ARROWHEAD_SIZE_SCALES (including undefined).",
+        "reason": "An element received over collaboration from a newer client renders at default instead of NaN geometry (NFR-2)."
+      },
+      {
+        "topic": "Properties-panel control",
+        "choice": "actionChangeArrowheadSize renders <fieldset><legend>{t(\"labels.arrowheadSize\")}</legend> with a RadioSelection<ArrowheadSize> (group \"arrowhead-size\", testIds arrowheadSize-small / arrowheadSize-medium / arrowheadSize-large) reusing FontSizeSmallIcon, FontSizeMediumIcon and FontSizeLargeIcon; it renders right after changeArrowhead in the full panel under predicates.arrowheads and inside actionChangeArrowProperties for the compact and mobile panels.",
+        "rejected": [
+          "new icons in icons.tsx",
+          "a new predicate in shapeActionPredicates.ts"
+        ],
+        "reason": "Follows the actionChangeStrokeWidth pattern and the existing arrowhead visibility exactly (open question 2 default)."
+      },
+      {
+        "topic": "appState storage",
+        "choice": "currentItemArrowheadSize is stored like currentItemEndArrowhead: { browser: true, export: false, server: false }.",
+        "reason": "It is a per-user drawing default, not scene data."
+      },
+      {
+        "topic": "Which new elements take the default",
+        "choice": "Arrows created by the drawing tool (App.tsx), flowchart (flowchart.ts), autoshape recognition (convertToShape.ts, App.drawshape.ts) and conversion to sharp or curved arrows (ConvertElementTypePopup.tsx) pass arrowheadSize: <appState>.currentItemArrowheadSize; elbow conversion keeps the element's own size via the existing spread; lines get no size from appState because they draw no heads.",
+        "reason": "Mirrors exactly where currentItemStartArrowhead / currentItemEndArrowhead are applied today."
+      },
+      {
+        "topic": "Snapshot churn",
+        "choice": "After all source and test units, a tooling step runs vitest with --update over packages/ only; the only expected snapshot change is the new currentItemArrowheadSize key in appState-capturing snapshots (and the new control in panel DOM snapshots).",
+        "rejected": [
+          "updating excalidraw-app snapshots (off-limits)"
+        ],
+        "reason": "getDefaultAppState gains a key (FR-7), which Gate 0 allows in appState snapshots; reviewers check the diff shows no element or geometry change."
+      }
+    ],
+    "file_checks": [
+      {
+        "id": "eslint",
+        "run": "npx --no-install eslint --max-warnings=0 {path}",
+        "fix": "npx --no-install eslint --max-warnings=0 --fix {path}",
+        "timeout_s": 180
+      },
+      {
+        "id": "prettier",
+        "run": "npx --no-install prettier --check {path}",
+        "fix": "npx --no-install prettier --write {path}",
+        "timeout_s": 60
+      },
+      {
+        "id": "vitest",
+        "run": "npx --no-install vitest run {path}",
+        "timeout_s": 420
+      }
+    ],
+    "project_checks": [
+      {
+        "id": "typecheck",
+        "run": "yarn test:typecheck"
+      },
+      {
+        "id": "lint",
+        "run": "yarn test:code"
+      },
+      {
+        "id": "test",
+        "run": "yarn test:app --watch=false"
+      }
+    ]
+  },
+  "hashes": {}
+}

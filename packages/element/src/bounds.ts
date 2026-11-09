@@ -53,6 +53,7 @@ import {
 } from "./utils";
 import { intersectElementWithLineSegment } from "./collision";
 import { elementOverlapsWithFrame, getContainingFrame } from "./frame";
+import { getArrowheadSizeScale } from "./arrowheads";
 
 import type { Drawable, Op } from "roughjs/bin/core";
 import type { Point as RoughPoint } from "roughjs/bin/geometry";
@@ -1055,7 +1056,8 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const scale = getArrowheadSizeScale(element.arrowheadSize);
+  const size = getArrowheadSize(arrowhead) * scale;
 
   let length = 0;
 
@@ -1099,7 +1101,7 @@ export const getArrowheadPoints = (
     return [tx, ty, diameter];
   }
 
-  const angle = getArrowheadAngle(arrowhead, minSize);
+  const angle = getArrowheadAngle(arrowhead, minSize / scale);
 
   if (
     arrowhead === "cardinality_many" ||
@@ -1186,6 +1188,146 @@ const generateLinearElementShape = (
   );
 };
 
+/**
+ * Only enlarged arrowheads (scale > 1) extend the bounds.
+ */
+const extendBoundsByArrowheads = (
+  element: ExcalidrawLinearElement,
+  curve: Drawable,
+  bounds: Bounds,
+  transformXY: (p: GlobalPoint) => GlobalPoint,
+): Bounds => {
+  if (
+    !isArrowElement(element) ||
+    getArrowheadSizeScale(element.arrowheadSize) <= 1
+  ) {
+    return bounds;
+  }
+
+  let [minX, minY, maxX, maxY] = bounds;
+
+  const positions: ("start" | "end")[] = ["start", "end"];
+  for (const position of positions) {
+    const arrowhead =
+      position === "start" ? element.startArrowhead : element.endArrowhead;
+    if (!arrowhead) {
+      continue;
+    }
+
+    type ArrowheadPart =
+      | {
+          type: "circle";
+          arrowhead: Arrowhead;
+          offset: number;
+          diameterScale: number;
+        }
+      | {
+          type: "other";
+          arrowhead: Arrowhead;
+          offset: number;
+        };
+
+    const parts: ArrowheadPart[] = [];
+    switch (arrowhead) {
+      case "circle":
+      case "circle_outline":
+        parts.push({
+          type: "circle",
+          arrowhead,
+          offset: 0,
+          diameterScale: 1,
+        });
+        break;
+      case "cardinality_one_or_many":
+        parts.push(
+          { type: "other", arrowhead: "cardinality_many", offset: 0 },
+          {
+            type: "other",
+            arrowhead: "cardinality_one",
+            offset: CARDINALITY_ONE_OR_MANY_BAR_OFFSET,
+          },
+        );
+        break;
+      case "cardinality_exactly_one":
+        parts.push(
+          {
+            type: "other",
+            arrowhead: "cardinality_one",
+            offset: CARDINALITY_INNER_BAR_OFFSET,
+          },
+          { type: "other", arrowhead: "cardinality_one", offset: 0 },
+        );
+        break;
+      case "cardinality_zero_or_one":
+        parts.push(
+          {
+            type: "circle",
+            arrowhead: "circle_outline",
+            offset: CARDINALITY_ZERO_CIRCLE_OFFSET,
+            diameterScale: CARDINALITY_ZERO_CIRCLE_SCALE,
+          },
+          {
+            type: "other",
+            arrowhead: "cardinality_one",
+            offset: CARDINALITY_INNER_BAR_OFFSET,
+          },
+        );
+        break;
+      case "cardinality_zero_or_many":
+        parts.push(
+          { type: "other", arrowhead: "cardinality_many", offset: 0 },
+          {
+            type: "circle",
+            arrowhead: "circle_outline",
+            offset: CARDINALITY_ZERO_CIRCLE_OFFSET,
+            diameterScale: CARDINALITY_ZERO_CIRCLE_SCALE,
+          },
+        );
+        break;
+      default:
+        parts.push({ type: "other", arrowhead, offset: 0 });
+        break;
+    }
+
+    for (const part of parts) {
+      const points = getArrowheadPoints(
+        element,
+        [curve],
+        position,
+        part.arrowhead,
+        part.offset,
+      );
+      if (!points) {
+        continue;
+      }
+
+      if (part.type === "circle") {
+        const [x, y, diameter] = points;
+        const radius = (diameter * part.diameterScale) / 2;
+        const [transformedX, transformedY] = transformXY(
+          pointFrom<GlobalPoint>(x, y),
+        );
+        minX = Math.min(minX, transformedX - radius);
+        minY = Math.min(minY, transformedY - radius);
+        maxX = Math.max(maxX, transformedX + radius);
+        maxY = Math.max(maxY, transformedY + radius);
+      } else {
+        for (let i = 0; i < points.length; i += 2) {
+          const [transformedX, transformedY] = transformXY(
+            pointFrom<GlobalPoint>(points[i], points[i + 1]),
+          );
+          minX = Math.min(minX, transformedX);
+          minY = Math.min(minY, transformedY);
+          maxX = Math.max(maxX, transformedX);
+          maxY = Math.max(maxY, transformedY);
+        }
+      }
+    }
+  }
+
+  return [minX, minY, maxX, maxY];
+};
+
 const getLinearElementRotatedBounds = (
   element: ExcalidrawLinearElement,
   cx: number,
@@ -1231,7 +1373,12 @@ const getLinearElementRotatedBounds = (
       element.angle,
     );
   const res = getMinMaxXYFromCurvePathOps(ops, transformXY);
-  let coords: Bounds = [res[0], res[1], res[2], res[3]];
+  let coords: Bounds = extendBoundsByArrowheads(
+    element,
+    shape,
+    [res[0], res[1], res[2], res[3]],
+    transformXY,
+  );
   if (boundTextElement) {
     const coordsWithBoundText = LinearElementEditor.getMinMaxXYWithBoundText(
       element,

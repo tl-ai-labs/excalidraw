@@ -1,0 +1,347 @@
+{
+  "section": "units",
+  "source": "units-002.json",
+  "value": [
+    {
+      "id": "U06",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds currentItemArrowheadSize to the AppState type.",
+      "rules": [
+        "1. Add ArrowheadSize to the existing `import type { ... } from \"@excalidraw/element/types\"` list, right after Arrowhead.",
+        "2. Add `currentItemArrowheadSize: ArrowheadSize;` to AppState right after currentItemEndArrowhead (required, not optional)."
+      ],
+      "exports": [
+        {
+          "name": "AppState",
+          "kind": "type",
+          "params": [],
+          "returns": "gains `currentItemArrowheadSize: ArrowheadSize`"
+        }
+      ],
+      "import_line": "import type { AppState } from \"../types\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 27,
+          "to": 27,
+          "first_line": "Arrowhead,",
+          "rule": "Insert `ArrowheadSize,` (rule 1)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 465,
+          "to": 465,
+          "first_line": "currentItemEndArrowhead: Arrowhead | null;",
+          "rule": "Insert `currentItemArrowheadSize: ArrowheadSize;` (rule 2)."
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/excalidraw/appState.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Defaults currentItemArrowheadSize to DEFAULT_ARROWHEAD_SIZE and registers its storage config.",
+      "rules": [
+        "1. Import DEFAULT_ARROWHEAD_SIZE in the existing value import from \"@excalidraw/common\".",
+        "2. getDefaultAppState returns `currentItemArrowheadSize: DEFAULT_ARROWHEAD_SIZE,` right after currentItemEndArrowhead.",
+        "3. APP_STATE_STORAGE_CONF gets `currentItemArrowheadSize: { browser: true, export: false, server: false },` right after currentItemEndArrowhead."
+      ],
+      "exports": [
+        {
+          "name": "getDefaultAppState",
+          "kind": "function",
+          "params": [],
+          "returns": "Omit<AppState, \"offsetTop\" | \"offsetLeft\" | \"width\" | \"height\"> (now with currentItemArrowheadSize)"
+        }
+      ],
+      "import_line": "import { getDefaultAppState } from \"../appState\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "DEFAULT_STICKY_NOTE_BG,",
+          "rule": "Insert `DEFAULT_ARROWHEAD_SIZE,` (rule 1)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 39,
+          "to": 39,
+          "first_line": "currentItemEndArrowhead: \"arrow\",",
+          "rule": "Insert the default per rule 2."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 175,
+          "to": 175,
+          "first_line": "currentItemEndArrowhead: { browser: true, export: false, server: false },",
+          "rule": "Insert the storage entry per rule 3."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U06"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/element/src/flowchart.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Flowchart-created arrows take appState.currentItemArrowheadSize.",
+      "rules": [
+        "1. In createBindingArrow's newArrowElement call add `arrowheadSize: appState.currentItemArrowheadSize,` right after endArrowhead; the factory drops the default."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 376,
+          "to": 376,
+          "first_line": "endArrowhead: appState.currentItemEndArrowhead,",
+          "rule": "Insert the arrowheadSize option per rule 1."
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/element/src/convertToShape.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Autoshape-recognized arrows take appState.currentItemArrowheadSize.",
+      "rules": [
+        "1. In the \"arrow\" case, the tempElement newArrowElement call gains `arrowheadSize: appState.currentItemArrowheadSize,` right after endArrowhead; the second newArrowElement({ ...tempElement, ...normalized }) carries it through the spread, so it is not edited.",
+        "2. The short-arrow fallback that creates a line is unchanged (lines draw no heads)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 652,
+          "to": 652,
+          "first_line": "endArrowhead: appState.currentItemEndArrowhead,",
+          "rule": "Insert the arrowheadSize option per rule 1."
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-9"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Restores arrowheadSize on lines and arrows (valid kept, invalid or default dropped) and defaults currentItemArrowheadSize in appState.",
+      "rules": [
+        "1. Import isArrowheadSize and normalizeArrowheadSize in the existing value import from \"@excalidraw/element\" that holds normalizeArrowhead.",
+        "2. New private `restoreArrowheadSize = <T extends ExcalidrawLinearElement>(element: T): T` placed right before restoreElement, with a one-line JSDoc.",
+        "3. It returns element unchanged when `!(\"arrowheadSize\" in element)`, or when normalizeArrowheadSize(element.arrowheadSize) === element.arrowheadSize (a valid non-default size).",
+        "4. Otherwise (invalid value, \"medium\", null) it returns a copy without the key, dropped by object rest destructuring (`const { arrowheadSize, ...rest } = element; return rest as T;`), never by delete on the input.",
+        "5. The line branch returns handleOversizedLinearElements(restoreArrowheadSize(restoredLine)); the arrow branch returns handleOversizedLinearElements(restoreArrowheadSize(normalizedRestoredElement)).",
+        "6. restoreAppState's returned object gains `currentItemArrowheadSize: isArrowheadSize(nextAppState.currentItemArrowheadSize) ? nextAppState.currentItemArrowheadSize : defaultAppState.currentItemArrowheadSize,` right before editingFrame (a missing key already comes from the default via the generic loop).",
+        "7. No version bump: restore normalizes data, it does not edit it."
+      ],
+      "exports": [
+        {
+          "name": "restoreElement",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "Exclude<ExcalidrawElement, ExcalidrawSelectionElement>"
+            },
+            {
+              "name": "targetElementsMap",
+              "type": "Readonly<ElementsMap>"
+            },
+            {
+              "name": "existingElementsMap",
+              "type": "Readonly<ElementsMap> | null | undefined"
+            },
+            {
+              "name": "opts",
+              "type": "{ deleteInvisibleElements?: boolean } | undefined"
+            }
+          ],
+          "returns": "typeof element | null (arrowheadSize normalized)"
+        },
+        {
+          "name": "restoreAppState",
+          "kind": "function",
+          "params": [
+            {
+              "name": "appState",
+              "type": "ImportedDataState[\"appState\"]"
+            },
+            {
+              "name": "localAppState",
+              "type": "Partial<AppState> | null | undefined"
+            }
+          ],
+          "returns": "RestoredAppState (currentItemArrowheadSize validated)"
+        }
+      ],
+      "import_line": "import { restoreAppState, restoreElements } from \"../data/restore\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 41,
+          "to": 41,
+          "first_line": "normalizeArrowhead,",
+          "rule": "Insert `isArrowheadSize,` and `normalizeArrowheadSize,` (rule 1)."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 541,
+          "to": 541,
+          "first_line": "export const restoreElement = (",
+          "rule": "Insert restoreArrowheadSize per rules 2-4, then a blank line."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 669,
+          "to": 669,
+          "first_line": "return handleOversizedLinearElements(restoredLine);",
+          "rule": "Wrap restoredLine with restoreArrowheadSize (rule 5)."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 736,
+          "to": 736,
+          "first_line": "return handleOversizedLinearElements(normalizedRestoredElement);",
+          "rule": "Wrap normalizedRestoredElement with restoreArrowheadSize (rule 5)."
+        },
+        {
+          "id": "S5",
+          "at": "insert_before",
+          "from": 1384,
+          "to": 1384,
+          "first_line": "editingFrame: null,",
+          "rule": "Insert the currentItemArrowheadSize entry per rule 6."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U06",
+        "U07"
+      ],
+      "covers": [
+        "FR-10",
+        "NFR-1",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds \"changeArrowheadSize\" to the ActionName union.",
+      "rules": [
+        "1. Add `| \"changeArrowheadSize\"` right after `| \"changeArrowhead\"`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 74,
+          "to": 74,
+          "first_line": "| \"changeArrowhead\"",
+          "rule": "Insert `| \"changeArrowheadSize\"` (rule 1)."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-8"
+      ],
+      "checks": [
+        "eslint"
+      ]
+    },
+    {
+      "id": "U12",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the English label of the arrowhead size control and of each option.",
+      "rules": [
+        "1. Under \"labels\", right after \"arrowhead_cardinality_zero_or_many\", add in this order: \"arrowheadSize\": \"Arrowhead size\", \"arrowheadSize_small\": \"Small\", \"arrowheadSize_medium\": \"Medium\", \"arrowheadSize_large\": \"Large\".",
+        "2. Keep two-space indentation and trailing commas valid JSON; no other key changes."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 70,
+          "to": 70,
+          "first_line": "\"arrowhead_cardinality_zero_or_many\": \"Cardinality (zero or many)\",",
+          "rule": "Insert the four keys per rule 1, each line ending with a comma."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-13"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/types.ts": "da1df501290dab5f4a8c0d1b4729090f71dd6f7492b5742e8cc28c18e60f366d",
+    "packages/excalidraw/appState.ts": "2abf28965eea39ce889d8338ee4a9eae9c349b9c725b07094e7e56422cd3d4a6",
+    "packages/element/src/flowchart.ts": "a552b99159211136ffcc4ac40079a90a61d1a35a2229833eb82623a6b39a84fa",
+    "packages/element/src/convertToShape.ts": "326f46fcfd465878dea76ba2d2c6e4938893f6ec480fed028857c42e595aa267",
+    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f",
+    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339",
+    "packages/excalidraw/locales/en.json": "07a8de221b3bcc8fa3c7f2241ecc7acec0a95fec27f2599c776a2b83c6c06296"
+  }
+}

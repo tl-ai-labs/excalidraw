@@ -1,6 +1,7 @@
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
+  ARROWHEAD_SIZE_SCALES,
   FONT_FAMILY,
   ROUNDNESS,
   TEXT_ALIGN,
@@ -366,6 +367,9 @@ export type Arrowhead =
 
 export type AnyArrowhead = Arrowhead | ArrowheadLegacy;
 
+/** Size preset of both arrowheads of a linear element. */
+export type ArrowheadSize = keyof typeof ARROWHEAD_SIZE_SCALES;
+
 export type ExcalidrawLinearElement = _ExcalidrawElementBase &
   Readonly<{
     type: "line" | "arrow";
@@ -374,6 +378,8 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    /** Scales both arrowheads; absent means the default size ("medium"), which is never stored. */
+    arrowheadSize?: ArrowheadSize;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &

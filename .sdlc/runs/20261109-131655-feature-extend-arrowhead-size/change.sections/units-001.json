@@ -1,0 +1,241 @@
+[
+  {
+    "id": "U01",
+    "path": "packages/common/src/constants.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the arrowhead size presets and their default next to the stroke-width constants.",
+    "rules": [
+      "1. Add `export const ARROWHEAD_SIZE_SCALES = { small: 0.5, medium: 1, large: 1.5 } as const;` with a one-line comment: scale of each arrowhead size preset relative to the per-type arrowhead size.",
+      "2. Add `export const DEFAULT_ARROWHEAD_SIZE: keyof typeof ARROWHEAD_SIZE_SCALES = \"medium\";` with a one-line comment: today's size; elements omit the key for it.",
+      "3. No other line of the file changes."
+    ],
+    "exports": [
+      { "name": "ARROWHEAD_SIZE_SCALES", "kind": "const", "params": [], "returns": "{ readonly small: 0.5; readonly medium: 1; readonly large: 1.5 }" },
+      { "name": "DEFAULT_ARROWHEAD_SIZE", "kind": "const", "params": [], "returns": "keyof typeof ARROWHEAD_SIZE_SCALES" }
+    ],
+    "import_line": "import { ARROWHEAD_SIZE_SCALES, DEFAULT_ARROWHEAD_SIZE } from \"@excalidraw/common\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 515,
+        "to": 515,
+        "first_line": "export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = \"medium\";",
+        "rule": "Insert a blank line, then ARROWHEAD_SIZE_SCALES and DEFAULT_ARROWHEAD_SIZE per rules 1-2."
+      }
+    ],
+    "depends_on": [],
+    "covers": ["FR-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U02",
+    "path": "packages/element/src/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Declares the ArrowheadSize union and the optional arrowheadSize property on ExcalidrawLinearElement.",
+    "rules": [
+      "1. Add ARROWHEAD_SIZE_SCALES to the existing `import type { ... } from \"@excalidraw/common\"` list (it is used only under typeof).",
+      "2. Export `type ArrowheadSize = keyof typeof ARROWHEAD_SIZE_SCALES;` right after AnyArrowhead, with a JSDoc line: size preset of both arrowheads of a linear element.",
+      "3. Add `arrowheadSize?: ArrowheadSize;` to the Readonly<{...}> of ExcalidrawLinearElement after endArrowhead, with a JSDoc line: scales both arrowheads; absent means the default size (\"medium\"), which is never stored.",
+      "4. The property is optional so every existing element, factory and snapshot type-checks unchanged."
+    ],
+    "exports": [
+      { "name": "ArrowheadSize", "kind": "type", "params": [], "returns": "\"small\" | \"medium\" | \"large\"" },
+      { "name": "ExcalidrawLinearElement", "kind": "type", "params": [], "returns": "gains `arrowheadSize?: ArrowheadSize`" }
+    ],
+    "import_line": "import type { ArrowheadSize } from \"@excalidraw/element/types\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 4,
+        "to": 4,
+        "first_line": "FONT_FAMILY,",
+        "rule": "Replace with two entries: `ARROWHEAD_SIZE_SCALES,` then `FONT_FAMILY,` (rule 1)."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 367,
+        "to": 367,
+        "first_line": "export type AnyArrowhead = Arrowhead | ArrowheadLegacy;",
+        "rule": "Insert a blank line, the JSDoc and the ArrowheadSize export (rule 2)."
+      },
+      {
+        "id": "S3",
+        "at": "insert_after",
+        "from": 376,
+        "to": 376,
+        "first_line": "endArrowhead: Arrowhead | null;",
+        "rule": "Insert the JSDoc and `arrowheadSize?: ArrowheadSize;` at the same indentation (rule 3)."
+      }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-1"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U03",
+    "path": "packages/element/src/arrowheads.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the arrowhead size validation, normalization and scale lookup shared by factories, restore, actions and geometry.",
+    "rules": [
+      "1. isArrowheadSize(value) is true only when value is a string that is an own key of ARROWHEAD_SIZE_SCALES (use Object.prototype.hasOwnProperty.call, never `in`, so \"toString\" is rejected).",
+      "2. normalizeArrowheadSize(value) returns value when isArrowheadSize(value) and value !== DEFAULT_ARROWHEAD_SIZE; otherwise undefined (invalid, missing and default all collapse to the absent key).",
+      "3. getArrowheadSizeScale(arrowheadSize) returns ARROWHEAD_SIZE_SCALES[arrowheadSize] when isArrowheadSize(arrowheadSize), else exactly 1; it allocates nothing (called per frame).",
+      "4. Each function gets a one-line JSDoc; existing normalizeArrowhead and getArrowheadForPicker stay unchanged."
+    ],
+    "exports": [
+      { "name": "isArrowheadSize", "kind": "function", "params": [{ "name": "value", "type": "unknown" }], "returns": "value is ArrowheadSize" },
+      { "name": "normalizeArrowheadSize", "kind": "function", "params": [{ "name": "value", "type": "unknown" }], "returns": "ArrowheadSize | undefined" },
+      { "name": "getArrowheadSizeScale", "kind": "function", "params": [{ "name": "arrowheadSize", "type": "ArrowheadSize | undefined" }], "returns": "number" }
+    ],
+    "import_line": "import { getArrowheadSizeScale, isArrowheadSize, normalizeArrowheadSize } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 1,
+        "to": 1,
+        "first_line": "import type { Arrowhead, AnyArrowhead } from \"./types\";",
+        "rule": "Replace with `import { ARROWHEAD_SIZE_SCALES, DEFAULT_ARROWHEAD_SIZE } from \"@excalidraw/common\";`, a blank line, then `import type { Arrowhead, AnyArrowhead, ArrowheadSize } from \"./types\";`."
+      },
+      {
+        "id": "S2",
+        "at": "insert_after",
+        "from": 32,
+        "to": 32,
+        "first_line": "};",
+        "rule": "Insert a blank line and the three exported functions per rules 1-4."
+      }
+    ],
+    "depends_on": ["U01", "U02"],
+    "covers": ["FR-10", "NFR-2"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U04",
+    "path": "packages/element/src/bounds.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Scales arrowhead geometry by the element's size inside getArrowheadPoints and extends linear bounds by enlarged arrowheads.",
+    "rules": [
+      "1. In getArrowheadPoints: `const scale = getArrowheadSizeScale(element.arrowheadSize);` and `const size = getArrowheadSize(arrowhead) * scale;`; the length multiplier, minSize and getArrowheadSizeBeyondLastSegment logic below stay exactly as they are (the fitting runs with the scaled size as the full size).",
+      "2. In getArrowheadPoints the angle line becomes `getArrowheadAngle(arrowhead, minSize / scale)`; nothing else in the function changes, so scale 1 yields byte-identical points.",
+      "3. getArrowheadSize, getArrowheadAngle, getArrowheadSizeBeyondLastSegment and getCardinalityMarkerScale keep their signatures and bodies.",
+      "4. New private `extendBoundsByArrowheads(element: ExcalidrawLinearElement, curve: Drawable, bounds: Bounds, transformXY: (p: GlobalPoint) => GlobalPoint): Bounds`, placed right before getLinearElementRotatedBounds.",
+      "5. It returns `bounds` itself (no copy, no allocation) unless isArrowElement(element) and getArrowheadSizeScale(element.arrowheadSize) > 1.",
+      "6. Otherwise start min/max from bounds and, for position \"start\" with element.startArrowhead and \"end\" with element.endArrowhead (skip a null head), enumerate the head's parts exactly as shape.ts getArrowheadShapes does: circle and circle_outline -> one circle part (the head, offset 0, diameter scale 1); cardinality_one_or_many -> \"cardinality_many\" offset 0 and \"cardinality_one\" offset CARDINALITY_ONE_OR_MANY_BAR_OFFSET; cardinality_exactly_one -> \"cardinality_one\" offset CARDINALITY_INNER_BAR_OFFSET and \"cardinality_one\" offset 0; cardinality_zero_or_one -> circle part \"circle_outline\" offset CARDINALITY_ZERO_CIRCLE_OFFSET diameter scale CARDINALITY_ZERO_CIRCLE_SCALE and \"cardinality_one\" offset CARDINALITY_INNER_BAR_OFFSET; cardinality_zero_or_many -> \"cardinality_many\" offset 0 and circle part \"circle_outline\" offset CARDINALITY_ZERO_CIRCLE_OFFSET diameter scale CARDINALITY_ZERO_CIRCLE_SCALE; every other head -> the head itself, offset 0.",
+      "7. Each part calls getArrowheadPoints(element, [curve], position, partArrowhead, offset) and skips a null result.",
+      "8. A circle part's result is [x, y, diameter]: transform pointFrom<GlobalPoint>(x, y) with transformXY and extend min/max by diameter * diameterScale / 2 on every side.",
+      "9. Any other part's result is a flat x, y list: transform each consecutive pair with transformXY and extend min/max; return [minX, minY, maxX, maxY].",
+      "10. In getLinearElementRotatedBounds, `coords` starts from extendBoundsByArrowheads(element, shape, [res[0], res[1], res[2], res[3]], transformXY); the bound-text branch after it is unchanged."
+    ],
+    "exports": [
+      { "name": "getArrowheadPoints", "kind": "function", "params": [{ "name": "element", "type": "ExcalidrawLinearElement" }, { "name": "shape", "type": "Drawable[]" }, { "name": "position", "type": "\"start\" | \"end\"" }, { "name": "arrowhead", "type": "Arrowhead" }, { "name": "offsetMultiplier", "type": "number = 0" }], "returns": "number[] | null (now scaled by element.arrowheadSize)" },
+      { "name": "getElementBounds", "kind": "function", "params": [{ "name": "element", "type": "ExcalidrawElement" }, { "name": "elementsMap", "type": "ElementsMap" }, { "name": "nonRotated", "type": "boolean = false" }], "returns": "Bounds (arrows with a size above default include their heads)" }
+    ],
+    "import_line": "import { getArrowheadPoints, getElementBounds } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 55,
+        "to": 55,
+        "first_line": "import { elementOverlapsWithFrame, getContainingFrame } from \"./frame\";",
+        "rule": "Insert `import { getArrowheadSizeScale } from \"./arrowheads\";`."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 1058,
+        "to": 1058,
+        "first_line": "const size = getArrowheadSize(arrowhead);",
+        "rule": "Replace with the scale and scaled size lines of rule 1."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 1102,
+        "to": 1102,
+        "first_line": "const angle = getArrowheadAngle(arrowhead, minSize);",
+        "rule": "Replace with `const angle = getArrowheadAngle(arrowhead, minSize / scale);` (rule 2)."
+      },
+      {
+        "id": "S4",
+        "at": "insert_before",
+        "from": 1189,
+        "to": 1189,
+        "first_line": "const getLinearElementRotatedBounds = (",
+        "rule": "Insert extendBoundsByArrowheads per rules 4-9 with a JSDoc saying only enlarged heads extend the bounds, then a blank line."
+      },
+      {
+        "id": "S5",
+        "at": "replace",
+        "from": 1234,
+        "to": 1234,
+        "first_line": "let coords: Bounds = [res[0], res[1], res[2], res[3]];",
+        "rule": "Replace per rule 10, keeping `let coords: Bounds`."
+      }
+    ],
+    "uses": [
+      { "path": "packages/element/src/shape.ts", "lines": [401, 634], "reason": "getArrowheadShapes: the per-head parts, offsets and circle diameter scales that rule 6 mirrors." }
+    ],
+    "depends_on": ["U02", "U03"],
+    "covers": ["FR-2", "FR-3", "FR-4", "FR-12", "NFR-1", "NFR-3", "NFR-5"],
+    "checks": ["eslint"]
+  },
+  {
+    "id": "U05",
+    "path": "packages/element/src/newElement.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Lets newLinearElement and newArrowElement take an arrowheadSize option, storing it only when it is a valid non-default size.",
+    "rules": [
+      "1. Import normalizeArrowheadSize from \"./arrowheads\".",
+      "2. newLinearElement's opts gain `arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"];`; compute `const arrowheadSize = normalizeArrowheadSize(opts.arrowheadSize);` and spread `...(arrowheadSize ? { arrowheadSize } : {})` into the element literal right after `endArrowhead: null,`; the line branch keeps spreading `element`, so lines carry it too.",
+      "3. newArrowElement's opts gain the same option; both the elbowed and the non-elbowed literal spread `...(arrowheadSize ? { arrowheadSize } : {})` right after endArrowhead, computed once before the branch.",
+      "4. Not given, \"medium\" or an invalid value -> the created element has no arrowheadSize key, so element snapshots are unchanged.",
+      "5. Keep the existing return types and casts; no other factory changes."
+    ],
+    "exports": [
+      { "name": "newLinearElement", "kind": "function", "params": [{ "name": "opts", "type": "{ type; points?; polygon?; arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"] } & ElementConstructorOpts" }], "returns": "NonDeleted<ExcalidrawLinearElement>" },
+      { "name": "newArrowElement", "kind": "function", "params": [{ "name": "opts", "type": "{ type; startArrowhead?; endArrowhead?; points?; elbowed?; fixedSegments?; arrowheadSize?: ExcalidrawLinearElement[\"arrowheadSize\"] } & ElementConstructorOpts" }], "returns": "NonDeleted<ExcalidrawArrowElement | ExcalidrawElbowArrowElement>" }
+    ],
+    "import_line": "import { newArrowElement, newLinearElement } from \"@excalidraw/element\";",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 26,
+        "to": 26,
+        "first_line": "import { newElementWith } from \"./mutateElement\";",
+        "rule": "Insert `import { normalizeArrowheadSize } from \"./arrowheads\";` (rule 1)."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 623,
+        "to": 638,
+        "first_line": "export const newLinearElement = (",
+        "last_line": "};",
+        "rule": "Rewrite the signature and element literal of newLinearElement per rule 2; keep the rest of the function as is."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 652,
+        "to": 690,
+        "first_line": "export const newArrowElement = <T extends boolean>(",
+        "last_line": "};",
+        "rule": "Rewrite newArrowElement per rule 3, otherwise identical to today."
+      }
+    ],
+    "depends_on": ["U02", "U03"],
+    "covers": ["FR-5", "FR-6"],
+    "checks": ["eslint"]
+  }
+]

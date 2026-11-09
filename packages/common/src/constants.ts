@@ -514,6 +514,17 @@ export const getStrokeWidthByKey = (
 
 export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = "medium";
 
+// scale of each arrowhead size preset relative to the per-type arrowhead size
+export const ARROWHEAD_SIZE_SCALES = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+} as const;
+
+// today's size; elements omit the key for it
+export const DEFAULT_ARROWHEAD_SIZE: keyof typeof ARROWHEAD_SIZE_SCALES =
+  "medium";
+
 export const DEFAULT_ELEMENT_PROPS: {
   strokeColor: ExcalidrawElement["strokeColor"];
   backgroundColor: ExcalidrawElement["backgroundColor"];

@@ -1,0 +1,40 @@
+{
+  "module": "arrowhead-size (feature-extend, brownfield)",
+  "verdict": "needs_changes",
+  "tool_calls": 13,
+  "findings": [
+    {
+      "severity": "major",
+      "file": "packages/excalidraw/actions/actionStyles.ts",
+      "line": 196,
+      "issue": "Paste styles cannot reset a sized arrow to the default size, so FR-11 fails for that case. If the source arrow has the default size and the target has, for example, \"large\", the update is `{ startArrowhead, endArrowhead, arrowheadSize: undefined }`. newElementWith skips undefined values when it checks for changes and returns the element unchanged when nothing changed (mutateElement.ts:156-172). So when the start and end arrowheads already match, the target keeps \"large\". If the arrowheads differ, the key is only set to undefined. actionChangeArrowheadSize works around this same newElementWith behaviour, but paste styles does not. The existing test only covers pasting a small size onto a default arrow. Confidence: high (read from newElementWith's source).",
+      "fix": "When `arrowheadSize === undefined` and the target has a non-default size, drop the key and force a version bump, as actionChangeArrowheadSize does: `const { arrowheadSize: _, ...rest } = newElement; newElement = newElementWith(rest as typeof newElement, { startArrowhead, endArrowhead }, true)`. Otherwise keep the current call. Add a test in packages/excalidraw/tests/arrowheadSize.test.tsx that copies styles from a default arrow, pastes them onto a \"large\" arrow with the same arrowheads, and expects arrowheadSize to be undefined."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/actions/actionProperties.tsx",
+      "line": 2074,
+      "issue": "actionChangeArrowheadSize uses `isLinearElement` only. The sibling actionChangeArrowhead also requires `canHaveArrowheads(element.type)`. As a result, choosing a size writes arrowheadSize onto selected line elements, which draw no heads. Also, with a line and a sized arrow selected together, getFormValue shows no selection in the control even though the only arrow has one size. The plan's rules 4 and 8 say isLinearElement, so this follows the plan but breaks the sibling convention.",
+      "fix": "In perform, in the getFormValue value getter and in the isRelevant predicate, use `isLinearElement(el) && canHaveArrowheads(el.type)` (already imported) so that only arrows are read and written."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/arrowheadSize.test.tsx",
+      "line": 26,
+      "issue": "`as any` is used outside restore call sites (`element as any` in getSize, and `elements: any[]` in exportOne). Plan rule 4 allows `as any` only at restore call sites. Coverage gaps: no redo after undo, no check that choosing the size an arrow already has leaves the element unchanged (no version bump, no new key), and none of the other creation paths (flowchart, convertToShape, App.drawshape, ConvertElementTypePopup) is tested.",
+      "fix": "Type getSize as `(element: ExcalidrawElement)` and exportOne as `(elements: readonly ExcalidrawElement[])` (or the type restoreElements returns). Add a redo assertion to the undo test, and add a no-op test that clicks arrowheadSize-medium on a default arrow and expects the element's version to be unchanged."
+    }
+  ],
+  "passing_checks": [
+    "Correctness against change_plan U01-U24: all units present. The medium path in actionChangeArrowheadSize correctly differs from the plan (it drops the key and forces a version bump, because the plan's newElementWith(el, { arrowheadSize: undefined }) would do nothing).",
+    "Default render path: getArrowheadSizeScale allocates nothing, `minSize / 1` gives identical numbers, extendBoundsByArrowheads returns the input bounds unchanged unless scale > 1.",
+    "Type safety: the new union comes from the const map. The only casts are `rest as T` and `rest as ExcalidrawLinearElement` for key removal, which is justified.",
+    "Restore: invalid and default sizes are dropped by object rest without mutating the input. appState is validated with isArrowheadSize.",
+    "History: Delta.calculate records the key as undefined when it is removed, and applyDelta forces the change, so undo works.",
+    "Snapshots: the only snapshot change is 132 `\"currentItemArrowheadSize\": \"medium\"` lines, with no element or geometry change, as the plan expects.",
+    "Sensitive files: no manifest, .env, CLAUDE.md or settings file touched. en.json and CHANGELOG.md only gain lines.",
+    "Authz and PII: not applicable (client-side editor feature).",
+    "Env fixtures: not applicable (no validating config module in this stack)."
+  ],
+  "refinement_packets": []
+}

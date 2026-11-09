@@ -13,6 +13,12 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Arrowhead size (2026-11-09) [#6712](https://github.com/excalidraw/excalidraw/issues/6712)
+
+- Linear elements gain optional `arrowheadSize` (`"small" | "medium" | "large"`, type `ArrowheadSize`) scaling both arrowheads; absent means `"medium"`, today's size, so existing scenes render, export and hit-test as before; invalid values restore to the default.
+- New `appState.currentItemArrowheadSize` (default `"medium"`, persisted in browser storage only) applied to newly created arrows, and a properties-panel control (action `changeArrowheadSize`) next to the arrowhead pickers; copy/paste styles carries the size.
+- `convertToExcalidrawElements` passes `arrowheadSize` through; arrows larger than default include their heads in their bounds.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

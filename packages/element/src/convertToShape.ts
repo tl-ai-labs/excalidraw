@@ -650,6 +650,7 @@ export const convertToShape = (
         y: arrowY,
         startArrowhead: appState.currentItemStartArrowhead,
         endArrowhead: appState.currentItemEndArrowhead,
+        arrowheadSize: appState.currentItemArrowheadSize,
         points: [
           pointFrom<LocalPoint>(
             recognizedShape.points[0][0] - arrowX,
