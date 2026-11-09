@@ -160,6 +160,7 @@ export const SelectedShapeActions = ({
   return (
     <div className="selected-shape-actions">
       <div>{predicates.strokeColor && renderAction("changeStrokeColor")}</div>
+      {renderAction("changeTextHighlight")}
       {predicates.backgroundColor && (
         <div>{renderAction("changeBackgroundColor")}</div>
       )}
@@ -632,6 +633,7 @@ export const CompactShapeActions = ({
           {renderAction("changeStrokeColor")}
         </div>
       )}
+      {renderAction("changeTextHighlight")}
 
       {/* Background Color (the bucket fill variant excludes `transparent`) */}
       {predicates.backgroundColor && (

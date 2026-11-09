@@ -42,7 +42,12 @@ import {
 
 import { LinearElementEditor } from "@excalidraw/element";
 
-import { newElementWith } from "@excalidraw/element";
+import {
+  applyStyleToRange,
+  newElementWith,
+  type TextStyleUpdate,
+  withoutStyleRanges,
+} from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
 
 import {
@@ -108,6 +113,7 @@ import { ColorPicker } from "../components/ColorPicker/ColorPicker";
 import { FontPicker } from "../components/FontPicker/FontPicker";
 import { IconPicker } from "../components/IconPicker";
 import { Range } from "../components/Range";
+import { TextHighlightPicker } from "../components/TextHighlightPicker";
 import {
   ArrowheadArrowIcon,
   ArrowheadBarIcon,
@@ -174,7 +180,9 @@ import { getShortcutKey } from "../shortcut";
 
 import {
   getColorTargetAppStateUpdates,
+  getTextEditorSelection,
   resolveColorTarget,
+  type TextEditorSelection,
 } from "./colorTargets";
 import { register } from "./register";
 
@@ -361,6 +369,32 @@ const changeFontSize = (
   };
 };
 
+const applyStyleToTextEditorSelection = (
+  elements: readonly ExcalidrawElement[],
+  selection: TextEditorSelection,
+  getStyle: (element: ExcalidrawTextElement) => TextStyleUpdate,
+): ExcalidrawElement[] => {
+  return elements.map((el) => {
+    if (el.id !== selection.elementId || el.isDeleted || !isTextElement(el)) {
+      return el;
+    }
+    const len = el.originalText.length;
+    const next = applyStyleToRange(
+      el.styleRanges ?? [],
+      Math.min(selection.start, len),
+      Math.min(selection.end, len),
+      getStyle(el),
+    );
+    if (next.length) {
+      return newElementWith(el, { styleRanges: next });
+    }
+    if (el.styleRanges?.length) {
+      return newElementWith(withoutStyleRanges(el), {}, true);
+    }
+    return el;
+  });
+};
+
 // -----------------------------------------------------------------------------
 
 export const actionChangeStrokeColor = register<
@@ -369,7 +403,7 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,17 +411,61 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+    // editing text with a selection: color only the selected span
+    const textSelection = getTextEditorSelection(app, appState);
+    const textElement =
+      textSelection && elements.find((el) => el.id === textSelection.elementId);
+    const isWholeText =
+      textElement &&
+      isTextElement(textElement) &&
+      textSelection.start <= 0 &&
+      textSelection.end >= textElement.originalText.length;
+
+    if (textSelection && !isWholeText) {
+      return {
+        elements: applyStyleToTextEditorSelection(
+          elements,
+          textSelection,
+          (el) => ({ color: color === el.strokeColor ? null : color }),
+        ),
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
     const elementsMap = arrayToMap(elements);
+
+    // when the whole text is selected (e.g. select-on-open or sticky note ink),
+    // update the element-wide strokeColor and strip any range colors so the
+    // whole text cleanly takes the new colour
+    const baseElements =
+      isWholeText && textElement && isTextElement(textElement)
+        ? elements.map((el) => {
+            if (el.id !== textElement.id || !isTextElement(el)) {
+              return el;
+            }
+            const len = el.originalText.length;
+            const next = applyStyleToRange(el.styleRanges ?? [], 0, len, {
+              color: null,
+            });
+            if (next.length) {
+              return newElementWith(el, { styleRanges: next });
+            }
+            if (el.styleRanges?.length) {
+              return newElementWith(withoutStyleRanges(el), {}, true);
+            }
+            return el;
+          })
+        : elements;
 
     return {
       // a note and its label share one ink: coloring the label while editing
       // it (no selection) colors the note too — the footer paints with it
       elements: syncStickyNoteInk(
         changeProperty(
-          elements,
+          baseElements,
           appState,
           (el) =>
             hasStrokeColor(el.type)
@@ -556,6 +634,36 @@ export const actionChangeBackgroundColor = register<
       </>
     );
   },
+});
+
+export const actionChangeTextHighlight = register<{ color?: string | null }>({
+  name: "changeTextHighlight",
+  label: "labels.textHighlight",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const textSelection = getTextEditorSelection(app, appState);
+    if (!textSelection || value?.color === undefined) {
+      return false;
+    }
+    const backgroundColor =
+      value.color === null || isTransparent(value.color) ? null : value.color;
+    return {
+      elements: applyStyleToTextEditorSelection(
+        elements,
+        textSelection,
+        () => ({ backgroundColor }),
+      ),
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ appState, updateData, app }) => (
+    <TextHighlightPicker
+      app={app}
+      appState={appState}
+      compact={getStylesPanelInfo(app).isCompact}
+      onChange={(color) => updateData({ color })}
+    />
+  ),
 });
 
 export const actionChangeBucketFillBackgroundColor = register<

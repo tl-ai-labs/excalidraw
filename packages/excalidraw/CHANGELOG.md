@@ -13,6 +13,12 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Styled text ranges (2026-11-09)
+
+- While editing a text, select part of it and pick a stroke colour to colour only that part, or use the new "Text highlight" swatches to highlight it; the element's own stroke colour is untouched; works for standalone and container/arrow labels, survives wrapping, font changes, undo/redo, copy/paste and collaboration, and is kept in SVG export (`<tspan>` fills and highlight `<rect>`s).
+- Element model: new optional `ExcalidrawTextElement.styleRanges` (`{ start, end, color?, backgroundColor? }[]`, half-open offsets into `originalText`), present only when a text has at least one styled range, so existing elements and files are unchanged; helpers `applyStyleToRange`, `shiftRangesForEdit`, `normalizeRanges`, `clampRanges`, `getTextStyleLineRuns`, `withoutStyleRanges` exported from `@excalidraw/element`.
+- Right-to-left texts render without per-range styling; the editor textarea itself still shows plain text.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

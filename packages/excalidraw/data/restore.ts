@@ -79,6 +79,10 @@ import {
 } from "@excalidraw/element";
 
 import { refreshTextDimensions } from "@excalidraw/element";
+import {
+  sanitizeTextStyleRanges,
+  withoutStyleRanges,
+} from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
@@ -574,7 +578,11 @@ export const restoreElement = (
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
-      element = restoreElementWithProperties(element, {
+      const styleRanges = sanitizeTextStyleRanges(
+        element.styleRanges,
+        (element.originalText || text).length,
+      );
+      element = restoreElementWithProperties(withoutStyleRanges(element), {
         fontSize,
         fontFamily,
         text,
@@ -582,6 +590,7 @@ export const restoreElement = (
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
         originalText: element.originalText || text,
+        ...(styleRanges.length ? { styleRanges } : {}),
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
