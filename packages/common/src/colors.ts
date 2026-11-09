@@ -113,6 +113,86 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   return result;
 };
 
+const cssInvertInverse = (
+  r: number,
+  g: number,
+  b: number,
+  percent: number,
+): { r: number; g: number; b: number } => {
+  const p = clamp(percent, 0, 100) / 100;
+
+  const invertComponentInverse = (color: number): number => {
+    const inverted = (color - 255 * p) / (1 - 2 * p);
+    return Math.round(clamp(inverted, 0, 255));
+  };
+
+  const invertedR = invertComponentInverse(r);
+  const invertedG = invertComponentInverse(g);
+  const invertedB = invertComponentInverse(b);
+
+  return { r: invertedR, g: invertedG, b: invertedB };
+};
+
+/**
+ * Inverse of applyDarkModeFilter, used to recover an element's colour from a
+ * dark-mode canvas pixel; colours the forward transform clamps cannot be
+ * recovered exactly.
+ */
+export const revertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+
+  const rgb = tc.toRgb();
+  const rotated = cssHueRotate(rgb.r, rgb.g, rgb.b, -180 as Degrees);
+  const reverted = cssInvertInverse(rotated.r, rotated.g, rotated.b, 93);
+
+  return rgbToHex(reverted.r, reverted.g, reverted.b, alpha);
+};
+
+/**
+ * Returns the scene or palette colour whose dark-mode rendering is exactly the
+ * picked pixel, so colours the inverse cannot recover (forward hue-rotate
+ * clamping) are still picked exactly; null means fall back to
+ * revertDarkModeFilter.
+ */
+export const matchDarkModeColor = (
+  pickedColor: string,
+  sceneColors: Iterable<string>,
+): string | null => {
+  const target = pickedColor.toLowerCase().slice(0, 7);
+
+  const isDarkModeMatch = (c: string) =>
+    applyDarkModeFilter(c).slice(0, 7) === target &&
+    tinycolor(c).isValid() &&
+    !isTransparent(c);
+
+  for (const c of sceneColors) {
+    if (isDarkModeMatch(c)) {
+      return c;
+    }
+  }
+
+  for (const value of Object.values(COLOR_PALETTE)) {
+    if (typeof value === "string") {
+      if (isDarkModeMatch(value)) {
+        return value;
+      }
+    } else {
+      for (const shade of value) {
+        if (isDarkModeMatch(shade)) {
+          return shade;
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
 // ---------------------------------------------------------------------------
 // Color palette
 // ---------------------------------------------------------------------------

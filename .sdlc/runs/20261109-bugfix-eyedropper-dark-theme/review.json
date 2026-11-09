@@ -1,0 +1,41 @@
+{
+  "module": "eyedropper-dark-theme (bugfix)",
+  "mode": "brownfield",
+  "intent": "bugfix",
+  "verdict": "approved",
+  "tool_calls": 4,
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/common/src/colors.ts",
+      "line": 631,
+      "issue": "matchDarkModeColor repeats the same match-then-validate block three times: the scene loop, the string palette entries and the shade arrays (lines ~631-655).",
+      "fix": "Pull the check into a private `const isDarkModeMatch = (c: string, target: string) => applyDarkModeFilter(c).slice(0, 7) === target && tinycolor(c).isValid() && !isTransparent(c);` and call it from each loop, or flatten the palette candidates in one generator. Behaviour and candidate order stay the same."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "line": 979,
+      "issue": "The clamped-yellow integration case uses #ffd43b, which is a COLOR_PALETTE shade, so it passes through the palette fallback even if EyeDropper never builds or passes sceneColors. The scene-colour path in EyeDropper.tsx (lines 87-94) has no integration test that would fail without it. matchDarkModeColor's scene preference is covered only by unit tests in colors.test.ts.",
+      "fix": "Add one dark-theme case where the source rectangle uses a non-palette colour (for example #123456) and assert that the target gets exactly that colour. Without the sceneColors wiring, the revertDarkModeFilter fallback would have to hit it exactly for the test to pass, so the wiring is pinned at the integration level."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/eyeDropper.test.tsx",
+      "line": 845,
+      "issue": "Each of the five dark-theme cases repeats the same render call (theme={THEME.DARK}) and the same target rectangle setup (createElement, setElements, setSelectedElements), about 15 lines per case.",
+      "fix": "Extract a `renderDarkWithTarget()` helper inside describe(\"in dark theme\") that renders the dark editor and returns the selected target rect. Each case then calls it before stubPixel."
+    }
+  ],
+  "passing_checks": [
+    "Correctness: the inverse is the exact algebraic inverse of cssInvert at 93% after the self-inverse hue-rotate(180), applied once in getCurrentColor (match first, inverse as fallback), and appState.theme is added to the effect deps. This matches change_plan U03/U04.",
+    "Forward code (applyDarkModeFilter, cssInvert, cssHueRotate, DARK_MODE_COLORS_CACHE) is unchanged, and no snapshots were touched.",
+    "Type safety: no any; the only cast is the plan-sanctioned `as unknown as ImageData` test stub.",
+    "Error handling: invalid and transparent candidates are skipped after the match (the palette's leading `transparent` entry renders as #ededed and is correctly rejected).",
+    "Authz/PII: not applicable (client-side colour utility).",
+    "Test coverage: unit tests cover fixed points, alpha, the enable flag, the ±1 palette round trip and the 13 pinned exceptions; integration tests cover the light-theme control, pointerup, preview, colour picker and the bucket-fill colour and cursor (inverse applied once).",
+    "Sensitive files: index.tsx only adds the re-export, and the CHANGELOG adds the planned Fixes bullet under Unreleased. No manifest, env or config files were touched.",
+    "Env-fixture check skipped (intent bugfix)."
+  ],
+  "refinement_packets": []
+}

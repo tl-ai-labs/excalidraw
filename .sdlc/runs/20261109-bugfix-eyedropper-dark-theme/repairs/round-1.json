@@ -1,0 +1,46 @@
+[
+  {
+    "id": "tp_debug_r1_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "bugfix",
+    "pass_id": "20261109-bugfix-eyedropper-dark-theme",
+    "artifact_path": "packages/common/src/colors.ts",
+    "instruction": "Fix `packages/common/src/colors.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 631): matchDarkModeColor repeats the same match-then-validate block three times: the scene loop, the string palette entries and the shade arrays (lines ~631-655). — fix: Pull the check into a private `const isDarkModeMatch = (c: string, target: string) => applyDarkModeFilter(c).slice(0, 7) === target && tinycolor(c).isValid() && !isTransparent(c);` and call it from each loop, or flatten the palette candidates in one generator. Behaviour and candidate order stay the same.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/common/src/colors.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/common/src/colors.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-bugfix-eyedropper-dark-theme/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-bugfix-eyedropper-dark-theme/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/common/src/colors.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

@@ -1,7 +1,14 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  EVENT,
+  KEYS,
+  matchDarkModeColor,
+  revertDarkModeFilter,
+  rgbToHex,
+  THEME,
+} from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -77,6 +84,15 @@ export const EyeDropper: React.FC<{
 
     const ctx = app.canvas.getContext("2d")!;
 
+    // Scene colours let a clamped colour be matched exactly.
+    const sceneColors = new Set<string>();
+    if (appState.theme === THEME.DARK) {
+      for (const element of stableProps.app.scene.getNonDeletedElements()) {
+        sceneColors.add(element.strokeColor);
+        sceneColors.add(element.backgroundColor);
+      }
+    }
+
     const getCurrentColor = ({
       clientX,
       clientY,
@@ -91,7 +107,15 @@ export const EyeDropper: React.FC<{
         1,
       ).data;
 
-      return rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const color = rgbToHex(pixel[0], pixel[1], pixel[2]);
+
+      if (appState.theme === THEME.DARK) {
+        return (
+          matchDarkModeColor(color, sceneColors) ?? revertDarkModeFilter(color)
+        );
+      }
+
+      return color;
     };
 
     const mouseMoveListener = ({
@@ -215,6 +239,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

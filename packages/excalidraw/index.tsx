@@ -12,6 +12,7 @@ import {
   DEFAULT_UI_OPTIONS,
   getStrokeWidthByKey,
   isShallowEqual,
+  revertDarkModeFilter,
 } from "@excalidraw/common";
 
 import App, {
@@ -545,4 +546,4 @@ export function useExcalidrawStateValue(
 
 export { _useOnAppStateChange as useOnExcalidrawStateChange };
 
-export { applyDarkModeFilter, getStrokeWidthByKey };
+export { applyDarkModeFilter, getStrokeWidthByKey, revertDarkModeFilter };

@@ -13,6 +13,10 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Fixes
+
+- Eyedropper in dark theme now picks the element's original colour instead of the dark-mode-rendered one, and `revertDarkModeFilter` (the inverse of `applyDarkModeFilter`) is exported from `@excalidraw/excalidraw` and `@excalidraw/common` [#10867](https://github.com/excalidraw/excalidraw/issues/10867)
+
 ## Excalidraw API
 
 ### Host-controlled active tool (2026-07-14) [#11665](https://github.com/excalidraw/excalidraw/pull/11665)
