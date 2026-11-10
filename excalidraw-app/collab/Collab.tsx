@@ -1,9 +1,13 @@
 import {
   CaptureUpdateAction,
+  getPagesVersion,
   getSceneVersion,
-  restoreElements,
-  zoomToFitBounds,
   reconcileElements,
+  reconcilePages,
+  resolveActivePageId,
+  restoreElements,
+  restorePages,
+  zoomToFitBounds,
 } from "@excalidraw/excalidraw";
 import { ErrorDialog } from "@excalidraw/excalidraw/components/ErrorDialog";
 import { APP_NAME, cloneJSON, EVENT, toBrandedType } from "@excalidraw/common";
@@ -20,7 +24,10 @@ import {
   throttleRAF,
 } from "@excalidraw/common";
 import { decryptData } from "@excalidraw/excalidraw/data/encryption";
-import { getVisibleSceneBounds } from "@excalidraw/element";
+import {
+  getNonDeletedElements,
+  getVisibleSceneBounds,
+} from "@excalidraw/element";
 import { newElementWith } from "@excalidraw/element";
 import { isImageElement, isInitializedImageElement } from "@excalidraw/element";
 import { AbortError } from "@excalidraw/excalidraw/errors";
@@ -40,6 +47,7 @@ import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
 import type {
   ExcalidrawElement,
   FileId,
+  ExcalidrawPage,
   InitializedExcalidrawImageElement,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
@@ -315,7 +323,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (
       this.isCollaborating() &&
       (this.fileManager.shouldPreventUnload(syncableElements) ||
-        !isSavedToFirebase(this.portal, syncableElements))
+        !isSavedToFirebase(
+          this.portal,
+          syncableElements,
+          this.excalidrawAPI.getAppState().pages,
+        ))
     ) {
       // this won't run in time if user decides to leave the site, but
       //  the purpose is to run in immediately after user decides to stay
@@ -336,7 +348,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   ) => {
     syncableElements = cloneJSON(syncableElements);
     try {
-      const storedElements = await saveToFirebase(
+      const storedScene = await saveToFirebase(
         this.portal,
         syncableElements,
         this.excalidrawAPI.getAppState(),
@@ -344,8 +356,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
       this.resetErrorIndicator();
 
-      if (this.isCollaborating() && storedElements) {
-        this.handleRemoteSceneUpdate(this._reconcileElements(storedElements));
+      if (this.isCollaborating() && storedScene) {
+        this.handleRemoteSceneUpdate(
+          this._reconcileElements(storedScene.elements),
+          this._reconcilePages(storedScene.pages),
+        );
       }
     } catch (error: any) {
       const errorMessage = /is longer than.*?bytes/.test(error.message)
@@ -560,7 +575,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       // when joining existing room, don't merge it with current scene data
       this.excalidrawAPI.resetScene();
     } else {
-      const elements = this.excalidrawAPI.getSceneElements().map((element) => {
+      const elements = getNonDeletedElements(
+        this.excalidrawAPI.getSceneElementsIncludingDeleted(),
+      ).map((element) => {
         if (isImageElement(element) && element.status === "saved") {
           return newElementWith(element, { status: "pending" });
         }
@@ -608,26 +625,43 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               const remoteElements = toBrandedType<
                 readonly RemoteExcalidrawElement[]
               >(decryptedData.payload.elements);
+              const reconciledPages = this._reconcilePages(
+                decryptedData.payload.pages,
+              );
               const reconciledElements =
                 this._reconcileElements(remoteElements);
-              this.handleRemoteSceneUpdate(reconciledElements);
+              this.handleRemoteSceneUpdate(reconciledElements, reconciledPages);
               // noop if already resolved via init from firebase
               scenePromise.resolve({
                 elements: reconciledElements,
+                appState: reconciledPages
+                  ? {
+                      pages: reconciledPages,
+                      activePageId: resolveActivePageId(
+                        reconciledPages,
+                        this.excalidrawAPI.getAppState().activePageId,
+                      ),
+                    }
+                  : undefined,
                 scrollToContent: true,
               });
             }
             break;
           }
-          case WS_SUBTYPES.UPDATE:
+          case WS_SUBTYPES.UPDATE: {
+            const reconciledPages = this._reconcilePages(
+              decryptedData.payload.pages,
+            );
             this.handleRemoteSceneUpdate(
               this._reconcileElements(
                 toBrandedType<readonly RemoteExcalidrawElement[]>(
                   decryptedData.payload.elements,
                 ),
               ),
+              reconciledPages,
             );
             break;
+          }
           case WS_SUBTYPES.MOUSE_LOCATION: {
             const { pointer, button, username, selectedElementIds } =
               decryptedData.payload;
@@ -742,18 +776,23 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.excalidrawAPI.resetScene();
 
       try {
-        const elements = await loadFromFirebase(
+        const loadedScene = await loadFromFirebase(
           roomLinkData.roomId,
           roomLinkData.roomKey,
           this.portal.socket,
         );
-        if (elements) {
+        if (loadedScene) {
+          const { elements, pages } = loadedScene;
           this.setLastBroadcastedOrReceivedSceneVersion(
-            getSceneVersion(elements),
+            this.getCollabSceneVersion(elements, pages),
           );
 
           return {
             elements,
+            appState: {
+              pages,
+              activePageId: resolveActivePageId(pages, null),
+            },
             scrollToContent: true,
           };
         }
@@ -797,10 +836,30 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     // Note: this needs to be set before updating the scene as it
     // synchronously calls render.
     this.setLastBroadcastedOrReceivedSceneVersion(
-      getSceneVersion(reconciledElements),
+      this.getCollabSceneVersion(
+        reconciledElements,
+        this.excalidrawAPI.getAppState().pages,
+      ),
     );
 
     return reconciledElements;
+  };
+
+  private _reconcilePages = (
+    remotePages: readonly ExcalidrawPage[] | undefined,
+  ): ExcalidrawPage[] | undefined => {
+    if (!remotePages) {
+      return undefined;
+    }
+    const localPages = this.excalidrawAPI.getAppState().pages;
+    return reconcilePages(localPages, restorePages(remotePages));
+  };
+
+  private getCollabSceneVersion = (
+    elements: readonly ExcalidrawElement[],
+    pages: readonly ExcalidrawPage[] | null | undefined,
+  ) => {
+    return getSceneVersion(elements) + getPagesVersion(pages);
   };
 
   private loadImageFiles = throttle(async () => {
@@ -820,11 +879,25 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private handleRemoteSceneUpdate = (
     elements: ReconciledExcalidrawElement[],
+    pages?: readonly ExcalidrawPage[],
   ) => {
+    const appState = this.excalidrawAPI.getAppState();
     this.excalidrawAPI.updateScene({
       elements,
+      appState: pages
+        ? {
+            pages,
+            activePageId: resolveActivePageId(pages, appState.activePageId),
+          }
+        : undefined,
       captureUpdate: CaptureUpdateAction.NEVER,
     });
+
+    if (pages) {
+      this.setLastBroadcastedOrReceivedSceneVersion(
+        this.getCollabSceneVersion(elements, pages),
+      );
+    }
 
     this.loadImageFiles();
   };
@@ -969,12 +1042,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {
-    if (
-      getSceneVersion(elements) >
-      this.getLastBroadcastedOrReceivedSceneVersion()
-    ) {
+    const appPages = this.excalidrawAPI.getAppState().pages;
+    const currentVersion = this.getCollabSceneVersion(elements, appPages);
+    if (currentVersion > this.getLastBroadcastedOrReceivedSceneVersion()) {
       this.portal.broadcastScene(WS_SUBTYPES.UPDATE, elements, false);
-      this.lastBroadcastedOrReceivedSceneVersion = getSceneVersion(elements);
+      this.lastBroadcastedOrReceivedSceneVersion = currentVersion;
       this.queueBroadcastAllElements();
     }
   };
@@ -993,7 +1065,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     const currentVersion = this.getLastBroadcastedOrReceivedSceneVersion();
     const newVersion = Math.max(
       currentVersion,
-      getSceneVersion(this.getSceneElementsIncludingDeleted()),
+      this.getCollabSceneVersion(
+        this.getSceneElementsIncludingDeleted(),
+        this.excalidrawAPI.getAppState().pages,
+      ),
     );
     this.setLastBroadcastedOrReceivedSceneVersion(newVersion);
   }, SYNC_FULL_SCENE_INTERVAL_MS);

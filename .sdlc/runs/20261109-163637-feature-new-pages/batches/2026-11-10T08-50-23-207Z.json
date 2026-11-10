@@ -1,0 +1,698 @@
+{
+  "status": "partial",
+  "counts": {
+    "no_content": 1,
+    "applied": 12,
+    "verify_failed": 1
+  },
+  "cost_usd": 1.468745,
+  "duration_ms": 97541,
+  "max_parallel": 4,
+  "items": [
+    {
+      "id": "tp_debug_r4_001",
+      "status": "no_content",
+      "artifact_path": "packages/element/src/delta.ts",
+      "cost_usd": 0.31044299999999997,
+      "attempts": 3,
+      "outcome": {
+        "status": "no_content",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_001",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.025357,
+            "failure": "the edits could not be applied: edit 8: its search text appears 2 times in the current text (it must appear exactly once); the file was left unchanged"
+          },
+          {
+            "id": "tp_debug_r4_001",
+            "retry_count": 1,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.025363,
+            "failure": "the edits could not be applied: edit 4: its search text appears 0 times in the current text (it must appear exactly once); the file was left unchanged"
+          },
+          {
+            "id": "tp_debug_r4_001",
+            "retry_count": 2,
+            "model_id": "opus",
+            "dispatch_ok": false,
+            "cost_usd": 0.259723,
+            "failure": "the reply was not one JSON object in the {path, edits} or {path, content} contract"
+          }
+        ],
+        "tokens": {
+          "input": 54683,
+          "input_cached": 0,
+          "output": 5025
+        },
+        "cost_usd": 0.31044299999999997,
+        "terminal_reason": "invalid_answer",
+        "events_written": 3
+      }
+    },
+    {
+      "id": "tp_debug_r4_002",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+      "cost_usd": 0.036061,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/tests/pages.test.tsx",
+          "bytes": 19524,
+          "lines": 631,
+          "sha16": "0d2a8580f6a9fe6d",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1763
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_002",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.036061,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 16787,
+          "input_cached": 0,
+          "output": 6259
+        },
+        "cost_usd": 0.036061,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_003",
+      "status": "verify_failed",
+      "artifact_path": "excalidraw-app/tests/collab.test.tsx",
+      "cost_usd": 0.167286,
+      "attempts": 3,
+      "outcome": {
+        "status": "verify_failed",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "excalidraw-app/tests/collab.test.tsx",
+          "bytes": 14193,
+          "lines": 444,
+          "sha16": "74fcab35ee2134fa",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": false,
+          "ran": 3,
+          "failed_command": "yarn -s vitest run --watch=false 'excalidraw-app/tests/collab.test.tsx'",
+          "exit_code": 1,
+          "output_tail": " collaboration > pages > localStorage autosave restores every page 33ms\n     → expected [ 'default' ] to deeply equal ArrayContaining [\"default\", \"p2\"]\n   × collaboration > pages > starting a room keeps every page's elements 1046ms\n     → expected \"spy\" to be called at least once\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  excalidraw-app/tests/collab.test.tsx > collaboration > pages > localStorage autosave restores every page\nAssertionError: expected [ 'default' ] to deeply equal ArrayContaining [\"default\", \"p2\"]\n\n\u001b[32m- Expected\u001b[39m\n\u001b[31m+ Received\u001b[39m\n\n\u001b[32m- ArrayContaining [\u001b[39m\n\u001b[31m+ [\u001b[39m\n\u001b[2m    \"default\",\u001b[22m\n\u001b[32m-   \"p2\",\u001b[39m\n\u001b[2m  ]\u001b[22m\n\n ❯ excalidraw-app/tests/collab.test.tsx:395:61\n    393|       LocalData.flushSave();\n    394|       const restored = importFromLocalStorage() as any;\n    395|       expect(restored.appState.pages.map((p: any) => p.id)).toEqual(\n       |                                                             ^\n    396|         expect.arrayContaining([\"default\", \"p2\"]),\n    397|       );\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  excalidraw-app/tests/collab.test.tsx > collaboration > pages > starting a room keeps every page's elements\nAssertionError: expected \"spy\" to be called at least once\n ❯ excalidraw-app/tests/collab.test.tsx:423:43\n    421|           ]),\n    422|         );\n    423|         expect(vi.mocked(saveToFirebase)).toHaveBeenCalled();\n       |                                           ^\n    424|       });\n    425|       const calls = vi.mocked(saveToFirebase).mock.calls as any[];\n ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12\n ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77\n ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n\n Test Files  1 failed (1)\n      Tests  2 failed | 5 passed (7)\n   Start at  14:20:18\n   Duration  4.71s (transform 1.99s, setup 158ms, collect 2.83s, tests 1.35s, environment 160ms, prepare 35ms)",
+          "duration_ms": 7045
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_003",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.017209,
+            "failure": "the edits could not be applied: edit 3: its search text appears 26 times in the current text (it must appear exactly once); the file was left unchanged"
+          },
+          {
+            "id": "tp_debug_r4_003",
+            "retry_count": 1,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.025649,
+            "verify_ok": false,
+            "failure": "verify failed: yarn -s vitest run --watch=false 'excalidraw-app/tests/collab.test.tsx' (exit 1)\nad properties of undefined (reading 'navigation')\n ❯ ActionManager.isActionBlockedByViewportTransition packages/excalidraw/actions/manager.tsx:90:12\n     88| \n     89|   private isActionBlockedByViewportTransition = (action: Action) =>\n     90|     action.navigation === true && this.app.viewport.isLockedTransition…\n       |            ^\n     91| \n     92|   handleKeyDown(event: React.KeyboardEvent | KeyboardEvent) {\n ❯ ActionManager.executeAction packages/excalidraw/actions/manager.tsx:167:14\n ❯ excalidraw-app/tests/collab.test.tsx:418:29\n ❯ node_modules/@testing-library/react/dist/act-compat.js:48:24\n ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22\n ❯ Module.<anonymous> node_modules/@testing-library/react/dist/act-compat.js:47:25\n ❯ excalidraw-app/tests/collab.test.tsx:417:7\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯\n\n FAIL  excalidraw-app/tests/collab.test.tsx > collaboration > pages > starting a room keeps every page's elements\nTypeError: Cannot read properties of undefined (reading 'navigation')\n ❯ ActionManager.isActionBlockedByViewportTransition packages/excalidraw/actions/manager.tsx:90:12\n     88| \n     89|   private isActionBlockedByViewportTransition = (action: Action) =>\n     90|     action.navigation === true && this.app.viewport.isLockedTransition…\n       |            ^\n     91| \n     92|   handleKeyDown(event: React.KeyboardEvent | KeyboardEvent) {\n ❯ ActionManager.executeAction packages/excalidraw/actions/manager.tsx:167:14\n ❯ excalidraw-app/tests/collab.test.tsx:458:29\n ❯ node_modules/@testing-library/react/dist/act-compat.js:48:24\n ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:1081:22\n ❯ Module.<anonymous> node_modules/@testing-library/react/dist/act-compat.js:47:25\n ❯ excalidraw-app/tests/collab.test.tsx:457:7\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯\n\n\n Test Files  1 failed (1)\n      Tests  5 failed | 2 passed (7)\n   Start at  14:19:35\n   Duration  5.39s (transform 2.31s, setup 210ms, collect 3.35s, tests 1.33s, environment 258ms, prepare 49ms)"
+          },
+          {
+            "id": "tp_debug_r4_003",
+            "retry_count": 2,
+            "model_id": "opus",
+            "dispatch_ok": true,
+            "cost_usd": 0.124428,
+            "verify_ok": false,
+            "failure": "verify failed: yarn -s vitest run --watch=false 'excalidraw-app/tests/collab.test.tsx' (exit 1)\n collaboration > pages > localStorage autosave restores every page 33ms\n     → expected [ 'default' ] to deeply equal ArrayContaining [\"default\", \"p2\"]\n   × collaboration > pages > starting a room keeps every page's elements 1046ms\n     → expected \"spy\" to be called at least once\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  excalidraw-app/tests/collab.test.tsx > collaboration > pages > localStorage autosave restores every page\nAssertionError: expected [ 'default' ] to deeply equal ArrayContaining [\"default\", \"p2\"]\n\n\u001b[32m- Expected\u001b[39m\n\u001b[31m+ Received\u001b[39m\n\n\u001b[32m- ArrayContaining [\u001b[39m\n\u001b[31m+ [\u001b[39m\n\u001b[2m    \"default\",\u001b[22m\n\u001b[32m-   \"p2\",\u001b[39m\n\u001b[2m  ]\u001b[22m\n\n ❯ excalidraw-app/tests/collab.test.tsx:395:61\n    393|       LocalData.flushSave();\n    394|       const restored = importFromLocalStorage() as any;\n    395|       expect(restored.appState.pages.map((p: any) => p.id)).toEqual(\n       |                                                             ^\n    396|         expect.arrayContaining([\"default\", \"p2\"]),\n    397|       );\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  excalidraw-app/tests/collab.test.tsx > collaboration > pages > starting a room keeps every page's elements\nAssertionError: expected \"spy\" to be called at least once\n ❯ excalidraw-app/tests/collab.test.tsx:423:43\n    421|           ]),\n    422|         );\n    423|         expect(vi.mocked(saveToFirebase)).toHaveBeenCalled();\n       |                                           ^\n    424|       });\n    425|       const calls = vi.mocked(saveToFirebase).mock.calls as any[];\n ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12\n ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77\n ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n\n Test Files  1 failed (1)\n      Tests  2 failed | 5 passed (7)\n   Start at  14:20:18\n   Duration  4.71s (transform 1.99s, setup 158ms, collect 2.83s, tests 1.35s, environment 160ms, prepare 35ms)"
+          }
+        ],
+        "tokens": {
+          "input": 20506,
+          "input_cached": 10049,
+          "output": 11486
+        },
+        "cost_usd": 0.167286,
+        "terminal_reason": "success",
+        "events_written": 3
+      }
+    },
+    {
+      "id": "tp_debug_r4_004",
+      "status": "applied",
+      "artifact_path": "packages/element/src/Scene.ts",
+      "cost_usd": 0.011804,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/element/src/Scene.ts",
+          "bytes": 17144,
+          "lines": 581,
+          "sha16": "01bc7087875851f9",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1778
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_004",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.011804,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 14494,
+          "input_cached": 0,
+          "output": 249
+        },
+        "cost_usd": 0.011804,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_005",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/components/App.tsx",
+      "cost_usd": 0.826728,
+      "attempts": 3,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/components/App.tsx",
+          "bytes": 372726,
+          "lines": 11540,
+          "sha16": "bb4f5e4776305c9a",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 3210
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_005",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.042168,
+            "failure": "the edits could not be applied: edit 1: its search text appears 0 times in the current text (it must appear exactly once); the file was left unchanged"
+          },
+          {
+            "id": "tp_debug_r4_005",
+            "retry_count": 1,
+            "model_id": "flash",
+            "dispatch_ok": false,
+            "cost_usd": 0.042242,
+            "failure": "the agent did not finish with one object in the {path, edits} or {path, content} contract"
+          },
+          {
+            "id": "tp_debug_r4_005",
+            "retry_count": 2,
+            "model_id": "opus",
+            "dispatch_ok": true,
+            "cost_usd": 0.742318,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 109368,
+          "input_cached": 10049,
+          "output": 1116
+        },
+        "cost_usd": 0.826728,
+        "terminal_reason": "success",
+        "events_written": 3
+      }
+    },
+    {
+      "id": "tp_debug_r4_006",
+      "status": "applied",
+      "artifact_path": "excalidraw-app/App.tsx",
+      "cost_usd": 0.014808,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "excalidraw-app/App.tsx",
+          "bytes": 41966,
+          "lines": 1352,
+          "sha16": "4aa162f80ffb2037",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 2069
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_006",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.014808,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 18189,
+          "input_cached": 0,
+          "output": 311
+        },
+        "cost_usd": 0.014808,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_007",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/components/PageTabs.tsx",
+      "cost_usd": 0.012302,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/components/PageTabs.tsx",
+          "bytes": 7593,
+          "lines": 238,
+          "sha16": "f0b3b6c49188add9",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1716
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_007",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.012302,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 10278,
+          "input_cached": 0,
+          "output": 1225
+        },
+        "cost_usd": 0.012302,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_008",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/components/PageTabs.scss",
+      "cost_usd": 0.010062,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/components/PageTabs.scss",
+          "bytes": 3235,
+          "lines": 143,
+          "sha16": "9f57681609816f08",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 1,
+          "duration_ms": 375
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_008",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.010062,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 7866,
+          "input_cached": 0,
+          "output": 1110
+        },
+        "cost_usd": 0.010062,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_009",
+      "status": "applied",
+      "artifact_path": "packages/element/src/pages.ts",
+      "cost_usd": 0.012943,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/element/src/pages.ts",
+          "bytes": 9600,
+          "lines": 404,
+          "sha16": "5cb82cb0568499f7",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1760
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_009",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.012943,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 11569,
+          "input_cached": 0,
+          "output": 824
+        },
+        "cost_usd": 0.012943,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_010",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/history.ts",
+      "cost_usd": 0.009305,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/history.ts",
+          "bytes": 8659,
+          "lines": 319,
+          "sha16": "c1baf0131f429e99",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1827
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_010",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.009305,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 9411,
+          "input_cached": 0,
+          "output": 599
+        },
+        "cost_usd": 0.009305,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_011",
+      "status": "applied",
+      "artifact_path": "excalidraw-app/collab/Collab.tsx",
+      "cost_usd": 0.015123,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "excalidraw-app/collab/Collab.tsx",
+          "bytes": 35729,
+          "lines": 1182,
+          "sha16": "3e2dff8f7b818d3a",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1863
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_011",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.015123,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 18379,
+          "input_cached": 0,
+          "output": 357
+        },
+        "cost_usd": 0.015123,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_012",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/data/restore.ts",
+      "cost_usd": 0.018258,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/data/restore.ts",
+          "bytes": 45736,
+          "lines": 1478,
+          "sha16": "a0529335bda4a80c",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1937
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_012",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.018258,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 19494,
+          "input_cached": 0,
+          "output": 970
+        },
+        "cost_usd": 0.018258,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_013",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/components/SearchMenu.tsx",
+      "cost_usd": 0.012107,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/components/SearchMenu.tsx",
+          "bytes": 24727,
+          "lines": 900,
+          "sha16": "cbe58d960274f2da",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1858
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_013",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.012107,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 15363,
+          "input_cached": 0,
+          "output": 156
+        },
+        "cost_usd": 0.012107,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    },
+    {
+      "id": "tp_debug_r4_014",
+      "status": "applied",
+      "artifact_path": "packages/excalidraw/components/LayerUI.tsx",
+      "cost_usd": 0.011515,
+      "attempts": 1,
+      "outcome": {
+        "status": "applied",
+        "decision": {
+          "modelId": "flash",
+          "reason": "Most debugs have clear cause",
+          "ruleIndex": 11
+        },
+        "apply": {
+          "path": "packages/excalidraw/components/LayerUI.tsx",
+          "bytes": 25659,
+          "lines": 764,
+          "sha16": "deb1b96674ea5017",
+          "existed_before": true,
+          "provenance": "recorded"
+        },
+        "verify": {
+          "ok": true,
+          "ran": 2,
+          "duration_ms": 1817
+        },
+        "attempts": [
+          {
+            "id": "tp_debug_r4_014",
+            "retry_count": 0,
+            "model_id": "flash",
+            "dispatch_ok": true,
+            "cost_usd": 0.011515,
+            "verify_ok": true
+          }
+        ],
+        "tokens": {
+          "input": 13368,
+          "input_cached": 0,
+          "output": 397
+        },
+        "cost_usd": 0.011515,
+        "terminal_reason": "success",
+        "events_written": 1
+      }
+    }
+  ],
+  "skipped_no_apply": []
+}

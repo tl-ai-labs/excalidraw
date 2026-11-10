@@ -39,6 +39,7 @@ import type {
   BindMode,
   ExcalidrawTextElement,
   StrokeVariability,
+  ExcalidrawPage,
 } from "@excalidraw/element/types";
 
 import type {
@@ -268,7 +269,11 @@ export type ObservedAppState = ObservedStandaloneAppState &
 export type ObservedStandaloneAppState = {
   name: AppState["name"];
   viewBackgroundColor: AppState["viewBackgroundColor"];
+  pages?: AppState["pages"];
+  activePageId?: AppState["activePageId"];
 };
+
+export type PageViewport = { scrollX: number; scrollY: number; zoom: Zoom };
 
 export type ObservedElementsAppState = {
   editingGroupId: AppState["editingGroupId"];
@@ -571,6 +576,12 @@ export interface AppState {
   // a drag operation (like pointer position vs bindable element) but needed
   // globally for calculating the binding strategy
   bindMode: BindMode;
+  /** ordered page list incl. deleted tombstones */
+  pages: readonly ExcalidrawPage[];
+  /** the page shown and edited; per client */
+  activePageId: string;
+  /** saved scroll/zoom of pages other than the active one */
+  pageViewports: { [pageId: string]: PageViewport };
   /** user-customized color-picker top picks (pinned via drag & drop from the
    * color picker popup). `null` means no customization (defaults, or
    * host-supplied `topPicks`, are used). Kept per picker. */

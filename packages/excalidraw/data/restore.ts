@@ -43,6 +43,8 @@ import {
   isValidPolygon,
   projectFixedPointOntoDiagonal,
   isNonDeletedElement,
+  resolveActivePageId,
+  restorePages,
 } from "@excalidraw/element";
 import { normalizeFixedPoint } from "@excalidraw/element";
 import {
@@ -448,8 +450,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -519,10 +522,14 @@ const restoreElementWithProperties = <
       "customData" in extra ? extra.customData : element.customData;
   }
 
+  const { pageId, ...elementProps } = element;
+
   const ret = {
     // spread the original element properties to not lose unknown ones
     // for forward-compatibility
-    ...element,
+    ...elementProps,
+    // keep a valid page membership, drop malformed ones (unknown ids fall back to the home page at runtime)
+    ...(typeof pageId === "string" && pageId ? { pageId } : {}),
     // normalized properties
     ...base,
     ...getNormalizedDimensions(base),
@@ -1265,6 +1272,20 @@ const restoreFontTopPicks = (
   return fontFamilies.size ? [...fontFamilies] : null;
 };
 
+const isPageViewportLike = (
+  v: unknown,
+): v is { scrollX: number; scrollY: number; zoom: { value: number } } => {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    isFiniteNumber((v as { scrollX?: unknown }).scrollX) &&
+    isFiniteNumber((v as { scrollY?: unknown }).scrollY) &&
+    typeof (v as { zoom?: unknown }).zoom === "object" &&
+    !!(v as { zoom?: unknown }).zoom &&
+    isFiniteNumber((v as { zoom: { value?: unknown } }).zoom.value)
+  );
+};
+
 export const restoreAppState = (
   appState: ImportedDataState["appState"],
   localAppState: Partial<AppState> | null | undefined,
@@ -1330,6 +1351,40 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+
+  nextAppState.pages = restorePages(nextAppState.pages);
+  nextAppState.activePageId = resolveActivePageId(
+    nextAppState.pages,
+    nextAppState.activePageId,
+  );
+  const knownPageIds = new Set(nextAppState.pages.map((page) => page.id));
+  const restoredPageViewports: AppState["pageViewports"] = Object.create(null);
+  if (
+    nextAppState.pageViewports &&
+    typeof nextAppState.pageViewports === "object"
+  ) {
+    for (const [pageId, viewport] of Object.entries(
+      nextAppState.pageViewports,
+    )) {
+      if (
+        pageId === "__proto__" ||
+        pageId === "constructor" ||
+        pageId === "prototype"
+      ) {
+        continue;
+      }
+      if (knownPageIds.has(pageId) && isPageViewportLike(viewport)) {
+        restoredPageViewports[pageId] = {
+          scrollX: viewport.scrollX,
+          scrollY: viewport.scrollY,
+          zoom: {
+            value: getNormalizedZoom(viewport.zoom.value),
+          },
+        };
+      }
+    }
+  }
+  nextAppState.pageViewports = restoredPageViewports;
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {

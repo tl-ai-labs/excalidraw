@@ -1,0 +1,55 @@
+[
+  {
+    "id": "tp_debug_r8_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/history.ts",
+    "instruction": "Fix `packages/excalidraw/history.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. packages/excalidraw/tests/pages.test.tsx > pages > deleting the active page activates a neighbour and undo restores it fails at line 368: after Keyboard.redo(), expected h.state.activePageId 'id34' to be 'id35'. Cause: History.undo() and History.redo() capture `const undoStack = this.undoStack; const redoStack = this.redoStack;` before perform(); perform() switches this.activePageId to nextAppState.activePageId after applying the entry, so when undoing a page delete switches page, the inverse entry is pushed onto the previous page's captured stack and redo later reads the restored page's empty stack. Make exactly two edits and answer with ONE JSON object {path, edits:[{search, replace}]}: (1) search `      (entry: HistoryDelta) => History.push(redoStack, entry),` replace `      (entry: HistoryDelta) => History.push(this.redoStack, entry),` (in undo()); (2) search `      (entry: HistoryDelta) => History.push(undoStack, entry),` replace `      (entry: HistoryDelta) => History.push(this.undoStack, entry),` (in redo()). Keep the pop callbacks on the captured stacks. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/history.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/history.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U10.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

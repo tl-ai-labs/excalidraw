@@ -1,0 +1,382 @@
+{
+  "section": "units",
+  "source": "units-004.json",
+  "value": [
+    {
+      "id": "U26",
+      "path": "excalidraw-app/data/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "SCENE_INIT and SCENE_UPDATE payloads carry the page list next to the elements.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 21,
+          "to": 21,
+          "first_line": "FileId,",
+          "rule": "Add `ExcalidrawPage,` to this @excalidraw/element/types import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "elements: readonly OrderedExcalidrawElement[];",
+          "rule": "Add `/** every page incl. tombstones; absent from peers running an older build */` and `pages?: readonly ExcalidrawPage[];` to the SCENE_INIT payload."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 92,
+          "to": 92,
+          "first_line": "elements: readonly OrderedExcalidrawElement[];",
+          "rule": "Add `pages?: readonly ExcalidrawPage[];` to the SCENE_UPDATE payload."
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U27",
+      "path": "excalidraw-app/collab/Portal.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Every scene broadcast (init, update, full resync) includes every page of the drawing.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 169,
+          "to": 169,
+          "first_line": "elements: syncableElements,",
+          "rule": "Keep the line and add `pages: this.collab.excalidrawAPI.getAppState().pages,` after it."
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U26"
+      ],
+      "covers": [
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U28",
+      "path": "excalidraw-app/data/firebase.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The Firestore scene keeps the encrypted bare element array in ciphertext/iv for old clients and stores the page list in its own encrypted pagesCiphertext/pagesIv fields; a document without them reads as the default page.",
+      "rules": [
+        "1. FirebaseStoredScene gains optional `pagesCiphertext?: Bytes` and `pagesIv?: Bytes`; sceneVersion, iv and ciphertext keep their names and types.",
+        "2. encryptElements and decryptElements stay exactly as today: ciphertext is UTF-8 JSON.stringify of the bare element array.",
+        "3. New private encryptPages(key, pages): encryptData(key, UTF-8 JSON.stringify(pages)) returning { ciphertext, iv } like encryptElements; new private decryptPages(data, roomKey): return createDefaultPages() when data.pagesCiphertext or data.pagesIv is missing, else decryptData(pagesIv, pagesCiphertext, roomKey), JSON.parse and restorePages(parsed).",
+        "4. One version value = getSceneVersion(elements) + getPagesVersion(pages); FirebaseSceneVersionCache.set(socket, elements, pages) stores it, isSavedToFirebase compares it, createFirebaseSceneDocument writes it to sceneVersion.",
+        "5. createFirebaseSceneDocument(elements, pages, roomKey) returns { sceneVersion, ciphertext, iv, pagesCiphertext, pagesIv } (all Bytes.fromUint8Array as today).",
+        "6. isSavedToFirebase(portal, elements, pages); saveToFirebase(portal, elements, appState) bails on isSavedToFirebase(portal, elements, appState.pages); a new document is written with transaction.set(docRef, doc) holding all five fields; an existing one reconciles elements as today, reconciles pages = reconcilePages(appState.pages, await decryptPages(prevStoredScene, roomKey)) and writes all five fields with transaction.update(docRef, doc).",
+        "7. After the transaction saveToFirebase decrypts the stored document's elements (as today) and pages (decryptPages), sets the version cache from both, and returns { elements, pages }; it returns null where it returns null today.",
+        "8. loadFromFirebase returns { elements, pages } | null: elements as today, pages = decryptPages(storedScene, roomKey); it sets the version cache from both.",
+        "9. Page names never leave the encrypted pages payload and are never logged."
+      ],
+      "exports": [
+        {
+          "name": "isSavedToFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "portal",
+              "type": "Portal"
+            },
+            {
+              "name": "elements",
+              "type": "readonly ExcalidrawElement[]"
+            },
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "boolean"
+        },
+        {
+          "name": "saveToFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "portal",
+              "type": "Portal"
+            },
+            {
+              "name": "elements",
+              "type": "readonly SyncableExcalidrawElement[]"
+            },
+            {
+              "name": "appState",
+              "type": "AppState"
+            }
+          ],
+          "returns": "Promise<{ elements: RemoteExcalidrawElement[]; pages: ExcalidrawPage[] } | null>"
+        },
+        {
+          "name": "loadFromFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "roomId",
+              "type": "string"
+            },
+            {
+              "name": "roomKey",
+              "type": "string"
+            },
+            {
+              "name": "socket",
+              "type": "Socket | null"
+            }
+          ],
+          "returns": "Promise<{ elements: readonly SyncableExcalidrawElement[]; pages: ExcalidrawPage[] } | null>"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { reconcileElements } from \"@excalidraw/excalidraw\";",
+          "rule": "Import `{ createDefaultPages, getPagesVersion, reconcileElements, reconcilePages, restorePages }` from \"@excalidraw/excalidraw\"."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 13,
+          "to": 13,
+          "first_line": "ExcalidrawElement,",
+          "rule": "Add `ExcalidrawPage,`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 86,
+          "to": 128,
+          "first_line": "type FirebaseStoredScene = {",
+          "last_line": "}",
+          "rule": "Extend FirebaseStoredScene (rule 1), keep encryptElements and decryptElements unchanged (rule 2), add encryptPages and decryptPages after decryptElements (rule 3), and make FirebaseSceneVersionCache.set take elements and pages (rule 4)."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 130,
+          "to": 142,
+          "first_line": "export const isSavedToFirebase = (",
+          "last_line": "};",
+          "rule": "Add the pages parameter and compare the rule-4 version."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 176,
+          "to": 275,
+          "first_line": "const createFirebaseSceneDocument = async (",
+          "last_line": "};",
+          "rule": "Rewrite createFirebaseSceneDocument(elements, pages, roomKey), saveToFirebase and loadFromFirebase per rules 5-8, keeping the transaction structure (set for a new document, update for an existing one), getSyncableElements and restoreElements calls."
+        }
+      ],
+      "depends_on": [
+        "U25"
+      ],
+      "covers": [
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "excalidraw-app/collab/Collab.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Receives, reconciles and applies the page list with the elements, and counts page versions so page-only changes are broadcast and saved.",
+      "rules": [
+        "1. private getCollabSceneVersion(elements, pages) = getSceneVersion(elements) + getPagesVersion(pages); every place that compared or stored getSceneVersion(elements) (broadcastElements, queueBroadcastAllElements, _reconcileElements, initializeRoom) uses it with excalidrawAPI.getAppState().pages (or the reconciled/loaded pages).",
+        "2. private _reconcilePages(remotePages | undefined): when undefined return the local pages unchanged; else reconcilePages(localPages, restorePages(remotePages)).",
+        "3. handleRemoteSceneUpdate(elements, pages?) calls updateScene({ elements, appState: pages ? { pages, activePageId: resolveActivePageId(pages, appState.activePageId) } : undefined, captureUpdate: NEVER }); the local activePageId only changes when its page became a tombstone (FR-21).",
+        "4. SCENE_INIT and SCENE_UPDATE handlers pass decryptedData.payload.pages through _reconcilePages to handleRemoteSceneUpdate; scenePromise resolves with appState { pages, activePageId } when pages were received.",
+        "5. saveCollabRoomToFirebase applies the stored { elements, pages } result through _reconcileElements and _reconcilePages; the beforeunload check passes appState.pages to isSavedToFirebase.",
+        "6. initializeRoom returns { elements, appState: { pages, activePageId: resolveActivePageId(pages, null) }, scrollToContent: true } from loadFromFirebase's { elements, pages }.",
+        "7. broadcastElements also broadcasts when only the pages version grew; syncElements is unchanged in signature (pages are read from excalidrawAPI.getAppState()).",
+        "8. startCollaboration for a new room (no existingRoomLinkData) builds its elements from every page's non-deleted elements, getNonDeletedElements(excalidrawAPI.getSceneElementsIncludingDeleted()), so updateScene (NEVER, no appState) and saveCollabRoomToFirebase keep every page; the pending-image mapping and the deleted-element comment stay."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 2,
+          "to": 6,
+          "first_line": "CaptureUpdateAction,",
+          "last_line": "reconcileElements,",
+          "rule": "Keep these names and add `getPagesVersion,`, `reconcilePages,`, `resolveActivePageId,`, `restorePages,` in the same import list."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 42,
+          "to": 42,
+          "first_line": "FileId,",
+          "rule": "Add `ExcalidrawPage,`."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 23,
+          "to": 23,
+          "first_line": "import { getVisibleSceneBounds } from \"@excalidraw/element\";",
+          "rule": "Import `{ getNonDeletedElements, getVisibleSceneBounds }` from \"@excalidraw/element\" (rule 8)."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 318,
+          "to": 318,
+          "first_line": "!isSavedToFirebase(this.portal, syncableElements))",
+          "rule": "Pass `this.excalidrawAPI.getAppState().pages` as the third argument."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 339,
+          "to": 349,
+          "first_line": "const storedElements = await saveToFirebase(",
+          "last_line": "}",
+          "rule": "Name the result storedScene and apply rule 5 (handleRemoteSceneUpdate(this._reconcileElements(storedScene.elements), this._reconcilePages(storedScene.pages)))."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 563,
+          "to": 563,
+          "first_line": "const elements = this.excalidrawAPI.getSceneElements().map((element) => {",
+          "rule": "Start the chain from `getNonDeletedElements(this.excalidrawAPI.getSceneElementsIncludingDeleted())` instead of getSceneElements(), keeping the same .map callback (rule 8)."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 605,
+          "to": 630,
+          "first_line": "case WS_SUBTYPES.INIT: {",
+          "last_line": "break;",
+          "rule": "Rewrite the INIT and UPDATE cases per rule 4, keeping the socketInitialized guard and the scenePromise noop comment."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 745,
+          "to": 759,
+          "first_line": "const elements = await loadFromFirebase(",
+          "last_line": "}",
+          "rule": "Destructure the loaded scene and apply rules 1 and 6."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 796,
+          "to": 830,
+          "first_line": "// we just received!",
+          "last_line": "};",
+          "rule": "Use getCollabSceneVersion(reconciledElements, current pages) for the version; keep `return reconciledElements;` and the loadImageFiles member unchanged; add _reconcilePages and getCollabSceneVersion after _reconcileElements and update handleRemoteSceneUpdate per rule 3."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 971,
+          "to": 998,
+          "first_line": "broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {",
+          "last_line": "this.setLastBroadcastedOrReceivedSceneVersion(newVersion);",
+          "rule": "Use getCollabSceneVersion with this.excalidrawAPI.getAppState().pages in broadcastElements and queueBroadcastAllElements (rules 1 and 7); keep syncElements as is."
+        }
+      ],
+      "depends_on": [
+        "U25",
+        "U26",
+        "U27",
+        "U28"
+      ],
+      "covers": [
+        "FR-20",
+        "FR-21"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U30",
+      "path": "excalidraw-app/App.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "When joining a room, the room's pages win over the local pages; the beforeunload pending-upload check covers every page.",
+      "rules": [
+        "1. The beforeunload handler passes getNonDeletedElements(excalidrawAPI.getSceneElementsIncludingDeleted()) to LocalData.fileStorage.shouldPreventUnload; the Excalidraw+ and share-link exports keep getSceneElements() (out of scope 7)."
+      ],
+      "sites": [
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 50,
+          "to": 50,
+          "first_line": "import { isElementLink } from \"@excalidraw/element\";",
+          "rule": "Import `{ getNonDeletedElements, isElementLink }` from \"@excalidraw/element\"."
+        },
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 341,
+          "to": 345,
+          "first_line": "...restoreAppState(",
+          "last_line": "},",
+          "rule": "Spread `...scene?.appState` as before, and when it has no pages add `pages: excalidrawAPI.getAppState().pages` and `activePageId: excalidrawAPI.getAppState().activePageId` so restoreAppState keeps the live pages; theme stays as is."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 697,
+          "to": 697,
+          "first_line": "excalidrawAPI.getSceneElements(),",
+          "rule": "Use `getNonDeletedElements(excalidrawAPI.getSceneElementsIncludingDeleted()),` (rule 1)."
+        }
+      ],
+      "depends_on": [
+        "U29"
+      ],
+      "covers": [
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "excalidraw-app/data/index.ts": "ee46f505eeef11b3e0014afc59dec6441f6fad711f266a4e124e19592fc88181",
+    "excalidraw-app/collab/Portal.tsx": "8e954a48319fdedd9d82604a4c642a424b33e49713e30721feaa5e95b4f57fc2",
+    "excalidraw-app/data/firebase.ts": "6684854be82a613c99dfb213c196e47cfa78753b353f55d62910055c37ec8483",
+    "excalidraw-app/collab/Collab.tsx": "4c309a23c2490e9c0ce16d67cf5e605c8a49637fbb645d0f40d026883b68f99f",
+    "excalidraw-app/App.tsx": "994b9c4386738b31bf9ba4f157e1b87dda8e49523bd95c471bab9a493b441039"
+  }
+}

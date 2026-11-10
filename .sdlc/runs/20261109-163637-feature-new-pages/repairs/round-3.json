@@ -1,0 +1,120 @@
+[
+  {
+    "id": "tp_debug_r3_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/actions/actionPages.ts",
+    "instruction": "Fix `packages/excalidraw/actions/actionPages.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck: packages/excalidraw/actions/actionPages.ts(62,13): error TS2304: Cannot find name 't'.\nAt runtime this throws `ReferenceError: t is not defined` at actionPages.ts:62:13 (perform of actionCreatePage, called from PageTabs.tsx:229 onClick), so creating a page does nothing. Import `t` the way other actions do (`import { t } from \"../i18n\";`, keeping eslint import order). These packages/excalidraw/tests/pages.test.tsx cases fail as a result:\npages > a whole-scene load through updateScene keeps every pageId :: AssertionError: expected [ 'id20' ] to deeply equal [ 'id21' ]\npages > create page switches to an empty page :: AssertionError: expected 1 to be 2 // Object.is equality\npages > deleting the active page activates a neighbour and undo restores it :: AssertionError: expected 1 to be 3 // Object.is equality\npages > image export contains only the active page :: AssertionError: expected 2 to be 1 // Object.is equality\npages > new elements land on the active page :: AssertionError: expected +0 to be 1 // Object.is equality\npages > only the active page is rendered and selectable :: AssertionError: expected +0 to be 1 // Object.is equality\npages > reorder from the tab bar persists :: AssertionError: expected 1 to be 3 // Object.is equality\npages > search switches to the page of a result :: AssertionError: expected 'default' not to be 'default' // Object.is equality\npages > undo stays on its page :: AssertionError: expected 1 to be +0 // Object.is equality\npages > updateScene adding an element puts it on the active page :: AssertionError: expected undefined to be 'default' // Object.is equality\npages > viewport is restored per page :: AssertionError: expected 'default' not to be 'default' // Object.is equality\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/actions/actionPages.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/actions/actionPages.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U13.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionCanvas.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r3_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck errors (verbatim):\npackages/excalidraw/tests/pages.test.tsx(118,54): error TS2554: Expected 1 arguments, but got 2.\npackages/excalidraw/tests/pages.test.tsx(334,11): error TS2769: No overload matches this call.\nFix only these typing errors: check the real signatures of the called helpers (tests/helpers/api.ts, tests/helpers/ui.ts, scene/export.ts exportScene) and call them with the arguments they accept. Do not weaken assertions.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/api.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/helpers/ui.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/scene/export.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

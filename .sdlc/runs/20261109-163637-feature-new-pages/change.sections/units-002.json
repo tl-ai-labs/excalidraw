@@ -1,0 +1,410 @@
+[
+  {
+    "id": "U12",
+    "path": "packages/excalidraw/locales/en.json",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the `pages` string group used by the page actions and the tab bar.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_before",
+        "from": 759,
+        "to": 759,
+        "first_line": "\"commandPalette\": {",
+        "rule": "Insert a top-level `\"pages\": { ... },` object with exactly these keys: \"tabListLabel\": \"Pages\", \"defaultName\": \"Page {{number}}\", \"createPage\": \"Add page\", \"switchPage\": \"Switch page\", \"renamePage\": \"Rename page\", \"renameInputLabel\": \"Page name\", \"reorderPage\": \"Move page\", \"deletePage\": \"Delete page\", \"movePageLeft\": \"Move page left\", \"movePageRight\": \"Move page right\"."
+      }
+    ],
+    "depends_on": [],
+    "covers": [
+      "FR-5",
+      "FR-10"
+    ],
+    "checks": [
+      "prettier"
+    ]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/actions/actionPages.ts",
+    "action": "create",
+    "phase": "codegen",
+    "behaviour": "The five page actions: create, switch, rename, reorder and delete, registered through register().",
+    "rules": [
+      "1. Export a helper getPageSwitchAppState(appState, targetPageId): Partial<AppState> that stores { scrollX, scrollY, zoom } of appState.activePageId into pageViewports, removes the target's entry and applies it (or scrollX 0, scrollY 0, zoom { value: 1 as NormalizedZoomValue }), sets activePageId = targetPageId, and resets selectedElementIds {}, selectedGroupIds {}, editingGroupId null, selectedLinearElement null, editingTextElement null, croppingElementId null, activeEmbeddable null, searchMatches kept as is.",
+      "2. actionCreatePage (name \"createPage\", label \"pages.createPage\", trackEvent { category: \"canvas\" }, viewMode false, predicate !appState.viewModeEnabled): page = newPage({ name: t(\"pages.defaultName\", { number: getNonDeletedPages(appState.pages).length + 1 }), pages: appState.pages }); returns appState { ...getPageSwitchAppState(appState, page.id), pages: sortPages([...appState.pages, page]) }, captureUpdate NEVER.",
+      "3. actionSwitchPage (name \"switchPage\", label \"pages.switchPage\", viewMode true, trackEvent false): formData is the target page id; returns false when it equals appState.activePageId or names no non-deleted page; else appState getPageSwitchAppState(...), captureUpdate NEVER.",
+      "4. actionRenamePage (name \"renamePage\", label \"pages.renamePage\", viewMode false, trackEvent false): formData { pageId, name }; trimmed = name.trim(); returns false when trimmed is empty, the page is missing/deleted, or trimmed equals the current name; else pages with updatePage(page, { name: trimmed }), captureUpdate NEVER.",
+      "5. actionReorderPage (name \"reorderPage\", label \"pages.reorderPage\", viewMode false, trackEvent false): formData { pageId, toPosition } (position among non-deleted pages after removal); returns false when the page is missing or the position is unchanged; else pages = sortPages(pages with updatePage(page, { index: getReorderedPageIndex(appState.pages, pageId, toPosition) })), captureUpdate NEVER.",
+      "6. actionDeletePage (name \"deletePage\", label \"pages.deletePage\", viewMode false, trackEvent { category: \"canvas\" }, predicate getNonDeletedPages(appState.pages).length > 1 && !appState.viewModeEnabled): formData pageId (default appState.activePageId); returns false when one non-deleted page remains or the page is missing/deleted. Elements: options = getScenePageOptions(appState.pages, appState.activePageId); every non-deleted element of app.scene.getElementsIncludingDeleted() with getElementPageId(el, options) === pageId becomes newElementWith(el, { isDeleted: true }); others unchanged. Pages: updatePage(page, { isDeleted: true }). When pageId is the active page, neighbour = next non-deleted page in order, else previous, and spread getPageSwitchAppState(appState, neighbour.id). Returns { elements, allPages: true, appState, captureUpdate: CaptureUpdateAction.IMMEDIATELY }.",
+      "7. Labels and names are i18n keys only; no string literals shown to the user."
+    ],
+    "exports": [
+      {
+        "name": "getPageSwitchAppState",
+        "kind": "function",
+        "params": [
+          {
+            "name": "appState",
+            "type": "Readonly<AppState>"
+          },
+          {
+            "name": "targetPageId",
+            "type": "string"
+          }
+        ],
+        "returns": "Partial<AppState>"
+      },
+      {
+        "name": "actionCreatePage",
+        "kind": "const",
+        "params": [],
+        "returns": "Action"
+      },
+      {
+        "name": "actionSwitchPage",
+        "kind": "const",
+        "params": [],
+        "returns": "Action<string>"
+      },
+      {
+        "name": "actionRenamePage",
+        "kind": "const",
+        "params": [],
+        "returns": "Action<{ pageId: string; name: string }>"
+      },
+      {
+        "name": "actionReorderPage",
+        "kind": "const",
+        "params": [],
+        "returns": "Action<{ pageId: string; toPosition: number }>"
+      },
+      {
+        "name": "actionDeletePage",
+        "kind": "const",
+        "params": [],
+        "returns": "Action<string>"
+      }
+    ],
+    "import_line": "import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPage, actionSwitchPage } from \"../actions/actionPages\";",
+    "style_from": {
+      "path": "packages/excalidraw/actions/actionToggleZenMode.tsx",
+      "reason": "register({...}) action shape, import layout, CaptureUpdateAction usage"
+    },
+    "uses": [
+      {
+        "path": "packages/excalidraw/actions/actionCanvas.tsx",
+        "lines": [
+          80,
+          125
+        ],
+        "reason": "an action that returns elements via newElementWith and an appState spread"
+      }
+    ],
+    "depends_on": [
+      "U04",
+      "U05",
+      "U06",
+      "U07",
+      "U11",
+      "U12"
+    ],
+    "covers": [
+      "FR-5",
+      "FR-6",
+      "FR-7",
+      "FR-8",
+      "FR-9",
+      "FR-10",
+      "FR-11",
+      "FR-21"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U14",
+    "path": "packages/excalidraw/actions/index.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Re-exports the page actions so registerAll picks them up.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 96,
+        "to": 96,
+        "first_line": "export { actionToggleCropEditor } from \"./actionCropEditor\";",
+        "rule": "Add a blank line and `export { actionCreatePage, actionSwitchPage, actionRenamePage, actionReorderPage, actionDeletePage } from \"./actionPages\";`."
+      }
+    ],
+    "depends_on": [
+      "U13"
+    ],
+    "covers": [
+      "FR-10"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U15",
+    "path": "packages/excalidraw/actions/actionHistory.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Undo/redo apply History over every page's elements and write the result back as all pages.",
+    "rules": [
+      "1. undo and redo pass arrayToMap(app.scene.getElementsIncludingDeleted()) instead of the action's page-scoped elements, so History can restore a deleted page's elements.",
+      "2. executeHistoryAction returns allPages: true with the elements."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 60,
+        "to": 60,
+        "first_line": "captureUpdate: CaptureUpdateAction.NEVER,",
+        "rule": "Keep the line and add `allPages: true,` before it."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 78,
+        "to": 78,
+        "first_line": "arrayToMap(elements) as SceneElementsMap,",
+        "rule": "Use `arrayToMap(app.scene.getElementsIncludingDeleted()) as SceneElementsMap,`."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 121,
+        "to": 121,
+        "first_line": "arrayToMap(elements) as SceneElementsMap,",
+        "rule": "Use `arrayToMap(app.scene.getElementsIncludingDeleted()) as SceneElementsMap,`."
+      }
+    ],
+    "depends_on": [
+      "U07",
+      "U11"
+    ],
+    "covers": [
+      "FR-9",
+      "FR-11"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U16",
+    "path": "packages/excalidraw/actions/actionExport.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Saving a file serializes every page; loading a file replaces every page.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 275,
+        "to": 275,
+        "first_line": "prepareDataForJSONExport(elements, appState, app.files, app);",
+        "rule": "Pass `app.scene.getElementsIncludingDeleted()` instead of `elements` (the action receives the active page only)."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 341,
+        "to": 341,
+        "first_line": "prepareDataForJSONExport(elements, appState, app.files, app);",
+        "rule": "Pass `app.scene.getElementsIncludingDeleted()` instead of `elements`."
+      },
+      {
+        "id": "S3",
+        "at": "replace",
+        "from": 408,
+        "to": 408,
+        "first_line": "} = await loadFromJSON(appState, elements);",
+        "rule": "Pass `app.scene.getElementsIncludingDeleted()` instead of `elements`."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 413,
+        "to": 413,
+        "first_line": "captureUpdate: CaptureUpdateAction.IMMEDIATELY,",
+        "rule": "Keep the line and add `allPages: true,` before it."
+      }
+    ],
+    "depends_on": [
+      "U07",
+      "U11"
+    ],
+    "covers": [
+      "FR-15",
+      "FR-16"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U17",
+    "path": "packages/excalidraw/actions/actionCanvas.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Clear canvas deletes only the active page's elements and keeps the page list.",
+    "sites": [
+      {
+        "id": "S1",
+        "at": "replace",
+        "from": 115,
+        "to": 115,
+        "first_line": "fontTopPicks: appState.fontTopPicks,",
+        "rule": "Keep the line and add `pages: appState.pages,`, `activePageId: appState.activePageId,`, `pageViewports: appState.pageViewports,` after it."
+      }
+    ],
+    "depends_on": [
+      "U05"
+    ],
+    "covers": [
+      "FR-2"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  },
+  {
+    "id": "U18",
+    "path": "packages/excalidraw/components/App.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Wires the editor to the active page: Scene filter before render, History page in componentDidUpdate, page-scoped action results, active-page paste/library and updateScene stamping.",
+    "rules": [
+      "1. syncScenePage(): this.scene.setActivePage(getScenePageOptions(this.state.pages, this.state.activePageId)); called first in render() and right before every replaceAllElements that follows a page-data change (syncActionResult with allPages, updateScene with appState.pages or appState.activePageId).",
+      "2. In syncActionResult: when actionResult.allPages, replace every element (after scene.setActivePage(getScenePageOptions(actionResult.appState?.pages ?? this.state.pages, actionResult.appState?.activePageId ?? this.state.activePageId))); else scene.mergeActivePageElements(actionResult.elements).",
+      "3. The ActionManager element getter returns this.scene.getActivePageElementsIncludingDeleted().",
+      "4. addElementsFromPasteOrLibrary calls stampElementsPage(duplicatedElements, this.scene.getPageOptions()) before replaceAllElements(nextElements).",
+      "5. updateScene: when appState carries pages or activePageId, call this.scene.setActivePage(getScenePageOptions(appState.pages ?? this.state.pages, appState.activePageId ?? this.state.activePageId)) before replacing elements; stamp elements whose id is not in this.scene.getElementsMapIncludingDeleted() with stampElementsPage only when captureUpdate is given, is not CaptureUpdateAction.NEVER and appState?.pages is undefined (a call carrying appState.pages is a whole-scene load, e.g. excalidraw-app onHashChange, and keeps every element's pageId as given).",
+      "6. componentDidUpdate calls this.history.setActivePage(this.scene.getActivePageId()) right before this.store.commit(...).",
+      "7. The initial-data load (initializeScene's syncActionResult) and both file-open/drop loads pass allPages: true."
+    ],
+    "sites": [
+      {
+        "id": "S1",
+        "at": "insert_after",
+        "from": 180,
+        "to": 180,
+        "first_line": "syncInvalidIndices,",
+        "rule": "Add `getScenePageOptions,` and `stampElementsPage,` to this @excalidraw/element import."
+      },
+      {
+        "id": "S2",
+        "at": "replace",
+        "from": 891,
+        "to": 891,
+        "first_line": "() => this.scene.getElementsIncludingDeleted(),",
+        "rule": "Use `() => this.scene.getActivePageElementsIncludingDeleted(),` (rule 3)."
+      },
+      {
+        "id": "S3",
+        "at": "insert_before",
+        "from": 2326,
+        "to": 2326,
+        "first_line": "const selectedElements = this.scene.getSelectedElements(this.state);",
+        "rule": "Add `this.syncScenePage();` (rule 1)."
+      },
+      {
+        "id": "S4",
+        "at": "replace",
+        "from": 3139,
+        "to": 3142,
+        "first_line": "if (actionResult.elements) {",
+        "last_line": "}",
+        "rule": "Implement rule 2 inside the same if block, keeping didUpdate = true."
+      },
+      {
+        "id": "S5",
+        "at": "insert_before",
+        "from": 3541,
+        "to": 3541,
+        "first_line": "private resetHistory = () => {",
+        "rule": "Add the private method `private syncScenePage = () => { ... };` (rule 1) followed by a blank line."
+      },
+      {
+        "id": "S6",
+        "at": "replace",
+        "from": 3699,
+        "to": 3699,
+        "first_line": "captureUpdate: CaptureUpdateAction.NEVER,",
+        "rule": "Keep the line and add `allPages: true,` before it (initial data holds every page)."
+      },
+      {
+        "id": "S7",
+        "at": "insert_before",
+        "from": 4497,
+        "to": 4497,
+        "first_line": "this.store.commit(elementsMap, this.state);",
+        "rule": "Add `this.history.setActivePage(this.scene.getActivePageId());` (rule 6)."
+      },
+      {
+        "id": "S8",
+        "at": "replace",
+        "from": 4656,
+        "to": 4656,
+        "first_line": "this.scene.replaceAllElements(nextElements);",
+        "rule": "Call `stampElementsPage(duplicatedElements, this.scene.getPageOptions());` before the unchanged replaceAllElements (rule 4)."
+      },
+      {
+        "id": "S9",
+        "at": "replace",
+        "from": 5014,
+        "to": 5016,
+        "first_line": "if (elements) {",
+        "last_line": "}",
+        "rule": "Implement rule 5 before this.scene.replaceAllElements(elements) inside the block (the setActivePage part also runs when appState is given)."
+      },
+      {
+        "id": "S10",
+        "at": "replace",
+        "from": 10822,
+        "to": 10822,
+        "first_line": "captureUpdate: CaptureUpdateAction.IMMEDIATELY,",
+        "rule": "Keep the line and add `allPages: true,` before it."
+      },
+      {
+        "id": "S11",
+        "at": "replace",
+        "from": 10987,
+        "to": 10987,
+        "first_line": "captureUpdate: CaptureUpdateAction.IMMEDIATELY,",
+        "rule": "Keep the line and add `allPages: true,` before it."
+      }
+    ],
+    "depends_on": [
+      "U04",
+      "U07",
+      "U10",
+      "U11"
+    ],
+    "covers": [
+      "FR-2",
+      "FR-3",
+      "FR-11",
+      "FR-13",
+      "NFR-2",
+      "NFR-3",
+      "NFR-4"
+    ],
+    "checks": [
+      "eslint",
+      "prettier"
+    ]
+  }
+]

@@ -5,9 +5,11 @@ import {
   MIME_TYPES,
   bytesToHexString,
   isPromiseLike,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import { getRenderEnvironment } from "@excalidraw/element/renderEnvironment";
+import { createDefaultPages } from "@excalidraw/element";
 
 import type { ValueOf } from "@excalidraw/common/utility-types";
 import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
@@ -173,6 +175,9 @@ export const loadSceneOrLibraryFromBlob = async (
               theme: localAppState?.theme,
               fileHandle: fileHandle || blob.handle || null,
               ...cleanAppStateForExport(data.appState || {}),
+              pages: data.appState?.pages ?? createDefaultPages(),
+              activePageId: data.appState?.activePageId ?? DEFAULT_PAGE_ID,
+              pageViewports: {},
               ...(localAppState
                 ? getScrollToContentState(elements, localAppState)
                 : {}),

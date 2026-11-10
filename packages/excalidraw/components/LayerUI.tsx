@@ -41,6 +41,7 @@ import Stack from "./Stack";
 import { UserList } from "./UserList";
 import { PenModeButton } from "./PenModeButton";
 import Footer from "./footer/Footer";
+import { PageTabs } from "./PageTabs";
 import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
@@ -610,22 +611,25 @@ const LayerUI = ({
         />
       )}
       {editorInterface.formFactor === "phone" && (
-        <MobileMenu
-          app={app}
-          appState={appState}
-          elements={elements}
-          actionManager={actionManager}
-          renderJSONExportDialog={renderJSONExportDialog}
-          renderImageExportDialog={renderImageExportDialog}
-          setAppState={setAppState}
-          onPenModeToggle={onPenModeToggle}
-          renderTopLeftUI={renderTopLeftUI}
-          renderTopRightUI={renderTopRightUI}
-          renderSidebars={renderSidebars}
-          renderWelcomeScreen={renderWelcomeScreen}
-          defaultUIEnabled={defaultUIEnabled}
-          scrollBackToContentUIEnabled={scrollBackToContentUIEnabled}
-        />
+        <>
+          <PageTabs appState={appState} actionManager={actionManager} />
+          <MobileMenu
+            app={app}
+            appState={appState}
+            elements={elements}
+            actionManager={actionManager}
+            renderJSONExportDialog={renderJSONExportDialog}
+            renderImageExportDialog={renderImageExportDialog}
+            setAppState={setAppState}
+            onPenModeToggle={onPenModeToggle}
+            renderTopLeftUI={renderTopLeftUI}
+            renderTopRightUI={renderTopRightUI}
+            renderSidebars={renderSidebars}
+            renderWelcomeScreen={renderWelcomeScreen}
+            defaultUIEnabled={defaultUIEnabled}
+            scrollBackToContentUIEnabled={scrollBackToContentUIEnabled}
+          />
+        </>
       )}
       {editorInterface.formFactor !== "phone" && (
         <>
@@ -654,6 +658,7 @@ const LayerUI = ({
           >
             {renderWelcomeScreen && <tunnels.WelcomeScreenCenterTunnel.Out />}
             {renderFixedSideContainer()}
+            <PageTabs appState={appState} actionManager={actionManager} />
             <Footer
               appState={appState}
               actionManager={actionManager}

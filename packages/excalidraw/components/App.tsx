@@ -178,6 +178,8 @@ import {
   getSelectedGroupIdForElement,
   getSelectedGroupIds,
   syncInvalidIndices,
+  getScenePageOptions,
+  stampElementsPage,
   excludeElementsInFramesFromSelection,
   makeNextSelectedElementIds,
   getCursorForResizingElement,
@@ -888,7 +890,7 @@ class App extends React.Component<AppProps, AppState> {
     this.actionManager = new ActionManager(
       this.syncActionResult,
       () => this.state,
-      () => this.scene.getElementsIncludingDeleted(),
+      () => this.scene.getActivePageElementsIncludingDeleted(),
       this,
     );
     this.scene = new Scene();
@@ -2323,6 +2325,7 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public render() {
+    this.syncScenePage();
     const selectedElements = this.scene.getSelectedElements(this.state);
     const { renderTopRightUI, renderTopLeftUI, renderCustomStats } = this.props;
 
@@ -3137,7 +3140,17 @@ class App extends React.Component<AppProps, AppState> {
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      if (actionResult.allPages) {
+        this.scene.setActivePage(
+          getScenePageOptions(
+            actionResult.appState?.pages ?? this.state.pages,
+            actionResult.appState?.activePageId ?? this.state.activePageId,
+          ),
+        );
+        this.scene.replaceAllElements(actionResult.elements);
+      } else {
+        this.scene.mergeActivePageElements(actionResult.elements);
+      }
       didUpdate = true;
     }
 
@@ -3538,6 +3551,12 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  private syncScenePage = () => {
+    this.scene.setActivePage(
+      getScenePageOptions(this.state.pages, this.state.activePageId),
+    );
+  };
+
   private resetHistory = () => {
     this.history.clear();
   };
@@ -3696,6 +3715,7 @@ class App extends React.Component<AppProps, AppState> {
       elements: restoredElements,
       appState: restoredAppState,
       files: initialData?.files,
+      allPages: true,
       captureUpdate: CaptureUpdateAction.NEVER,
     });
 
@@ -4494,6 +4514,7 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ scrolledOutside });
     }
 
+    this.history.setActivePage(this.scene.getActivePageId());
     this.store.commit(elementsMap, this.state);
 
     // Do not notify consumers if we're still loading the scene. Among other
@@ -4653,6 +4674,7 @@ class App extends React.Component<AppProps, AppState> {
 
     const { nextElements, duplicatedElements } = duplication;
 
+    stampElementsPage(duplicatedElements, this.scene.getPageOptions());
     this.scene.replaceAllElements(nextElements);
 
     duplicatedElements.forEach((newElement) => {
@@ -5011,7 +5033,29 @@ class App extends React.Component<AppProps, AppState> {
         this.setState(appState as Pick<AppState, K> | null);
       }
 
+      if (appState && ("pages" in appState || "activePageId" in appState)) {
+        const pageAppState = appState as Partial<AppState>;
+        this.scene.setActivePage(
+          getScenePageOptions(
+            pageAppState.pages ?? this.state.pages,
+            pageAppState.activePageId ?? this.state.activePageId,
+          ),
+        );
+      }
+
       if (elements) {
+        if (
+          captureUpdate &&
+          captureUpdate !== CaptureUpdateAction.NEVER &&
+          (appState as Partial<AppState> | null | undefined)?.pages ===
+            undefined
+        ) {
+          const existing = this.scene.getElementsMapIncludingDeleted();
+          const newElements = elements.filter((el) => !existing.has(el.id));
+          if (newElements.length) {
+            stampElementsPage(newElements, this.scene.getPageOptions());
+          }
+        }
         this.scene.replaceAllElements(elements);
       }
 
@@ -9972,7 +10016,7 @@ class App extends React.Component<AppProps, AppState> {
 
       if (isFrameLikeElement(newElement)) {
         const elementsInsideFrame = getElementsInNewFrame(
-          this.scene.getElementsIncludingDeleted(),
+          this.scene.getActivePageElementsIncludingDeleted(),
           newElement,
           this.scene.getNonDeletedElementsMap(),
         );
@@ -10072,7 +10116,7 @@ class App extends React.Component<AppProps, AppState> {
           nextElements = replaceAllElementsInFrame(
             nextElements,
             getElementsInResizingFrame(
-              this.scene.getElementsIncludingDeleted(),
+              this.scene.getActivePageElementsIncludingDeleted(),
               frame,
               this.state,
               elementsMap,
@@ -10819,6 +10863,7 @@ class App extends React.Component<AppProps, AppState> {
               isLoading: false,
             },
             replaceFiles: true,
+            allPages: true,
             captureUpdate: CaptureUpdateAction.IMMEDIATELY,
           });
           this.showSceneReplacedToast();
@@ -10984,6 +11029,7 @@ class App extends React.Component<AppProps, AppState> {
             isLoading: false,
           },
           replaceFiles: true,
+          allPages: true,
           captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         });
         return true;

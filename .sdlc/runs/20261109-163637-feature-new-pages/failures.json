@@ -1,0 +1,7 @@
+[
+  {
+    "path": "packages/excalidraw/history.ts",
+    "problem": "packages/excalidraw/tests/pages.test.tsx > pages > deleting the active page activates a neighbour and undo restores it fails at line 368: after Keyboard.redo(), expected h.state.activePageId 'id34' to be 'id35'. Cause: History.undo() and History.redo() capture `const undoStack = this.undoStack; const redoStack = this.redoStack;` before perform(); perform() switches this.activePageId to nextAppState.activePageId after applying the entry, so when undoing a page delete switches page, the inverse entry is pushed onto the previous page's captured stack and redo later reads the restored page's empty stack. Make exactly two edits and answer with ONE JSON object {path, edits:[{search, replace}]}: (1) search `      (entry: HistoryDelta) => History.push(redoStack, entry),` replace `      (entry: HistoryDelta) => History.push(this.redoStack, entry),` (in undo()); (2) search `      (entry: HistoryDelta) => History.push(undoStack, entry),` replace `      (entry: HistoryDelta) => History.push(this.undoStack, entry),` (in redo()). Keep the pop callbacks on the captured stacks. Change nothing else.",
+    "context_paths": ["packages/excalidraw/tests/pages.test.tsx"]
+  }
+]

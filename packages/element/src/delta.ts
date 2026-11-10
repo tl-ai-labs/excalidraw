@@ -17,6 +17,7 @@ import type {
   NonDeletedExcalidrawElement,
   Ordered,
   OrderedExcalidrawElement,
+  ExcalidrawPage,
   SceneElementsMap,
 } from "@excalidraw/element/types";
 
@@ -35,6 +36,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 
 import { getObservedAppState } from "./store";
+import { applyPageChanges } from "./pages";
 
 import {
   BoundElement,
@@ -623,6 +625,39 @@ export class AppStateDelta implements DeltaContainer<AppState> {
         mergedInsertedLockedMultiSelections;
     }
 
+    const mergePagesById = (
+      a?: readonly ExcalidrawPage[],
+      b?: readonly ExcalidrawPage[],
+    ): ExcalidrawPage[] | undefined => {
+      if (!a && !b) {
+        return undefined;
+      }
+      const map = new Map<string, ExcalidrawPage>();
+      for (const page of a ?? []) {
+        map.set(page.id, page);
+      }
+      for (const page of b ?? []) {
+        map.set(page.id, page);
+      }
+      return Array.from(map.values());
+    };
+
+    const mergedDeletedPages = mergePagesById(
+      this.delta.deleted.pages,
+      delta.delta.deleted.pages,
+    );
+    const mergedInsertedPages = mergePagesById(
+      this.delta.inserted.pages,
+      delta.delta.inserted.pages,
+    );
+
+    if (mergedDeletedPages) {
+      mergedDeleted.pages = mergedDeletedPages;
+    }
+    if (mergedInsertedPages) {
+      mergedInserted.pages = mergedInsertedPages;
+    }
+
     this.delta = Delta.merge(
       this.delta,
       delta.delta,
@@ -648,6 +683,7 @@ export class AppStateDelta implements DeltaContainer<AppState> {
         selectedGroupIds: insertedSelectedGroupIds = {},
         lockedMultiSelections: insertedLockedMultiSelections = {},
         selectedLinearElement: insertedSelectedLinearElement,
+        pages: insertedPages,
         ...directlyApplicablePartial
       } = this.delta.inserted;
 
@@ -687,6 +723,9 @@ export class AppStateDelta implements DeltaContainer<AppState> {
         selectedElementIds: mergedSelectedElementIds,
         selectedGroupIds: mergedSelectedGroupIds,
         lockedMultiSelections: mergedLockedMultiSelections,
+        ...(insertedPages
+          ? { pages: applyPageChanges(appState.pages, insertedPages) }
+          : {}),
         selectedLinearElement:
           typeof insertedSelectedLinearElement !== "undefined"
             ? selectedLinearElement
@@ -954,7 +993,7 @@ export class AppStateDelta implements DeltaContainer<AppState> {
     delta: Partial<ObservedAppState>,
   ): Partial<ObservedElementsAppState> {
     // WARN: Do not remove the type-casts as they here to ensure proper type checks
-    const { name, viewBackgroundColor, ...elementsProps } =
+    const { name, viewBackgroundColor, pages, activePageId, ...elementsProps } =
       delta as ObservedAppState;
 
     return elementsProps as SubtypeOf<
@@ -991,6 +1030,7 @@ export class AppStateDelta implements DeltaContainer<AppState> {
         "lockedMultiSelections",
         (prevValue) => (prevValue ?? {}) as ValueOf<T["lockedMultiSelections"]>,
       );
+      AppStateDelta.diffPages(deleted, inserted);
     } catch (e) {
       // if postprocessing fails it does not make sense to bubble up, but let's make sure we know about it
       console.error(`Couldn't postprocess appstate change deltas.`);
@@ -1000,6 +1040,63 @@ export class AppStateDelta implements DeltaContainer<AppState> {
       }
     } finally {
       return [deleted, inserted];
+    }
+  }
+
+  private static diffPages<T extends ObservedAppState>(
+    deleted: Partial<T>,
+    inserted: Partial<T>,
+  ) {
+    if (!deleted.pages && !inserted.pages) {
+      return;
+    }
+
+    const deletedPages = deleted.pages ?? [];
+    const insertedPages = inserted.pages ?? [];
+
+    const deletedMap = new Map<string, ExcalidrawPage>();
+    for (const page of deletedPages) {
+      deletedMap.set(page.id, page);
+    }
+
+    const insertedMap = new Map<string, ExcalidrawPage>();
+    for (const page of insertedPages) {
+      insertedMap.set(page.id, page);
+    }
+
+    const keptDeleted: ExcalidrawPage[] = [];
+    const keptInserted: ExcalidrawPage[] = [];
+
+    const allIds = new Set([...deletedMap.keys(), ...insertedMap.keys()]);
+
+    for (const id of allIds) {
+      const delPage = deletedMap.get(id);
+      const insPage = insertedMap.get(id);
+
+      if (delPage && insPage) {
+        if (
+          delPage.name !== insPage.name ||
+          delPage.index !== insPage.index ||
+          delPage.isDeleted !== insPage.isDeleted
+        ) {
+          keptDeleted.push(delPage);
+          keptInserted.push(insPage);
+        }
+      } else if (insPage && !delPage) {
+        keptDeleted.push({ ...insPage, isDeleted: true });
+        keptInserted.push(insPage);
+      } else if (delPage && !insPage) {
+        keptDeleted.push(delPage);
+        keptInserted.push({ ...delPage, isDeleted: true });
+      }
+    }
+
+    if (keptDeleted.length === 0 && keptInserted.length === 0) {
+      Reflect.deleteProperty(deleted, "pages");
+      Reflect.deleteProperty(inserted, "pages");
+    } else {
+      Reflect.set(deleted, "pages", keptDeleted);
+      Reflect.set(inserted, "pages", keptInserted);
     }
   }
 

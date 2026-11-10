@@ -272,7 +272,12 @@ export const actionSaveToActiveFile = register({
     const filename = app.getName();
 
     const { abortController, data: exportedDataPromise } =
-      prepareDataForJSONExport(elements, appState, app.files, app);
+      prepareDataForJSONExport(
+        app.scene.getElementsIncludingDeleted(),
+        appState,
+        app.files,
+        app,
+      );
 
     try {
       const { fileHandle } = isImageFileHandle(previousFileHandle)
@@ -338,7 +343,12 @@ export const actionSaveFileToDisk = register({
     onExportInProgress = true;
 
     const { abortController, data: exportedDataPromise } =
-      prepareDataForJSONExport(elements, appState, app.files, app);
+      prepareDataForJSONExport(
+        app.scene.getElementsIncludingDeleted(),
+        appState,
+        app.files,
+        app,
+      );
 
     try {
       const { fileHandle: savedFileHandle } = await saveAsJSON({
@@ -405,11 +415,12 @@ export const actionLoadScene = register({
         elements: loadedElements,
         appState: loadedAppState,
         files,
-      } = await loadFromJSON(appState, elements);
+      } = await loadFromJSON(appState, app.scene.getElementsIncludingDeleted());
       return {
         elements: loadedElements,
         appState: loadedAppState,
         files,
+        allPages: true,
         captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       };
     } catch (error: any) {

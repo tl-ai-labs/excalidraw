@@ -21,6 +21,7 @@ import { ShareableLinkDialog } from "@excalidraw/excalidraw/components/Shareable
 import Trans from "@excalidraw/excalidraw/components/Trans";
 import {
   APP_NAME,
+  DEFAULT_PAGE_ID,
   EVENT,
   VERSION_TIMEOUT,
   debounce,
@@ -47,7 +48,11 @@ import {
   share,
   youtubeIcon,
 } from "@excalidraw/excalidraw/components/icons";
-import { isElementLink } from "@excalidraw/element";
+import {
+  createDefaultPages,
+  getNonDeletedElements,
+  isElementLink,
+} from "@excalidraw/element";
 import {
   bumpElementVersions,
   restoreAppState,
@@ -273,7 +278,14 @@ const initializeScene = async (opts: {
             localDataState?.elements,
           ),
           appState: restoreAppState(
-            imported.appState,
+            imported.appState?.pages
+              ? imported.appState
+              : {
+                  ...imported.appState,
+                  pages: createDefaultPages(),
+                  activePageId: DEFAULT_PAGE_ID,
+                  pageViewports: {},
+                },
             // local appState when importing from backend to ensure we restore
             // localStorage user settings which we do not persist on server.
             localDataState?.appState,
@@ -341,6 +353,12 @@ const initializeScene = async (opts: {
           ...restoreAppState(
             {
               ...scene?.appState,
+              ...(scene?.appState?.pages
+                ? {}
+                : {
+                    pages: excalidrawAPI.getAppState().pages,
+                    activePageId: excalidrawAPI.getAppState().activePageId,
+                  }),
               theme: localDataState?.appState?.theme || scene?.appState?.theme,
             },
             excalidrawAPI.getAppState(),
@@ -694,7 +712,9 @@ const ExcalidrawWrapper = () => {
       if (
         excalidrawAPI &&
         LocalData.fileStorage.shouldPreventUnload(
-          excalidrawAPI.getSceneElements(),
+          getNonDeletedElements(
+            excalidrawAPI.getSceneElementsIncludingDeleted(),
+          ),
         )
       ) {
         if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
