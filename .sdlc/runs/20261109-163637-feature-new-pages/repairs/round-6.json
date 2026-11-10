@@ -1,0 +1,291 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/element/src/delta.ts",
+    "instruction": "Fix `packages/element/src/delta.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise + senior review blocker 1 (U09 never applied; four earlier rounds failed: non-unique search text, edits outside planned sites, malformed reply). Make exactly these three changes, each as one edit whose search text is the exact unique line(s) quoted here, and answer with ONE JSON object {path, edits:[{search, replace}]}:\n(1) In `private static stripStandaloneProps(` the line `    const { name, viewBackgroundColor, ...elementsProps } =` must also strip pages and activePageId: replace it with `    const { name, viewBackgroundColor, pages, activePageId, ...elementsProps } =` (keep the next line `      delta as ObservedAppState;`). This stops pages/activePageId reaching the `assertNever(` default branch of filterInvisibleChanges (which logs console.error on every undo/redo touching pages).\n(2) Add `import { applyPageChanges } from \"./pages\";` directly after the unique line `import { getObservedAppState } from \"./store\";`.\n(3) In `public applyTo(` of AppStateDelta, the unique block\n`        selectedLinearElement: insertedSelectedLinearElement,\n        ...directlyApplicablePartial\n      } = this.delta.inserted;`\nbecomes\n`        selectedLinearElement: insertedSelectedLinearElement,\n        pages: insertedPages,\n        ...directlyApplicablePartial\n      } = this.delta.inserted;`\nand the unique block\n`        lockedMultiSelections: mergedLockedMultiSelections,\n        selectedLinearElement:\n          typeof insertedSelectedLinearElement !== \"undefined\"`\nbecomes\n`        lockedMultiSelections: mergedLockedMultiSelections,\n        ...(insertedPages\n          ? { pages: applyPageChanges(appState.pages, insertedPages) }\n          : {}),\n        selectedLinearElement:\n          typeof insertedSelectedLinearElement !== \"undefined\"`\nso undoing/redoing a page delete applies the changed pages one at a time by id with version + 1 and a fresh versionNonce (applyPageChanges in packages/element/src/pages.ts), never a whole-array replace. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/types.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/collab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/collab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U33 never applied (all earlier attempts failed their vitest run; last failure: `collaboration > pages > localStorage autosave restores every page` AssertionError: expected [ { id: 'default', name: '', …(4) } ] to deeply equal ArrayContaining{…}; and `starting a room keeps every page's elements`: expected \"spy\" to be called at least once). Add the planned `pages` describe block per briefs/U33 (AC-6 autosave restores every page, AC-7 page list + elements reach the peer via SCENE_UPDATE and late-joiner SCENE_INIT, AC-9 concurrent page creation keeps both pages in the same order, and the Gate 2 start-room case). Read how the existing tests in this file mock firebase, reach the Collab instance and LocalData before writing. For autosave, call the real save path (LocalData.save / flushSave on the actual exported object as LocalData.ts defines it) and read back with importFromLocalStorage. For start-room, assert on the mocked saveToFirebase only after awaiting startCollaboration. Give test elements explicit pageId. Answer with exactly one JSON object; every search text must occur exactly once.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U33.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/LocalData.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/localStorage.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Gate 3 revise: two tests hold the key down without releasing it. `only the active page is rendered and selectable` (lines 83-85 and 102-104: `Keyboard.keyDown(KEYS.A);` inside `Keyboard.withModifierKeys({ ctrl: true }, ...)`) fails with AssertionError: expected +0 to be 1; `search switches to the page of a result` (line 524: `Keyboard.keyDown(KEYS.F);`) fails with expected null not to be null. Replace those three `Keyboard.keyDown(...)` calls with `Keyboard.keyPress(...)` (press and release), as search.test.tsx does with `Keyboard.keyPress(KEYS.F)`. Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/search.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/element/src/pages.ts",
+    "instruction": "Fix `packages/element/src/pages.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security review Low x2 (Gate 3 accepted): in `export const restorePages = (input: unknown)` (line ~328): (a) reject the reserved page ids `__proto__`, `constructor` and `prototype` (skip such entries like other malformed ones); (b) cap input: keep at most the first 1000 pages and truncate every page `name` to 256 characters. Export the caps as named constants (e.g. MAX_PAGES, MAX_PAGE_NAME_LENGTH) next to restorePages. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/pages.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/pages.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U03.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security review Low (Gate 3 accepted): at line ~1361 `const restoredPageViewports: AppState[\"pageViewports\"] = {};` a page id of `__proto__` would set this object's prototype via `restoredPageViewports[pageId] = {` (line ~1370). Build it as a prototype-less object: `const restoredPageViewports: AppState[\"pageViewports\"] = Object.create(null);` and skip the reserved ids `__proto__`, `constructor`, `prototype` in the loop. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

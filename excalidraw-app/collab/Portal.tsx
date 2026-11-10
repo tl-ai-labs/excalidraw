@@ -167,6 +167,7 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages: this.collab.excalidrawAPI.getAppState().pages,
       },
     };
 

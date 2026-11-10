@@ -1,0 +1,104 @@
+{
+  "module": "pages (feature-new, run 20261109-163637-feature-new-pages)",
+  "mode": "brownfield",
+  "review_kind": "re-check (Gate 3)",
+  "verdict": "approved",
+  "tool_calls": 14,
+  "passing_checks": [
+    "Authz: n/a (client-side editor feature, no server routes added).",
+    "PII: page names travel only inside encrypted pagesCiphertext; no logging of page names found in the diff.",
+    "Env fixtures: n/a (no validating config module in this stack).",
+    "Sensitive files: no manifest, .env.example, CLAUDE.md or settings files touched.",
+    "Suite (orchestrator-run): typecheck exit 0, test:code exit 0, test:app exit 0 (2663 passed, up from the 2632 baseline), pages.test.tsx 18/18."
+  ],
+  "blocker_recheck": [
+    {
+      "file": "packages/element/src/delta.ts",
+      "status": "resolved",
+      "evidence": "stripStandaloneProps now destructures pages and activePageId out (line ~996), so they no longer reach the assertNever switch. They count as standalone (visible) differences through stripElementsProps. postProcess calls diffPages, which reduces both sides to the changed pages and synthesizes an isDeleted tombstone for one-sided pages. squash merges pages by id through mergePagesById. applyTo pulls pages out of directlyApplicablePartial and applies them through applyPageChanges, which bumps version to max(existing, changed) + 1 with a fresh versionNonce, so peers' reconcilePages accept the restored page and concurrently created pages are kept."
+    },
+    {
+      "file": "packages/excalidraw/tests/pages.test.tsx (addElementsFromPasteOrLibrary / draw)",
+      "status": "resolved",
+      "evidence": "Lines 115-116 draw with down(10,10)/up(40,40). Lines 129-135 call addElementsFromPasteOrLibrary({ elements, files: null, position: 'center' }) inside act(). Typecheck exit 0."
+    },
+    {
+      "file": "packages/excalidraw/tests/pages.test.tsx (image export)",
+      "status": "resolved",
+      "evidence": "Line 396 gives rect2 pageId: h.state.activePageId. Line 408 passes appState: cleanAppStateForExport(h.state). Line 417 asserts the ids [rect2.id]. A residual weakness is listed below as a minor."
+    },
+    {
+      "file": "packages/excalidraw/tests/pages.test.tsx (executeAction outside act)",
+      "status": "resolved",
+      "evidence": "Every direct executeAction call (lines 79, 97, 268, 297, 308, 328, 589) is wrapped in act(). The selection test's rect2 carries pageId: page2Id (line 75)."
+    },
+    {
+      "file": "packages/excalidraw/tests/pages.test.tsx (search)",
+      "status": "resolved",
+      "evidence": "Lines 529-551 query '.layer-ui__search input' and '.layer-ui__result-item' (both exist in SearchMenu.tsx:358/468), mock scrollIntoView, click the result to focus a match, then waitFor activePageId === page1Id."
+    },
+    {
+      "file": "excalidraw-app/tests/collab.test.tsx",
+      "status": "resolved",
+      "evidence": "describe('pages') has 6 cases: SCENE_UPDATE payload, SCENE_INIT with renamed and tombstoned pages, remote per-page reconcile, localStorage autosave, concurrent create ordering, and start-room. The saveToFirebase mock is vi.fn(async () => null). The start-room case asserts saveToFirebase and the INIT payload carry rect1 and rect2."
+    },
+    {
+      "file": "packages/excalidraw/tests/__snapshots__/history.test.tsx.snap",
+      "status": "resolved",
+      "evidence": "9 snapshot files regenerated (+1680/-96). The added lines are the new appState fields (pages, activePageId: 'default', pageViewports: {}), plus seed/versionNonce churn from the extra random draws. test:app is green."
+    }
+  ],
+  "major_regression_check": "No major regressed; all 5 prior majors are now resolved. Scene.mergeActivePageElements stamps fresh elements (Scene.ts:315). Frame capture uses getActivePageElementsIncludingDeleted (App.tsx:10019, 10119). The share-link restore uses createDefaultPages (excalidraw-app/App.tsx:285). The rename input is rendered instead of the button (PageTabs.tsx isEditing ternary). The SCSS selectors match the TSX and .PageTabs is position: absolute.",
+  "history_ts_check": "undo()/redo() capture the source stack before perform. The push closures read this.redoStack/this.undoStack lazily, after perform has set this.activePageId = nextAppState.activePageId, so the inverse lands on the stack of the page now shown. The loop also stops when activePageId changes (prior minor at history.ts:244 resolved). App.tsx:4517 then calls history.setActivePage with the same id, which is a no-op. record() still pushes to the active page's stacks (setActivePage runs before store.commit). No new blocker.",
+  "findings": [
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/tests/pages.test.tsx",
+      "line": 404,
+      "issue": "'image export contains only the active page' hands exportScene the already-filtered getNonDeletedElements() list. It therefore proves only that the scene accessor is page-scoped, not that the export action/dialog path exports just the active page. The SVG check (>= 1 rect, absence of one attribute-order string) is also weak.",
+      "fix": "Drive the export through the action path (e.g. actionChangeExportEmbedScene / the export dialog's elements source), or assert on the data-id / element count in the SVG output instead of a raw string match."
+    },
+    {
+      "severity": "minor",
+      "file": "excalidraw-app/tests/collab.test.tsx",
+      "line": 263,
+      "issue": "The new pages block uses `as any` widely (page fixtures, setupTwoPages appState, portal and collab private access, payload reads). Typos in field names will not be caught by typecheck.",
+      "fix": "Type the fixtures as ExcalidrawPage and the payload as the SocketUpdateDataSource scene-update shape. Keep `as any` only for the private portal/collab access, with a one-line comment."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/element/src/pages.ts",
+      "line": 104,
+      "issue": "Carried over from the previous review, not re-checked in this pass (out of the re-check scope): the module-level single-entry memo in getScenePageOptions thrashes with two mounted editors.",
+      "fix": "Key the memo per pages array (WeakMap) or hold it on the Scene instance."
+    },
+    {
+      "severity": "minor",
+      "file": "excalidraw-app/collab/Collab.tsx",
+      "line": 836,
+      "issue": "Carried over, not re-checked: the received scene version is stored with the pre-reconcile pages, which may cause an echo broadcast after remote page changes.",
+      "fix": "After handleRemoteSceneUpdate, set lastBroadcastedOrReceivedSceneVersion from getCollabSceneVersion(elements, reconciledPages)."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/SearchMenu.tsx",
+      "line": 208,
+      "issue": "Carried over, not re-checked: the page check compares against raw app.state.activePageId rather than the resolved app.scene.getActivePageId().",
+      "fix": "Compare against app.scene.getActivePageId()."
+    },
+    {
+      "severity": "minor",
+      "file": "packages/excalidraw/components/LayerUI.tsx",
+      "line": 658,
+      "issue": "Carried over, not re-checked: PageTabs is rendered only in the non-phone layout.",
+      "fix": "Render PageTabs in the phone layout too, or record mobile as out of scope in change_plan.md."
+    }
+  ],
+  "resolved_prior_minors": [
+    "packages/element/src/pages.ts:356 index validation (restorePages now validates with generateKeyBetween, falls back to a fresh key, and also rejects reserved ids, caps at 1000 pages and limits names to 256 characters)",
+    "packages/excalidraw/history.ts:244 multi-page pop in one undo",
+    "packages/excalidraw/data/restore.ts:1349 `as any` in pageViewports sanitising (gone; built on Object.create(null))",
+    "packages/excalidraw/tests/pages.test.tsx coverage gaps (drag-and-drop reorder, Escape cancel and view-mode tests added)"
+  ],
+  "refinement_packets": []
+}

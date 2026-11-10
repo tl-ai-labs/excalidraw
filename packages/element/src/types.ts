@@ -32,6 +32,21 @@ type VerticalAlignKeys = keyof typeof VERTICAL_ALIGN;
 export type VerticalAlign = typeof VERTICAL_ALIGN[VerticalAlignKeys];
 export type FractionalIndex = string & { _brand: "franctionalIndex" };
 
+/**
+ * One page of a drawing.
+ * `name` empty string means display the localized default name.
+ * `index` is the fractional order key.
+ * `version`, `versionNonce`, and `isDeleted` follow element semantics for collab reconciliation.
+ */
+export type ExcalidrawPage = Readonly<{
+  id: string;
+  name: string;
+  index: FractionalIndex;
+  version: number;
+  versionNonce: number;
+  isDeleted: boolean;
+}>;
+
 export type BoundElement = Readonly<{
   id: ExcalidrawLinearElement["id"];
   type: "arrow" | "text";
@@ -84,6 +99,8 @@ type _ExcalidrawElementBase = Readonly<{
   link: string | null;
   locked: boolean;
   customData?: Record<string, any>;
+  /** id of the page this element belongs to; absent (or unknown) means the drawing's home page (see getHomePageId) */
+  pageId?: string;
 }>;
 
 export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {

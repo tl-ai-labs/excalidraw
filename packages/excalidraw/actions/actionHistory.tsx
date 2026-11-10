@@ -57,6 +57,7 @@ const executeHistoryAction = (
     return {
       appState: nextAppState,
       elements: nextElements,
+      allPages: true,
       captureUpdate: CaptureUpdateAction.NEVER,
     };
   }
@@ -75,7 +76,7 @@ export const createUndoAction: ActionCreator = (history) => ({
   perform: (elements, appState, value, app) =>
     executeHistoryAction(app, appState, () =>
       history.undo(
-        arrayToMap(elements) as SceneElementsMap,
+        arrayToMap(app.scene.getElementsIncludingDeleted()) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),
@@ -118,7 +119,7 @@ export const createRedoAction: ActionCreator = (history) => ({
   perform: (elements, appState, __, app) =>
     executeHistoryAction(app, appState, () =>
       history.redo(
-        arrayToMap(elements) as SceneElementsMap,
+        arrayToMap(app.scene.getElementsIncludingDeleted()) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),

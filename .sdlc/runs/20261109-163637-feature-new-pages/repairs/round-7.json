@@ -1,0 +1,185 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/element/src/delta.ts",
+    "instruction": "Fix `packages/element/src/delta.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U09 landed only in part: sites S2, S4, S5 and S6 are on disk; S1, S3 and S7 of the approved plan are missing. Failing test (packages/excalidraw/tests/pages.test.tsx > pages > deleting the active page activates a neighbour and undo restores it, line ~356): after Keyboard.undo(), activePageId is the first page ('id1'); expected the restored middle page ('id2'). Without diffPages the delta keeps whole page arrays, so the delete/undo round-trip does not carry activePageId back to the restored page. Add exactly these three changes. Answer with ONE JSON object {path, edits:[{search, replace}]} whose search texts are copied exactly from the current file and each found once:\n(S1) In the type import that ends with the unique lines `  SceneElementsMap,\\n} from \"@excalidraw/element/types\";`, add `  ExcalidrawPage,` (keep alphabetical order within that import).\n(S3) Rule 3: squash merges pages by id when either delta has them. Insert immediately before the unique line `    this.delta = Delta.merge(` (inside `public squash(delta: AppStateDelta)`) a block that, using a local arrow `mergePagesById = (a?: readonly ExcalidrawPage[], b?: readonly ExcalidrawPage[]) => ...` (later records from `b` override `a` per id; returns undefined when both are undefined), sets `mergedDeleted.pages` from this.delta.deleted.pages + delta.delta.deleted.pages and `mergedInserted.pages` from this.delta.inserted.pages + delta.delta.inserted.pages, only when the result is defined.\n(S7) Rule 1: in `private static postProcess<T extends ObservedAppState>(`, after the unique block `        \"lockedMultiSelections\",\\n        (prevValue) => (prevValue ?? {}) as ValueOf<T[\"lockedMultiSelections\"]>,\\n      );` add `      AppStateDelta.diffPages(deleted, inserted);` (same try block), and define `private static diffPages<T extends ObservedAppState>(deleted: Partial<T>, inserted: Partial<T>)` as a new method right after postProcess, before the unique line `  private static orderAppStateKeys(partial: Partial<ObservedAppState>) {`. diffPages: if neither side has `pages`, return; map both sides by id; a page on both sides is kept (full record on each side) only when name, index or isDeleted differ; a page only in inserted gets a deleted-side record { ...page, isDeleted: true }; a page only in deleted gets an inserted-side record { ...page, isDeleted: true }; if none remain delete the `pages` key from both partials, else set both to the kept arrays. activePageId stays directly applicable (rule 2): do not touch it. History already follows the restored page (packages/excalidraw/history.ts sets this.activePageId = nextAppState.activePageId), so after undo the redo entry lands on the restored page's stack. Change nothing else.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/delta.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/delta.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U09.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/history.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/delta.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "packages/excalidraw/tests/pages.test.tsx",
+    "instruction": "Fix `packages/excalidraw/tests/pages.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Test-setup faults (the feature works; verified by the person's probe). (1) The `beforeEach` renders `<Excalidraw />` without `handleKeyboardGlobally`, so Keyboard events fired on document never reach the editor (Ctrl+A, Ctrl+F, Ctrl+Z are no-ops); that is why `only the active page is rendered and selectable` (expected +0 to be 1), `undo stays on its page` (expected 1 to be +0) and `search switches to the page of a result` fail. Render `<Excalidraw handleKeyboardGlobally={true} />` as packages/excalidraw/tests/search.test.tsx does. (2) `search switches to the page of a result` then throws `TypeError: ref?.scrollIntoView is not a function` (SearchMenu.tsx:474): jsdom has no scrollIntoView. Mock it in that test exactly as search.test.tsx does (`window.HTMLElement.prototype.scrollIntoView = vi.fn()` or its lines 79-80 pattern). Keep every assertion as it is; do not change the `deleting the active page activates a neighbour and undo restores it` test. Answer with ONE JSON object; each search text found exactly once.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/tests/pages.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U32.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/tests/search.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/pages.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r7_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261109-163637-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/collab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/collab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. U33 never applied. Add the planned `pages` describe block (AC-6 autosave restores every page, AC-7 page list + elements reach the peer via SCENE_UPDATE and the late-joiner SCENE_INIT, AC-9 concurrent page creation keeps both pages in the same order on both peers, and the Gate 2 start-room case). Last attempts failed on: (a) `localStorage autosave restores every page`: AssertionError: expected [ { id: 'default', ... } ] to deeply equal ArrayContaining{...}. The app CODE is correct (verified: clearAppStateForLocalStorage -> localStorage -> importFromLocalStorage -> restoreAppState keeps both pages and activePageId). The fault was the TEST: LocalData.save is debounced (SAVE_TO_LOCAL_STORAGE_TIMEOUT) and is skipped while `LocalData.isSavePaused()` (document.hidden or a held lock, e.g. while collaborating). Call `LocalData.save(elements, appState, files, () => {})` then `LocalData.flushSave()` with saving not paused (not inside a collab session), then read back with importFromLocalStorage + restoreAppState. (b) `starting a room keeps every page's elements`: `window.crypto.subtle.importKey is not a function` (jsdom has no WebCrypto), so saveToFirebase was never reached (\"expected spy to be called at least once\"). Mock WebCrypto for that case (or vi.mock the encryption module `@excalidraw/excalidraw/data/encryption` generateEncryptionKey/encryptData) and await startCollaboration before asserting on the mocked saveToFirebase. Read the file's existing firebase/socket.io mocks and how existing tests reach the Collab instance first. Give test elements explicit pageId. Answer with ONE JSON object; each search text found exactly once.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261109-163637-feature-new-pages/briefs/U33.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/LocalData.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/localStorage.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/tests/collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "yarn -s eslint --max-warnings=0 '{path}'",
+          "fix": "yarn -s eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "npx --no-install prettier --check '{path}'",
+          "fix": "npx --no-install prettier --write '{path}'"
+        },
+        {
+          "id": "vitest",
+          "run": "yarn -s vitest run --watch=false '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

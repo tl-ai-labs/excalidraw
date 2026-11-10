@@ -62,6 +62,14 @@ When saving an Excalidraw scene locally to a file, the JSON file (`.excalidraw`)
 }
 ```
 
+### Pages
+
+Multi-page drawings store page records in `appState.pages` as an array of `{ id, name, index, version, versionNonce, isDeleted }` objects, ordered by `index` (a fractional-indexing key) and then by `id`, with tombstones kept. `appState.activePageId` indicates the currently selected page.
+
+Elements reference their page via an optional `pageId` property. An element whose `pageId` is absent belongs to the home page: the page with id `"default"` when present, otherwise the page with the smallest page id (lexicographical string order).
+
+Legacy single-page files without page data restore onto a single page with id `"default"`. Older readers that do not support pages ignore `pageId` and `appState.pages`, displaying all pages' elements together on one canvas.
+
 ### Element creation time
 
 Every normalized element has a `created: number | null` field. A number is the client's wall-clock time in epoch milliseconds when this element instance was created. `null` means the creation time is unknown; restoring an older file does not substitute its load time or last-update time.

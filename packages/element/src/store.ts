@@ -1,6 +1,7 @@
 import {
   assertNever,
   COLOR_PALETTE,
+  DEFAULT_PAGE_ID,
   isDevEnv,
   isTestEnv,
   randomId,
@@ -16,6 +17,7 @@ import type { AppState, ObservedAppState } from "@excalidraw/excalidraw/types";
 
 import { deepCopyElement } from "./duplicate";
 import { newElementWith } from "./mutateElement";
+import { createDefaultPages } from "./pages";
 
 import { ElementsDelta, AppStateDelta, Delta } from "./delta";
 
@@ -994,6 +996,8 @@ const getDefaultObservedAppState = (): ObservedAppState => {
     name: null,
     editingGroupId: null,
     viewBackgroundColor: COLOR_PALETTE.white,
+    pages: createDefaultPages(),
+    activePageId: DEFAULT_PAGE_ID,
     selectedElementIds: {},
     selectedGroupIds: {},
     selectedLinearElement: null,
@@ -1010,6 +1014,8 @@ export const getObservedAppState = (
     name: appState.name,
     editingGroupId: appState.editingGroupId,
     viewBackgroundColor: appState.viewBackgroundColor,
+    pages: appState.pages,
+    activePageId: appState.activePageId,
     selectedElementIds: appState.selectedElementIds,
     selectedGroupIds: appState.selectedGroupIds,
     croppingElementId: appState.croppingElementId,

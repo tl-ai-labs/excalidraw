@@ -113,6 +113,9 @@ export const actionClearCanvas = register({
         stats: appState.stats,
         colorTopPicks: appState.colorTopPicks,
         fontTopPicks: appState.fontTopPicks,
+        pages: appState.pages,
+        activePageId: appState.activePageId,
+        pageViewports: appState.pageViewports,
         activeTool:
           appState.activeTool.type === "image"
             ? {

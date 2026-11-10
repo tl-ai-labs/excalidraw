@@ -13,6 +13,10 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Features
+
+- Pages: a drawing holds ordered pages (tab bar to create, switch, rename, reorder, delete); elements carry an optional `pageId`; `appState.pages`, `appState.activePageId` and `appState.pageViewports`; undo is per page and page deletion is undoable; files, autosave and collaboration carry every page; new exports `createDefaultPages`, `getPagesVersion`, `reconcilePages`, `resolveActivePageId`, `restorePages`, `sortPages` and type `ExcalidrawPage`.
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

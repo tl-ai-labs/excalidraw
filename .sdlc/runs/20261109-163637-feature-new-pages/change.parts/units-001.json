@@ -1,0 +1,952 @@
+{
+  "section": "units",
+  "source": "units-001.json",
+  "value": [
+    {
+      "id": "U01",
+      "path": "packages/common/src/constants.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the deterministic default page id constant.",
+      "exports": [
+        {
+          "name": "DEFAULT_PAGE_ID",
+          "kind": "const",
+          "params": [],
+          "returns": "\"default\""
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 347,
+          "to": 347,
+          "first_line": "export const EXPORT_DATA_TYPES = {",
+          "rule": "Insert `/** id of the page a legacy drawing (no page data) restores onto; elements without pageId belong to it while it exists */` then `export const DEFAULT_PAGE_ID = \"default\";` followed by a blank line."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-17"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U02",
+      "path": "packages/element/src/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the ExcalidrawPage record type and the optional pageId element field.",
+      "exports": [
+        {
+          "name": "ExcalidrawPage",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ id: string; name: string; index: FractionalIndex; version: number; versionNonce: number; isDeleted: boolean }>"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 33,
+          "to": 33,
+          "first_line": "export type FractionalIndex = string & { _brand: \"franctionalIndex\" };",
+          "rule": "After a blank line add a JSDoc (one page of a drawing; `name` empty string means display the localized default name; `index` is the fractional order key; version/versionNonce/isDeleted follow element semantics for collab reconciliation) and `export type ExcalidrawPage = Readonly<{ id: string; name: string; index: FractionalIndex; version: number; versionNonce: number; isDeleted: boolean; }>;`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "customData?: Record<string, any>;",
+          "rule": "Add `/** id of the page this element belongs to; absent (or unknown) means the drawing's home page (see getHomePageId) */` and `pageId?: string;`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-1"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U03",
+      "path": "packages/element/src/pages.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Pure page-model helpers: defaults, ordering, home/active page resolution, element membership, stamping, per-page versioned merge, restore sanitizing.",
+      "rules": [
+        "1. Imports: DEFAULT_PAGE_ID, randomId, randomInteger from @excalidraw/common; generateKeyBetween from @excalidraw/fractional-indexing; types ExcalidrawElement, ExcalidrawPage, FractionalIndex from ./types. No React, no DOM.",
+        "2. sortPages returns a new array sorted by index ascending, ties by id ascending (string compare) so every peer orders identically.",
+        "3. createDefaultPages returns a fresh [{ id: DEFAULT_PAGE_ID, name: \"\", index: \"a0\", version: 1, versionNonce: 0, isDeleted: false }] each call.",
+        "4. getHomePageId: DEFAULT_PAGE_ID if any page (deleted or not) has that id, else the smallest id (string compare) among all pages incl. tombstones, else DEFAULT_PAGE_ID. It never depends on page order, so reorder and delete never move the home page.",
+        "5. resolveActivePageId: the given id when it names a non-deleted page; else the home page id when that page is non-deleted; else the first non-deleted page id; else DEFAULT_PAGE_ID.",
+        "6. getScenePageOptions(pages, activePageId) is memoized on the identity of both arguments (keep the last args and result in module-level variables) and returns { activePageId: resolveActivePageId(...), homePageId: getHomePageId(pages), pageIds: Set of every page id incl. tombstones, isSinglePage: pages.length <= 1 }.",
+        "7. getElementPageId(element, options): when options is null return DEFAULT_PAGE_ID; return element.pageId when it is a string present in options.pageIds, otherwise options.homePageId.",
+        "8. isElementOnActivePage(element, options): true when options is null or options.isSinglePage, else getElementPageId(element, options) === options.activePageId.",
+        "9. stampElementsPage mutates the given fresh elements in place (cast to Mutable): when options is null do nothing; when options.activePageId === options.homePageId delete element.pageId; otherwise set element.pageId = options.activePageId. It never changes version.",
+        "10. generatePageIndex(pages) = generateKeyBetween(highest index over all pages incl. tombstones or null, null) cast to FractionalIndex.",
+        "11. getReorderedPageIndex(pages, pageId, toPosition): take the sorted non-deleted pages without pageId, clamp toPosition to [0, length], return generateKeyBetween(prev?.index ?? null, next?.index ?? null) where prev = list[toPosition - 1] and next = list[toPosition]; when prev and next share the same index (tie) use generateKeyBetween(prev.index, null) only if next is undefined, else return prev.index (ties sort by id).",
+        "12. newPage({ name, pages }) returns { id: randomId(), name, index: generatePageIndex(pages), version: 1, versionNonce: randomInteger(), isDeleted: false }.",
+        "13. updatePage(page, updates) returns a new page with the updates, version + 1 and a new randomInteger() versionNonce.",
+        "14. reconcilePages(local, remote): per id keep local when local.version > remote.version or (equal versions and local.versionNonce <= remote.versionNonce), else remote; include ids present on only one side; return sortPages(result). Same rule as shouldDiscardRemoteElement in data/reconcile.ts.",
+        "15. getPagesVersion(pages) = sum of page.version (0 for an empty or missing list).",
+        "16. applyPageChanges(pages, changed): for each changed page, if an existing page has its id replace it with { ...existing, name, index, isDeleted taken from changed, version: max(existing.version, changed.version) + 1, versionNonce: randomInteger() }, else append { ...changed, version: changed.version + 1, versionNonce: randomInteger() }; return sortPages(result).",
+        "17. restorePages(input: unknown): keep only objects with a non-empty string id (first occurrence wins), a string name (else \"\"), a string index (else generate one after the previous kept page), finite version >= 1 (else 1), finite versionNonce (else 0), boolean isDeleted (else false); sort; if no non-deleted page remains return createDefaultPages() plus the kept tombstones. Never throws."
+      ],
+      "exports": [
+        {
+          "name": "ScenePageOptions",
+          "kind": "type",
+          "params": [],
+          "returns": "Readonly<{ activePageId: string; homePageId: string; pageIds: ReadonlySet<string>; isSinglePage: boolean }>"
+        },
+        {
+          "name": "sortPages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        },
+        {
+          "name": "createDefaultPages",
+          "kind": "function",
+          "params": [],
+          "returns": "ExcalidrawPage[]"
+        },
+        {
+          "name": "getNonDeletedPages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        },
+        {
+          "name": "getHomePageId",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "resolveActivePageId",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "activePageId",
+              "type": "string | null | undefined"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "getScenePageOptions",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "activePageId",
+              "type": "string | null | undefined"
+            }
+          ],
+          "returns": "ScenePageOptions"
+        },
+        {
+          "name": "getElementPageId",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawElement"
+            },
+            {
+              "name": "options",
+              "type": "ScenePageOptions | null"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "isElementOnActivePage",
+          "kind": "function",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawElement"
+            },
+            {
+              "name": "options",
+              "type": "ScenePageOptions | null"
+            }
+          ],
+          "returns": "boolean"
+        },
+        {
+          "name": "stampElementsPage",
+          "kind": "function",
+          "params": [
+            {
+              "name": "elements",
+              "type": "readonly ExcalidrawElement[]"
+            },
+            {
+              "name": "options",
+              "type": "ScenePageOptions | null"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "generatePageIndex",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "FractionalIndex"
+        },
+        {
+          "name": "getReorderedPageIndex",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "pageId",
+              "type": "string"
+            },
+            {
+              "name": "toPosition",
+              "type": "number"
+            }
+          ],
+          "returns": "FractionalIndex"
+        },
+        {
+          "name": "newPage",
+          "kind": "function",
+          "params": [
+            {
+              "name": "opts",
+              "type": "{ name: string; pages: readonly ExcalidrawPage[] }"
+            }
+          ],
+          "returns": "ExcalidrawPage"
+        },
+        {
+          "name": "updatePage",
+          "kind": "function",
+          "params": [
+            {
+              "name": "page",
+              "type": "ExcalidrawPage"
+            },
+            {
+              "name": "updates",
+              "type": "Partial<Pick<ExcalidrawPage, \"name\" | \"index\" | \"isDeleted\">>"
+            }
+          ],
+          "returns": "ExcalidrawPage"
+        },
+        {
+          "name": "reconcilePages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "localPages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "remotePages",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        },
+        {
+          "name": "getPagesVersion",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[] | null | undefined"
+            }
+          ],
+          "returns": "number"
+        },
+        {
+          "name": "applyPageChanges",
+          "kind": "function",
+          "params": [
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[]"
+            },
+            {
+              "name": "changed",
+              "type": "readonly ExcalidrawPage[]"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        },
+        {
+          "name": "restorePages",
+          "kind": "function",
+          "params": [
+            {
+              "name": "input",
+              "type": "unknown"
+            }
+          ],
+          "returns": "ExcalidrawPage[]"
+        }
+      ],
+      "import_line": "import { getScenePageOptions, stampElementsPage } from \"@excalidraw/element\";",
+      "style_from": {
+        "path": "packages/element/src/fractionalIndex.ts",
+        "lines": [
+          1,
+          40
+        ],
+        "reason": "pure element-package module: import layout and use of @excalidraw/fractional-indexing"
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/data/reconcile.ts",
+          "lines": [
+            23,
+            44
+          ],
+          "reason": "the element win rule reconcilePages mirrors"
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-17",
+        "FR-18",
+        "FR-20",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U04",
+      "path": "packages/element/src/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Re-exports the pages module from the element package entry.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "export * from \"./newElement\";",
+          "rule": "Add `export * from \"./pages\";`."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-1"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U05",
+      "path": "packages/excalidraw/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds pages, activePageId and pageViewports to AppState and pages/activePageId to the observed standalone state.",
+      "exports": [
+        {
+          "name": "PageViewport",
+          "kind": "type",
+          "params": [],
+          "returns": "{ scrollX: number; scrollY: number; zoom: Zoom }"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 41,
+          "to": 41,
+          "first_line": "StrokeVariability,",
+          "rule": "Add `ExcalidrawPage,` to this @excalidraw/element/types type import."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 268,
+          "to": 271,
+          "first_line": "export type ObservedStandaloneAppState = {",
+          "last_line": "};",
+          "rule": "Keep name and viewBackgroundColor and add the optional keys `pages?: AppState[\"pages\"];` and `activePageId?: AppState[\"activePageId\"];` (optional so existing hand-written ObservedAppState literals stay valid; getObservedAppState always sets them). After the closing `};` add a blank line and `export type PageViewport = { scrollX: number; scrollY: number; zoom: Zoom };`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 573,
+          "to": 573,
+          "first_line": "bindMode: BindMode;",
+          "rule": "Add, each with a one-line JSDoc: `pages: readonly ExcalidrawPage[];` (ordered page list incl. deleted tombstones), `activePageId: string;` (the page shown and edited; per client), `pageViewports: { [pageId: string]: PageViewport };` (saved scroll/zoom of pages other than the active one)."
+        }
+      ],
+      "depends_on": [
+        "U02"
+      ],
+      "covers": [
+        "FR-1",
+        "FR-4",
+        "FR-6"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U06",
+      "path": "packages/excalidraw/appState.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Defaults and storage config for the three page fields (four-touch convention).",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 15,
+          "to": 15,
+          "first_line": "DEFAULT_STICKY_NOTE_BG,",
+          "rule": "Add `DEFAULT_PAGE_ID,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 16,
+          "to": 16,
+          "first_line": "} from \"@excalidraw/common\";",
+          "rule": "Add a blank line and `import { createDefaultPages } from \"@excalidraw/element\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 142,
+          "to": 142,
+          "first_line": "bindMode: \"orbit\",",
+          "rule": "Add `pages: createDefaultPages(),`, `activePageId: DEFAULT_PAGE_ID,`, `pageViewports: {},`."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 294,
+          "to": 294,
+          "first_line": "bindMode: { browser: true, export: false, server: false },",
+          "rule": "Add `pages: { browser: true, export: true, server: false },`, `activePageId: { browser: true, export: true, server: false },`, `pageViewports: { browser: true, export: false, server: false },`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U04",
+        "U05"
+      ],
+      "covers": [
+        "FR-4",
+        "FR-15",
+        "FR-19"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U07",
+      "path": "packages/element/src/Scene.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Scene keeps all pages' elements but serves non-deleted elements, maps, frames and selection for the active page only, cached per update.",
+      "rules": [
+        "1. New private fields: pageOptions: ScenePageOptions | null = null; activeNonDeletedElements, activeNonDeletedElementsMap, activeNonDeletedFramesLikes, activeElementsIncludingDeleted, initialised to the same values as their all-page counterparts.",
+        "2. private updateActivePageCaches(): when pageOptions is null or pageOptions.isSinglePage, point every active field at the all-page field (no copy); otherwise filter nonDeletedElements, nonDeletedFramesLikes and elements with isElementOnActivePage and rebuild the branded NonDeletedSceneElementsMap. Clear selectedElementsCache.cache and set its elements to null.",
+        "3. setActivePage(options): if options === this.pageOptions return; else store it, call updateActivePageCaches(), and set sceneNonce = randomInteger(). It never invokes onUpdate callbacks.",
+        "4. getActivePageId(): pageOptions?.activePageId ?? DEFAULT_PAGE_ID (import DEFAULT_PAGE_ID from @excalidraw/common). getPageOptions(): pageOptions. getElementPageId(element): getElementPageId(element, this.pageOptions).",
+        "5. getNonDeletedElements/getNonDeletedElementsMap/getNonDeletedFramesLikes return the active fields; new getNonDeletedElementsAllPages() returns the all-page nonDeletedElements; new getActivePageElementsIncludingDeleted() returns activeElementsIncludingDeleted; getElementsIncludingDeleted/getElementsMapIncludingDeleted/getFramesIncludingDeleted/getElement are unchanged (all pages).",
+        "6. mergeActivePageElements(nextElements): ids = set of nextElements ids; walk this.elements and collect slot positions holding an element that isElementOnActivePage or whose id is in ids; build the next array by copying this.elements and refilling those slots in order from nextElements; drop slots left over when nextElements is shorter; append remaining nextElements at the end; call replaceAllElements(result). When pageOptions is null or isSinglePage just call replaceAllElements(nextElements).",
+        "7. insertElementsAtIndex stamps the inserted elements with stampElementsPage(elements, this.pageOptions) before computing positions (index semantics stay over the all-page array)."
+      ],
+      "exports": [
+        {
+          "name": "Scene.setActivePage",
+          "kind": "method",
+          "params": [
+            {
+              "name": "options",
+              "type": "ScenePageOptions | null"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "Scene.getActivePageId",
+          "kind": "method",
+          "params": [],
+          "returns": "string"
+        },
+        {
+          "name": "Scene.getPageOptions",
+          "kind": "method",
+          "params": [],
+          "returns": "ScenePageOptions | null"
+        },
+        {
+          "name": "Scene.getElementPageId",
+          "kind": "method",
+          "params": [
+            {
+              "name": "element",
+              "type": "ExcalidrawElement"
+            }
+          ],
+          "returns": "string"
+        },
+        {
+          "name": "Scene.getNonDeletedElementsAllPages",
+          "kind": "method",
+          "params": [],
+          "returns": "readonly Ordered<NonDeletedExcalidrawElement>[]"
+        },
+        {
+          "name": "Scene.getActivePageElementsIncludingDeleted",
+          "kind": "method",
+          "params": [],
+          "returns": "readonly OrderedExcalidrawElement[]"
+        },
+        {
+          "name": "Scene.mergeActivePageElements",
+          "kind": "method",
+          "params": [
+            {
+              "name": "nextElements",
+              "type": "readonly ExcalidrawElement[]"
+            }
+          ],
+          "returns": "void"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 23,
+          "to": 23,
+          "first_line": "import { mutateElement, type ElementUpdate } from \"@excalidraw/element\";",
+          "rule": "Add a blank line and `import { getElementPageId, isElementOnActivePage, stampElementsPage } from \"./pages\";`."
+        },
+        {
+          "id": "S11",
+          "at": "insert_after",
+          "from": 9,
+          "to": 9,
+          "first_line": "toArray,",
+          "rule": "Add `DEFAULT_PAGE_ID,` to the @excalidraw/common import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 43,
+          "to": 43,
+          "first_line": "import type { AppState } from \"../../excalidraw/types\";",
+          "rule": "Add `import type { ScenePageOptions } from \"./pages\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 141,
+          "to": 141,
+          "first_line": "private sceneNonce: number | undefined;",
+          "rule": "Add the private fields of rule 1 with a short comment that they are the active page's views, recomputed in updateActivePageCaches."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 147,
+          "to": 165,
+          "first_line": "getNonDeletedElementsMap() {",
+          "last_line": "}",
+          "rule": "Rewrite these getters per rules 4 and 5 and add setActivePage (rule 3), getNonDeletedElementsAllPages and getActivePageElementsIncludingDeleted here, keeping getElementsIncludingDeleted, getElementsMapIncludingDeleted and getFramesIncludingDeleted unchanged."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 193,
+          "to": 193,
+          "first_line": "const elements = opts?.elements || this.nonDeletedElements;",
+          "rule": "Use this.activeNonDeletedElements instead of this.nonDeletedElements."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 217,
+          "to": 217,
+          "first_line": "this.selectedElementsCache.elements = this.nonDeletedElements;",
+          "rule": "Use this.activeNonDeletedElements instead of this.nonDeletedElements."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 224,
+          "to": 226,
+          "first_line": "getNonDeletedFramesLikes(): readonly NonDeleted<ExcalidrawFrameLikeElement>[] {",
+          "last_line": "}",
+          "rule": "Return this.activeNonDeletedFramesLikes; after it add getPageOptions, getActivePageId, getElementPageId (rule 4), private updateActivePageCaches (rule 2) and mergeActivePageElements (rule 6)."
+        },
+        {
+          "id": "S8",
+          "at": "insert_after",
+          "from": 298,
+          "to": 298,
+          "first_line": "this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;",
+          "rule": "Call this.updateActivePageCaches(); before triggerUpdate."
+        },
+        {
+          "id": "S9",
+          "at": "insert_after",
+          "from": 334,
+          "to": 334,
+          "first_line": "this.selectedElementsCache.cache.clear();",
+          "rule": "Reset pageOptions to null and every active field to an empty array / the cleared elementsMap equivalents (new branded empty map)."
+        },
+        {
+          "id": "S10",
+          "at": "insert_before",
+          "from": 351,
+          "to": 351,
+          "first_line": "if (index === null) {",
+          "rule": "Call stampElementsPage(elements, this.pageOptions); (rule 7)."
+        }
+      ],
+      "uses": [
+        {
+          "path": "packages/element/src/Scene.ts",
+          "lines": [
+            45,
+            66
+          ],
+          "reason": "getNonDeletedElements helper reused to build the active map"
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U03"
+      ],
+      "covers": [
+        "FR-2",
+        "FR-3",
+        "FR-8",
+        "NFR-2"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U08",
+      "path": "packages/element/src/store.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "The store observes pages and activePageId so a page deletion is captured in history.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 3,
+          "to": 3,
+          "first_line": "COLOR_PALETTE,",
+          "rule": "Add `DEFAULT_PAGE_ID,`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 18,
+          "to": 18,
+          "first_line": "import { newElementWith } from \"./mutateElement\";",
+          "rule": "Add `import { createDefaultPages } from \"./pages\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 996,
+          "to": 996,
+          "first_line": "viewBackgroundColor: COLOR_PALETTE.white,",
+          "rule": "Add `pages: createDefaultPages(),` and `activePageId: DEFAULT_PAGE_ID,` to the default observed app state."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1012,
+          "to": 1012,
+          "first_line": "viewBackgroundColor: appState.viewBackgroundColor,",
+          "rule": "Add `pages: appState.pages,` and `activePageId: appState.activePageId,`."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U03",
+        "U05"
+      ],
+      "covers": [
+        "FR-11"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/element/src/delta.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "AppStateDelta diffs, squashes and applies pages per page id with a version bump, so undo/redo of a page deletion propagates and never drops other pages.",
+      "rules": [
+        "1. private static diffPages(deleted, inserted): when neither side has pages return; map both sides by id; a page present on both sides is kept (as the full record on each side) only when name, index or isDeleted differ; a page only in inserted gets a deleted-side record { ...page, isDeleted: true }; a page only in deleted gets an inserted-side record { ...page, isDeleted: true }; when no pages remain delete the pages key from both partials, else set both to the arrays of kept records.",
+        "2. applyTo destructures pages out of this.delta.inserted (so it is not directly applied) and, when defined, sets nextAppState.pages = applyPageChanges(appState.pages, insertedPages); activePageId stays directly applicable.",
+        "3. squash merges pages by id when either delta has them: later records (from `delta`) override earlier ones per id on both the deleted and inserted side, into mergedDeleted.pages / mergedInserted.pages.",
+        "4. stripStandaloneProps also strips pages and activePageId so the SubtypeOf check holds."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 20,
+          "to": 20,
+          "first_line": "SceneElementsMap,",
+          "rule": "Add `ExcalidrawPage,` to this type import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 37,
+          "to": 37,
+          "first_line": "import { getObservedAppState } from \"./store\";",
+          "rule": "Add a blank line and `import { applyPageChanges } from \"./pages\";`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 626,
+          "to": 626,
+          "first_line": "this.delta = Delta.merge(",
+          "rule": "Merge pages per rule 3 into mergedDeleted / mergedInserted (helper: a local arrow that merges two optional ExcalidrawPage arrays by id)."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 650,
+          "to": 650,
+          "first_line": "selectedLinearElement: insertedSelectedLinearElement,",
+          "rule": "Add `pages: insertedPages,` to the destructuring (rule 2)."
+        },
+        {
+          "id": "S5",
+          "at": "insert_after",
+          "from": 686,
+          "to": 686,
+          "first_line": "...directlyApplicablePartial,",
+          "rule": "Add `...(insertedPages ? { pages: applyPageChanges(appState.pages, insertedPages) } : {}),`."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 957,
+          "to": 957,
+          "first_line": "const { name, viewBackgroundColor, ...elementsProps } =",
+          "rule": "Destructure `name, viewBackgroundColor, pages, activePageId, ...elementsProps` (rule 4)."
+        },
+        {
+          "id": "S7",
+          "at": "insert_after",
+          "from": 993,
+          "to": 993,
+          "first_line": ");",
+          "rule": "Call `AppStateDelta.diffPages(deleted, inserted);` inside the same try block; define diffPages (rule 1) as a private static method right after postProcess."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U05"
+      ],
+      "covers": [
+        "FR-9",
+        "FR-11",
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/history.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "History keeps one undo/redo stack pair per page and works on the active page's pair.",
+      "rules": [
+        "1. private readonly stacks = new Map<string, { undo: HistoryDelta[]; redo: HistoryDelta[] }>(); private activePageId: string = DEFAULT_PAGE_ID; private getStacks(pageId) creates the pair on first access.",
+        "2. undoStack / redoStack become public getters returning the active page's arrays (callers and tests keep using history.undoStack / history.redoStack); isUndoStackEmpty / isRedoStackEmpty read them.",
+        "3. clear() empties every page's stacks (stacks.clear()).",
+        "4. setActivePage(pageId): if unchanged return; else set activePageId and trigger onHistoryChangedEmitter with the new page's emptiness. getActivePageId() returns it.",
+        "5. In perform, right after an entry is applied, set this.activePageId = nextAppState.activePageId (no emit; the finally block emits) so the inverse entry is pushed onto the stack of the page that is active after applying it."
+      ],
+      "exports": [
+        {
+          "name": "History.setActivePage",
+          "kind": "method",
+          "params": [
+            {
+              "name": "pageId",
+              "type": "string"
+            }
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "History.getActivePageId",
+          "kind": "method",
+          "params": [],
+          "returns": "string"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 1,
+          "to": 1,
+          "first_line": "import { Emitter } from \"@excalidraw/common\";",
+          "rule": "Import `{ DEFAULT_PAGE_ID, Emitter }`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 102,
+          "to": 118,
+          "first_line": "public readonly undoStack: HistoryDelta[] = [];",
+          "last_line": "}",
+          "rule": "Replace the two stack fields, the emptiness getters, the constructor and clear() per rules 1-4, keeping `constructor(private readonly store: Store) {}`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_before",
+          "from": 209,
+          "to": 209,
+          "first_line": "const prevElements = prevSnapshot.elements;",
+          "rule": "Add `this.activePageId = nextAppState.activePageId;` with a comment (rule 5)."
+        }
+      ],
+      "depends_on": [
+        "U01",
+        "U05"
+      ],
+      "covers": [
+        "FR-11"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U11",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "ActionResult can replace every page's elements; the five page actions join ActionName.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 31,
+          "to": 31,
+          "first_line": "replaceFiles?: boolean;",
+          "rule": "Add `/** elements hold every page (replace all); otherwise they hold the active page's elements and other pages are kept */` and `allPages?: boolean;`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 146,
+          "to": 146,
+          "first_line": "| \"togglePolygon\";",
+          "rule": "Make it `| \"togglePolygon\"` followed by `| \"createPage\"`, `| \"switchPage\"`, `| \"renamePage\"`, `| \"reorderPage\"`, `| \"deletePage\";`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/common/src/constants.ts": "be5c14d191f218a77dad05f62127d7f846ed9a80c7151c26ebb8798df1c83f66",
+    "packages/element/src/types.ts": "ae55b7f4e5e62aa33c36ae54c26b34e7c5853c0a4bb9accbf384a635b4070ef4",
+    "packages/element/src/fractionalIndex.ts": "c1d65ed45dac1c7d0ed8b5a28b13c03e9412c6cb10b74c4ac156834e7441e9aa",
+    "packages/excalidraw/data/reconcile.ts": "07ee09fe90a94db2cf44e5a4c0c838a7c7005ffc3a03c9c8e227de4bdcbf4db0",
+    "packages/element/src/index.ts": "c6b46d0a5bfb81315e64577e6d07f78540950dfae9a328de047a2369fb399939",
+    "packages/excalidraw/types.ts": "da1df501290dab5f4a8c0d1b4729090f71dd6f7492b5742e8cc28c18e60f366d",
+    "packages/excalidraw/appState.ts": "2abf28965eea39ce889d8338ee4a9eae9c349b9c725b07094e7e56422cd3d4a6",
+    "packages/element/src/Scene.ts": "c9272616db31877872bb9f46af154adc51d6f54877627973a76303e3cd8f1f92",
+    "packages/element/src/store.ts": "45cad877e99ced5c813539e4ad422f8c8bc5a71d15307750f374d648ae82e480",
+    "packages/element/src/delta.ts": "32b3b19a6360a021cf95eb18315d0c0f43a03a029c338ce004b9b9f96426dee6",
+    "packages/excalidraw/history.ts": "617d5445a6bdd27b77708299e3329511cfdb5d39882565966fa99234d57f1794",
+    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339"
+  }
+}

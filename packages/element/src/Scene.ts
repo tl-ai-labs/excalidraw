@@ -7,6 +7,7 @@ import {
   isDevEnv,
   isTestEnv,
   toArray,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
@@ -40,7 +41,14 @@ import type {
   SameType,
 } from "@excalidraw/common/utility-types";
 
+import {
+  getElementPageId,
+  isElementOnActivePage,
+  stampElementsPage,
+} from "./pages";
+
 import type { AppState } from "../../excalidraw/types";
+import type { ScenePageOptions } from "./pages";
 
 type SceneStateCallback = () => void;
 type SceneStateCallbackRemover = () => void;
@@ -140,12 +148,32 @@ export class Scene {
    */
   private sceneNonce: number | undefined;
 
+  // Active page cached views, recomputed in updateActivePageCaches
+  private pageOptions: ScenePageOptions | null = null;
+  private activeNonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
+    [];
+  private activeNonDeletedElementsMap =
+    toBrandedType<NonDeletedSceneElementsMap>(new Map());
+  private activeNonDeletedFramesLikes: readonly NonDeleted<ExcalidrawFrameLikeElement>[] =
+    [];
+  private activeElementsIncludingDeleted: readonly OrderedExcalidrawElement[] =
+    [];
+
   getSceneNonce() {
     return this.sceneNonce;
   }
 
+  setActivePage(options: ScenePageOptions | null): void {
+    if (options === this.pageOptions) {
+      return;
+    }
+    this.pageOptions = options;
+    this.updateActivePageCaches();
+    this.sceneNonce = randomInteger();
+  }
+
   getNonDeletedElementsMap() {
-    return this.nonDeletedElementsMap;
+    return this.activeNonDeletedElementsMap;
   }
 
   getElementsIncludingDeleted() {
@@ -157,7 +185,15 @@ export class Scene {
   }
 
   getNonDeletedElements() {
+    return this.activeNonDeletedElements;
+  }
+
+  getNonDeletedElementsAllPages(): readonly Ordered<NonDeletedExcalidrawElement>[] {
     return this.nonDeletedElements;
+  }
+
+  getActivePageElementsIncludingDeleted(): readonly OrderedExcalidrawElement[] {
+    return this.activeElementsIncludingDeleted;
   }
 
   getFramesIncludingDeleted() {
@@ -190,7 +226,7 @@ export class Scene {
   }): NonDeletedExcalidrawElement[] {
     const hash = hashSelectionOpts(opts);
 
-    const elements = opts?.elements || this.nonDeletedElements;
+    const elements = opts?.elements || this.activeNonDeletedElements;
     if (
       this.selectedElementsCache.elements === elements &&
       this.selectedElementsCache.selectedElementIds === opts.selectedElementIds
@@ -214,7 +250,7 @@ export class Scene {
     // cache only if we're not using custom elements
     if (opts?.elements == null) {
       this.selectedElementsCache.selectedElementIds = opts.selectedElementIds;
-      this.selectedElementsCache.elements = this.nonDeletedElements;
+      this.selectedElementsCache.elements = this.activeNonDeletedElements;
       this.selectedElementsCache.cache.set(hash, selectedElements);
     }
 
@@ -222,7 +258,95 @@ export class Scene {
   }
 
   getNonDeletedFramesLikes(): readonly NonDeleted<ExcalidrawFrameLikeElement>[] {
-    return this.nonDeletedFramesLikes;
+    return this.activeNonDeletedFramesLikes;
+  }
+
+  getPageOptions(): ScenePageOptions | null {
+    return this.pageOptions;
+  }
+
+  getActivePageId(): string {
+    return this.pageOptions?.activePageId ?? DEFAULT_PAGE_ID;
+  }
+
+  getElementPageId(element: ExcalidrawElement): string {
+    return getElementPageId(element, this.pageOptions);
+  }
+
+  private updateActivePageCaches(): void {
+    if (this.pageOptions === null || this.pageOptions.isSinglePage) {
+      this.activeNonDeletedElements = this.nonDeletedElements;
+      this.activeNonDeletedElementsMap = this.nonDeletedElementsMap;
+      this.activeNonDeletedFramesLikes = this.nonDeletedFramesLikes;
+      this.activeElementsIncludingDeleted = this.elements;
+    } else {
+      const activeElements = this.elements.filter((el) =>
+        isElementOnActivePage(el, this.pageOptions),
+      );
+      this.activeElementsIncludingDeleted = activeElements;
+
+      const nonDeleted = getNonDeletedElements(
+        this.nonDeletedElements.filter((el) =>
+          isElementOnActivePage(el, this.pageOptions),
+        ),
+      );
+      this.activeNonDeletedElements = nonDeleted.elements;
+      this.activeNonDeletedElementsMap = nonDeleted.elementsMap;
+
+      this.activeNonDeletedFramesLikes = this.nonDeletedFramesLikes.filter(
+        (el) => isElementOnActivePage(el, this.pageOptions),
+      );
+    }
+
+    this.selectedElementsCache.cache.clear();
+    this.selectedElementsCache.elements = null;
+  }
+
+  mergeActivePageElements(nextElements: readonly ExcalidrawElement[]): void {
+    if (this.pageOptions === null || this.pageOptions.isSinglePage) {
+      this.replaceAllElements(nextElements);
+      return;
+    }
+
+    const freshElements = nextElements.filter(
+      (el) => !this.elementsMap.has(el.id),
+    );
+    if (freshElements.length) {
+      stampElementsPage(freshElements, this.pageOptions);
+    }
+
+    const ids = new Set(nextElements.map((el) => el.id));
+    const slotIndices: number[] = [];
+
+    for (let i = 0; i < this.elements.length; i++) {
+      const el = this.elements[i];
+      if (isElementOnActivePage(el, this.pageOptions) || ids.has(el.id)) {
+        slotIndices.push(i);
+      }
+    }
+
+    const result: ExcalidrawElement[] = [...this.elements];
+    const fillCount = Math.min(slotIndices.length, nextElements.length);
+
+    for (let i = 0; i < fillCount; i++) {
+      result[slotIndices[i]] = nextElements[i];
+    }
+
+    if (slotIndices.length > nextElements.length) {
+      const slotsToRemove = new Set(slotIndices.slice(fillCount));
+      const compacted: ExcalidrawElement[] = [];
+      for (let i = 0; i < result.length; i++) {
+        if (!slotsToRemove.has(i)) {
+          compacted.push(result[i]);
+        }
+      }
+      this.replaceAllElements(compacted);
+    } else {
+      if (nextElements.length > slotIndices.length) {
+        result.push(...nextElements.slice(fillCount));
+      }
+      this.replaceAllElements(result);
+    }
   }
 
   getElement<T extends ExcalidrawElement>(id: T["id"]): T | null {
@@ -297,6 +421,8 @@ export class Scene {
     this.frames = nextFrameLikes;
     this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
 
+    this.updateActivePageCaches();
+
     this.triggerUpdate();
   }
 
@@ -332,6 +458,12 @@ export class Scene {
     this.selectedElementsCache.selectedElementIds = null;
     this.selectedElementsCache.elements = null;
     this.selectedElementsCache.cache.clear();
+    this.pageOptions = null;
+    this.activeNonDeletedElements = [];
+    this.activeNonDeletedElementsMap =
+      toBrandedType<NonDeletedSceneElementsMap>(new Map());
+    this.activeNonDeletedFramesLikes = [];
+    this.activeElementsIncludingDeleted = [];
 
     // done not for memory leaks, but to guard against possible late fires
     // (I guess?)
@@ -347,6 +479,8 @@ export class Scene {
     if (!elements.length) {
       return;
     }
+
+    stampElementsPage(elements, this.pageOptions);
 
     if (index === null) {
       index = this.elements.length;

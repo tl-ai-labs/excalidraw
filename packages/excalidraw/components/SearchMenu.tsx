@@ -40,7 +40,13 @@ import { atom, useAtom } from "../editor-jotai";
 import { useStable } from "../hooks/useStable";
 import { t } from "../i18n";
 
-import { useApp, useExcalidrawSetAppState } from "./App";
+import { actionSwitchPage } from "../actions/actionPages";
+
+import {
+  useApp,
+  useExcalidrawActionManager,
+  useExcalidrawSetAppState,
+} from "./App";
 import { Button } from "./Button";
 import { TextField } from "./TextField";
 import {
@@ -82,6 +88,7 @@ type SearchQuery = string & { _brand: "SearchQuery" };
 
 export const SearchMenu = () => {
   const app = useApp();
+  const actionManager = useExcalidrawActionManager();
   const setAppState = useExcalidrawSetAppState();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -197,6 +204,11 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        const pageId = app.scene.getElementPageId(match.element);
+        if (pageId !== app.scene.getActivePageId()) {
+          actionManager.executeAction(actionSwitchPage, "ui", pageId);
+          return;
+        }
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -252,7 +264,7 @@ export const SearchMenu = () => {
         }
       }
     }
-  }, [focusIndex, searchMatches, app]);
+  }, [focusIndex, searchMatches, app, app.state.activePageId, actionManager]);
 
   useEffect(() => {
     return () => {
@@ -800,7 +812,7 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene.getNonDeletedElementsAllPages();
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];

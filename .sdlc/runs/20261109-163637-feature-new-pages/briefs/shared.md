@@ -1,0 +1,116 @@
+## Conventions
+
+- TypeScript strict; ESM; prettier 2.6 via @excalidraw/prettier-config (80 cols, double quotes, trailing commas); eslint runs with --max-warnings=0 so import-order warnings fail.
+- Import order: external packages, then @excalidraw/* (own group after other externals), then parent/sibling imports, then `import type` lines; groups separated by a blank line; type-only imports are separate `import type` statements.
+- Inside packages/excalidraw never import from the @excalidraw/excalidraw barrel, `..` or `../index`; import the module directly. Cross-package imports use @excalidraw/common, @excalidraw/element, @excalidraw/element/types, @excalidraw/common/utility-types.
+- jotai only through ../editor-jotai (packages/excalidraw) or ./app-jotai (excalidraw-app); never import jotai directly.
+- Use app.ownerDocument / app.ownerWindow (or a node's ownerDocument), never the document/window globals, in new editor code.
+- Immutable updates: spread appState ({ ...appState, field }); never mutate elements except through newElementWith / mutateElement / Scene APIs; the one sanctioned exception is stampElementsPage (packages/element/src/pages.ts) setting pageId on freshly created elements before they enter the scene.
+- Prefer Merge<> from @excalidraw/common/utility-types over Omit<> & ...; prefer const/readonly, ?. and ??, and no per-frame allocation.
+- New UI strings go only in packages/excalidraw/locales/en.json under the `pages` key; components read them with t("pages.<key>") from ../i18n.
+- A component has a sibling .scss imported last as a side effect (import "./PageTabs.scss"); class names are composed with clsx; tests target data-testid attributes.
+- Actions are register({...}) consts; name added to the ActionName union in actions/types.ts; re-exported from actions/index.ts; App registers them through actionManager.registerAll(actions).
+- Tests: vitest globals (describe/it/expect/vi); editor tests render <Excalidraw /> via render from tests/test-utils, drive with Pointer/UI/Keyboard from tests/helpers/ui, build fixtures with API from tests/helpers/api, assert through window.h (h.state, h.elements, h.app, h.history). Pure tests in packages/element/tests import from ../src/<module>.
+- Snapshot files (__snapshots__/**) are never typed by a unit; they are regenerated only by the yarn test:update tooling unit.
+- Page names are user content: never console.log or otherwise log a page name or element text.
+
+## Decisions
+
+- Page model storage (FIXED by the person at the architecture retry; not re-litigated): Page membership is an optional `pageId` on every element; the page list lives in AppState as ordered `pages: ExcalidrawPage[]` with `{ id, name, version, versionNonce, isDeleted }` (FR-20a) plus the order key `index`; one `elements` array stays in the file, socket payloads, Firestore and reconciliation. (not separate element arrays per page) — The person's decision at the architecture retry: it keeps one element array in every transport and per-element reconciliation unchanged.
+- Page record fields: ExcalidrawPage = Readonly<{ id: string; name: string; index: FractionalIndex; version: number; versionNonce: number; isDeleted: boolean }>; the person's five fields are kept verbatim and `index` (fractional-indexing key) is added as the order key; `pages` in AppState is always kept sorted by (index, id) and includes tombstones. (not array position as the only order (two peers appending concurrently would merge in a peer-dependent order, failing AC-9)) — Per-page merge needs an order value that travels with each page; ties on equal index break on id so every peer computes the same order.
+- Elements without pageId (the home page): The home page id is DEFAULT_PAGE_ID when appState.pages contains a page with that id (tombstoned or not), else the smallest page id (string order) among all pages incl. tombstones, so reordering or deleting pages never moves it. An element whose pageId is absent, or names no page in appState.pages (tombstones included), belongs to the home page; an element whose pageId names a tombstoned page is hidden with that page. stampElementsPage(elements, options) removes pageId when the active page is the home page and sets pageId = active page id otherwise; it runs only at local creation points: Scene.insertElementsAtIndex (drawing, insertNewElements, Mermaid/TTD), App.addElementsFromPasteOrLibrary (paste, library), and App.updateScene for elements not yet in the scene only when captureUpdate is given and is not CaptureUpdateAction.NEVER and the call carries no appState.pages. Remote/initialization updates (NEVER), whole-scene loads (any updateScene carrying appState.pages, e.g. excalidraw-app onHashChange joining a room, opening a #json= link or returning to the local drawing) and restore never stamp. (not stamp pageId on every element always (churns every element test and snapshot, and every legacy file on first save); not home = first page in order (reorder/delete/undo of the first page would move unstamped elements to another page); not stamp inside Scene.replaceAllElements (would re-home a peer's elements onto the receiver's active page); not stamp every IMMEDIATELY updateScene (a whole-scene load has only new elements and would collapse all pages onto the active one)) — Legacy files and single-page drawings stay byte-identical (NFR-1, A-4), the home page never moves when pages are reordered or deleted, and FR-17/FR-18 hold without rewriting elements.
+- Default page: DEFAULT_PAGE_ID = "default" in packages/common/src/constants.ts; default page = { id: DEFAULT_PAGE_ID, name: "", index: "a0", version: 1, versionNonce: 0, isDeleted: false }, built by createDefaultPages() in packages/element/src/pages.ts. An empty stored name displays as t("pages.defaultName", { number: position + 1 }); created pages store the localized name at creation. — Deterministic legacy restore (A-2): every peer and every reload builds the identical default page, so it never conflicts in reconciliation.
+- AppState fields (four-touch convention): pages: readonly ExcalidrawPage[] (browser true, export true, server false); activePageId: string (browser true, export true, server false); pageViewports: { [pageId: string]: PageViewport } with PageViewport = { scrollX: number; scrollY: number; zoom: Zoom } (browser true, export false, server false). — pages travel in the file and localStorage; share links (server) export only the active page's elements and restore onto one default page; the active page and viewports are per-client (FR-21) but survive reload.
+- Which page operations are undoable: Only deletePage is undoable (CaptureUpdateAction.IMMEDIATELY); createPage, renamePage, reorderPage and switchPage use CaptureUpdateAction.NEVER. (not all operations undoable (a create/rename on page A would sit in page A's stack and undo would flip tabs while drawing); not EVENTUALLY (it folds the page op into the user's next drawing undo)) — FR-11 requires delete undo; keeping the other ops out of history means undo only ever touches drawing work on the active page.
+- History scoping: History keeps one { undo, redo } stack pair per page id; `undoStack`/`redoStack` become getters for the active page's pair; record() pushes to the active page; undo/redo push the inverse entry onto the stack of the page that is active after the entry was applied, and switch History to that page. (not clear history on every page switch (loses undo when coming back); not one shared stack filtered at undo time) — Undo never alters another page's elements, each page keeps its own undo, and delete -> undo -> redo works because the redo entry lands on the restored page.
+- pages and activePageId in the store: pages and activePageId join ObservedStandaloneAppState as optional keys (getObservedAppState always sets them; optional keeps hand-written ObservedAppState literals in existing tests valid); AppStateDelta post-processes pages to only the pages whose name/index/isDeleted changed (by id), and applies them per id with version + 1 and a fresh versionNonce (applyPageChanges) instead of replacing the array; squash merges pages by id. — Undo of a delete must propagate to peers (bumped version wins reconciliation, FR-20a) and must not drop pages a peer created meanwhile.
+- Scene filtering (FR-2, NFR-2): Scene.setActivePage(options: ScenePageOptions | null) with ScenePageOptions = { activePageId, homePageId, pageIds: ReadonlySet<string>, isSinglePage } built by the memoized getScenePageOptions(pages, activePageId); Scene recomputes its active-page caches and regenerates sceneNonce only when it receives a different options object, and on every replaceAllElements. getNonDeletedElements, getNonDeletedElementsMap, getNonDeletedFramesLikes and getSelectedElements return the active page only; getElementsIncludingDeleted / getElementsMapIncludingDeleted / getFramesIncludingDeleted stay all pages. With options null (a Scene the editor never set, e.g. export or element-package tests) or a single page, the active caches are the all-page caches (no copy). — Renderers, hit-testing, selection, frames, bindings and snapping already read those getters, so they become page-scoped without per-consumer changes and without per-frame filtering.
+- Actions see the active page: ActionManager's element getter is scene.getActivePageElementsIncludingDeleted(); syncActionResult writes result elements through scene.mergeActivePageElements(elements) (slot fill: every position in the current array that holds an active-page element or an id present in the result is refilled, in order, from the result; other pages' elements keep their positions untouched; leftover result elements are appended) unless the result sets `allPages: true`, which replaces every element. allPages is set by actionLoadScene, App's initial-data load and file-open/drop loads, actionDeletePage, and undo/redo (which run History over every page's elements). File save (saveToActiveFile, saveFileToDisk) serializes app.scene.getElementsIncludingDeleted(), not the action's page-scoped elements. (not pass all elements to actions (selectAll, zoomToFit, clearCanvas, unlockAll and export would act on hidden pages)) — Every existing action becomes page-scoped by construction, which also makes image/clipboard export cover the active page only (FR-12).
+- Where the active page is synced: App.render() calls a private syncScenePage(state) first: it calls scene.setActivePage(getScenePageOptions(state.pages, state.activePageId)); Scene.setActivePage never invokes onUpdate callbacks (no setState in render) and regenerates sceneNonce only when the active page really changed. History follows in componentDidUpdate: history.setActivePage(scene.getActivePageId()) runs right before store.commit, so a recorded entry lands on the page it was made on. — Scene must be filtered before the frame renders; History's emitter sets state, which is legal in componentDidUpdate but not in render.
+- Per-page viewport (FR-6, AC-4): switchPage stores { scrollX, scrollY, zoom } of the current page in pageViewports[currentPageId], then applies pageViewports[target] or the default { scrollX: 0, scrollY: 0, zoom: { value: 1 } }, and clears selectedElementIds, selectedGroupIds, editingGroupId, selectedLinearElement, editingTextElement, croppingElementId, activeEmbeddable and contextMenu. deletePage of the active page runs the same switch to the neighbour (next, else previous). — A-1: only scroll and zoom are per page; every other AppState field stays drawing-wide.
+- Collab payload and Firestore format: SCENE_INIT and SCENE_UPDATE payloads become { elements, pages? } (pages = every page incl. tombstones, sent on every broadcast); receivers reconcile pages with reconcilePages and elements as today. The Firestore `scenes` document keeps `ciphertext`/`iv` as the encrypted bare element array, byte-compatible with old clients, and gains `pagesCiphertext` and `pagesIv` (Bytes): encryptData(roomKey, UTF-8 JSON.stringify(pages incl. tombstones)) with its own iv; new clients write all five fields on every save (transaction.set for a new document, transaction.update for an existing one); a document lacking pagesCiphertext or pagesIv reads as createDefaultPages(). The stored `sceneVersion`, FirebaseSceneVersionCache and every Collab version comparison use getSceneVersion(elements) + getPagesVersion(pages), so a page-only change (rename, reorder, delete) changes the version and is broadcast and saved. (not a new WS subtype for pages (two messages can arrive out of order and an element could reference a page the peer does not know yet); not { elements, pages } inside the element ciphertext (old clients JSON.parse it straight into restoreElements and throw, so they could neither load nor save the room)) — Old clients keep loading and saving the bare array, and their transaction.update on an existing room leaves pagesCiphertext/pagesIv in place; firestore.rules has no field validation, so no relay or rules change (NFR-5); pages and their elements arrive atomically over the socket; stored sceneVersion is never read back, so an old client writing the elements-only version is harmless.
+- Whole-drawing reads in excalidraw-app: Where the app needs every page's live elements (Collab.startCollaboration for a new room, App.tsx's beforeunload shouldPreventUnload check) it uses getNonDeletedElements(excalidrawAPI.getSceneElementsIncludingDeleted()) from @excalidraw/element; getSceneElements() stays the active page. Excalidraw+ export and share-link export keep getSceneElements() (out of scope 7). (not a new public getSceneElementsAllPages API (the existing all-pages getter plus a filter covers it)) — Starting a room must upload and broadcast every page (FR-19), and an image upload pending on a hidden page must still block unload.
+- Page reconciliation (FR-20a): reconcilePages(local, remote): per id the remote page wins unless local.version > remote.version or (equal versions and local.versionNonce <= remote.versionNonce) (the element rule); pages known only on one side are kept; the result is sorted by (index, id). createPage gives index = generateKeyBetween(max index over all pages incl. tombstones, null) and a random id. — Concurrent creates both survive and sort identically on every peer (AC-9).
+- Restore and repair (FR-16..FR-18): restoreAppState: pages = restorePages(supplied ?? local ?? default) (drop malformed entries, sort, default page when none is non-deleted); activePageId = resolveActivePageId(pages, activePageId); pageViewports keeps only well-formed entries of known page ids. loadFromBlob (file open/drop) passes pages/activePageId from the file or the default page, and pageViewports {}, so a legacy file never inherits the local drawing's pages. restoreElementWithProperties keeps pageId only when it is a non-empty string. An element whose pageId names no page resolves to the home page at runtime and is never dropped. — A legacy file restores onto exactly the default page with no element rewrites; dangling references fall back, never vanish.
+- Search across pages (FR-14): SearchMenu searches scene.getNonDeletedElementsAllPages(); when the focused match's resolved page (scene.getElementPageId) is not the active page it executes actionSwitchPage with that page id and the focus effect re-runs on activePageId to scroll to the match. — Search results span pages while the renderer still draws highlights only for the active page.
+- Tab bar UX: PageTabs renders at the bottom of the canvas from LayerUI: one <button role="tab"> per non-deleted page (click switches), a "+" button (createPage), a delete button on the active tab (hidden when one page or view mode), double-click on a tab opens an inline <input aria-label> (Enter/blur commit via renamePage, Escape cancels), Alt+ArrowLeft/Alt+ArrowRight on a focused tab and HTML5 drag-and-drop reorder via reorderPage. In view mode only switching is offered. — Keyboard-reachable, labelled controls (NFR-7) that jsdom tests can drive without pointer drag.
+- Snapshots: A tooling unit runs `yarn test:update` after every code and test unit; new AppState fields churn appState snapshots in history/regression/contextmenu tests. — NFR-6: snapshots change only through yarn test:update, and the Gate 0 `yarn test:app --watch=false` must pass afterwards.
+
+## Files of this change
+
+- `packages/common/src/constants.ts` (U01, edit)
+  - `const DEFAULT_PAGE_ID(): "default"`
+- `packages/element/src/types.ts` (U02, edit)
+  - `type ExcalidrawPage(): Readonly<{ id: string; name: string; index: FractionalIndex; version: number; versionNonce: number; isDeleted: boolean }>`
+- `packages/element/src/pages.ts` (U03, create) — import: `import { getScenePageOptions, stampElementsPage } from "@excalidraw/element";`
+  - `type ScenePageOptions(): Readonly<{ activePageId: string; homePageId: string; pageIds: ReadonlySet<string>; isSinglePage: boolean }>`
+  - `function sortPages(pages: readonly ExcalidrawPage[]): ExcalidrawPage[]`
+  - `function createDefaultPages(): ExcalidrawPage[]`
+  - `function getNonDeletedPages(pages: readonly ExcalidrawPage[]): ExcalidrawPage[]`
+  - `function getHomePageId(pages: readonly ExcalidrawPage[]): string`
+  - `function resolveActivePageId(pages: readonly ExcalidrawPage[], activePageId: string | null | undefined): string`
+  - `function getScenePageOptions(pages: readonly ExcalidrawPage[], activePageId: string | null | undefined): ScenePageOptions`
+  - `function getElementPageId(element: ExcalidrawElement, options: ScenePageOptions | null): string`
+  - `function isElementOnActivePage(element: ExcalidrawElement, options: ScenePageOptions | null): boolean`
+  - `function stampElementsPage(elements: readonly ExcalidrawElement[], options: ScenePageOptions | null): void`
+  - `function generatePageIndex(pages: readonly ExcalidrawPage[]): FractionalIndex`
+  - `function getReorderedPageIndex(pages: readonly ExcalidrawPage[], pageId: string, toPosition: number): FractionalIndex`
+  - `function newPage(opts: { name: string; pages: readonly ExcalidrawPage[] }): ExcalidrawPage`
+  - `function updatePage(page: ExcalidrawPage, updates: Partial<Pick<ExcalidrawPage, "name" | "index" | "isDeleted">>): ExcalidrawPage`
+  - `function reconcilePages(localPages: readonly ExcalidrawPage[], remotePages: readonly ExcalidrawPage[]): ExcalidrawPage[]`
+  - `function getPagesVersion(pages: readonly ExcalidrawPage[] | null | undefined): number`
+  - `function applyPageChanges(pages: readonly ExcalidrawPage[], changed: readonly ExcalidrawPage[]): ExcalidrawPage[]`
+  - `function restorePages(input: unknown): ExcalidrawPage[]`
+- `packages/element/src/index.ts` (U04, edit)
+- `packages/excalidraw/types.ts` (U05, edit)
+  - `type PageViewport(): { scrollX: number; scrollY: number; zoom: Zoom }`
+- `packages/excalidraw/appState.ts` (U06, edit)
+- `packages/element/src/Scene.ts` (U07, edit)
+  - `method Scene.setActivePage(options: ScenePageOptions | null): void`
+  - `method Scene.getActivePageId(): string`
+  - `method Scene.getPageOptions(): ScenePageOptions | null`
+  - `method Scene.getElementPageId(element: ExcalidrawElement): string`
+  - `method Scene.getNonDeletedElementsAllPages(): readonly Ordered<NonDeletedExcalidrawElement>[]`
+  - `method Scene.getActivePageElementsIncludingDeleted(): readonly OrderedExcalidrawElement[]`
+  - `method Scene.mergeActivePageElements(nextElements: readonly ExcalidrawElement[]): void`
+- `packages/element/src/store.ts` (U08, edit)
+- `packages/element/src/delta.ts` (U09, edit)
+- `packages/excalidraw/history.ts` (U10, edit)
+  - `method History.setActivePage(pageId: string): void`
+  - `method History.getActivePageId(): string`
+- `packages/excalidraw/actions/types.ts` (U11, edit)
+- `packages/excalidraw/locales/en.json` (U12, edit)
+- `packages/excalidraw/actions/actionPages.ts` (U13, create) — import: `import { actionCreatePage, actionDeletePage, actionRenamePage, actionReorderPage, actionSwitchPage } from "../actions/actionPages";`
+  - `function getPageSwitchAppState(appState: Readonly<AppState>, targetPageId: string): Partial<AppState>`
+  - `const actionCreatePage(): Action`
+  - `const actionSwitchPage(): Action<string>`
+  - `const actionRenamePage(): Action<{ pageId: string; name: string }>`
+  - `const actionReorderPage(): Action<{ pageId: string; toPosition: number }>`
+  - `const actionDeletePage(): Action<string>`
+- `packages/excalidraw/actions/index.ts` (U14, edit)
+- `packages/excalidraw/actions/actionHistory.tsx` (U15, edit)
+- `packages/excalidraw/actions/actionExport.tsx` (U16, edit)
+- `packages/excalidraw/actions/actionCanvas.tsx` (U17, edit)
+- `packages/excalidraw/components/App.tsx` (U18, edit)
+- `packages/excalidraw/data/restore.ts` (U19, edit)
+- `packages/excalidraw/data/blob.ts` (U20, edit)
+- `packages/excalidraw/components/SearchMenu.tsx` (U21, edit)
+- `packages/excalidraw/components/PageTabs.tsx` (U22, create) — import: `import { PageTabs } from "./PageTabs";`
+  - `component PageTabs(props: { appState: UIAppState; actionManager: ActionManager }): JSX.Element | null`
+- `packages/excalidraw/components/PageTabs.scss` (U23, create)
+- `packages/excalidraw/components/LayerUI.tsx` (U24, edit)
+- `packages/excalidraw/index.tsx` (U25, edit)
+- `excalidraw-app/data/index.ts` (U26, edit)
+- `excalidraw-app/collab/Portal.tsx` (U27, edit)
+- `excalidraw-app/data/firebase.ts` (U28, edit)
+  - `function isSavedToFirebase(portal: Portal, elements: readonly ExcalidrawElement[], pages: readonly ExcalidrawPage[]): boolean`
+  - `function saveToFirebase(portal: Portal, elements: readonly SyncableExcalidrawElement[], appState: AppState): Promise<{ elements: RemoteExcalidrawElement[]; pages: ExcalidrawPage[] } | null>`
+  - `function loadFromFirebase(roomId: string, roomKey: string, socket: Socket | null): Promise<{ elements: readonly SyncableExcalidrawElement[]; pages: ExcalidrawPage[] } | null>`
+- `excalidraw-app/collab/Collab.tsx` (U29, edit)
+- `excalidraw-app/App.tsx` (U30, edit)
+- `packages/element/tests/pages.test.ts` (U31, create)
+- `packages/excalidraw/tests/pages.test.tsx` (U32, create)
+- `excalidraw-app/tests/collab.test.tsx` (U33, edit)
+- `packages/excalidraw/CHANGELOG.md` (U34, edit)
+- `dev-docs/docs/codebase/json-schema.mdx` (U35, edit)
+- `dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx` (U36, edit)

@@ -1,4 +1,4 @@
-import { Emitter } from "@excalidraw/common";
+import { DEFAULT_PAGE_ID, Emitter } from "@excalidraw/common";
 
 import {
   CaptureUpdateAction,
@@ -99,8 +99,28 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private readonly stacks = new Map<
+    string,
+    { undo: HistoryDelta[]; redo: HistoryDelta[] }
+  >();
+  private activePageId: string = DEFAULT_PAGE_ID;
+
+  private getStacks(pageId: string) {
+    let pair = this.stacks.get(pageId);
+    if (!pair) {
+      pair = { undo: [], redo: [] };
+      this.stacks.set(pageId, pair);
+    }
+    return pair;
+  }
+
+  public get undoStack(): HistoryDelta[] {
+    return this.getStacks(this.activePageId).undo;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    return this.getStacks(this.activePageId).redo;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -112,9 +132,22 @@ export class History {
 
   constructor(private readonly store: Store) {}
 
+  public setActivePage(pageId: string): void {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  public getActivePageId(): string {
+    return this.activePageId;
+  }
+
   public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+    this.stacks.clear();
   }
 
   /**
@@ -149,10 +182,11 @@ export class History {
     /** measures the labels re-laid out after undoing (the host's, in the editor) */
     renderEnvironment?: RenderEnvironment,
   ) {
+    const undoStack = this.undoStack;
     return this.perform(
       elements,
       appState,
-      () => History.pop(this.undoStack),
+      () => History.pop(undoStack),
       (entry: HistoryDelta) => History.push(this.redoStack, entry),
       renderEnvironment,
     );
@@ -164,10 +198,11 @@ export class History {
     /** measures the labels re-laid out after redoing (the host's, in the editor) */
     renderEnvironment?: RenderEnvironment,
   ) {
+    const redoStack = this.redoStack;
     return this.perform(
       elements,
       appState,
-      () => History.pop(this.redoStack),
+      () => History.pop(redoStack),
       (entry: HistoryDelta) => History.push(this.undoStack, entry),
       renderEnvironment,
     );
@@ -206,6 +241,10 @@ export class History {
               renderEnvironment,
             );
 
+          // Switch active page so the inverse entry is pushed onto the stack
+          // of the page that is active after applying the entry.
+          this.activePageId = nextAppState.activePageId;
+
           const prevElements = prevSnapshot.elements;
           const nextSnapshot = prevSnapshot.maybeClone(
             action,
@@ -236,7 +275,10 @@ export class History {
           push(historyDelta);
         }
 
-        if (containsVisibleChange) {
+        if (
+          containsVisibleChange ||
+          nextAppState.activePageId !== appState.activePageId
+        ) {
           break;
         }
 

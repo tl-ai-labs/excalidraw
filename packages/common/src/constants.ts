@@ -344,6 +344,9 @@ export const EXPORT_IMAGE_TYPES = {
   clipboard: "clipboard",
 } as const;
 
+/** id of the page a legacy drawing (no page data) restores onto; elements without pageId belong to it while it exists */
+export const DEFAULT_PAGE_ID = "default";
+
 export const EXPORT_DATA_TYPES = {
   excalidraw: "excalidraw",
   excalidrawClipboard: "excalidraw/clipboard",

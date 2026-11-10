@@ -13,7 +13,10 @@ import {
   DEFAULT_GRID_STEP,
   isTestEnv,
   DEFAULT_STICKY_NOTE_BG,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
+
+import { createDefaultPages } from "@excalidraw/element";
 
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
 
@@ -140,6 +143,9 @@ export const getDefaultAppState = (): Omit<
     lockedMultiSelections: {},
     activeLockedId: null,
     bindMode: "orbit",
+    pages: createDefaultPages(),
+    activePageId: DEFAULT_PAGE_ID,
+    pageViewports: {},
     boxSelectionMode: "contain",
     colorTopPicks: {
       elementStroke: null,
@@ -292,6 +298,9 @@ const APP_STATE_STORAGE_CONF = (<
   lockedMultiSelections: { browser: true, export: true, server: true },
   activeLockedId: { browser: false, export: false, server: false },
   bindMode: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: false },
+  activePageId: { browser: true, export: true, server: false },
+  pageViewports: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
 });

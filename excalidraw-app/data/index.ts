@@ -19,6 +19,7 @@ import type { SceneBounds } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
   FileId,
+  ExcalidrawPage,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 import type {
@@ -84,12 +85,15 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      /** every page incl. tombstones; absent from peers running an older build */
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {

@@ -29,6 +29,8 @@ export type ActionResult =
       files?: BinaryFiles | null;
       captureUpdate: CaptureUpdateActionType;
       replaceFiles?: boolean;
+      /** elements hold every page (replace all); otherwise they hold the active page's elements and other pages are kept */
+      allPages?: boolean;
     }
   | false;
 
@@ -143,7 +145,12 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleWrap"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "createPage"
+  | "switchPage"
+  | "renamePage"
+  | "reorderPage"
+  | "deletePage";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];

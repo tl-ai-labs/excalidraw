@@ -422,6 +422,15 @@ export {
 } from "./data/restore";
 
 export { reconcileElements } from "./data/reconcile";
+export {
+  createDefaultPages,
+  getPagesVersion,
+  reconcilePages,
+  resolveActivePageId,
+  restorePages,
+  sortPages,
+} from "@excalidraw/element";
+export type { ExcalidrawPage } from "@excalidraw/element/types";
 
 export { exportScene, exportToClipboard } from "./scene/export";
 
