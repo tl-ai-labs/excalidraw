@@ -61,7 +61,7 @@ import {
 } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { isStickyNoteElement } from "@excalidraw/element";
-import { detectLineHeight } from "@excalidraw/element";
+import { detectLineHeight, normalizeStyledRanges } from "@excalidraw/element";
 import {
   isArrowBoundToElement,
   isArrowElement,
@@ -571,17 +571,23 @@ export const restoreElement = (
       }
       const text = (typeof element.text === "string" && element.text) || "";
 
+      const originalText = element.originalText || text;
+      const styledRanges = normalizeStyledRanges(
+        element.styledRanges,
+        originalText.length,
+      );
+
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
-      element = restoreElementWithProperties(element, {
+      let restoredText = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
         text,
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -592,7 +598,13 @@ export const restoreElement = (
         baseFontSize: isFiniteNumber(element.baseFontSize)
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
+        styledRanges,
       });
+      if (!styledRanges && "styledRanges" in restoredText) {
+        const { styledRanges: _removed, ...rest } = restoredText;
+        restoredText = rest;
+      }
+      element = restoredText;
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)

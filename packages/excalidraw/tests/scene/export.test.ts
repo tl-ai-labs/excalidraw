@@ -1097,4 +1097,46 @@ describe("exporting frames", () => {
       expect(svg.getAttribute("height")).toBe(frame1.height.toString());
     });
   });
+
+  it("exports styled text ranges as tspans with the right fill and highlight rects", async () => {
+    const styledText = {
+      ...textFixture,
+      id: "styled-text-1",
+      text: "Bid request timeout 120ms",
+      originalText: "Bid request timeout 120ms",
+      strokeColor: "#1e1e1e",
+      width: 300,
+      height: 25,
+      styledRanges: [
+        {
+          start: 20,
+          end: 25,
+          color: "#e03131",
+          backgroundColor: "#fff3bf",
+        },
+      ],
+      index: "a0" as FractionalIndex,
+    } as NonDeleted<ExcalidrawTextElement>;
+
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: [styledText],
+        appState: { viewBackgroundColor: "#ffffff" },
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const tspans = Array.from(svg.querySelectorAll("text tspan"));
+    expect(tspans.length).toBe(2);
+    expect(tspans[0].textContent).toBe("Bid request timeout ");
+    expect(tspans[0].getAttribute("fill")).toBeNull();
+    expect(tspans[1].textContent).toBe("120ms");
+    expect(tspans[1].getAttribute("fill")).toBe("#e03131");
+
+    const rects = Array.from(svg.querySelectorAll("g rect"));
+    expect(rects.length).toBe(1);
+    expect(rects[0].getAttribute("fill")).toBe("#fff3bf");
+  });
 });

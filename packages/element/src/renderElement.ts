@@ -60,6 +60,10 @@ import {
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
 import {
+  getLineStyledRuns,
+  mapWrappedLinesToOriginalOffsets,
+} from "./textStyledRanges";
+import {
   isTextElement,
   isLinearElement,
   isFreeDrawElement,
@@ -703,12 +707,116 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          const isDark = renderConfig.theme === THEME.DARK;
+          const defaultFill = applyDarkModeFilter(element.strokeColor, isDark);
+
+          if (element.styledRanges?.length) {
+            const wrappedLines = mapWrappedLinesToOriginalOffsets(
+              element.originalText,
+              element.text,
             );
+            for (let index = 0; index < wrappedLines.length; index++) {
+              const line = wrappedLines[index];
+              if (!line.text) {
+                continue;
+              }
+              const runs = getLineStyledRuns(
+                line.text,
+                line.start,
+                line.end,
+                element.styledRanges,
+              );
+              const hasCustomStyle = runs.some(
+                (run) => run.color || run.backgroundColor,
+              );
+              if (!hasCustomStyle) {
+                context.fillStyle = defaultFill;
+                context.textAlign = element.textAlign as CanvasTextAlign;
+                context.fillText(
+                  line.text,
+                  horizontalOffset,
+                  index * lineHeightPx + verticalOffset,
+                );
+                continue;
+              }
+
+              const totalLineWidth = context.measureText(line.text).width;
+              const lineLeftX =
+                element.textAlign === "center"
+                  ? element.width / 2 - totalLineWidth / 2
+                  : element.textAlign === "right"
+                  ? element.width - totalLineWidth
+                  : 0;
+              const lineRtl = isRTL(line.text);
+
+              for (const run of runs) {
+                const localStart = run.start - line.start;
+                const localEnd = run.end - line.start;
+                const startOffset = context.measureText(
+                  line.text.slice(0, localStart),
+                ).width;
+                const endOffset = context.measureText(
+                  line.text.slice(0, localEnd),
+                ).width;
+                const runWidth = endOffset - startOffset;
+
+                if (lineRtl) {
+                  const runRightX = lineLeftX + totalLineWidth - startOffset;
+                  if (run.backgroundColor) {
+                    context.fillStyle = applyDarkModeFilter(
+                      run.backgroundColor,
+                      isDark,
+                    );
+                    context.fillRect(
+                      runRightX - runWidth,
+                      index * lineHeightPx,
+                      runWidth,
+                      lineHeightPx,
+                    );
+                  }
+                  context.fillStyle = run.color
+                    ? applyDarkModeFilter(run.color, isDark)
+                    : defaultFill;
+                  context.textAlign = "right";
+                  context.fillText(
+                    run.text,
+                    runRightX,
+                    index * lineHeightPx + verticalOffset,
+                  );
+                } else {
+                  const runX = lineLeftX + startOffset;
+                  if (run.backgroundColor) {
+                    context.fillStyle = applyDarkModeFilter(
+                      run.backgroundColor,
+                      isDark,
+                    );
+                    context.fillRect(
+                      runX,
+                      index * lineHeightPx,
+                      runWidth,
+                      lineHeightPx,
+                    );
+                  }
+                  context.fillStyle = run.color
+                    ? applyDarkModeFilter(run.color, isDark)
+                    : defaultFill;
+                  context.textAlign = "left";
+                  context.fillText(
+                    run.text,
+                    runX,
+                    index * lineHeightPx + verticalOffset,
+                  );
+                }
+              }
+            }
+          } else {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {

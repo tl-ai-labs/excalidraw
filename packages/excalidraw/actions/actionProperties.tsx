@@ -65,6 +65,9 @@ import {
 
 import {
   getColorTargetElement,
+  applyStyleToRange,
+  clearColorFromStyledRanges,
+  getCommonStyleInRange,
   getColorUpdate,
   hasFillStyle,
   hasStrokeColor,
@@ -363,13 +366,37 @@ const changeFontSize = (
 
 // -----------------------------------------------------------------------------
 
+const getEditingTextSelection = (
+  appState: Pick<AppState, "editingTextElement">,
+  ownerDocument: Document,
+): { start: number; end: number } | null => {
+  if (!appState.editingTextElement) {
+    return null;
+  }
+  const editor = ownerDocument.querySelector<HTMLTextAreaElement>(
+    ".excalidraw-wysiwyg",
+  );
+  if (!editor) {
+    return null;
+  }
+  const { selectionStart, selectionEnd } = editor;
+  if (
+    typeof selectionStart === "number" &&
+    typeof selectionEnd === "number" &&
+    selectionStart < selectionEnd
+  ) {
+    return { start: selectionStart, end: selectionEnd };
+  }
+  return null;
+};
+
 export const actionChangeStrokeColor = register<
   Partial<AppState> & { color?: string }
 >({
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,10 +404,47 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+    const elementsMap = arrayToMap(elements);
+    const editingText =
+      appState.editingTextElement &&
+      elementsMap.get(appState.editingTextElement.id);
+    const selection = getEditingTextSelection(appState, app.ownerDocument);
+
+    if (
+      editingText &&
+      isTextElement(editingText) &&
+      selection &&
+      !(
+        selection.start === 0 &&
+        selection.end === editingText.originalText.length
+      )
+    ) {
+      const nextStyledRanges = applyStyleToRange(
+        editingText.styledRanges,
+        editingText.originalText.length,
+        selection.start,
+        selection.end,
+        {
+          color: color === editingText.strokeColor ? null : color,
+        },
+      );
+      return {
+        elements: elements.map((el) =>
+          el.id === editingText.id && isTextElement(el)
+            ? newElementWith(el, { styledRanges: nextStyledRanges })
+            : el,
+        ),
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
-    const elementsMap = arrayToMap(elements);
 
     return {
       // a note and its label share one ink: coloring the label while editing
@@ -391,10 +455,17 @@ export const actionChangeStrokeColor = register<
           appState,
           (el) =>
             hasStrokeColor(el.type)
-              ? newElementWith(
-                  el,
-                  getColorUpdate(el, "strokeColor", color, elementsMap),
-                )
+              ? newElementWith(el, {
+                  ...getColorUpdate(el, "strokeColor", color, elementsMap),
+                  ...(isTextElement(el) && el.styledRanges?.length
+                    ? {
+                        styledRanges: clearColorFromStyledRanges(
+                          el.styledRanges,
+                          el.originalText.length,
+                        ),
+                      }
+                    : {}),
+                })
               : el,
           true,
         ),
@@ -428,7 +499,33 @@ export const actionChangeStrokeColor = register<
           color={getFormValue(
             elements,
             app,
-            (element) => element.strokeColor,
+            (element) => {
+              if (
+                appState.editingTextElement &&
+                isTextElement(element) &&
+                element.id === appState.editingTextElement.id
+              ) {
+                const selection = getEditingTextSelection(
+                  appState,
+                  app.ownerDocument,
+                );
+                if (
+                  selection &&
+                  !(
+                    selection.start === 0 &&
+                    selection.end === element.originalText.length
+                  )
+                ) {
+                  return getCommonStyleInRange(
+                    element.styledRanges,
+                    selection.start,
+                    selection.end,
+                    element.strokeColor,
+                  ).color;
+                }
+              }
+              return element.strokeColor;
+            },
             true,
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
@@ -458,6 +555,50 @@ export const actionChangeBackgroundColor = register<
     }
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     const elementsMap = arrayToMap(elements);
+
+    const editingTextForHighlight =
+      appState.editingTextElement &&
+      elementsMap.get(appState.editingTextElement.id);
+    const textSelection = getEditingTextSelection(appState, app.ownerDocument);
+    if (
+      editingTextForHighlight &&
+      isTextElement(editingTextForHighlight) &&
+      textSelection
+    ) {
+      const editingTarget = getColorTargetElement(
+        editingTextForHighlight,
+        "backgroundColor",
+        elementsMap,
+      );
+      const isStickyWholeText =
+        editingTarget !== editingTextForHighlight &&
+        textSelection.start === 0 &&
+        textSelection.end === editingTextForHighlight.originalText.length;
+
+      if (!isStickyWholeText) {
+        const nextStyledRanges = applyStyleToRange(
+          editingTextForHighlight.styledRanges,
+          editingTextForHighlight.originalText.length,
+          textSelection.start,
+          textSelection.end,
+          {
+            backgroundColor: isTransparent(color) ? null : color,
+          },
+        );
+        return {
+          elements: elements.map((el) =>
+            el.id === editingTextForHighlight.id && isTextElement(el)
+              ? newElementWith(el, { styledRanges: nextStyledRanges })
+              : el,
+          ),
+          appState: {
+            ...appState,
+            ...appStateUpdates,
+          },
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        };
+      }
+    }
 
     let nextElements;
 
@@ -542,9 +683,42 @@ export const actionChangeBackgroundColor = register<
           color={getFormValue(
             elements,
             app,
-            (element) =>
-              getColorTargetElement(element, "backgroundColor", elementsMap)
-                .backgroundColor,
+            (element) => {
+              if (
+                appState.editingTextElement &&
+                isTextElement(element) &&
+                element.id === appState.editingTextElement.id
+              ) {
+                const selection = getEditingTextSelection(
+                  appState,
+                  app.ownerDocument,
+                );
+                if (selection) {
+                  const colorTarget = getColorTargetElement(
+                    element,
+                    "backgroundColor",
+                    elementsMap,
+                  );
+                  const isStickyWholeText =
+                    colorTarget !== element &&
+                    selection.start === 0 &&
+                    selection.end === element.originalText.length;
+                  if (!isStickyWholeText) {
+                    return getCommonStyleInRange(
+                      element.styledRanges,
+                      selection.start,
+                      selection.end,
+                      element.strokeColor,
+                    ).backgroundColor;
+                  }
+                }
+              }
+              return getColorTargetElement(
+                element,
+                "backgroundColor",
+                elementsMap,
+              ).backgroundColor;
+            },
             true,
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
