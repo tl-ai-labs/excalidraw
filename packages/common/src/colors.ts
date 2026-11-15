@@ -13,25 +13,19 @@ import type { Degrees } from "@excalidraw/math";
 const DARK_MODE_COLORS_CACHE: Map<string, string> | null =
   typeof window !== "undefined" ? new Map() : null;
 
-function cssHueRotate(
-  red: number,
-  green: number,
-  blue: number,
-  degrees: Degrees,
-): { r: number; g: number; b: number } {
-  // normalize
-  const r = red / 255;
-  const g = green / 255;
-  const b = blue / 255;
+type RGB = { r: number; g: number; b: number };
 
-  // Convert degrees to radians
+// corresponds to "filter: invert(93%) hue-rotate(180deg)" in css
+const DARK_MODE_INVERT_PERCENT = 93;
+const DARK_MODE_HUE_ROTATE = 180 as Degrees;
+
+/** CSS hue-rotate matrix (row-major, operates on normalized [0, 1] rgb) */
+const getHueRotateMatrix = (degrees: Degrees): number[] => {
   const a = degreesToRadians(degrees);
-
   const c = Math.cos(a);
   const s = Math.sin(a);
 
-  // rotation matrix
-  const matrix = [
+  return [
     0.213 + c * 0.787 - s * 0.213,
     0.715 - c * 0.715 - s * 0.715,
     0.072 - c * 0.072 + s * 0.928,
@@ -42,26 +36,50 @@ function cssHueRotate(
     0.715 - c * 0.715 + s * 0.715,
     0.072 + c * 0.928 + s * 0.072,
   ];
+};
 
-  // transform
-  const newR = r * matrix[0] + g * matrix[1] + b * matrix[2];
-  const newG = r * matrix[3] + g * matrix[4] + b * matrix[5];
-  const newB = r * matrix[6] + g * matrix[7] + b * matrix[8];
+const invert3x3 = (m: number[]): number[] => {
+  const [a, b, c, d, e, f, g, h, i] = m;
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  return [
+    (e * i - f * h) / det,
+    (c * h - b * i) / det,
+    (b * f - c * e) / det,
+    (f * g - d * i) / det,
+    (a * i - c * g) / det,
+    (c * d - a * f) / det,
+    (d * h - e * g) / det,
+    (b * g - a * h) / det,
+    (a * e - b * d) / det,
+  ];
+};
+
+const multiply3x3 = (m: number[], r: number, g: number, b: number): RGB => ({
+  r: r * m[0] + g * m[1] + b * m[2],
+  g: r * m[3] + g * m[4] + b * m[5],
+  b: r * m[6] + g * m[7] + b * m[8],
+});
+
+const DARK_MODE_HUE_MATRIX = getHueRotateMatrix(DARK_MODE_HUE_ROTATE);
+const DARK_MODE_HUE_MATRIX_INVERSE = invert3x3(DARK_MODE_HUE_MATRIX);
+
+function cssHueRotate(
+  red: number,
+  green: number,
+  blue: number,
+  matrix: number[],
+): RGB {
+  const rotated = multiply3x3(matrix, red / 255, green / 255, blue / 255);
 
   // clamp the values to [0, 1] range and convert back to [0, 255]
   return {
-    r: Math.round(Math.max(0, Math.min(1, newR)) * 255),
-    g: Math.round(Math.max(0, Math.min(1, newG)) * 255),
-    b: Math.round(Math.max(0, Math.min(1, newB)) * 255),
+    r: Math.round(clamp(rotated.r, 0, 1) * 255),
+    g: Math.round(clamp(rotated.g, 0, 1) * 255),
+    b: Math.round(clamp(rotated.b, 0, 1) * 255),
   };
 }
 
-const cssInvert = (
-  r: number,
-  g: number,
-  b: number,
-  percent: number,
-): { r: number; g: number; b: number } => {
+const cssInvert = (r: number, g: number, b: number, percent: number): RGB => {
   const p = clamp(percent, 0, 100) / 100;
 
   // Function to invert a single color component
@@ -72,12 +90,18 @@ const cssInvert = (
     return Math.round(clamp(inverted, 0, 255));
   };
 
-  // Calculate the inverted RGB components
-  const invertedR = invertComponent(r);
-  const invertedG = invertComponent(g);
-  const invertedB = invertComponent(b);
+  return {
+    r: invertComponent(r),
+    g: invertComponent(g),
+    b: invertComponent(b),
+  };
+};
 
-  return { r: invertedR, g: invertedG, b: invertedB };
+/** the dark mode transform on 0-255 integer rgb */
+const darkModeFilterRGB = (r: number, g: number, b: number): RGB => {
+  // order of operations matters
+  const inverted = cssInvert(r, g, b, DARK_MODE_INVERT_PERCENT);
+  return cssHueRotate(inverted.r, inverted.g, inverted.b, DARK_MODE_HUE_MATRIX);
 };
 
 export const applyDarkModeFilter = (color: string, enable = true): string => {
@@ -93,24 +117,147 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   const tc = tinycolor(color);
   const alpha = tc.getAlpha();
 
-  // order of operations matters
-  // (corresponds to "filter: invert(invertPercent) hue-rotate(hueDegrees)" in css)
   const rgb = tc.toRgb();
-  const inverted = cssInvert(rgb.r, rgb.g, rgb.b, 93);
-  const rotated = cssHueRotate(
-    inverted.r,
-    inverted.g,
-    inverted.b,
-    180 as Degrees,
-  );
+  const filtered = darkModeFilterRGB(rgb.r, rgb.g, rgb.b);
 
-  const result = rgbToHex(rotated.r, rotated.g, rotated.b, alpha);
+  const result = rgbToHex(filtered.r, filtered.g, filtered.b, alpha);
 
   if (DARK_MODE_COLORS_CACHE) {
     DARK_MODE_COLORS_CACHE.set(color, result);
   }
 
   return result;
+};
+
+// Browser-only cache to avoid memory leaks on server
+const REVERT_DARK_MODE_CACHE: Map<string, RGB> | null =
+  typeof window !== "undefined" ? new Map() : null;
+
+// how far (per channel) from the analytic inverse to search for the closest
+// color. Rounding in the forward transform makes the analytic inverse off by
+// at most ~1 per channel for any color the transform can produce.
+const REVERT_SEARCH_RADIUS = 2;
+
+// tolerance for float noise when comparing distances to the analytic estimate
+const EPSILON = 1e-6;
+
+const colorDistanceSq = (a: RGB, b: RGB) =>
+  (a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2;
+
+/**
+ * Finds a color that `darkModeFilterRGB` maps onto (or, for colors outside of
+ * the transform's range, as close as possible to) the given on-screen color.
+ */
+const revertDarkModeFilterRGB = (target: RGB): RGB => {
+  const p = DARK_MODE_INVERT_PERCENT / 100;
+
+  // undo hue-rotate (linear), then undo invert (affine), without rounding
+  const unrotated = multiply3x3(
+    DARK_MODE_HUE_MATRIX_INVERSE,
+    target.r,
+    target.g,
+    target.b,
+  );
+  const uninvert = (v: number) => (v - 255 * p) / (1 - 2 * p);
+  const estimate: RGB = {
+    r: uninvert(unrotated.r),
+    g: uninvert(unrotated.g),
+    b: uninvert(unrotated.b),
+  };
+
+  // The forward transform rounds and clamps, so refine the estimate by
+  // searching the integer neighborhood for the best forward match, preferring
+  // candidates closest to the analytic estimate on ties.
+  const base: RGB = {
+    r: Math.round(clamp(estimate.r, 0, 255)),
+    g: Math.round(clamp(estimate.g, 0, 255)),
+    b: Math.round(clamp(estimate.b, 0, 255)),
+  };
+  // secondary tie-break: keep the estimate's hue (e.g. grays stay gray)
+  const hueDistance = (c: RGB) =>
+    (c.r - c.g - (estimate.r - estimate.g)) ** 2 +
+    (c.g - c.b - (estimate.g - estimate.b)) ** 2;
+
+  let best = base;
+  let bestDistance = Infinity;
+  let bestEstimateDistance = Infinity;
+  let bestHueDistance = Infinity;
+
+  const R = REVERT_SEARCH_RADIUS;
+  for (let r = base.r - R; r <= base.r + R; r++) {
+    for (let g = base.g - R; g <= base.g + R; g++) {
+      for (let b = base.b - R; b <= base.b + R; b++) {
+        if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+          continue;
+        }
+        const candidate = { r, g, b };
+        const distance = colorDistanceSq(darkModeFilterRGB(r, g, b), target);
+        const estimateDistance = colorDistanceSq(candidate, estimate);
+        const candidateHueDistance = hueDistance(candidate);
+        if (
+          distance < bestDistance ||
+          (distance === bestDistance &&
+            (estimateDistance < bestEstimateDistance - EPSILON ||
+              (estimateDistance < bestEstimateDistance + EPSILON &&
+                candidateHueDistance < bestHueDistance)))
+        ) {
+          best = candidate;
+          bestDistance = distance;
+          bestEstimateDistance = estimateDistance;
+          bestHueDistance = candidateHueDistance;
+        }
+      }
+    }
+  }
+
+  return best;
+};
+
+/**
+ * Inverse of `applyDarkModeFilter`: given a color as rendered in dark mode
+ * (e.g. a pixel read from the canvas), returns the color that renders as it.
+ *
+ * Guarantees `applyDarkModeFilter(revertDarkModeFilter(x)) === x` for any `x`
+ * produced by `applyDarkModeFilter`. As the dark mode transform maps several
+ * colors onto the same on-screen color, `knownColors` (e.g. colors used in the
+ * scene) are preferred when they render as `color`. The color palette is
+ * always checked after `knownColors`.
+ *
+ * Alpha is preserved. Returns `color` as-is if invalid or fully transparent.
+ */
+export const revertDarkModeFilter = (
+  color: string,
+  knownColors: readonly string[] = [],
+): string => {
+  const tc = tinycolor(color);
+  if (!tc.isValid() || tc.getAlpha() === 0) {
+    return color;
+  }
+  const { r, g, b, a } = tc.toRgb();
+  const targetHex = rgbToHex(r, g, b);
+
+  for (const knownColor of [...knownColors, ...ALL_PALETTE_COLORS]) {
+    if (isTransparent(knownColor)) {
+      continue;
+    }
+    const known = tinycolor(knownColor);
+    if (!known.isValid()) {
+      continue;
+    }
+    const knownRGB = known.toRgb();
+    const filtered = darkModeFilterRGB(knownRGB.r, knownRGB.g, knownRGB.b);
+    if (rgbToHex(filtered.r, filtered.g, filtered.b) === targetHex) {
+      return rgbToHex(knownRGB.r, knownRGB.g, knownRGB.b, a);
+    }
+  }
+
+  let reverted = REVERT_DARK_MODE_CACHE?.get(targetHex);
+  if (!reverted) {
+    reverted = revertDarkModeFilterRGB({ r, g, b });
+    REVERT_DARK_MODE_CACHE?.set(targetHex, reverted);
+  }
+
+  return rgbToHex(reverted.r, reverted.g, reverted.b, a);
 };
 
 // ---------------------------------------------------------------------------
@@ -166,6 +313,10 @@ export const COLOR_PALETTE = {
 } as const;
 
 export type ColorPalette = typeof COLOR_PALETTE;
+
+const ALL_PALETTE_COLORS: readonly string[] = Object.values(
+  COLOR_PALETTE,
+).flatMap((value) => (typeof value === "string" ? [value] : [...value]));
 export type ColorPickerColor = keyof typeof COLOR_PALETTE;
 
 const COMMON_ELEMENT_SHADES = pick(COLOR_PALETTE, [

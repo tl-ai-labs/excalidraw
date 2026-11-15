@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  EVENT,
+  KEYS,
+  THEME,
+  revertDarkModeFilter,
+  rgbToHex,
+} from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -77,7 +83,8 @@ export const EyeDropper: React.FC<{
 
     const ctx = app.canvas.getContext("2d")!;
 
-    const getCurrentColor = ({
+    /** the color as rendered on screen (dark mode transform applied) */
+    const getPixelColor = ({
       clientX,
       clientY,
     }: {
@@ -93,6 +100,36 @@ export const EyeDropper: React.FC<{
 
       return rgbToHex(pixel[0], pixel[1], pixel[2]);
     };
+
+    /**
+     * In dark theme the canvas renders every color through the dark mode
+     * transform, so revert it to get the actual (stored) color.
+     */
+    const toActualColor = (pixelColor: string) => {
+      if (appState.theme !== THEME.DARK) {
+        return pixelColor;
+      }
+      return revertDarkModeFilter(pixelColor, getKnownColors());
+    };
+
+    // colors in use, used to disambiguate between colors that render the same
+    // in dark mode (so we prefer picking the exact color of an element)
+    let knownColors: string[] | null = null;
+    const getKnownColors = () => {
+      if (!knownColors) {
+        const colors = new Set<string>();
+        for (const element of stableProps.app.scene.getNonDeletedElements()) {
+          colors.add(element.strokeColor);
+          colors.add(element.backgroundColor);
+        }
+        colors.add(stableProps.app.state.viewBackgroundColor);
+        knownColors = [...colors];
+      }
+      return knownColors;
+    };
+
+    const getCurrentColor = (position: { clientX: number; clientY: number }) =>
+      toActualColor(getPixelColor(position));
 
     const mouseMoveListener = ({
       clientX,
@@ -116,18 +153,19 @@ export const EyeDropper: React.FC<{
       colorPreviewDiv.style.top = `${top}px`;
       colorPreviewDiv.style.left = `${left}px`;
 
-      const currentColor = getCurrentColor({ clientX, clientY });
+      const pixelColor = getPixelColor({ clientX, clientY });
 
       if (isHoldingPointerDown) {
         stableProps.onChange(
           colorPickerType,
-          currentColor,
+          toActualColor(pixelColor),
           stableProps.selectedElements,
           { altKey },
         );
       }
 
-      colorPreviewDiv.style.background = currentColor;
+      // preview the color as it appears on screen
+      colorPreviewDiv.style.background = pixelColor;
     };
 
     const onCancel = () => {
@@ -215,6 +253,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

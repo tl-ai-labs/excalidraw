@@ -4147,8 +4147,9 @@ class App extends React.Component<AppProps, AppState> {
     }
     if (
       this.state.activeTool.type === "bucketfill" &&
-      prevState.currentItemBackgroundColor !==
-        this.state.currentItemBackgroundColor
+      (prevState.currentItemBackgroundColor !==
+        this.state.currentItemBackgroundColor ||
+        prevState.theme !== this.state.theme)
     ) {
       this.cursor.applyForTool();
     }

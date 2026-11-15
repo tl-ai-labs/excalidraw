@@ -1,5 +1,6 @@
 import {
   CURSOR_TYPE,
+  applyDarkModeFilter,
   getBucketFillBackgroundColor,
   MIME_TYPES,
   THEME,
@@ -105,10 +106,15 @@ export class AppCursor {
       return;
     }
 
+    // shown as rendered on the canvas (dark mode transform applied), so it
+    // matches the on-screen color the user picked with the eyedropper
     const bucketFillColor =
       activeTool.type === "bucketfill"
-        ? getBucketFillBackgroundColor(
-            this.app.state.currentItemBackgroundColor,
+        ? applyDarkModeFilter(
+            getBucketFillBackgroundColor(
+              this.app.state.currentItemBackgroundColor,
+            ),
+            this.app.state.theme === THEME.DARK,
           )
         : undefined;
     const theme =

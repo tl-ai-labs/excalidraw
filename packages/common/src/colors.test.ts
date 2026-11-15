@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  revertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -282,5 +283,109 @@ describe("rgbToHex", () => {
       // 0.05 * 255 = 12.75 -> rounds to 13 = 0x0d
       expect(rgbToHex(255, 0, 0, 0.05)).toBe("#ff00000d");
     });
+  });
+});
+
+describe("revertDarkModeFilter", () => {
+  // deterministic pseudo-random colors (mulberry32)
+  const randomColors = (count: number, seed = 42) => {
+    let t = seed;
+    const next = () => {
+      t = (t + 0x6d2b79f5) | 0;
+      let x = Math.imul(t ^ (t >>> 15), 1 | t);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+    return Array.from({ length: count }, () =>
+      rgbToHex(
+        Math.floor(next() * 256),
+        Math.floor(next() * 256),
+        Math.floor(next() * 256),
+      ),
+    );
+  };
+
+  const paletteColors = Object.values(COLOR_PALETTE)
+    .flat()
+    .filter((color) => color !== "transparent");
+
+  it("round-trips any rendered color without known colors", () => {
+    // also covers colors that the dark mode transform clamps
+    const colors = [
+      "#000000",
+      "#ffffff",
+      "#ff0000",
+      "#00ff00",
+      "#0000ff",
+      ...randomColors(2000),
+    ];
+    for (const color of colors) {
+      const rendered = applyDarkModeFilter(color);
+      expect(applyDarkModeFilter(revertDarkModeFilter(rendered))).toBe(
+        rendered,
+      );
+    }
+  });
+
+  it("reverts rendered grays to grays", () => {
+    for (let v = 0; v < 256; v++) {
+      const rendered = applyDarkModeFilter(rgbToHex(v, v, v));
+      const reverted = revertDarkModeFilter(rendered);
+      // neighboring grays may render the same, so they're not always exact
+      expect(reverted).toMatch(/^#([0-9a-f]{2})\1\1$/);
+      expect(applyDarkModeFilter(reverted)).toBe(rendered);
+    }
+  });
+
+  it("returns the exact palette color", () => {
+    for (const color of paletteColors) {
+      expect(revertDarkModeFilter(applyDarkModeFilter(color))).toBe(color);
+    }
+  });
+
+  it("prefers known colors that render the same", () => {
+    for (const color of randomColors(500, 7)) {
+      expect(revertDarkModeFilter(applyDarkModeFilter(color), [color])).toBe(
+        color,
+      );
+    }
+  });
+
+  it("ignores known colors that render differently", () => {
+    const rendered = applyDarkModeFilter("#123456");
+    expect(revertDarkModeFilter(rendered, ["#654321"])).not.toBe("#654321");
+    expect(revertDarkModeFilter(rendered, ["#654321"])).toBe(
+      revertDarkModeFilter(rendered),
+    );
+  });
+
+  it("returns the closest color for colors outside the filter's range", () => {
+    const distance = (a: string, b: string) => {
+      const [x, y] = [a, b].map((c) =>
+        [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)),
+      );
+      return x.reduce((sum, v, i) => sum + (v - y[i]) ** 2, 0);
+    };
+    // pure black/white can't be produced by the dark mode filter, whose
+    // darkest/lightest grays are white/black rendered
+    for (const [target, nearestGray] of [
+      ["#000000", applyDarkModeFilter("#ffffff")],
+      ["#ffffff", applyDarkModeFilter("#000000")],
+    ]) {
+      const rendered = applyDarkModeFilter(revertDarkModeFilter(target));
+      expect(distance(rendered, target)).toBeLessThanOrEqual(
+        distance(nearestGray, target),
+      );
+    }
+  });
+
+  it("preserves alpha", () => {
+    const rendered = applyDarkModeFilter("#1e1e1e80");
+    expect(revertDarkModeFilter(rendered)).toBe("#1e1e1e80");
+  });
+
+  it("returns transparent and invalid colors as-is", () => {
+    expect(revertDarkModeFilter("transparent")).toBe("transparent");
+    expect(revertDarkModeFilter("not-a-color")).toBe("not-a-color");
   });
 });
