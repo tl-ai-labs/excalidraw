@@ -32,6 +32,7 @@ import type {
   ExcalidrawEmbeddableElement,
   ExcalidrawMagicFrameElement,
   ExcalidrawFrameLikeElement,
+  ExcalidrawPage,
   ExcalidrawElementType,
   ExcalidrawIframeLikeElement,
   OrderedExcalidrawElement,
@@ -82,6 +83,8 @@ export type Collaborator = Readonly<{
   selectedElementIds?: AppState["selectedElementIds"];
   username?: string | null;
   userState?: UserIdleState;
+  /** the page the collaborator is on, their pointer shows only on that page */
+  pageId?: string;
   color?: {
     background: string;
     stroke: string;
@@ -554,6 +557,16 @@ export interface AppState {
   isCropping: boolean;
   croppingElementId: ExcalidrawElement["id"] | null;
 
+  /**
+   * Pages of the drawing (including deleted tombstones, used to reconcile
+   * pages in collaboration). Use `getVisiblePages()` for the tab bar.
+   */
+  pages: readonly ExcalidrawPage[];
+  /** the page whose elements are shown, edited & exported as image */
+  activePageId: ExcalidrawPage["id"];
+  /** last viewport of each page, restored when switching to the page */
+  pageViewports: Readonly<Record<ExcalidrawPage["id"], PageViewport>>;
+
   /** null if no search matches found / search closed */
   searchMatches: Readonly<{
     focusedId: ExcalidrawElement["id"] | null;
@@ -623,6 +636,12 @@ export type UIAppState = Omit<
 >;
 
 export type NormalizedZoomValue = number & { _brand: "normalizedZoom" };
+
+export type PageViewport = Readonly<{
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
+}>;
 
 export type Zoom = Readonly<{
   value: NormalizedZoomValue;
@@ -1249,6 +1268,7 @@ export type AppClassProperties = {
   cursor: App["cursor"];
   bucketFill: App["bucketFill"];
   duplicate: App["duplicate"];
+  pages: App["pages"];
   toolDrag: App["toolDrag"];
   activeResizeHandle: App["activeResizeHandle"];
   selectionTool: App["selectionTool"];
@@ -1423,6 +1443,22 @@ export interface ExcalidrawImperativeAPI {
     "select" | "add" | "remove" | "clear"
   >;
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
+  /**
+   * Pages of the drawing. Elements belong to a page through `pageId`
+   * (absent on the default page's elements). The scene getters above return
+   * the elements of all pages, use `pages.getPageElements()` for one page.
+   */
+  pages: Pick<
+    InstanceType<typeof App>["pages"],
+    | "getPages"
+    | "getActivePageId"
+    | "getPageElements"
+    | "setActive"
+    | "create"
+    | "rename"
+    | "move"
+    | "delete"
+  >;
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];

@@ -5,6 +5,8 @@ import {
   VERSIONS,
 } from "@excalidraw/common";
 
+import { getElementPageId } from "@excalidraw/element/pages";
+
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import type { MaybePromise } from "@excalidraw/common/utility-types";
@@ -47,6 +49,29 @@ const filterOutDeletedFiles = (
     }
   }
   return nextFiles;
+};
+
+/**
+ * The scene embedded into an exported image holds only the exported (page's)
+ * elements, so it keeps only the pages those elements are on.
+ */
+export const getEmbeddedSceneAppState = <T extends Partial<AppState>>(
+  appState: T,
+  elements: readonly ExcalidrawElement[],
+): T => {
+  if (!appState.pages) {
+    return appState;
+  }
+  const pageIds = new Set(elements.map((element) => getElementPageId(element)));
+  if (appState.activePageId) {
+    pageIds.add(appState.activePageId);
+  }
+  return {
+    ...appState,
+    pages: appState.pages.filter(
+      (page) => !page.isDeleted && pageIds.has(page.id),
+    ),
+  };
 };
 
 export const serializeAsJSON = (

@@ -40,6 +40,12 @@ import type {
   SameType,
 } from "@excalidraw/common/utility-types";
 
+import {
+  DEFAULT_PAGE_ID,
+  getElementPageId,
+  groupElementsByPage,
+} from "./pages";
+
 import type { AppState } from "../../excalidraw/types";
 
 type SceneStateCallback = () => void;
@@ -105,6 +111,27 @@ const hashSelectionOpts = (
 // in our codebase
 export type ExcalidrawElementsIncludingDeleted = readonly ExcalidrawElement[];
 
+export type ReplaceAllElementsOptions = {
+  skipValidation?: true;
+  /**
+   * Replace the elements of all pages (i.e. when loading a new document),
+   * instead of only the pages the passed elements belong to.
+   */
+  replaceAllPages?: boolean;
+};
+
+/**
+ * Holds the elements of all pages of the drawing.
+ *
+ * Once an active page is set (`setActivePageId()`), the regular getters
+ * (`getElementsIncludingDeleted()`, `getNonDeletedElements()`, maps, frames,
+ * selection...) return only the active page's elements, so that rendering,
+ * hit-testing, selection, actions and image export all operate on one page.
+ * Use the `getAllPages*` getters for the whole document (persistence,
+ * collaboration, store & history).
+ *
+ * Without an active page (`null`), all elements are visible.
+ */
 export class Scene {
   // ---------------------------------------------------------------------------
   // instance methods/props
@@ -123,6 +150,10 @@ export class Scene {
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
+  /** elements of all pages, grouped by page */
+  private allPagesElements: readonly OrderedExcalidrawElement[] = [];
+  private allPagesElementsMap = toBrandedType<SceneElementsMap>(new Map());
+  private activePageId: string | null = null;
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
     elements: readonly NonDeletedExcalidrawElement[] | null;
@@ -164,11 +195,38 @@ export class Scene {
     return this.frames;
   }
 
+  /** elements of all pages, including deleted */
+  getAllPagesElementsIncludingDeleted() {
+    return this.allPagesElements;
+  }
+
+  /** elements of all pages, including deleted */
+  getAllPagesElementsMapIncludingDeleted() {
+    return this.allPagesElementsMap;
+  }
+
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  /**
+   * Switches which page's elements the scene getters expose.
+   */
+  setActivePageId(pageId: string | null) {
+    if (pageId === this.activePageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    // nothing to show differently on an empty scene
+    if (this.allPagesElements.length) {
+      this.updateActivePageView();
+      this.triggerUpdate();
+    }
+  }
+
   constructor(
     elements: ElementsMapOrArray | null = null,
-    options?: {
-      skipValidation?: true;
-    },
+    options?: ReplaceAllElementsOptions,
   ) {
     if (elements) {
       this.replaceAllElements(elements, options);
@@ -268,21 +326,100 @@ export class Scene {
     return didChange;
   }
 
+  /**
+   * Computes the elements of all pages after replacing with `nextElements`
+   * (see `replaceAllElements()`), without modifying the scene.
+   *
+   * Pages the next elements belong to (and the active page) are replaced,
+   * elements of other pages are kept. New elements without a `pageId` are
+   * assigned to the active page.
+   */
+  getNextAllPagesElements(
+    nextElements: ElementsMapOrArray,
+    options?: Pick<ReplaceAllElementsOptions, "replaceAllPages">,
+  ): ExcalidrawElement[] {
+    const _nextElements = toArray(nextElements);
+
+    if (this.activePageId === null || options?.replaceAllPages) {
+      return _nextElements as ExcalidrawElement[];
+    }
+
+    if (this.activePageId !== DEFAULT_PAGE_ID) {
+      for (const element of _nextElements) {
+        if (!element.pageId && !this.allPagesElementsMap.has(element.id)) {
+          // new element (pageId isn't versioned, the element isn't synced
+          // anywhere yet, and we must keep the instance as it's referenced
+          // from the editor)
+          (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+        }
+      }
+    }
+
+    const nextGroups = groupElementsByPage(_nextElements);
+    const nextIds = new Set(_nextElements.map((element) => element.id));
+    const prevGroups = groupElementsByPage(this.allPagesElements);
+
+    const pageIds = new Set([
+      ...prevGroups.keys(),
+      this.activePageId,
+      ...nextGroups.keys(),
+    ]);
+
+    const result: ExcalidrawElement[] = [];
+    for (const pageId of pageIds) {
+      if (nextGroups.has(pageId) || pageId === this.activePageId) {
+        result.push(...(nextGroups.get(pageId) ?? []));
+      } else {
+        for (const element of prevGroups.get(pageId) ?? []) {
+          // skip elements which moved to a replaced page
+          if (!nextIds.has(element.id)) {
+            result.push(element);
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Replaces the elements of the pages that the passed elements belong to
+   * (and always the active page), keeping the other pages' elements, unless
+   * `replaceAllPages` is set.
+   *
+   * This way, callers operating on the active page's elements (as returned
+   * by `getElementsIncludingDeleted()`) don't drop the other pages.
+   */
   replaceAllElements(
     nextElements: ElementsMapOrArray,
-    options?: {
-      skipValidation?: true;
-    },
+    options?: ReplaceAllElementsOptions,
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
-    const _nextElements = toArray(nextElements);
-    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+    const _nextElements = this.getNextAllPagesElements(nextElements, options);
 
     if (!options?.skipValidation) {
       validateIndicesThrottled(_nextElements);
     }
 
-    this.elements = syncInvalidIndices(_nextElements);
+    this.allPagesElements = syncInvalidIndices(_nextElements);
+    this.allPagesElementsMap.clear();
+    for (const element of this.allPagesElements) {
+      this.allPagesElementsMap.set(element.id, element);
+    }
+
+    this.updateActivePageView();
+    this.triggerUpdate();
+  }
+
+  private updateActivePageView() {
+    const activePageId = this.activePageId;
+    const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
+
+    this.elements =
+      activePageId === null
+        ? this.allPagesElements
+        : this.allPagesElements.filter(
+            (element) => getElementPageId(element) === activePageId,
+          );
     this.elementsMap.clear();
     this.elements.forEach((element) => {
       if (isFrameLikeElement(element)) {
@@ -296,8 +433,6 @@ export class Scene {
 
     this.frames = nextFrameLikes;
     this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
-
-    this.triggerUpdate();
   }
 
   triggerUpdate() {
@@ -325,6 +460,8 @@ export class Scene {
 
   destroy() {
     this.elements = [];
+    this.allPagesElements = [];
+    this.allPagesElementsMap.clear();
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
     this.frames = [];

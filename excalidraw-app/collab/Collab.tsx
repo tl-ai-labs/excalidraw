@@ -21,7 +21,12 @@ import {
 } from "@excalidraw/common";
 import { decryptData } from "@excalidraw/excalidraw/data/encryption";
 import { getVisibleSceneBounds } from "@excalidraw/element";
-import { newElementWith } from "@excalidraw/element";
+import {
+  DEFAULT_PAGE_ID,
+  hashPagesVersion,
+  newElementWith,
+  reconcilePages,
+} from "@excalidraw/element";
 import { isImageElement, isInitializedImageElement } from "@excalidraw/element";
 import { AbortError } from "@excalidraw/excalidraw/errors";
 import { t } from "@excalidraw/excalidraw/i18n";
@@ -42,6 +47,7 @@ import type {
   FileId,
   InitializedExcalidrawImageElement,
   OrderedExcalidrawElement,
+  ExcalidrawPage,
 } from "@excalidraw/element/types";
 import type {
   BinaryFileData,
@@ -137,6 +143,18 @@ interface CollabProps {
   excalidrawAPI: ExcalidrawImperativeAPI;
 }
 
+/**
+ * Elements of the default page have no `pageId`. Make it explicit on remote
+ * elements, so that the editor doesn't take them for new local elements of
+ * the page being shown (see `Scene.replaceAllElements()`).
+ */
+const normalizeRemoteElementsPages = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+): T[] =>
+  elements.map((element) =>
+    element.pageId ? element : { ...element, pageId: DEFAULT_PAGE_ID },
+  );
+
 class Collab extends PureComponent<CollabProps, CollabState> {
   portal: Portal;
   fileManager: FileManager;
@@ -146,6 +164,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private socketInitializationTimer?: number;
   private lastBroadcastedOrReceivedSceneVersion: number = -1;
+  private lastBroadcastedOrReceivedPagesHash: number | null = null;
   private collaborators = new Map<SocketId, Collaborator>();
   /** the socket ids of the users following the current user */
   private followedBy = new Set<SocketId>();
@@ -315,7 +334,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (
       this.isCollaborating() &&
       (this.fileManager.shouldPreventUnload(syncableElements) ||
-        !isSavedToFirebase(this.portal, syncableElements))
+        !isSavedToFirebase(
+          this.portal,
+          syncableElements,
+          this.excalidrawAPI.getAppState().pages,
+        ))
     ) {
       // this won't run in time if user decides to leave the site, but
       //  the purpose is to run in immediately after user decides to stay
@@ -336,7 +359,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   ) => {
     syncableElements = cloneJSON(syncableElements);
     try {
-      const storedElements = await saveToFirebase(
+      const storedScene = await saveToFirebase(
         this.portal,
         syncableElements,
         this.excalidrawAPI.getAppState(),
@@ -344,8 +367,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
       this.resetErrorIndicator();
 
-      if (this.isCollaborating() && storedElements) {
-        this.handleRemoteSceneUpdate(this._reconcileElements(storedElements));
+      if (this.isCollaborating() && storedScene) {
+        this.handleRemotePages(storedScene.pages);
+        this.handleRemoteSceneUpdate(
+          this._reconcileElements(storedScene.elements),
+        );
       }
     } catch (error: any) {
       const errorMessage = /is longer than.*?bytes/.test(error.message)
@@ -423,6 +449,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private destroySocketClient = (opts?: { isUnload: boolean }) => {
     this.lastBroadcastedOrReceivedSceneVersion = -1;
+    this.lastBroadcastedOrReceivedPagesHash = null;
     this.portal.close();
     this.fileManager.reset();
     this.followedBy = new Set();
@@ -605,6 +632,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           case WS_SUBTYPES.INIT: {
             if (!this.portal.socketInitialized) {
               this.initializeRoom({ fetchScene: false });
+              const pages = this.handleRemotePages(decryptedData.payload.pages);
               const remoteElements = toBrandedType<
                 readonly RemoteExcalidrawElement[]
               >(decryptedData.payload.elements);
@@ -614,12 +642,14 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               // noop if already resolved via init from firebase
               scenePromise.resolve({
                 elements: reconciledElements,
+                appState: { pages },
                 scrollToContent: true,
               });
             }
             break;
           }
           case WS_SUBTYPES.UPDATE:
+            this.handleRemotePages(decryptedData.payload.pages);
             this.handleRemoteSceneUpdate(
               this._reconcileElements(
                 toBrandedType<readonly RemoteExcalidrawElement[]>(
@@ -629,7 +659,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             );
             break;
           case WS_SUBTYPES.MOUSE_LOCATION: {
-            const { pointer, button, username, selectedElementIds } =
+            const { pointer, button, username, selectedElementIds, pageId } =
               decryptedData.payload;
 
             const socketId: SocketUpdateDataSource["MOUSE_LOCATION"]["payload"]["socketId"] =
@@ -642,6 +672,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               button,
               selectedElementIds,
               username,
+              pageId,
             });
 
             break;
@@ -742,18 +773,21 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.excalidrawAPI.resetScene();
 
       try {
-        const elements = await loadFromFirebase(
+        const storedScene = await loadFromFirebase(
           roomLinkData.roomId,
           roomLinkData.roomKey,
           this.portal.socket,
         );
-        if (elements) {
+        if (storedScene) {
+          const { elements } = storedScene;
           this.setLastBroadcastedOrReceivedSceneVersion(
             getSceneVersion(elements),
           );
+          const pages = this.handleRemotePages(storedScene.pages);
 
           return {
-            elements,
+            elements: normalizeRemoteElementsPages(elements),
+            appState: { pages },
             scrollToContent: true,
           };
         }
@@ -779,7 +813,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     // NOTE ideally we restore _after_ reconciliation but we can't do that
     // as we'd regenerate even elements such as appState.newElement which would
     // break the state
-    remoteElements = restoreElements(remoteElements, existingElements);
+    remoteElements = restoreElements(
+      normalizeRemoteElementsPages(remoteElements),
+      existingElements,
+    );
 
     let reconciledElements = reconcileElements(
       existingElements,
@@ -817,6 +854,30 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       elements: this.excalidrawAPI.getSceneElementsIncludingDeleted(),
     });
   }, LOAD_IMAGES_TIMEOUT);
+
+  /**
+   * Merges the remote pages into the local ones.
+   *
+   * @returns the merged pages
+   */
+  private handleRemotePages = (
+    remotePages: readonly ExcalidrawPage[] | undefined,
+  ): readonly ExcalidrawPage[] => {
+    const localPages = this.excalidrawAPI.getAppState().pages;
+    if (!remotePages?.length) {
+      return localPages;
+    }
+    const pages = reconcilePages(localPages, remotePages);
+    // avoid broadcasting back the pages we just received
+    this.lastBroadcastedOrReceivedPagesHash = hashPagesVersion(pages);
+    if (pages !== localPages) {
+      this.excalidrawAPI.updateScene({
+        appState: { pages },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    }
+    return pages;
+  };
 
   private handleRemoteSceneUpdate = (
     elements: ReconciledExcalidrawElement[],
@@ -969,12 +1030,19 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {
+    const pagesHash = hashPagesVersion(this.excalidrawAPI.getAppState().pages);
     if (
       getSceneVersion(elements) >
-      this.getLastBroadcastedOrReceivedSceneVersion()
+        this.getLastBroadcastedOrReceivedSceneVersion() ||
+      // pages changed (created, renamed, reordered, deleted)
+      pagesHash !== this.lastBroadcastedOrReceivedPagesHash
     ) {
       this.portal.broadcastScene(WS_SUBTYPES.UPDATE, elements, false);
-      this.lastBroadcastedOrReceivedSceneVersion = getSceneVersion(elements);
+      this.lastBroadcastedOrReceivedSceneVersion = Math.max(
+        this.lastBroadcastedOrReceivedSceneVersion,
+        getSceneVersion(elements),
+      );
+      this.lastBroadcastedOrReceivedPagesHash = pagesHash;
       this.queueBroadcastAllElements();
     }
   };

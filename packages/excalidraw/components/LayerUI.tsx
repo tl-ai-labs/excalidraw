@@ -204,7 +204,8 @@ const LayerUI = ({
 
     return (
       <JSONExportDialog
-        elements={elements}
+        // saving / sharing the file exports the whole document
+        elements={app.api.getSceneElements()}
         appState={appState}
         files={files}
         actionManager={actionManager}

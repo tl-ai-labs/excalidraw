@@ -57,7 +57,7 @@ import type {
 
 import { cleanAppStateForExport } from "../appState";
 import { base64ToString, decode, encode, stringToBase64 } from "../data/encode";
-import { serializeAsJSON } from "../data/json";
+import { getEmbeddedSceneAppState, serializeAsJSON } from "../data/json";
 import { restoreAppState, restoreElements } from "../data/restore";
 import { encodePngMetadata } from "../data/image";
 
@@ -1048,7 +1048,12 @@ const exportToSvg = async ({
         // keeps the ids stable. But it also requires that the exportToSvg is
         // being supplied with only the elements that we're exporting, and
         // no extra.
-        payload: serializeAsJSON(elements, appState, data.files || {}, "local"),
+        payload: serializeAsJSON(
+          elements,
+          getEmbeddedSceneAppState(appState, elements),
+          data.files || {},
+          "local",
+        ),
       });
     } catch (error: any) {
       console.error(error);
@@ -1323,7 +1328,7 @@ const exportToBlob = async (
               // we pass the original, uncloned elements when serializing
               // so that we keep ids stable (restoring keeps the ids)
               restoreElements(data.elements, null),
-              data.appState ?? {},
+              getEmbeddedSceneAppState(data.appState ?? {}, data.elements),
               data.files || {},
               "local",
             ),

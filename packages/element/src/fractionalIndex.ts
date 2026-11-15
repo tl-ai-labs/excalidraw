@@ -9,6 +9,8 @@ import { mutateElement, newElementWith } from "./mutateElement";
 import { getBoundTextElementId } from "./textElement";
 import { hasBoundTextElement } from "./typeChecks";
 
+import { getElementPageId, groupElementsByPage } from "./pages";
+
 import { isNonDeletedElement } from ".";
 
 import type {
@@ -39,7 +41,24 @@ export class InvalidFractionalIndexError extends Error {
  * - re-order based on fractional indices should be part of (multiplayer) operations such as reconciliation & undo/redo
  * - technically all the z-index actions could perform also re-order based on fractional indices,but in current state it would not bring much benefits,
  *   as it's faster & more efficient to perform re-order based on array manipulation and later synchronisation of moved indices with the array order
+ *
+ * 3) Every page (see `ExcalidrawElement.pageId`) has its own order, so indices are only compared within a page.
+ * - all the functions below accept elements of several pages and treat each page's elements as a separate ordered list
  */
+
+/** splits elements into per-page lists, or `null` if they're all on one page */
+const getPageGroups = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+): T[][] | null => {
+  if (elements.length < 2) {
+    return null;
+  }
+  const firstPageId = getElementPageId(elements[0]);
+  if (elements.every((element) => getElementPageId(element) === firstPageId)) {
+    return null;
+  }
+  return Array.from(groupElementsByPage(elements).values());
+};
 
 /**
  * Ensure that all elements have valid fractional indices.
@@ -47,6 +66,19 @@ export class InvalidFractionalIndexError extends Error {
  * @throws `InvalidFractionalIndexError` if invalid index is detected.
  */
 export const validateFractionalIndices = (
+  elements: readonly ExcalidrawElement[],
+  options: Parameters<typeof validatePageFractionalIndices>[1],
+) => {
+  const groups = getPageGroups(elements);
+  if (!groups) {
+    return validatePageFractionalIndices(elements, options);
+  }
+  for (const group of groups) {
+    validatePageFractionalIndices(group, options);
+  }
+};
+
+const validatePageFractionalIndices = (
   elements: readonly ExcalidrawElement[],
   {
     shouldThrow = false,
@@ -146,11 +178,29 @@ export const validateFractionalIndices = (
  * Order the elements based on the fractional indices.
  * - when fractional indices are identical, break the tie based on the element id
  * - when there is no fractional index in one of the elements, respect the order of the array
+ * - elements of different pages are grouped by page, in the order the pages first appear
  */
 export const orderByFractionalIndex = (
   elements: OrderedExcalidrawElement[],
 ) => {
+  const pageRanks = new Map<string, number>();
+  for (const element of elements) {
+    const pageId = getElementPageId(element);
+    if (!pageRanks.has(pageId)) {
+      pageRanks.set(pageId, pageRanks.size);
+    }
+  }
+
   return elements.sort((a, b) => {
+    if (pageRanks.size > 1) {
+      const rankDiff =
+        pageRanks.get(getElementPageId(a))! -
+        pageRanks.get(getElementPageId(b))!;
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+    }
+
     // in case the indices are not the defined at runtime
     if (isOrderedElement(a) && isOrderedElement(b)) {
       if (a.index < b.index) {
@@ -173,6 +223,20 @@ export const orderByFractionalIndex = (
  * If the synchronization fails or the result is invalid, it fallbacks to `syncInvalidIndices`.
  */
 export const syncMovedIndices = (
+  elements: readonly ExcalidrawElement[],
+  movedElements: ElementsMap,
+): OrderedExcalidrawElement[] => {
+  const groups = getPageGroups(elements);
+  if (groups) {
+    for (const group of groups) {
+      syncPageMovedIndices(group, movedElements);
+    }
+    return elements as OrderedExcalidrawElement[];
+  }
+  return syncPageMovedIndices(elements, movedElements);
+};
+
+const syncPageMovedIndices = (
   elements: readonly ExcalidrawElement[],
   movedElements: ElementsMap,
 ): OrderedExcalidrawElement[] => {
@@ -224,11 +288,14 @@ export const syncInvalidIndices = <T extends ExcalidrawElement>(
   elements: readonly T[],
 ): Ordered<T>[] => {
   const elementsMap = arrayToMap(elements);
-  const indicesGroups = getInvalidIndicesGroups(elements);
-  const elementsUpdates = generateIndices(elements, indicesGroups);
 
-  for (const [element, { index }] of elementsUpdates) {
-    mutateElement(element, elementsMap, { index });
+  for (const group of getPageGroups(elements) ?? [elements]) {
+    const indicesGroups = getInvalidIndicesGroups(group);
+    const elementsUpdates = generateIndices(group, indicesGroups);
+
+    for (const [element, { index }] of elementsUpdates) {
+      mutateElement(element, elementsMap, { index });
+    }
   }
 
   return elements as Ordered<T>[];
@@ -243,11 +310,14 @@ export const syncInvalidIndicesImmutable = (
   elements: readonly ExcalidrawElement[],
 ): SceneElementsMap | undefined => {
   const syncedElements = arrayToMap(elements);
-  const indicesGroups = getInvalidIndicesGroups(elements);
-  const elementsUpdates = generateIndices(elements, indicesGroups);
 
-  for (const [element, { index }] of elementsUpdates) {
-    syncedElements.set(element.id, newElementWith(element, { index }));
+  for (const group of getPageGroups(elements) ?? [elements]) {
+    const indicesGroups = getInvalidIndicesGroups(group);
+    const elementsUpdates = generateIndices(group, indicesGroups);
+
+    for (const [element, { index }] of elementsUpdates) {
+      syncedElements.set(element.id, newElementWith(element, { index }));
+    }
   }
 
   return syncedElements as SceneElementsMap;

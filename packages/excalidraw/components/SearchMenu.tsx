@@ -24,13 +24,18 @@ import {
   getFontString,
 } from "@excalidraw/common";
 
-import { newTextElement } from "@excalidraw/element";
+import {
+  getElementPageId,
+  getVisiblePages,
+  newTextElement,
+} from "@excalidraw/element";
 import { isTextElement, isFrameLikeElement } from "@excalidraw/element";
 
 import { getDefaultFrameName } from "@excalidraw/element/frame";
 
 import type { RenderEnvironment } from "@excalidraw/element";
 import type {
+  ExcalidrawElement,
   ExcalidrawFrameLikeElement,
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
@@ -62,6 +67,8 @@ const SEARCH_DEBOUNCE = 350;
 
 type SearchMatchItem = {
   element: ExcalidrawTextElement | ExcalidrawFrameLikeElement;
+  /** name of the page the match is on, when the drawing has several pages */
+  pageName: string | null;
   searchQuery: SearchQuery;
   index: number;
   preview: {
@@ -197,6 +204,14 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        const pageId = getElementPageId(match.element);
+        if (pageId !== app.state.activePageId) {
+          // the match is on another page: show it, and once the search
+          // refreshes for the page (scene changed), scroll to the match
+          app.pages.setActive(pageId);
+          return;
+        }
+
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -433,6 +448,7 @@ export const SearchMenu = () => {
 
 const ListItem = (props: {
   preview: SearchMatchItem["preview"];
+  pageName: SearchMatchItem["pageName"];
   searchQuery: SearchQuery;
   highlighted: boolean;
   onClick?: () => void;
@@ -468,6 +484,11 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName !== null && (
+        <div className="page-name" title={props.pageName}>
+          {props.pageName}
+        </div>
+      )}
     </div>
   );
 };
@@ -504,6 +525,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={searchMatch.pageName}
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
             />
@@ -524,6 +546,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={searchMatch.pageName}
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
             />
@@ -800,7 +823,18 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    // search all pages, in tab order (so that the order of the matches
+    // doesn't change when a match switches the page)
+    const pages = getVisiblePages(app.state.pages);
+    const pageRanks = new Map(pages.map((page, rank) => [page.id, rank]));
+    const getPageName = (element: ExcalidrawElement) =>
+      pages.length > 1
+        ? pages[pageRanks.get(getElementPageId(element))!].name
+        : null;
+
+    const elements = app.scene
+      .getAllPagesElementsIncludingDeleted()
+      .filter((el) => !el.isDeleted && pageRanks.has(getElementPageId(el)));
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -809,8 +843,12 @@ const handleSearch = debounce(
       isFrameLikeElement(el),
     ) as ExcalidrawFrameLikeElement[];
 
-    texts.sort((a, b) => a.y - b.y);
-    frames.sort((a, b) => a.y - b.y);
+    const byPageThenY = (a: ExcalidrawElement, b: ExcalidrawElement) =>
+      pageRanks.get(getElementPageId(a))! -
+        pageRanks.get(getElementPageId(b))! || a.y - b.y;
+
+    texts.sort(byPageThenY);
+    frames.sort(byPageThenY);
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -832,6 +870,7 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           textMatches.push({
             element: textEl,
+            pageName: getPageName(textEl),
             searchQuery,
             preview,
             index: match.index,
@@ -860,6 +899,7 @@ const handleSearch = debounce(
         if (matchedLines.length > 0) {
           frameMatches.push({
             element: frame,
+            pageName: getPageName(frame),
             searchQuery,
             preview,
             index: match.index,

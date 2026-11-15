@@ -391,7 +391,7 @@ export default function ExampleApp({
     await exportToClipboard({
       type,
       data: {
-        elements: excalidrawAPI.getSceneElements(),
+        elements: excalidrawAPI.pages.getPageElements(),
         appState: excalidrawAPI.getAppState(),
         files: excalidrawAPI.getFiles(),
       },
@@ -895,7 +895,7 @@ export default function ExampleApp({
               const svg = await exportScene({
                 type: "svg",
                 data: {
-                  elements: excalidrawAPI.getSceneElements(),
+                  elements: excalidrawAPI.pages.getPageElements(),
                   appState: initialData.appState,
                   files: excalidrawAPI.getFiles(),
                 },
@@ -917,7 +917,7 @@ export default function ExampleApp({
               const blob = await exportScene({
                 type: "png",
                 data: {
-                  elements: excalidrawAPI.getSceneElements(),
+                  elements: excalidrawAPI.pages.getPageElements(),
                   appState: initialData.appState,
                   files: excalidrawAPI.getFiles(),
                 },
@@ -939,7 +939,7 @@ export default function ExampleApp({
               const canvas = await exportScene({
                 type: "canvas",
                 data: {
-                  elements: excalidrawAPI.getSceneElements(),
+                  elements: excalidrawAPI.pages.getPageElements(),
                   appState: initialData.appState,
                   files: excalidrawAPI.getFiles(),
                 },
@@ -961,7 +961,7 @@ export default function ExampleApp({
               const canvas = await exportScene({
                 type: "canvas",
                 data: {
-                  elements: excalidrawAPI.getSceneElements(),
+                  elements: excalidrawAPI.pages.getPageElements(),
                   appState: initialData.appState,
                   files: excalidrawAPI.getFiles(),
                 },
@@ -982,7 +982,7 @@ export default function ExampleApp({
                 return;
               }
 
-              const elements = excalidrawAPI.getSceneElements();
+              const elements = excalidrawAPI.pages.getPageElements();
               excalidrawAPI.setViewport({
                 target: elements[0],
                 fit: "contain",
@@ -998,7 +998,7 @@ export default function ExampleApp({
                 return;
               }
 
-              const elements = excalidrawAPI.getSceneElements();
+              const elements = excalidrawAPI.pages.getPageElements();
               excalidrawAPI.setViewport({
                 target: elements[0],
                 fit: "scale-down",

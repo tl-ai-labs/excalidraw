@@ -84,6 +84,8 @@ import { getNormalizedDimensions } from "@excalidraw/element";
 
 import { isInvisiblySmallElement } from "@excalidraw/element";
 
+import { resolveActivePageId, restorePages } from "@excalidraw/element";
+
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
@@ -448,8 +450,10 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    /** kept as is (through the spread of the element), see `getElementPageId()` */
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -468,7 +472,7 @@ const restoreElementWithProperties = <
   > &
     Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
 ): T => {
-  const base: Pick<T, keyof ExcalidrawElement> = {
+  const base: Pick<T, Exclude<keyof ExcalidrawElement, "pageId">> = {
     type: extra.type || element.type,
     // all elements must have version > 0 so getSceneVersion() will pick up
     // newly added elements
@@ -1265,6 +1269,36 @@ const restoreFontTopPicks = (
   return fontFamilies.size ? [...fontFamilies] : null;
 };
 
+const restorePageViewports = (
+  pageViewports: unknown,
+  pages: AppState["pages"],
+): AppState["pageViewports"] => {
+  const restored: Record<string, AppState["pageViewports"][string]> = {};
+  if (!pageViewports || typeof pageViewports !== "object") {
+    return restored;
+  }
+  for (const page of pages) {
+    const viewport = (pageViewports as Record<string, any>)[page.id];
+    if (
+      !page.isDeleted &&
+      viewport &&
+      isFiniteNumber(viewport.scrollX) &&
+      isFiniteNumber(viewport.scrollY)
+    ) {
+      restored[page.id] = {
+        scrollX: viewport.scrollX,
+        scrollY: viewport.scrollY,
+        zoom: {
+          value: getNormalizedZoom(
+            isFiniteNumber(viewport.zoom?.value) ? viewport.zoom.value : 1,
+          ),
+        },
+      };
+    }
+  }
+  return restored;
+};
+
 export const restoreAppState = (
   appState: ImportedDataState["appState"],
   localAppState: Partial<AppState> | null | undefined,
@@ -1331,6 +1365,20 @@ export const restoreAppState = (
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
 
+  // pages are part of the document, so unlike user preferences they never
+  // fall back to the local (i.e. previously open document's) pages. Scenes
+  // without pages restore onto the default page, which is where elements
+  // without a `pageId` belong.
+  nextAppState.pages = restorePages(appState.pages);
+  nextAppState.activePageId = resolveActivePageId(
+    nextAppState.pages,
+    appState.activePageId,
+  );
+  nextAppState.pageViewports = restorePageViewports(
+    appState.pageViewports,
+    nextAppState.pages,
+  );
+
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {
     nextAppState.currentItemStrokeWidthKey =
@@ -1388,7 +1436,14 @@ export const restoreAppState = (
 const restoreLibraryItem = (libraryItem: LibraryItem): LibraryItem | null => {
   const elements = getNonDeletedElements(
     restoreElements(libraryItem.elements, null),
-  );
+  ).map((element) => {
+    // library items aren't tied to a page of the document they came from
+    if (element.pageId) {
+      const { pageId, ...rest } = element;
+      return rest as typeof element;
+    }
+    return element;
+  });
   return elements.length ? { ...libraryItem, elements } : null;
 };
 
