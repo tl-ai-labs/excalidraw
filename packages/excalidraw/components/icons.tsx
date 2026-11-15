@@ -1384,6 +1384,24 @@ export const ArrowheadNoneIcon = React.memo(
     ),
 );
 
+const createArrowheadSizeIcon = (headPath: string) =>
+  createIcon(
+    <g strokeWidth="1.25">
+      <path d={`M4 10h12 ${headPath}`} />
+    </g>,
+    { ...modifiedTablerIconProps, mirror: true },
+  );
+
+export const ArrowheadSizeSmallIcon = createArrowheadSizeIcon(
+  "M13.5 8.5l2.5 1.5l-2.5 1.5",
+);
+
+export const ArrowheadSizeMediumIcon = createArrowheadSizeIcon(
+  "M12 7.5l4 2.5l-4 2.5",
+);
+
+export const ArrowheadSizeLargeIcon = createArrowheadSizeIcon("M10 6l6 4l-6 4");
+
 export const ArrowheadArrowIcon = React.memo(
   ({ flip = false }: { flip?: boolean }) =>
     createIcon(

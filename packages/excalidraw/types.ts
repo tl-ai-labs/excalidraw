@@ -463,6 +463,8 @@ export interface AppState {
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;
   currentItemEndArrowhead: Arrowhead | null;
+  /** see `ExcalidrawLinearElement["arrowheadSize"]` */
+  currentItemArrowheadSize: number;
   currentHoveredFontFamily: FontFamilyValues | null;
   currentItemRoundness: StrokeRoundness;
   currentItemArrowType: "sharp" | "round" | "elbow";

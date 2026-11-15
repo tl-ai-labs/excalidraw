@@ -2,7 +2,10 @@ import rough from "roughjs/bin/rough";
 import {
   arrayToMap,
   type Bounds,
+  DEFAULT_ARROWHEAD_SIZE,
   invariant,
+  MAX_ARROWHEAD_SIZE,
+  MIN_ARROWHEAD_SIZE,
   rescalePoints,
   sizeOf,
 } from "@excalidraw/common";
@@ -723,8 +726,34 @@ export const CARDINALITY_INNER_BAR_OFFSET = -0.5;
 export const CARDINALITY_ZERO_CIRCLE_OFFSET = 1.5;
 export const CARDINALITY_ZERO_CIRCLE_SCALE = 0.8;
 
-/** @returns number in pixels */
-export const getArrowheadSize = (arrowhead: Arrowhead): number => {
+/**
+ * @returns a valid `arrowheadSize` for the given value, or `undefined` (the
+ * default size) if it isn't a number
+ */
+export const normalizeArrowheadSize = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value)
+    ? clamp(value, MIN_ARROWHEAD_SIZE, MAX_ARROWHEAD_SIZE)
+    : undefined;
+
+/**
+ * @returns the multiple of each arrowhead type's default size the element's
+ * arrowheads are drawn at
+ */
+export const getArrowheadSizeMultiplier = (
+  element: Pick<ExcalidrawLinearElement, "arrowheadSize">,
+): number => element.arrowheadSize ?? DEFAULT_ARROWHEAD_SIZE;
+
+/**
+ * @param sizeMultiplier the element's `arrowheadSize`
+ *   (see `getArrowheadSizeMultiplier()`)
+ * @returns number in pixels, before fitting it on short segments
+ */
+export const getArrowheadSize = (
+  arrowhead: Arrowhead,
+  sizeMultiplier: number = DEFAULT_ARROWHEAD_SIZE,
+): number => getDefaultArrowheadSize(arrowhead) * sizeMultiplier;
+
+const getDefaultArrowheadSize = (arrowhead: Arrowhead): number => {
   switch (arrowhead) {
     case "arrow":
       return 25;
@@ -754,13 +783,15 @@ const ARROW_ARROWHEAD_WIDEST_SIZE = 10;
 export const getArrowheadAngle = (
   arrowhead: Arrowhead,
   /** size the arrowhead is drawn at, if scaled down */
-  size = getArrowheadSize(arrowhead),
+  size = getDefaultArrowheadSize(arrowhead),
 ): Degrees => {
   switch (arrowhead) {
     case "bar":
       return 90 as Degrees;
     case "arrow": {
-      const fullSize = getArrowheadSize(arrowhead);
+      // the angle follows the size drawn at, whether the arrowhead was scaled
+      // down to fit a short segment or set smaller on the element
+      const fullSize = getDefaultArrowheadSize(arrowhead);
       const shrinkage = clamp(
         (fullSize - size) / (fullSize - ARROW_ARROWHEAD_WIDEST_SIZE),
         0,
@@ -862,13 +893,14 @@ const getCardinalityMarkerScale = (
   marker: CardinalityArrowhead,
   { length, turn }: ArrowheadCorner,
   strokeWidth: number,
+  sizeMultiplier: number,
 ) => {
   // scales at which each part reaches back from the tip at most to the corner
   const bar = (offset: number) => {
     const angle = degreesToRadians(getArrowheadAngle("cardinality_one"));
     return (
       length /
-      (getArrowheadSize("cardinality_one") *
+      (getArrowheadSize("cardinality_one", sizeMultiplier) *
         (offset +
           Math.cos(angle) +
           // the bar's ends stay closer to the arrow than to the previous
@@ -876,13 +908,14 @@ const getCardinalityMarkerScale = (
           Math.sin(angle) * Math.tan(turn / 2)))
     );
   };
-  const crowsFoot = () => length / getArrowheadSize("cardinality_many");
+  const crowsFoot = () =>
+    length / getArrowheadSize("cardinality_many", sizeMultiplier);
   // see generateArrowheadOutlineCircle() for the diameter
   const circle = () =>
     (length -
       ((strokeWidth - 2) * CARDINALITY_ZERO_CIRCLE_SCALE) / 2 -
       strokeWidth) /
-    (getArrowheadSize("circle_outline") *
+    (getArrowheadSize("circle_outline", sizeMultiplier) *
       (CARDINALITY_ZERO_CIRCLE_OFFSET + CARDINALITY_ZERO_CIRCLE_SCALE / 2));
 
   switch (marker) {
@@ -927,14 +960,20 @@ const getArrowheadSizeBeyondLastSegment = (
   const isCurved = !!element.roundness && !isElbowArrow(element);
   const marker =
     position === "start" ? element.startArrowhead : element.endArrowhead;
+  const sizeMultiplier = getArrowheadSizeMultiplier(element);
 
   // all parts of cardinality markers scale together, and the marker has to
   // stay on the last segment to be read along it
   if (marker && isCardinalityArrowhead(marker)) {
     return isCurved
       ? 0
-      : getArrowheadSize(arrowhead) *
-          getCardinalityMarkerScale(marker, corner, element.strokeWidth);
+      : getArrowheadSize(arrowhead, sizeMultiplier) *
+          getCardinalityMarkerScale(
+            marker,
+            corner,
+            element.strokeWidth,
+            sizeMultiplier,
+          );
   }
 
   // circles have no direction, the previous segment can run into them
@@ -966,7 +1005,7 @@ const getArrowheadSizeBeyondLastSegment = (
     case "arrow": {
       // only grow as much as legibility needs, a full-size arrowhead past
       // a sharp turn looks like an outline triangle
-      const legibleSize = getArrowheadSize(arrowhead) / 2;
+      const legibleSize = getArrowheadSize(arrowhead, sizeMultiplier) / 2;
       // keep the open sides' strokes off the previous segment's. Smaller
       // arrowheads are wider, so check the angles at both ends of the range.
       return Math.min(
@@ -1055,7 +1094,7 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const size = getArrowheadSize(arrowhead, getArrowheadSizeMultiplier(element));
 
   let length = 0;
 
@@ -1186,6 +1225,47 @@ const generateLinearElementShape = (
   );
 };
 
+/**
+ * Extends the bounds of an arrow by its arrowheads if they're set larger
+ * than the default size.
+ *
+ * Arrowheads at the default size (or smaller) don't count towards an arrow's
+ * bounds, they fit in the padding around it (e.g. on export). Larger ones can
+ * outgrow it, so they're included.
+ */
+const getBoundsWithEnlargedArrowheads = (
+  element: ExcalidrawLinearElement,
+  transformXY: (p: GlobalPoint) => GlobalPoint,
+  bounds: Bounds,
+): Bounds => {
+  if (
+    !isArrowElement(element) ||
+    (!element.startArrowhead && !element.endArrowhead) ||
+    getArrowheadSizeMultiplier(element) <= DEFAULT_ARROWHEAD_SIZE
+  ) {
+    return bounds;
+  }
+
+  // the first shape is the arrow's path, the rest its arrowheads
+  const [, ...arrowheadShapes] = ShapeCache.generateElementShape(element, null);
+  let [minX, minY, maxX, maxY] = bounds;
+  for (const shape of arrowheadShapes) {
+    for (const set of shape.sets) {
+      for (const { data } of set.ops) {
+        // the points of the ops (curves within their control points)
+        for (let i = 0; i + 1 < data.length; i += 2) {
+          const [x, y] = transformXY(pointFrom(data[i], data[i + 1]));
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+  }
+  return [minX, minY, maxX, maxY];
+};
+
 const getLinearElementRotatedBounds = (
   element: ExcalidrawLinearElement,
   cx: number,
@@ -1231,7 +1311,12 @@ const getLinearElementRotatedBounds = (
       element.angle,
     );
   const res = getMinMaxXYFromCurvePathOps(ops, transformXY);
-  let coords: Bounds = [res[0], res[1], res[2], res[3]];
+  let coords: Bounds = getBoundsWithEnlargedArrowheads(element, transformXY, [
+    res[0],
+    res[1],
+    res[2],
+    res[3],
+  ]);
   if (boundTextElement) {
     const coordsWithBoundText = LinearElementEditor.getMinMaxXYWithBoundText(
       element,
