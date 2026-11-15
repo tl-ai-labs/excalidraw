@@ -32,7 +32,10 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
 import { act, render } from "./test-utils";
+
+import type { BoxSelectionMode } from "../types";
 
 const { h } = window;
 
@@ -43,7 +46,11 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode: BoxSelectionMode = h.state.boxSelectionMode,
+) => {
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +81,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode,
     });
 
     act(() =>
@@ -365,6 +373,8 @@ describe("Basic lasso selection tests", () => {
     act(() => {
       h.elements = elements;
       h.app.setActiveTool({ type: "lasso" });
+      // these fixtures exercise partial (touching) selection
+      h.app.setState({ boxSelectionMode: "overlap" });
     });
   });
 
@@ -918,6 +928,12 @@ describe("Basic lasso selection tests", () => {
 });
 
 describe("Special cases", () => {
+  beforeEach(() => {
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+  });
+
   it("Select only frame if its children are also selected", () => {
     act(() => {
       const elements = [
@@ -1800,5 +1816,258 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso selection modes (appState.boxSelectionMode)", () => {
+  /** closed polygonal lasso through the given scene points */
+  const lassoThrough = (
+    scenePoints: [number, number][],
+    mode: BoxSelectionMode,
+  ) => {
+    const [start, ...rest] = scenePoints;
+    const startPoint = pointFrom<GlobalPoint>(start[0], start[1]);
+    updatePath(
+      startPoint,
+      [start, ...rest, start].map(([x, y]) =>
+        pointFrom<LocalPoint>(x - start[0], y - start[1]),
+      ),
+      mode,
+    );
+  };
+
+  /** axis-aligned rectangular lasso */
+  const lassoRect = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    mode: BoxSelectionMode,
+  ) =>
+    lassoThrough(
+      [
+        [x1, y1],
+        [x2, y1],
+        [x2, y2],
+        [x1, y2],
+      ],
+      mode,
+    );
+
+  const selectedIds = () =>
+    getSelectedElements(h.elements, h.state).map((el) => el.id);
+
+  const setElements = (elements: ExcalidrawElement[]) => {
+    act(() => {
+      API.setElements(elements);
+      h.app.setActiveTool({ type: "lasso" });
+    });
+  };
+
+  describe("rectangle", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      roundness: null,
+    });
+
+    beforeEach(() => setElements([rect]));
+
+    it("does not select a rectangle whose corner is clipped in Wrap mode", () => {
+      lassoRect(-20, -20, 30, 30, "contain");
+      expect(selectedIds()).toEqual([]);
+    });
+
+    it("selects a rectangle whose corner is clipped in Overlap mode", () => {
+      lassoRect(-20, -20, 30, 30, "overlap");
+      expect(selectedIds()).toEqual([rect.id]);
+    });
+
+    it("selects a fully enclosed rectangle in both modes", () => {
+      lassoRect(-20, -20, 120, 120, "contain");
+      expect(selectedIds()).toEqual([rect.id]);
+      lassoRect(-20, -20, 120, 120, "overlap");
+      expect(selectedIds()).toEqual([rect.id]);
+    });
+
+    it("does not select in Wrap mode when a concave lasso cuts into the rectangle", () => {
+      // all rectangle corners are inside the lasso, but the notch crosses
+      // the top edge
+      const uShape: [number, number][] = [
+        [-20, -20],
+        [40, -20],
+        [40, 50],
+        [60, 50],
+        [60, -20],
+        [120, -20],
+        [120, 120],
+        [-20, 120],
+      ];
+      lassoThrough(uShape, "contain");
+      expect(selectedIds()).toEqual([]);
+      lassoThrough(uShape, "overlap");
+      expect(selectedIds()).toEqual([rect.id]);
+    });
+  });
+
+  describe("ellipse", () => {
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+
+    beforeEach(() => setElements([ellipse]));
+
+    it("selects an ellipse enclosed by its shape (not its bounds) in Wrap mode", () => {
+      // diamond lasso encloses the ellipse but not its bounding-box corners
+      lassoThrough(
+        [
+          [50, -30],
+          [130, 50],
+          [50, 130],
+          [-30, 50],
+        ],
+        "contain",
+      );
+      expect(selectedIds()).toEqual([ellipse.id]);
+    });
+
+    it("selects a partially touched ellipse only in Overlap mode", () => {
+      lassoRect(80, 30, 150, 70, "contain");
+      expect(selectedIds()).toEqual([]);
+      lassoRect(80, 30, 150, 70, "overlap");
+      expect(selectedIds()).toEqual([ellipse.id]);
+    });
+  });
+
+  describe("rotated rectangle", () => {
+    // 100x20 rectangle centered at (50, 10), rotated 45deg
+    const rotated = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 20,
+      angle: (Math.PI / 4) as Radians,
+      roundness: null,
+    });
+    const cx = 50;
+    const cy = 10;
+
+    beforeEach(() => setElements([rotated]));
+
+    it("selects a rotated rectangle tightly enclosed along its diagonal in Wrap mode", () => {
+      lassoThrough(
+        [
+          [cx - 50, cy - 35],
+          [cx - 35, cy - 50],
+          [cx + 50, cy + 35],
+          [cx + 35, cy + 50],
+        ],
+        "contain",
+      );
+      expect(selectedIds()).toEqual([rotated.id]);
+    });
+
+    it("selects a rotated rectangle with one end touched only in Overlap mode", () => {
+      lassoRect(cx + 20, cy + 20, cx + 60, cy + 60, "contain");
+      expect(selectedIds()).toEqual([]);
+      lassoRect(cx + 20, cy + 20, cx + 60, cy + 60, "overlap");
+      expect(selectedIds()).toEqual([rotated.id]);
+    });
+  });
+
+  describe("linear elements", () => {
+    const line = API.createElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 100)],
+    });
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 300,
+      y: 0,
+      width: 100,
+      height: 100,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(25, 40),
+        pointFrom<LocalPoint>(50, 50),
+        pointFrom<LocalPoint>(75, 60),
+        pointFrom<LocalPoint>(100, 100),
+      ],
+    });
+
+    beforeEach(() => setElements([line, freedraw]));
+
+    it("selects a half-covered line only in Overlap mode", () => {
+      lassoRect(-20, -20, 50, 50, "contain");
+      expect(selectedIds()).toEqual([]);
+      lassoRect(-20, -20, 50, 50, "overlap");
+      expect(selectedIds()).toEqual([line.id]);
+    });
+
+    it("selects a fully enclosed line in Wrap mode", () => {
+      lassoRect(-20, -20, 120, 120, "contain");
+      expect(selectedIds()).toEqual([line.id]);
+    });
+
+    it("selects a half-covered freedraw only in Overlap mode", () => {
+      lassoRect(280, -20, 350, 55, "contain");
+      expect(selectedIds()).toEqual([]);
+      lassoRect(280, -20, 350, 55, "overlap");
+      expect(selectedIds()).toEqual([freedraw.id]);
+    });
+
+    it("selects a fully enclosed freedraw in Wrap mode", () => {
+      lassoRect(280, -20, 420, 120, "contain");
+      expect(selectedIds()).toEqual([freedraw.id]);
+    });
+  });
+
+  describe("text container", () => {
+    const container = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 100,
+      roundness: null,
+    });
+    const text = API.createElement({
+      type: "text",
+      text: "label",
+      x: 75,
+      y: 40,
+      width: 50,
+      height: 20,
+      containerId: container.id,
+    });
+
+    beforeEach(() =>
+      setElements([
+        { ...container, boundElements: [{ type: "text", id: text.id }] },
+        text,
+      ]),
+    );
+
+    it("does not select the container in Wrap mode when only its label is enclosed", () => {
+      lassoRect(60, 30, 140, 70, "contain");
+      expect(selectedIds()).toEqual([]);
+    });
+
+    it("selects the container in Wrap mode when it is fully enclosed", () => {
+      lassoRect(-20, -20, 220, 120, "contain");
+      expect(selectedIds()).toEqual([container.id]);
+    });
   });
 });
