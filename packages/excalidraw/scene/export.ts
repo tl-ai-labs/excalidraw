@@ -568,7 +568,7 @@ const configExportDimension = async ({
   // deleted ones. The type contract requires non-deleted elements already,
   // but types alone don't protect JS consumers passing raw scene data.
   // These are also what SVG export embeds (`embedScene`).
-  const elements = getNonDeletedElements(
+  const allRestoredElements = getNonDeletedElements(
     restoreElements(data.elements, null, { deleteInvisibleElements: true }),
   );
 
@@ -582,6 +582,16 @@ const configExportDimension = async ({
     cleanAppStateForExport(data.appState ?? {}),
     null,
   );
+
+  const activePageId = data.appState?.activePageId;
+  const defaultPageId = data.appState?.pages?.[0]?.id ?? "page-1";
+  const elements = activePageId
+    ? allRestoredElements.filter(
+        (el) =>
+          el.pageId === activePageId ||
+          (!el.pageId && activePageId === defaultPageId),
+      )
+    : allRestoredElements;
 
   const theme = cfg.theme ?? THEME.LIGHT;
 
@@ -1394,8 +1404,19 @@ export const exportToClipboard = async (
   } else if (opts.type === "png") {
     await copyBlobToClipboardAsPng(exportScene(opts));
   } else if (opts.type === "json") {
+    const restored = getNonDeletedElements(
+      restoreElements(opts.data.elements, null),
+    );
+    const activePageId = opts.data.appState?.activePageId;
+    const defaultPageId = opts.data.appState?.pages?.[0]?.id ?? "page-1";
     await copyToClipboard(
-      getNonDeletedElements(restoreElements(opts.data.elements, null)),
+      activePageId
+        ? restored.filter(
+            (el) =>
+              el.pageId === activePageId ||
+              (!el.pageId && activePageId === defaultPageId),
+          )
+        : restored,
       opts.data.files ?? null,
     );
   } else {

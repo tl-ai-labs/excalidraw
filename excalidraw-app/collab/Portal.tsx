@@ -51,6 +51,7 @@ class Portal {
         WS_SUBTYPES.INIT,
         this.collab.getSceneElementsIncludingDeleted(),
         /* syncAll */ true,
+        this.collab.excalidrawAPI.getAppState().pages,
       );
     });
     this.socket.on("room-user-change", (clients: SocketId[]) => {
@@ -143,6 +144,7 @@ class Portal {
     updateType: WS_SUBTYPES.INIT | WS_SUBTYPES.UPDATE,
     elements: readonly OrderedExcalidrawElement[],
     syncAll: boolean,
+    pages?: readonly { id: string; name: string }[],
   ) => {
     if (updateType === WS_SUBTYPES.INIT && !syncAll) {
       throw new Error("syncAll must be true when sending SCENE.INIT");
@@ -167,6 +169,9 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        ...(pages
+          ? { pages: pages.map((p) => ({ id: p.id, name: p.name })) }
+          : {}),
       },
     };
 

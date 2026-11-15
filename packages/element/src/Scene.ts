@@ -8,7 +8,6 @@ import {
   isTestEnv,
   toArray,
 } from "@excalidraw/common";
-import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
 import { getElementsInGroup } from "@excalidraw/element";
 
@@ -49,11 +48,18 @@ type SelectionHash = string & { __brand: "selectionHash" };
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
   allElements: readonly T[],
+  activePageId: string | null = null,
+  defaultPageId: string | null = null,
 ) => {
   const elementsMap = new Map() as NonDeletedSceneElementsMap;
   const elements: NonDeleted<T>[] = [];
   for (const element of allElements) {
-    if (!element.isDeleted) {
+    if (
+      !element.isDeleted &&
+      (!activePageId ||
+        element.pageId === activePageId ||
+        (!element.pageId && activePageId === defaultPageId))
+    ) {
       elements.push(element as NonDeleted<T>);
       elementsMap.set(
         element.id,
@@ -112,6 +118,8 @@ export class Scene {
 
   private callbacks: Set<SceneStateCallback> = new Set();
 
+  private activePageId: string | null = null;
+  private defaultPageId: string | null = null;
   private nonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
     [];
   private nonDeletedElementsMap = toBrandedType<NonDeletedSceneElementsMap>(
@@ -158,6 +166,48 @@ export class Scene {
 
   getNonDeletedElements() {
     return this.nonDeletedElements;
+  }
+
+  getAllNonDeletedElements() {
+    return getNonDeletedElements(this.elements, null).elements;
+  }
+
+  getElementsForPage(pageId: string) {
+    return getNonDeletedElements(this.elements, pageId, this.defaultPageId)
+      .elements;
+  }
+
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  setDefaultPageId(pageId: string | null) {
+    this.defaultPageId = pageId;
+  }
+
+  setActivePageId(pageId: string | null) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    const nonDeletedElements = getNonDeletedElements(
+      this.elements,
+      this.activePageId,
+      this.defaultPageId,
+    );
+    this.nonDeletedElements = nonDeletedElements.elements;
+    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames,
+      this.activePageId,
+      this.defaultPageId,
+    ).elements;
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
+    if (this.elements.length > 0 || this.callbacks.size > 0) {
+      this.triggerUpdate();
+    }
   }
 
   getFramesIncludingDeleted() {
@@ -232,11 +282,7 @@ export class Scene {
   getNonDeletedElement(
     id: ExcalidrawElement["id"],
   ): NonDeleted<ExcalidrawElement> | null {
-    const element = this.getElement(id);
-    if (element && isNonDeletedElement(element)) {
-      return element;
-    }
-    return null;
+    return this.nonDeletedElementsMap.get(id) || null;
   }
 
   /**
@@ -290,12 +336,20 @@ export class Scene {
       }
       this.elementsMap.set(element.id, element);
     });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
+    const nonDeletedElements = getNonDeletedElements(
+      this.elements,
+      this.activePageId,
+      this.defaultPageId,
+    );
     this.nonDeletedElements = nonDeletedElements.elements;
     this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
 
     this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames,
+      this.activePageId,
+      this.defaultPageId,
+    ).elements;
 
     this.triggerUpdate();
   }
@@ -358,13 +412,20 @@ export class Scene {
       );
     }
 
+    const elementsToInsert =
+      this.activePageId && this.activePageId !== this.defaultPageId
+        ? elements.map((el) =>
+            el.pageId ? el : { ...el, pageId: this.activePageId! },
+          )
+        : elements;
+
     const nextElements = [
       ...this.elements.slice(0, index),
-      ...elements,
+      ...elementsToInsert,
       ...this.elements.slice(index),
     ];
 
-    syncMovedIndices(nextElements, arrayToMap(elements));
+    syncMovedIndices(nextElements, arrayToMap(elementsToInsert));
 
     this.replaceAllElements(nextElements);
   }
