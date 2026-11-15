@@ -184,17 +184,89 @@ describe("lasso reselection", () => {
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
       mouse.downAt(110, 50);
-      mouse.moveTo(50, -20);
+      mouse.moveTo(110, -20);
 
       expect(h.app.lassoTrail.hasCurrentTrail).toBe(true);
 
-      mouse.moveTo(-20, 50);
-      mouse.moveTo(50, 120);
+      mouse.moveTo(-20, -20);
+      mouse.moveTo(-20, 120);
+      mouse.moveTo(110, 120);
       mouse.moveTo(110, 50);
       mouse.up();
     });
 
     assertSelectedElements([rectA.id]);
+  });
+});
+
+describe("lasso selection wrap vs overlap mode", () => {
+  const drawCornerClippingLasso = () => {
+    // Clips only the top-left corner of a rectangle at (0, 0, 100, 100)
+    mouse.downAt(-20, -20);
+    mouse.moveTo(30, -20);
+    mouse.moveTo(30, 30);
+    mouse.moveTo(-20, 30);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+  };
+
+  const drawEnclosingLasso = () => {
+    // Fully encloses a rectangle at (0, 0, 100, 100)
+    mouse.downAt(-20, -20);
+    mouse.moveTo(120, -20);
+    mouse.moveTo(120, 120);
+    mouse.moveTo(-20, 120);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+  };
+
+  it("in wrap (contain) mode, partially touched element is not selected while fully enclosed element is selected", async () => {
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "contain" } }}
+      />,
+    );
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    drawCornerClippingLasso();
+    assertSelectedElements([]);
+
+    drawEnclosingLasso();
+    assertSelectedElements([rect.id]);
+  });
+
+  it("in overlap mode, partially touched element is selected", async () => {
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "overlap" } }}
+      />,
+    );
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    drawCornerClippingLasso();
+    assertSelectedElements([rect.id]);
   });
 });
 

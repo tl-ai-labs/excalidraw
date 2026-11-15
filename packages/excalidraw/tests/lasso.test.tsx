@@ -32,7 +32,10 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
 import { act, render } from "./test-utils";
+
+import type { BoxSelectionMode } from "../types";
 
 const { h } = window;
 
@@ -43,7 +46,11 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode?: BoxSelectionMode,
+) => {
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +81,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode: boxSelectionMode ?? h.state.boxSelectionMode,
     });
 
     act(() =>
@@ -86,6 +94,9 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
 
 describe("Basic lasso selection tests", () => {
   beforeEach(() => {
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
     const elements: ExcalidrawElement[] = [
       {
         id: "FLZN67ISZbMV-RH8SzS9W",
@@ -918,6 +929,12 @@ describe("Basic lasso selection tests", () => {
 });
 
 describe("Special cases", () => {
+  beforeEach(() => {
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+  });
+
   it("Select only frame if its children are also selected", () => {
     act(() => {
       const elements = [
@@ -1800,5 +1817,304 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso selection mode: Wrap (contain) vs Overlap", () => {
+  const createPolygonPoints = (
+    vertices: Array<[number, number]>,
+  ): { startPoint: GlobalPoint; points: LocalPoint[] } => {
+    const [sx, sy] = vertices[0];
+    return {
+      startPoint: pointFrom<GlobalPoint>(sx, sy),
+      points: vertices.map(
+        ([x, y]) => [x - sx, y - sy] as unknown as LocalPoint,
+      ),
+    };
+  };
+
+  it("rectangle: corner-clipped lasso selects only in overlap mode, full wrap selects in both", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    act(() => {
+      h.elements = [rect];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const cornerClip = createPolygonPoints([
+      [-20, -20],
+      [30, -20],
+      [30, 30],
+      [-20, 30],
+    ]);
+
+    updatePath(cornerClip.startPoint, cornerClip.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(cornerClip.startPoint, cornerClip.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+
+    const fullWrap = createPolygonPoints([
+      [-20, -20],
+      [120, -20],
+      [120, 120],
+      [-20, 120],
+    ]);
+
+    updatePath(fullWrap.startPoint, fullWrap.points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("rotated rectangle: partially touched selects only in overlap mode, full wrap selects in both", () => {
+    const rotatedRect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 60,
+      angle: (Math.PI / 4) as Radians,
+    });
+    act(() => {
+      h.elements = [rotatedRect];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const partialLasso = createPolygonPoints([
+      [-30, -30],
+      [60, -30],
+      [60, 40],
+      [-30, 40],
+    ]);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rotatedRect.id,
+    ]);
+
+    const fullWrap = createPolygonPoints([
+      [-40, -50],
+      [140, -50],
+      [140, 110],
+      [-40, 110],
+    ]);
+
+    updatePath(fullWrap.startPoint, fullWrap.points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rotatedRect.id,
+    ]);
+  });
+
+  it("ellipse (rotated): partially touched selects only in overlap mode, full wrap selects in both", () => {
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 60,
+      angle: (Math.PI / 6) as Radians,
+    });
+    act(() => {
+      h.elements = [ellipse];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const partialLasso = createPolygonPoints([
+      [-20, -20],
+      [60, -20],
+      [60, 80],
+      [-20, 80],
+    ]);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      ellipse.id,
+    ]);
+
+    const fullWrap = createPolygonPoints([
+      [-40, -50],
+      [160, -50],
+      [160, 110],
+      [-40, 110],
+    ]);
+
+    updatePath(fullWrap.startPoint, fullWrap.points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      ellipse.id,
+    ]);
+  });
+
+  it("line: intersecting lasso selects only in overlap mode, full wrap selects in both", () => {
+    const line = API.createElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 0,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)],
+    });
+    act(() => {
+      h.elements = [line];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const crossingLasso = createPolygonPoints([
+      [25, -30],
+      [75, -30],
+      [75, 30],
+      [25, 30],
+    ]);
+
+    updatePath(crossingLasso.startPoint, crossingLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(crossingLasso.startPoint, crossingLasso.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      line.id,
+    ]);
+
+    const fullWrap = createPolygonPoints([
+      [-20, -30],
+      [120, -30],
+      [120, 30],
+      [-20, 30],
+    ]);
+
+    updatePath(fullWrap.startPoint, fullWrap.points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      line.id,
+    ]);
+  });
+
+  it("freedraw stroke: partially touched selects only in overlap mode, full wrap selects in both", () => {
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 40,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(30, 40),
+        pointFrom<LocalPoint>(70, 10),
+        pointFrom<LocalPoint>(100, 30),
+      ],
+    });
+    act(() => {
+      h.elements = [freedraw];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const partialLasso = createPolygonPoints([
+      [-15, -15],
+      [50, -15],
+      [50, 60],
+      [-15, 60],
+    ]);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(partialLasso.startPoint, partialLasso.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      freedraw.id,
+    ]);
+
+    const fullWrap = createPolygonPoints([
+      [-20, -20],
+      [120, -20],
+      [120, 60],
+      [-20, 60],
+    ]);
+
+    updatePath(fullWrap.startPoint, fullWrap.points, "contain");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      freedraw.id,
+    ]);
+  });
+
+  it("concave U-shaped lasso: rejects rectangle when edge exits lasso even if all 4 corners are inside", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+    });
+    act(() => {
+      h.elements = [rect];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    // U-shaped polygon: all 4 corners of rect (0,0), (100,0), (100,50), (0,50)
+    // are inside the two upper arms, while the middle of the top edge (50, 0)
+    // is in the U's notch (outside the lasso).
+    const uShapedLasso = createPolygonPoints([
+      [-20, -20],
+      [30, -20],
+      [30, 20],
+      [70, 20],
+      [70, -20],
+      [120, -20],
+      [120, 70],
+      [-20, 70],
+    ]);
+
+    updatePath(uShapedLasso.startPoint, uShapedLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
+
+    updatePath(uShapedLasso.startPoint, uShapedLasso.points, "overlap");
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      rect.id,
+    ]);
+  });
+
+  it("bound text inside a large rectangle: wrapping only the bound text does not select the rectangle in contain mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      boundElements: [{ id: "bound-text-1", type: "text" }],
+    });
+    const text = API.createElement({
+      type: "text",
+      id: "bound-text-1",
+      x: 80,
+      y: 90,
+      width: 40,
+      height: 20,
+      text: "hi",
+      containerId: rect.id,
+    });
+    act(() => {
+      h.elements = [rect, text];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const innerLasso = createPolygonPoints([
+      [60, 70],
+      [140, 70],
+      [140, 130],
+      [60, 130],
+    ]);
+
+    updatePath(innerLasso.startPoint, innerLasso.points, "contain");
+    expect(getSelectedElements(h.elements, h.state)).toHaveLength(0);
   });
 });
