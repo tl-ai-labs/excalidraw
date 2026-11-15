@@ -12,6 +12,8 @@ import type { Degrees } from "@excalidraw/math";
 // Browser-only cache to avoid memory leaks on server
 const DARK_MODE_COLORS_CACHE: Map<string, string> | null =
   typeof window !== "undefined" ? new Map() : null;
+const REVERT_DARK_MODE_COLORS_CACHE: Map<string, string> | null =
+  typeof window !== "undefined" ? new Map() : null;
 
 function cssHueRotate(
   red: number,
@@ -80,6 +82,30 @@ const cssInvert = (
   return { r: invertedR, g: invertedG, b: invertedB };
 };
 
+const cssUninvert = (
+  r: number,
+  g: number,
+  b: number,
+  percent: number,
+): { r: number; g: number; b: number } => {
+  const p = clamp(percent, 0, 100) / 100;
+  const denom = 1 - 2 * p;
+
+  const uninvertComponent = (color: number): number => {
+    if (denom === 0) {
+      return color;
+    }
+    const uninverted = (color - 255 * p) / denom;
+    return Math.round(clamp(uninverted, 0, 255));
+  };
+
+  return {
+    r: uninvertComponent(r),
+    g: uninvertComponent(g),
+    b: uninvertComponent(b),
+  };
+};
+
 export const applyDarkModeFilter = (color: string, enable = true): string => {
   if (!enable) {
     return color;
@@ -108,6 +134,34 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
 
   if (DARK_MODE_COLORS_CACHE) {
     DARK_MODE_COLORS_CACHE.set(color, result);
+  }
+
+  return result;
+};
+
+export const revertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const cached = REVERT_DARK_MODE_COLORS_CACHE?.get(color);
+  if (cached) {
+    return cached;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+
+  // inverse order of applyDarkModeFilter:
+  // first undo hue-rotate(180deg), then undo invert(93%)
+  const rgb = tc.toRgb();
+  const unrotated = cssHueRotate(rgb.r, rgb.g, rgb.b, -180 as Degrees);
+  const uninverted = cssUninvert(unrotated.r, unrotated.g, unrotated.b, 93);
+
+  const result = rgbToHex(uninverted.r, uninverted.g, uninverted.b, alpha);
+
+  if (REVERT_DARK_MODE_COLORS_CACHE) {
+    REVERT_DARK_MODE_COLORS_CACHE.set(color, result);
   }
 
   return result;
