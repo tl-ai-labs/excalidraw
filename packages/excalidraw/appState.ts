@@ -173,6 +173,7 @@ const APP_STATE_STORAGE_CONF = (<
   collaborators: { browser: false, export: false, server: false },
   currentItemBackgroundColor: { browser: true, export: false, server: false },
   currentItemEndArrowhead: { browser: true, export: false, server: false },
+  currentItemArrowheadSize: { browser: true, export: false, server: false },
   currentItemFillStyle: { browser: true, export: false, server: false },
   currentItemFontFamily: { browser: true, export: false, server: false },
   currentItemFontSize: { browser: true, export: false, server: false },

@@ -756,6 +756,33 @@ describe("restoreElements", () => {
     expect(restoredArrow.endArrowhead).toBe("arrow");
   });
 
+  it("should preserve valid arrowheadSize and omit missing or invalid arrowheadSize", () => {
+    const smallArrow = API.createElement({
+      type: "arrow",
+      arrowheadSize: "small",
+    });
+    const largeArrow = API.createElement({
+      type: "arrow",
+      arrowheadSize: "large",
+    });
+    const defaultArrow = API.createElement({ type: "arrow" });
+    const invalidArrow = {
+      ...API.createElement({ type: "arrow" }),
+      arrowheadSize: "invalid",
+    };
+
+    const [restoredSmall, restoredLarge, restoredDefault, restoredInvalid] =
+      restore.restoreElements(
+        [smallArrow, largeArrow, defaultArrow, invalidArrow as any],
+        null,
+      ) as ExcalidrawLinearElement[];
+
+    expect(restoredSmall.arrowheadSize).toBe("small");
+    expect(restoredLarge.arrowheadSize).toBe("large");
+    expect("arrowheadSize" in restoredDefault).toBe(false);
+    expect("arrowheadSize" in restoredInvalid).toBe(false);
+  });
+
   it("when element.points of a line element is not an array", () => {
     const lineElement: any = API.createElement({
       type: "line",

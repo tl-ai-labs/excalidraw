@@ -39,6 +39,7 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  normalizeArrowheadSize,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -629,6 +630,7 @@ export const restoreElement = (
     case "draw":
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead = normalizeArrowhead(element.endArrowhead);
+      const arrowheadSize = normalizeArrowheadSize(element.arrowheadSize);
       let x = element.x;
       let y = element.y;
       let points = restoreLinearElementPoints(
@@ -653,6 +655,7 @@ export const restoreElement = (
         endBinding: null,
         startArrowhead,
         endArrowhead,
+        ...(arrowheadSize !== undefined ? { arrowheadSize } : {}),
         points,
         x,
         y,
@@ -666,6 +669,10 @@ export const restoreElement = (
         ...getSizeFromPoints(points),
       });
 
+      if (arrowheadSize === undefined) {
+        delete (restoredLine as any).arrowheadSize;
+      }
+
       return handleOversizedLinearElements(restoredLine);
     case "arrow": {
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
@@ -673,6 +680,7 @@ export const restoreElement = (
         element.endArrowhead === undefined
           ? "arrow"
           : normalizeArrowhead(element.endArrowhead);
+      const arrowheadSize = normalizeArrowheadSize(element.arrowheadSize);
       const x = element.x as number | undefined;
       const y = element.y as number | undefined;
       const points = restoreLinearElementPoints(
@@ -705,6 +713,7 @@ export const restoreElement = (
         ),
         startArrowhead,
         endArrowhead,
+        ...(arrowheadSize !== undefined ? { arrowheadSize } : {}),
         points,
         x: x ?? 0,
         y: y ?? 0,
@@ -732,6 +741,10 @@ export const restoreElement = (
           restoredElement,
         ),
       };
+
+      if (arrowheadSize === undefined) {
+        delete (normalizedRestoredElement as any).arrowheadSize;
+      }
 
       return handleOversizedLinearElements(normalizedRestoredElement);
     }
@@ -1309,6 +1322,14 @@ export const restoreAppState = (
     appState.boxSelectionMode ?? localAppState?.boxSelectionMode;
   if (boxSelectionMode !== undefined) {
     nextAppState.boxSelectionMode = boxSelectionMode;
+  }
+
+  const currentItemArrowheadSize = normalizeArrowheadSize(
+    appState.currentItemArrowheadSize ??
+      localAppState?.currentItemArrowheadSize,
+  );
+  if (currentItemArrowheadSize !== undefined) {
+    nextAppState.currentItemArrowheadSize = currentItemArrowheadSize;
   }
 
   // drop malformed persisted custom top picks (imported data is untrusted)

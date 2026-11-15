@@ -899,6 +899,7 @@ const convertElementType = <
             roundness: null,
             startArrowhead: app.state.currentItemStartArrowhead,
             endArrowhead: app.state.currentItemEndArrowhead,
+            arrowheadSize: app.state.currentItemArrowheadSize,
           }),
         );
       }
@@ -913,6 +914,7 @@ const convertElementType = <
             },
             startArrowhead: app.state.currentItemStartArrowhead,
             endArrowhead: app.state.currentItemEndArrowhead,
+            arrowheadSize: app.state.currentItemArrowheadSize,
           }),
         );
       }

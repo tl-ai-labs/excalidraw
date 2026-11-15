@@ -375,4 +375,46 @@ describe("getArrowheadPoints()", () => {
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
   });
+
+  it("scales arrowhead size and points according to arrowheadSize", () => {
+    expect(getArrowheadSize("arrow")).toBe(25);
+    expect(getArrowheadSize("arrow", "small")).toBe(12.5);
+    expect(getArrowheadSize("arrow", "medium")).toBe(25);
+    expect(getArrowheadSize("arrow", "large")).toBe(37.5);
+
+    const makeArrow = (arrowheadSize?: "small" | "medium" | "large") =>
+      API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 0)],
+        endArrowhead: "arrow",
+        arrowheadSize,
+        roughness: 0,
+      });
+
+    const getWingSpan = (arrowheadSize?: "small" | "medium" | "large") => {
+      const arrow = makeArrow(arrowheadSize);
+      const [tx, ty, x1, y1, , y2] = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        "arrow",
+      )!;
+      return {
+        length: pointDistance(pointFrom(tx, ty), pointFrom(x1, y1)),
+        width: Math.abs(y1 - y2),
+      };
+    };
+
+    const small = getWingSpan("small");
+    const medium = getWingSpan("medium");
+    const defaultSize = getWingSpan();
+    const large = getWingSpan("large");
+
+    expect(defaultSize.length).toBeCloseTo(medium.length);
+    expect(defaultSize.width).toBeCloseTo(medium.width);
+    expect(small.length).toBeLessThan(medium.length);
+    expect(small.width).toBeLessThan(medium.width);
+    expect(large.length).toBeGreaterThan(medium.length);
+    expect(large.width).toBeGreaterThan(medium.width);
+  });
 });
