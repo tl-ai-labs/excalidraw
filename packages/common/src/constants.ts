@@ -594,6 +594,14 @@ export const ARROW_TYPE: { [T in AppState["currentItemArrowType"]]: T } = {
   elbow: "elbow",
 };
 
+export const ARROWHEAD_SIZES = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+} as const;
+
+export const DEFAULT_ARROWHEAD_SIZE = "medium" as const;
+
 export const DEFAULT_REDUCED_GLOBAL_ALPHA = 0.3;
 export const ELEMENT_LINK_KEY = "element";
 

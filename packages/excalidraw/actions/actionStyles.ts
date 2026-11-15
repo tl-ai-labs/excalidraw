@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_TEXT_ALIGN,
@@ -189,6 +190,9 @@ export const actionPasteStyles = register({
               newElement = newElementWith(newElement, {
                 startArrowhead: elementStylesToCopyFrom.startArrowhead,
                 endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                arrowheadSize:
+                  elementStylesToCopyFrom.arrowheadSize ??
+                  DEFAULT_ARROWHEAD_SIZE,
               });
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(

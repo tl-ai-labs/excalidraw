@@ -470,6 +470,60 @@ describe("export background", () => {
     expect(svg.querySelector('g path[fill="#000000"]')).not.toBeNull();
   });
 
+  it("exportToSvg renders smaller arrowheads for arrowheadSize 'small'", async () => {
+    const exportArrowSvg = (arrowheadSize?: "small" | "medium" | "large") =>
+      exportScene({
+        type: "svg",
+        data: {
+          elements: [
+            API.createElement({
+              type: "arrow",
+              width: 100,
+              height: 0,
+              points: [
+                pointFrom<LocalPoint>(0, 0),
+                pointFrom<LocalPoint>(100, 0),
+              ],
+              endArrowhead: "arrow",
+              arrowheadSize,
+              roughness: 0,
+            }),
+          ],
+          appState: {},
+          files: null,
+        },
+      });
+
+    const getMaxAbsYFromPaths = (svg: SVGSVGElement) => {
+      const paths = Array.from(svg.querySelectorAll("g path"));
+      let maxY = 0;
+      for (const path of paths) {
+        const d = path.getAttribute("d") || "";
+        const nums = [...d.matchAll(/[MLC]\s*([-\d.]+)\s+([-\d.]+)/g)].map(
+          (m) => Math.abs(parseFloat(m[2])),
+        );
+        for (const y of nums) {
+          if (y > maxY) {
+            maxY = y;
+          }
+        }
+      }
+      return maxY;
+    };
+
+    const defaultSvg = await exportArrowSvg();
+    const smallSvg = await exportArrowSvg("small");
+    const largeSvg = await exportArrowSvg("large");
+
+    const defaultHeadY = getMaxAbsYFromPaths(defaultSvg);
+    const smallHeadY = getMaxAbsYFromPaths(smallSvg);
+    const largeHeadY = getMaxAbsYFromPaths(largeSvg);
+
+    expect(smallHeadY).toBeGreaterThan(0);
+    expect(smallHeadY).toBeLessThan(defaultHeadY);
+    expect(largeHeadY).toBeGreaterThan(defaultHeadY);
+  });
+
   it("transparent exports keep filling outline arrowheads with the scene background", async () => {
     const canvas = await exportScene({
       type: "canvas",

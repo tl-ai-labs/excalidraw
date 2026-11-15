@@ -2,6 +2,7 @@ import {
   arrayToMap,
   arrayToObject,
   assertNever,
+  DEFAULT_ARROWHEAD_SIZE,
   isDevEnv,
   isShallowEqual,
   isTestEnv,
@@ -1788,7 +1789,27 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         delta.deleted.index !== delta.inserted.index;
     }
 
-    return newElementWith(element, directlyApplicablePartial, true);
+    const resetArrowheadSize =
+      "arrowheadSize" in directlyApplicablePartial &&
+      (directlyApplicablePartial as Partial<ExcalidrawLinearElement>)
+        .arrowheadSize === undefined;
+
+    if (resetArrowheadSize) {
+      (directlyApplicablePartial as any).arrowheadSize = DEFAULT_ARROWHEAD_SIZE;
+    }
+
+    const updatedElement = newElementWith(
+      element,
+      directlyApplicablePartial,
+      true,
+    );
+
+    if (resetArrowheadSize && "arrowheadSize" in updatedElement) {
+      const { arrowheadSize: _, ...rest } = updatedElement as any;
+      return rest as typeof updatedElement;
+    }
+
+    return updatedElement;
   }
 
   /**
@@ -1873,6 +1894,13 @@ export class ElementsDelta implements DeltaContainer<SceneElementsMap> {
         case "updated":
         case "created":
           return false;
+        case "arrowheadSize":
+          return (
+            ((before as ExcalidrawLinearElement).arrowheadSize ??
+              DEFAULT_ARROWHEAD_SIZE) !==
+            ((after as ExcalidrawLinearElement).arrowheadSize ??
+              DEFAULT_ARROWHEAD_SIZE)
+          );
         case "boundElements":
           return !isShallowEqual(
             visibleBindings(before, previousElements),

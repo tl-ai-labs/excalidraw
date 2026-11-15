@@ -1,4 +1,17 @@
-import type { Arrowhead, AnyArrowhead } from "./types";
+import type { Arrowhead, AnyArrowhead, ArrowheadSize } from "./types";
+
+export const normalizeArrowheadSize = (
+  arrowheadSize: unknown,
+): ArrowheadSize | undefined => {
+  if (
+    arrowheadSize === "small" ||
+    arrowheadSize === "medium" ||
+    arrowheadSize === "large"
+  ) {
+    return arrowheadSize;
+  }
+  return undefined;
+};
 
 export const normalizeArrowhead = (
   arrowhead: AnyArrowhead | null | undefined,
