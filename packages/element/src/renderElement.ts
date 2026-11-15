@@ -21,6 +21,7 @@ import {
   distance,
   getFontString,
   isRTL,
+  hasRTLChars,
   getVerticalOffset,
   invariant,
   applyDarkModeFilter,
@@ -59,6 +60,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { getTextStyleRunsByLine } from "./textStyleRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -457,6 +459,20 @@ export const withSavedContext = (
   }
 };
 
+/**
+ * How far left of its anchor (see `horizontalOffset`) a line of `lineWidth`
+ * starts, as per the text's alignment.
+ */
+const getTextAlignShift = (
+  textAlign: ExcalidrawTextElement["textAlign"],
+  lineWidth: number,
+) =>
+  textAlign === "center"
+    ? lineWidth / 2
+    : textAlign === "right"
+    ? lineWidth
+    : 0;
+
 const drawElementOnCanvas = (
   element: NonDeletedExcalidrawElement,
   rc: RoughCanvas,
@@ -703,12 +719,75 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
+          const runsByLine = getTextStyleRunsByLine(element);
+          const isDarkTheme = renderConfig.theme === THEME.DARK;
+
+          // highlights first, so that no line's highlight covers the glyphs
+          // of the line above reaching down into it
+          if (runsByLine) {
+            for (let index = 0; index < lines.length; index++) {
+              const runs = runsByLine[index];
+              if (!runs || hasRTLChars(lines[index])) {
+                continue;
+              }
+              let x =
+                horizontalOffset -
+                getTextAlignShift(
+                  element.textAlign,
+                  context.measureText(lines[index]).width,
+                );
+              for (const run of runs) {
+                const runWidth = context.measureText(run.text).width;
+                if (run.backgroundColor) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.backgroundColor,
+                    isDarkTheme,
+                  );
+                  context.fillRect(
+                    x,
+                    index * lineHeightPx,
+                    runWidth,
+                    lineHeightPx,
+                  );
+                }
+                x += runWidth;
+              }
+            }
+          }
+
+          const baseColor = applyDarkModeFilter(
+            element.strokeColor,
+            isDarkTheme,
+          );
           for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
-            );
+            const y = index * lineHeightPx + verticalOffset;
+            const runs = runsByLine?.[index];
+            // a line of one style draws as a whole; so does bidirectional
+            // text, which the browser lays out as a whole, so that its runs
+            // can't be placed one after another (it keeps the text's color)
+            if (!runs || runs.length === 1 || hasRTLChars(lines[index])) {
+              context.fillStyle =
+                runs?.length === 1 && runs[0].strokeColor
+                  ? applyDarkModeFilter(runs[0].strokeColor, isDarkTheme)
+                  : baseColor;
+              context.textAlign = element.textAlign as CanvasTextAlign;
+              context.fillText(lines[index], horizontalOffset, y);
+              continue;
+            }
+            context.textAlign = "left";
+            let x =
+              horizontalOffset -
+              getTextAlignShift(
+                element.textAlign,
+                context.measureText(lines[index]).width,
+              );
+            for (const run of runs) {
+              context.fillStyle = run.strokeColor
+                ? applyDarkModeFilter(run.strokeColor, isDarkTheme)
+                : baseColor;
+              context.fillText(run.text, x, y);
+              x += context.measureText(run.text).width;
+            }
           }
         });
         if (shouldTemporarilyAttach) {

@@ -38,6 +38,7 @@ import {
   isValidTextContainer,
   makeNextSelectedElementIds,
   newElementWith,
+  shiftTextStyleRanges,
   newTextElement,
   refreshTextDimensions,
   updateBoundElements,
@@ -84,6 +85,28 @@ export class AppText {
   constructor(private app: App, private dependencies: AppTextDependencies) {}
 
   public textWysiwygSubmitHandler: ReturnType<typeof textWysiwyg> | null = null;
+
+  /**
+   * What's selected in the text editor, as offsets into the edited text's
+   * `originalText` — null if no text is being edited.
+   */
+  public getTextEditorSelection(): { start: number; end: number } | null {
+    if (!this.app.state.editingTextElement || !this.textWysiwygSubmitHandler) {
+      return null;
+    }
+    const editor = this.dependencies
+      .getContainer()
+      ?.querySelector<HTMLTextAreaElement>("textarea.excalidraw-wysiwyg");
+    if (!editor) {
+      return null;
+    }
+    const { selectionStart, selectionEnd } = editor;
+    return {
+      start: Math.min(selectionStart, selectionEnd),
+      end: Math.max(selectionStart, selectionEnd),
+    };
+  }
+
   private getTextCreationGridPoint = (x: number, y: number) => {
     const effectiveGridSize = this.app.getEffectiveGridSize();
 
@@ -184,7 +207,12 @@ export class AppText {
   ) {
     const elementsMap = this.app.scene.getElementsMapIncludingDeleted();
 
-    const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
+    const updateElement = (
+      nextOriginalText: string,
+      isDeleted: boolean,
+      /** where the caret is in `nextOriginalText`, see `getTextSplice` */
+      caret?: number | null,
+    ) => {
       const latestTextElement =
         this.app.scene.getElement<ExcalidrawTextElement>(element.id);
 
@@ -220,8 +248,16 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
+            // styled parts move along with the edit
+            const styleRanges = shiftTextStyleRanges(
+              _element.styleRanges,
+              _element.originalText,
+              nextOriginalText,
+              caret,
+            );
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              ...(styleRanges !== _element.styleRanges ? { styleRanges } : {}),
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
@@ -278,6 +314,23 @@ export class AppText {
       }
     };
 
+    const onChange = withBatchedUpdates(
+      ({
+        nextOriginalText,
+        caret,
+      }: {
+        nextOriginalText: string;
+        caret: number | null;
+      }) => {
+        updateElement(nextOriginalText, false, caret);
+        if (isNonDeletedElement(element)) {
+          updateBoundElements(element, this.app.scene, {
+            renderEnvironment: this.app.renderEnvironment,
+          });
+        }
+      },
+    );
+
     this.textWysiwygSubmitHandler = textWysiwyg({
       canvas: this.app.canvas,
       getViewportCoords: (x, y) => {
@@ -293,14 +346,8 @@ export class AppText {
           viewportY - this.app.state.offsetTop,
         ];
       },
-      onChange: withBatchedUpdates((nextOriginalText) => {
-        updateElement(nextOriginalText, false);
-        if (isNonDeletedElement(element)) {
-          updateBoundElements(element, this.app.scene, {
-            renderEnvironment: this.app.renderEnvironment,
-          });
-        }
-      }),
+      onChange: (nextOriginalText, caret) =>
+        onChange({ nextOriginalText, caret }),
       onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
         this.textWysiwygSubmitHandler = null;
 

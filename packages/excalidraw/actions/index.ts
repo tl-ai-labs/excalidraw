@@ -23,6 +23,8 @@ export {
   actionChangeArrowProperties,
 } from "./actionProperties";
 
+export { actionChangeTextHighlight } from "./actionTextStyle";
+
 export {
   actionChangeViewBackgroundColor,
   actionClearCanvas,

@@ -6,6 +6,7 @@ import {
   getContainerElement,
   redrawTextBoundingBox,
 } from "./textElement";
+import { shiftTextStyleRanges } from "./textStyleRanges";
 import { isBoundToContainer, isTextElement } from "./typeChecks";
 
 import type { RenderEnvironment } from "./renderEnvironment";
@@ -211,13 +212,22 @@ const setText = (
   scene: Scene,
   renderEnvironment: RenderEnvironment | undefined,
 ) => {
+  // a renumbered marker keeps the item's styling on its text
+  const styleRanges = shiftTextStyleRanges(
+    element.styleRanges,
+    element.originalText,
+    originalText,
+  );
+  const styleUpdate =
+    styleRanges !== element.styleRanges ? { styleRanges } : {};
   if (container) {
-    scene.mutateElement(element, { originalText });
+    scene.mutateElement(element, { originalText, ...styleUpdate });
     // re-wraps the label, and grows the container if need be
     redrawTextBoundingBox(element, container, scene, renderEnvironment);
   } else {
     scene.mutateElement(element, {
       originalText,
+      ...styleUpdate,
       // re-wraps the text, and keeps it anchored as per its alignment
       ...refreshTextDimensions(
         element,

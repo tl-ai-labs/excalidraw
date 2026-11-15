@@ -185,6 +185,8 @@ export const SelectedShapeActions = ({
         </>
       )}
 
+      {predicates.textHighlight && renderAction("changeTextHighlight")}
+
       {predicates.verticalAlign && renderAction("changeVerticalAlign")}
       {predicates.arrowheads && <>{renderAction("changeArrowhead")}</>}
 
@@ -478,6 +480,7 @@ const CombinedTextProperties = ({
               {predicates.text && renderAction("changeFontSize")}
               {predicates.textAlign && renderAction("changeTextAlign")}
               {predicates.verticalAlign && renderAction("changeVerticalAlign")}
+              {predicates.textHighlight && renderAction("changeTextHighlight")}
             </div>
           </PropertiesPopover>
         )}

@@ -61,7 +61,10 @@ import {
 } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { isStickyNoteElement } from "@excalidraw/element";
-import { detectLineHeight } from "@excalidraw/element";
+import {
+  detectLineHeight,
+  normalizeTextStyleRanges,
+} from "@excalidraw/element";
 import {
   isArrowBoundToElement,
   isArrowElement,
@@ -574,6 +577,14 @@ export const restoreElement = (
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
+      const originalText = element.originalText || text;
+      // ranges index into `originalText`; malformed or stale ones (e.g. from
+      // a peer on a version that edits the text without moving them) are
+      // dropped or clamped to it
+      const styleRanges = normalizeTextStyleRanges(
+        element.styleRanges,
+        originalText.length,
+      );
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
@@ -581,7 +592,8 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
+        styleRanges,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)

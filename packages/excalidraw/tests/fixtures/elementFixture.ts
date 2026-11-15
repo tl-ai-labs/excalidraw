@@ -64,6 +64,7 @@ export const textFixture: ExcalidrawElement = {
   strokeColor: "#1e1e1e",
   text: "original text",
   originalText: "original text",
+  styleRanges: [],
   textAlign: "left",
   verticalAlign: "top",
   containerId: null,
