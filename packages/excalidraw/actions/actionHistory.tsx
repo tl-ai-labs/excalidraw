@@ -1,9 +1,4 @@
-import {
-  KEYS,
-  matchKey,
-  arrayToMap,
-  MOBILE_ACTION_BUTTON_BG,
-} from "@excalidraw/common";
+import { KEYS, matchKey, MOBILE_ACTION_BUTTON_BG } from "@excalidraw/common";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -75,7 +70,11 @@ export const createUndoAction: ActionCreator = (history) => ({
   perform: (elements, appState, value, app) =>
     executeHistoryAction(app, appState, () =>
       history.undo(
-        arrayToMap(elements) as SceneElementsMap,
+        // all pages, as that's what the store's snapshot holds (the page's
+        // history only ever contains changes to the active page)
+        new Map(
+          app.scene.getAllPagesElementsMapIncludingDeleted(),
+        ) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),
@@ -118,7 +117,11 @@ export const createRedoAction: ActionCreator = (history) => ({
   perform: (elements, appState, __, app) =>
     executeHistoryAction(app, appState, () =>
       history.redo(
-        arrayToMap(elements) as SceneElementsMap,
+        // all pages, as that's what the store's snapshot holds (the page's
+        // history only ever contains changes to the active page)
+        new Map(
+          app.scene.getAllPagesElementsMapIncludingDeleted(),
+        ) as SceneElementsMap,
         appState,
         app.renderEnvironment,
       ),

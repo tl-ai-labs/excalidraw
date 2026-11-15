@@ -207,6 +207,10 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  getNonDeletedElements,
+  isElementOnPage,
+  resolveActivePageId,
+  setElementPageId,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -235,6 +239,7 @@ import type {
   SceneElementsMap,
   NonDeletedSceneElementsMap,
   ExcalidrawBindableElement,
+  OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
 import type {
@@ -386,6 +391,7 @@ import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
 import { AppDuplicate } from "./App.duplicate";
+import { AppPages } from "./App.pages";
 import { AppFlowchart } from "./App.flowchart";
 import { AppModifiers } from "./App.modifiers";
 import { AppPan } from "./App.pan";
@@ -632,7 +638,7 @@ class App extends React.Component<AppProps, AppState> {
   public libraryItemsFromStorage: LibraryItems | undefined;
   public id: string;
   public store: Store;
-  private history: History;
+  public history: History;
   public excalidrawContainerValue: {
     container: HTMLDivElement | null;
     id: string;
@@ -675,6 +681,9 @@ class App extends React.Component<AppProps, AppState> {
   public bucketFill: AppBucketFill = new AppBucketFill(this);
   public duplicate: AppDuplicate = new AppDuplicate(this, {
     getPointerCount: () => gesture.pointers.size,
+  });
+  public pages: AppPages = new AppPages(this, {
+    syncActivePage: (pageId) => this.syncActivePage(pageId),
   });
   public toolDrag: AppToolDrag = new AppToolDrag(this);
   public flowchart: AppFlowchart = new AppFlowchart(this);
@@ -806,6 +815,7 @@ class App extends React.Component<AppProps, AppState> {
       getViewportOffsets: this.viewport.getOffsets,
       setElementRenderOverrides: this.setElementRenderOverrides,
       getSceneElements: this.getSceneElements,
+      pages: this.pages,
       getAppState: () => this.state,
       getFiles: () => this.files,
       getName: this.getName,
@@ -908,6 +918,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.history = new History(this.store);
+    this.syncActivePage(this.state.activePageId);
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -2758,16 +2769,78 @@ class App extends React.Component<AppProps, AppState> {
     this.excalidrawContainerRef.current?.focus();
   };
 
+  /** elements of all pages (the whole document), including deleted */
   public getSceneElementsIncludingDeleted = () => {
-    return this.scene.getElementsIncludingDeleted();
+    return this.scene.getAllPagesElementsIncludingDeleted();
   };
 
+  /** elements of all pages (the whole document), including deleted */
   public getSceneElementsMapIncludingDeleted = () => {
-    return this.scene.getElementsMapIncludingDeleted();
+    return this.scene.getAllPagesElementsMapIncludingDeleted();
   };
 
+  private nonDeletedSceneElementsCache: {
+    elements: readonly OrderedExcalidrawElement[] | null;
+    nonDeleted: readonly NonDeleted<OrderedExcalidrawElement>[];
+  } = { elements: null, nonDeleted: [] };
+
+  /**
+   * non-deleted elements of all pages (the whole document), see
+   * `pages.getPageElements()` for the elements of one page
+   */
   public getSceneElements = () => {
-    return this.scene.getNonDeletedElements();
+    const elements = this.scene.getAllPagesElementsIncludingDeleted();
+    if (this.nonDeletedSceneElementsCache.elements !== elements) {
+      this.nonDeletedSceneElementsCache = {
+        elements,
+        nonDeleted: getNonDeletedElements(elements),
+      };
+    }
+    return this.nonDeletedSceneElementsCache.nonDeleted;
+  };
+
+  /**
+   * Makes the scene & history expose the page. Must be called before (or
+   * with) the state update that sets `activePageId`, so that the page's
+   * elements render along with it.
+   */
+  private syncActivePage = (pageId: string) => {
+    this.history.setActivePage(pageId);
+    this.scene.setActivePageId(pageId);
+  };
+
+  /**
+   * Handles page changes of a scene update (`updateScene()`, action results)
+   * ahead of the state update.
+   *
+   * New `pages` (i.e. a loaded document) mean the elements are those of the
+   * whole document, replacing all pages. Otherwise, elements replace only the
+   * pages they belong to (see `Scene.replaceAllElements()`).
+   */
+  private prepareSceneUpdatePages = (
+    appState: Partial<AppState> | null | undefined,
+  ): {
+    replaceAllPages: boolean;
+    /** set if the active page changes as a result of the update */
+    activePageId: string | null;
+  } => {
+    const replaceAllPages =
+      !!appState?.pages && appState.pages !== this.state.pages;
+    const nextPageId = resolveActivePageId(
+      appState?.pages ?? this.state.pages,
+      appState?.activePageId ?? this.state.activePageId,
+    );
+    if (nextPageId !== this.scene.getActivePageId()) {
+      this.syncActivePage(nextPageId);
+    }
+    return {
+      replaceAllPages,
+      activePageId:
+        nextPageId !== this.state.activePageId ||
+        (appState?.activePageId && appState.activePageId !== nextPageId)
+          ? nextPageId
+          : null,
+    };
   };
 
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
@@ -3135,9 +3208,13 @@ class App extends React.Component<AppProps, AppState> {
 
     let didUpdate = false;
 
+    const pagesUpdate = this.prepareSceneUpdatePages(actionResult.appState);
+
     let editingTextElement: AppState["editingTextElement"] | null = null;
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      this.scene.replaceAllElements(actionResult.elements, {
+        replaceAllPages: pagesUpdate.replaceAllPages,
+      });
       didUpdate = true;
     }
 
@@ -3200,6 +3277,9 @@ class App extends React.Component<AppProps, AppState> {
           theme,
           name,
           errorMessage,
+          ...(pagesUpdate.activePageId
+            ? { activePageId: pagesUpdate.activePageId }
+            : null),
         };
       });
 
@@ -3554,7 +3634,8 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
-      this.scene.replaceAllElements([]);
+      this.syncActivePage(getDefaultAppState().activePageId);
+      this.scene.replaceAllElements([], { replaceAllPages: true });
       this.setState((state) => ({
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
@@ -3654,6 +3735,11 @@ class App extends React.Component<AppProps, AppState> {
       toast: this.state.toast,
     };
 
+    // scroll to the content of the page being shown
+    const restoredPageElements = restoredElements.filter((element) =>
+      isElementOnPage(element, restoredAppState.activePageId),
+    );
+
     const viewportAppState = {
       ...restoredAppState,
       width: this.state.width,
@@ -3664,7 +3750,7 @@ class App extends React.Component<AppProps, AppState> {
     const initialViewport = this.props.initialState?.viewport;
 
     if (initialViewport) {
-      const restoredNonDeletedElements = restoredElements.filter(
+      const restoredNonDeletedElements = restoredPageElements.filter(
         (element) => !element.isDeleted,
       ) as readonly NonDeletedExcalidrawElement[];
       const restoredElementsMap = arrayToMap(
@@ -3686,7 +3772,7 @@ class App extends React.Component<AppProps, AppState> {
     } else if (initialData?.scrollToContent) {
       restoredAppState = {
         ...restoredAppState,
-        ...getScrollToContentState(restoredElements, viewportAppState),
+        ...getScrollToContentState(restoredPageElements, viewportAppState),
       };
     }
 
@@ -4317,8 +4403,18 @@ class App extends React.Component<AppProps, AppState> {
     this.appStateObserver.flush(prevState);
 
     this.updateEmbeddables();
+
+    // in case `activePageId` was set directly (i.e. via `setState`)
+    if (this.state.activePageId !== this.scene.getActivePageId()) {
+      this.syncActivePage(this.state.activePageId);
+    }
+
+    // the active page's elements
     const elements = this.scene.getElementsIncludingDeleted();
-    const elementsMap = this.scene.getElementsMapIncludingDeleted();
+    // the store and the host (onChange) get the whole document
+    const allPagesElements = this.scene.getAllPagesElementsIncludingDeleted();
+    const allPagesElementsMap =
+      this.scene.getAllPagesElementsMapIncludingDeleted();
 
     const shouldExportWithDarkMode =
       (this.sessionExportThemeOverride ?? this.state.theme) === THEME.DARK;
@@ -4494,15 +4590,15 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ scrolledOutside });
     }
 
-    this.store.commit(elementsMap, this.state);
+    this.store.commit(allPagesElementsMap, this.state);
 
     // Do not notify consumers if we're still loading the scene. Among other
     // potential issues, this fixes a case where the tab isn't focused during
     // init, which would trigger onChange with empty elements, which would then
     // override whatever is in localStorage currently.
     if (!this.state.isLoading) {
-      this.props.onChange?.(elements, this.state, this.files);
-      this.onChangeEmitter.trigger(elements, this.state, this.files);
+      this.props.onChange?.(allPagesElements, this.state, this.files);
+      this.onChangeEmitter.trigger(allPagesElements, this.state, this.files);
     }
   }
 
@@ -4625,6 +4721,11 @@ class App extends React.Component<AppProps, AppState> {
     const elements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
     });
+    // pasted / library elements go onto the active page, whichever page (or
+    // document) they were copied from
+    for (const element of elements) {
+      setElementPageId(element, this.state.activePageId);
+    }
     const clientX =
       typeof opts.position === "object"
         ? opts.position.clientX
@@ -4991,8 +5092,15 @@ class App extends React.Component<AppProps, AppState> {
     }) => {
       const { elements, appState, collaborators, captureUpdate } = sceneData;
 
+      const pagesUpdate = this.prepareSceneUpdatePages(appState);
+      const replaceOptions = { replaceAllPages: pagesUpdate.replaceAllPages };
+
       if (captureUpdate) {
-        const nextElements = elements ? elements : undefined;
+        // the store holds the whole document, so resolve the elements of all
+        // pages after the update
+        const nextElements = elements
+          ? this.scene.getNextAllPagesElements(elements, replaceOptions)
+          : undefined;
         const observedAppState = appState
           ? getObservedAppState({
               ...this.store.snapshot.appState,
@@ -5007,12 +5115,17 @@ class App extends React.Component<AppProps, AppState> {
         });
       }
 
-      if (appState) {
-        this.setState(appState as Pick<AppState, K> | null);
+      if (appState || pagesUpdate.activePageId) {
+        this.setState({
+          ...appState,
+          ...(pagesUpdate.activePageId
+            ? { activePageId: pagesUpdate.activePageId }
+            : null),
+        } as Pick<AppState, K> | null);
       }
 
       if (elements) {
-        this.scene.replaceAllElements(elements);
+        this.scene.replaceAllElements(elements, replaceOptions);
       }
 
       if (collaborators) {
@@ -5056,7 +5169,7 @@ class App extends React.Component<AppProps, AppState> {
     // create new instance of elements map & appState, so we don't accidentaly mutate existing ones
     const nextAppState = { ...this.state };
     const nextElements = new Map(
-      this.scene.getElementsMapIncludingDeleted(),
+      this.scene.getAllPagesElementsMapIncludingDeleted(),
     ) as SceneElementsMap;
 
     return StoreDelta.applyTo(aggregatedDelta, nextElements, nextAppState, {

@@ -110,11 +110,70 @@ export class History {
     return this.redoStack.length === 0;
   }
 
+  /**
+   * Undo & redo stacks of the pages other than the active one. Each page has
+   * its own history, so that undo never changes a page that isn't shown.
+   */
+  private readonly inactivePagesStacks = new Map<
+    string,
+    { undoStack: HistoryDelta[]; redoStack: HistoryDelta[] }
+  >();
+
+  private activePageId: string | null = null;
+
   constructor(private readonly store: Store) {}
 
   public clear() {
     this.undoStack.length = 0;
     this.redoStack.length = 0;
+    this.inactivePagesStacks.clear();
+  }
+
+  /**
+   * Swaps the undo & redo stacks for the ones of the passed page.
+   */
+  public setActivePage(pageId: string) {
+    if (pageId === this.activePageId) {
+      return;
+    }
+
+    if (this.activePageId !== null) {
+      this.inactivePagesStacks.set(this.activePageId, {
+        undoStack: this.undoStack.splice(0),
+        redoStack: this.redoStack.splice(0),
+      });
+    }
+
+    const stacks = this.inactivePagesStacks.get(pageId);
+    this.inactivePagesStacks.delete(pageId);
+    this.undoStack.splice(
+      0,
+      this.undoStack.length,
+      ...(stacks?.undoStack ?? []),
+    );
+    this.redoStack.splice(
+      0,
+      this.redoStack.length,
+      ...(stacks?.redoStack ?? []),
+    );
+    this.activePageId = pageId;
+
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  /** drops the history of a (deleted) page */
+  public clearPage(pageId: string) {
+    if (pageId === this.activePageId) {
+      this.undoStack.length = 0;
+      this.redoStack.length = 0;
+      this.onHistoryChangedEmitter.trigger(
+        new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+      );
+    } else {
+      this.inactivePagesStacks.delete(pageId);
+    }
   }
 
   /**

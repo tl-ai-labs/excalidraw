@@ -2575,6 +2575,14 @@ export const chevronRight = createIcon(
   tablerIconProps,
 );
 
+export const chevronLeft = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <polyline points="15 6 9 12 15 18" />
+  </g>,
+  tablerIconProps,
+);
+
 // tabler-icons: adjustments-horizontal
 export const settingsIcon = createIcon(
   <g strokeWidth={1.25}>

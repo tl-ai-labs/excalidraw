@@ -83,6 +83,10 @@ type _ExcalidrawElementBase = Readonly<{
   created: number | null;
   link: string | null;
   locked: boolean;
+  /** Id of the page (see `ExcalidrawPage`) the element belongs to.
+      Absent on elements of the default page (and on all elements of files
+      saved before pages existed), see `getElementPageId()`. */
+  pageId?: string;
   customData?: Record<string, any>;
 }>;
 
@@ -494,3 +498,23 @@ export type ExcalidrawLinearElementSubType =
 export type ConvertibleGenericTypes = "rectangle" | "diamond" | "ellipse";
 export type ConvertibleLinearTypes = ExcalidrawLinearElementSubType;
 export type ConvertibleTypes = ConvertibleGenericTypes | ConvertibleLinearTypes;
+
+/**
+ * A page of a drawing. Every page has its own elements (linked through
+ * `ExcalidrawElement.pageId`) and its own viewport.
+ *
+ * Pages are reconciled in collaboration the same way as elements: the
+ * higher `version` wins, ties are broken by the lower `versionNonce`, and
+ * deleted pages are kept as tombstones (`isDeleted`) so they don't resurrect.
+ */
+export type ExcalidrawPage = Readonly<{
+  id: string;
+  name: string;
+  /** sort key of the page within the tab bar (ascending) */
+  order: number;
+  version: number;
+  versionNonce: number;
+  isDeleted: boolean;
+  /** epoch (ms) timestamp of last page update */
+  updated: number;
+}>;

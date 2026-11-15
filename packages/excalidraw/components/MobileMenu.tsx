@@ -12,6 +12,7 @@ import { MobileToolbar } from "./MobileToolbar";
 import { FixedSideContainer } from "./FixedSideContainer";
 
 import { Island } from "./Island";
+import { PageTabs } from "./PageTabs";
 
 import { PenModeButton } from "./PenModeButton";
 import { ViewportStatusBadge } from "./ViewportStatusFrame/ViewportStatusFrame";
@@ -178,6 +179,10 @@ export const MobileMenu = ({
             app={app}
             setAppState={setAppState}
           />
+
+          <div className="App-bottom-bar__pages">
+            <PageTabs appState={appState} />
+          </div>
 
           <Island className="App-toolbar">
             {appState.openDialog?.name !== "elementLinkSelector" &&

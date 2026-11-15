@@ -126,7 +126,12 @@ const InteractiveCanvas = (props: InteractiveCanvasProps) => {
           remoteSelectedElementIds.get(id)!.push(socketId);
         }
       }
-      if (!user.pointer || user.pointer.renderCursor === false) {
+      if (
+        !user.pointer ||
+        user.pointer.renderCursor === false ||
+        // the collaborator is on another page
+        (user.pageId && user.pageId !== props.app.state.activePageId)
+      ) {
         return;
       }
       if (user.username) {

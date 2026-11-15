@@ -5,6 +5,7 @@ import { useTunnels } from "../../context/tunnels";
 import { ExitZenModeButton, UndoRedoActions, ZoomActions } from "../Actions";
 import { useApp } from "../App";
 import { HelpButton } from "../HelpButton";
+import { PageTabs } from "../PageTabs";
 import { Section } from "../Section";
 import Stack from "../Stack";
 
@@ -55,6 +56,19 @@ const Footer = ({
               )}
             </Section>
           </Stack.Col>
+        </div>
+      )}
+      {defaultUIEnabled && (
+        <div
+          className={clsx(
+            "layer-ui__wrapper__footer-pages zen-mode-transition",
+            {
+              "layer-ui__wrapper__footer-left--transition-bottom":
+                appState.zenModeEnabled,
+            },
+          )}
+        >
+          <PageTabs appState={appState} />
         </div>
       )}
       <FooterCenterTunnel.Out />

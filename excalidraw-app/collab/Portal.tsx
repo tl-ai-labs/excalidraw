@@ -167,6 +167,8 @@ class Portal {
       type: updateType,
       payload: {
         elements: syncableElements,
+        // pages are few, so always send all of them (reconciled per page)
+        pages: this.collab.excalidrawAPI.getAppState().pages,
       },
     };
 
@@ -213,6 +215,7 @@ class Portal {
           selectedElementIds:
             this.collab.excalidrawAPI.getAppState().selectedElementIds,
           username: this.collab.state.username,
+          pageId: this.collab.excalidrawAPI.getAppState().activePageId,
         },
       };
 

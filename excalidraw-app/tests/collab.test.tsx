@@ -3,7 +3,14 @@ import {
   createRedoAction,
   createUndoAction,
 } from "@excalidraw/excalidraw/actions/actionHistory";
-import { syncInvalidIndices } from "@excalidraw/element";
+import {
+  DEFAULT_PAGE_ID,
+  getDefaultPage,
+  getVisiblePages,
+  newPage,
+  syncInvalidIndices,
+  updatePage,
+} from "@excalidraw/element";
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import { act, render, waitFor } from "@excalidraw/excalidraw/tests/test-utils";
 import { vi } from "vitest";
@@ -11,6 +18,8 @@ import { vi } from "vitest";
 import { StoreIncrement } from "@excalidraw/element";
 
 import type { DurableIncrement, EphemeralIncrement } from "@excalidraw/element";
+
+import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 
 import ExcalidrawApp from "../App";
 
@@ -248,5 +257,77 @@ describe("collaboration", () => {
         expect.objectContaining({ ...rect2Props, isDeleted: true }),
       ]);
     });
+  });
+
+  it("should sync pages, and keep remote elements on their page", async () => {
+    await render(<ExcalidrawApp />);
+
+    // locally, we're on a new page
+    act(() => {
+      h.app.pages.create({ name: "SDK flow" });
+    });
+    const localPageId = h.state.activePageId;
+    expect(localPageId).not.toBe(DEFAULT_PAGE_ID);
+
+    // a collaborator renamed the default page, added a page, and drew on
+    // both (elements of the default page have no `pageId`)
+    const remotePages = [
+      updatePage(getDefaultPage(), { name: "Data pipeline" }),
+      newPage({ name: "Remote", order: 5, id: "remote-page" }),
+    ];
+    const remoteDefaultPageElement = API.createElement({
+      type: "rectangle",
+      id: "remote-default",
+    });
+    const remotePageElement = {
+      ...API.createElement({ type: "rectangle", id: "remote-page-element" }),
+      pageId: "remote-page",
+    };
+
+    /* eslint-disable dot-notation */
+    act(() => {
+      // what a remote scene update does
+      window.collab["handleRemotePages"](remotePages);
+      window.collab["handleRemoteSceneUpdate"](
+        window.collab["_reconcileElements"](
+          syncInvalidIndices([
+            remoteDefaultPageElement,
+            remotePageElement,
+          ]) as RemoteExcalidrawElement[],
+        ),
+      );
+    });
+    /* eslint-enable dot-notation */
+
+    expect(getVisiblePages(h.state.pages).map((page) => page.name)).toEqual([
+      "Data pipeline",
+      "SDK flow",
+      "Remote",
+    ]);
+    // nothing landed on the page we're on
+    expect(h.state.activePageId).toBe(localPageId);
+    expect(h.elements).toEqual([]);
+    // and remote changes aren't undoable locally
+    expect(API.getUndoStack().length).toBe(0);
+
+    act(() => h.app.pages.setActive(DEFAULT_PAGE_ID));
+    expect(h.elements.map((element) => element.id)).toEqual(["remote-default"]);
+    act(() => h.app.pages.setActive("remote-page"));
+    expect(h.elements.map((element) => element.id)).toEqual([
+      "remote-page-element",
+    ]);
+
+    // local page changes are broadcast, even without element changes
+    const broadcastScene = vi
+      .spyOn(window.collab.portal, "broadcastScene")
+      .mockImplementation(async () => {});
+    window.collab.syncElements(h.app.api.getSceneElementsIncludingDeleted());
+    expect(broadcastScene).not.toHaveBeenCalled();
+
+    act(() => h.app.pages.rename("remote-page", "Renamed"));
+    window.collab.syncElements(h.app.api.getSceneElementsIncludingDeleted());
+    expect(broadcastScene).toHaveBeenCalledTimes(1);
+
+    broadcastScene.mockRestore();
   });
 });
