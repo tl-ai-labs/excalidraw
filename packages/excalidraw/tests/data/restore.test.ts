@@ -1656,4 +1656,34 @@ describe("restoreLibraryItems creation timestamps", () => {
       }
     },
   );
+
+  it("restores legacy text elements without styledRanges and normalizes styledRanges when present", () => {
+    const legacyText = API.createElement({
+      type: "text",
+      text: "Bid request timeout 120ms",
+    });
+    const restoredLegacy = restore.restoreElements(
+      [legacyText],
+      null,
+    )[0] as any;
+    expect(restoredLegacy.styledRanges).toBeUndefined();
+
+    const styledText = {
+      ...API.createElement({
+        type: "text",
+        text: "Bid request timeout 120ms",
+      }),
+      styledRanges: [
+        { start: 20, end: 99, color: "#e03131" },
+        { start: 5, end: 5, color: "#2f9e44" },
+      ],
+    };
+    const restoredStyled = restore.restoreElements(
+      [styledText],
+      null,
+    )[0] as any;
+    expect(restoredStyled.styledRanges).toEqual([
+      { start: 20, end: 25, color: "#e03131" },
+    ]);
+  });
 });

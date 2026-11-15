@@ -37,6 +37,7 @@ import {
 } from "@excalidraw/element";
 import { getTextWidth } from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
+import { getLineStyledRuns } from "@excalidraw/element";
 import { getLineWidth } from "@excalidraw/element";
 import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
@@ -265,7 +266,10 @@ export const textWysiwyg = ({
    * Note: `text`, which can be wrapped and therefore different from `originalText`,
    *       is derived from `originalText`
    */
-  onChange?: (nextOriginalText: string) => void;
+  onChange?: (data: {
+    nextOriginalText: string;
+    cursorAfterEdit?: number;
+  }) => void;
   onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;
   getViewportCoords: (x: number, y: number) => [number, number];
   element: ExcalidrawTextElement;
@@ -479,6 +483,12 @@ export const textWysiwyg = ({
         editable.style.wordBreak = "break-word";
       }
 
+      const strokeColor = applyDarkModeFilter(
+        updatedTextElement.strokeColor,
+        appState.theme === THEME.DARK,
+      );
+      const hasStyledRanges = Boolean(updatedTextElement.styledRanges?.length);
+
       Object.assign(editable.style, {
         font,
         // must be defined *after* font ¯\_(ツ)_/¯
@@ -500,12 +510,13 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color: applyDarkModeFilter(
-          updatedTextElement.strokeColor,
-          appState.theme === THEME.DARK,
-        ),
+        color: hasStyledRanges ? "transparent" : strokeColor,
+        webkitTextFillColor: hasStyledRanges ? "transparent" : "",
+        caretColor: hasStyledRanges ? strokeColor : "",
         opacity: updatedTextElement.opacity / 100,
       });
+
+      updateBackdrop(updatedTextElement, strokeColor);
       currentTextLayout = {
         angle: angle as Radians,
         font,
@@ -531,6 +542,79 @@ export const textWysiwyg = ({
   };
 
   const editable = ownerDocument.createElement("textarea");
+  const backdrop = ownerDocument.createElement("div");
+  backdrop.classList.add("excalidraw-wysiwyg-backdrop");
+  backdrop.setAttribute("aria-hidden", "true");
+  Object.assign(backdrop.style, {
+    position: "absolute",
+    display: "none",
+    pointerEvents: "none",
+    backfaceVisibility: "hidden",
+    margin: 0,
+    padding: 0,
+    border: 0,
+    outline: 0,
+    background: "transparent",
+    overflow: "hidden",
+    zIndex: "var(--zIndex-wysiwyg)",
+    overflowWrap: "break-word",
+    boxSizing: "content-box",
+  });
+
+  const updateBackdrop = (
+    updatedTextElement: ExcalidrawTextElement,
+    strokeColor: string,
+  ) => {
+    const ranges = updatedTextElement.styledRanges;
+    if (!ranges?.length) {
+      backdrop.style.display = "none";
+      return;
+    }
+
+    const isDark = app.state.theme === THEME.DARK;
+    backdrop.dir = editable.dir;
+    Object.assign(backdrop.style, {
+      display: "inline-block",
+      font: editable.style.font,
+      lineHeight: editable.style.lineHeight,
+      width: editable.style.width,
+      height: editable.style.height,
+      left: editable.style.left,
+      top: editable.style.top,
+      transformOrigin: editable.style.transformOrigin,
+      transform: editable.style.transform,
+      textAlign: editable.style.textAlign,
+      whiteSpace: editable.style.whiteSpace,
+      wordBreak: editable.style.wordBreak,
+      opacity: editable.style.opacity,
+      color: strokeColor,
+    });
+    if (isTestEnv()) {
+      backdrop.style.fontFamily = getFontFamilyString(updatedTextElement);
+    }
+
+    const text = editable.value;
+    const runs = getLineStyledRuns(text, 0, text.length, ranges);
+    const fragment = ownerDocument.createDocumentFragment();
+    for (const run of runs) {
+      const span = ownerDocument.createElement("span");
+      span.textContent = run.text;
+      if (run.color) {
+        span.style.color = applyDarkModeFilter(run.color, isDark);
+      }
+      if (run.backgroundColor) {
+        span.style.backgroundColor = applyDarkModeFilter(
+          run.backgroundColor,
+          isDark,
+        );
+      }
+      fragment.appendChild(span);
+    }
+    if (text.endsWith("\n")) {
+      fragment.appendChild(ownerDocument.createTextNode("\u200b"));
+    }
+    backdrop.replaceChildren(fragment);
+  };
 
   editable.dir = "auto";
   editable.tabIndex = 0;
@@ -860,7 +944,10 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      onChange(editable.value);
+      onChange({
+        nextOriginalText: editable.value,
+        cursorAfterEdit: editable.selectionEnd,
+      });
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1113,6 +1200,7 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
 
+    backdrop.remove();
     editable.remove();
   };
 
@@ -1327,6 +1415,7 @@ export const textWysiwyg = ({
     });
   });
   ownerWindow.addEventListener("beforeunload", handleSubmit);
+  editorBox!.appendChild(backdrop);
   editorBox!.appendChild(editable);
 
   return handleSubmit;

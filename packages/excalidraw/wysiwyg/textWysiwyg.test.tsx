@@ -3594,4 +3594,81 @@ describe("textWysiwyg", () => {
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
     });
   });
+
+  describe("partial text colour and highlight", () => {
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    it("applies colour and highlight to a selected range while editing and preserves ranges across edits", async () => {
+      UI.clickTool("text");
+      mouse.clickAt(400, 400);
+      const editor = await getTextEditor();
+      updateTextEditor(editor, "Bid request timeout 120ms");
+
+      // Select "120ms" (offsets 20..25)
+      editor.setSelectionRange(20, 25);
+
+      h.app.actionManager.executeAction(
+        h.app.actionManager.actions.changeStrokeColor,
+        "ui",
+        { color: "#e03131" },
+      );
+      h.app.actionManager.executeAction(
+        h.app.actionManager.actions.changeBackgroundColor,
+        "ui",
+        { color: "#fff3bf" },
+      );
+
+      let textEl = h.elements.find(
+        (el) => el.type === "text" && !el.isDeleted,
+      ) as any;
+      expect(textEl.strokeColor).not.toBe("#e03131");
+      expect(textEl.styledRanges).toEqual([
+        {
+          start: 20,
+          end: 25,
+          color: "#e03131",
+          backgroundColor: "#fff3bf",
+        },
+      ]);
+
+      // Backdrop renders styled spans while editing
+      const backdropSpans = Array.from(
+        document.querySelectorAll(".excalidraw-wysiwyg-backdrop span"),
+      );
+      expect(backdropSpans.map((s) => s.textContent)).toEqual([
+        "Bid request timeout ",
+        "120ms",
+      ]);
+
+      // Inserting text before the styled range shifts it
+      updateTextEditor(editor, "API Bid request timeout 120ms");
+      textEl = h.elements.find(
+        (el) => el.type === "text" && !el.isDeleted,
+      ) as any;
+      expect(textEl.styledRanges).toEqual([
+        {
+          start: 24,
+          end: 29,
+          color: "#e03131",
+          backgroundColor: "#fff3bf",
+        },
+      ]);
+
+      Keyboard.exitTextEditor(editor);
+      textEl = h.elements.find(
+        (el) => el.type === "text" && !el.isDeleted,
+      ) as any;
+      expect(textEl.styledRanges).toEqual([
+        {
+          start: 24,
+          end: 29,
+          color: "#e03131",
+          backgroundColor: "#fff3bf",
+        },
+      ]);
+    });
+  });
 });

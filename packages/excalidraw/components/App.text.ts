@@ -40,6 +40,7 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  shiftStyledRangesOnTextEdit,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -184,7 +185,11 @@ export class AppText {
   ) {
     const elementsMap = this.app.scene.getElementsMapIncludingDeleted();
 
-    const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
+    const updateElement = (
+      nextOriginalText: string,
+      isDeleted: boolean,
+      cursorAfterEdit?: number,
+    ) => {
       const latestTextElement =
         this.app.scene.getElement<ExcalidrawTextElement>(element.id);
 
@@ -220,8 +225,15 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
+            const nextStyledRanges = shiftStyledRangesOnTextEdit(
+              _element.styledRanges,
+              _element.originalText,
+              nextOriginalText,
+              cursorAfterEdit,
+            );
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              styledRanges: nextStyledRanges,
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
@@ -293,14 +305,22 @@ export class AppText {
           viewportY - this.app.state.offsetTop,
         ];
       },
-      onChange: withBatchedUpdates((nextOriginalText) => {
-        updateElement(nextOriginalText, false);
-        if (isNonDeletedElement(element)) {
-          updateBoundElements(element, this.app.scene, {
-            renderEnvironment: this.app.renderEnvironment,
-          });
-        }
-      }),
+      onChange: withBatchedUpdates(
+        ({
+          nextOriginalText,
+          cursorAfterEdit,
+        }: {
+          nextOriginalText: string;
+          cursorAfterEdit?: number;
+        }) => {
+          updateElement(nextOriginalText, false, cursorAfterEdit);
+          if (isNonDeletedElement(element)) {
+            updateBoundElements(element, this.app.scene, {
+              renderEnvironment: this.app.renderEnvironment,
+            });
+          }
+        },
+      ),
       onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
         this.textWysiwygSubmitHandler = null;
 

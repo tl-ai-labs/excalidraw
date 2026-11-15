@@ -65,9 +65,30 @@ export const canChangeBackgroundColor = (
   appState: UIAppState,
   targetElements: ExcalidrawElement[],
   elementsMap: ElementsMap,
+  app?: AppClassProperties,
 ) => {
+  const hasPartialTextSelection = (() => {
+    if (!appState.editingTextElement || !app) {
+      return false;
+    }
+    const editor = app.ownerDocument.querySelector<HTMLTextAreaElement>(
+      ".excalidraw-wysiwyg",
+    );
+    if (!editor) {
+      return false;
+    }
+    const { selectionStart, selectionEnd, value } = editor;
+    return (
+      typeof selectionStart === "number" &&
+      typeof selectionEnd === "number" &&
+      selectionStart < selectionEnd &&
+      !(selectionStart === 0 && selectionEnd === value.length)
+    );
+  })();
+
   return (
     hasBackground(appState.activeTool.type) ||
+    hasPartialTextSelection ||
     // a note's label (the target while editing it) has no fill, but a
     // background pick on it colors the note — so the picker stays available
     targetElements.some((element) =>
@@ -126,6 +147,7 @@ export const getShapeActionPredicates = (
       appState,
       targetElements,
       elementsMap,
+      app,
     ),
     fill:
       // bucket fill never renders transparent (it falls back to a real

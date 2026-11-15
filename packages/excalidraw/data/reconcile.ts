@@ -3,6 +3,8 @@ import throttle from "lodash.throttle";
 import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
+  isTextElement,
+  normalizeStyledRanges,
   orderByFractionalIndex,
   syncInvalidIndices,
   validateFractionalIndices,
@@ -93,7 +95,23 @@ export const reconcileElements = (
         reconciledElements.push(localElement);
         added.add(localElement.id);
       } else {
-        reconciledElements.push(remoteElement);
+        if (isTextElement(remoteElement) && remoteElement.styledRanges) {
+          const normalized = normalizeStyledRanges(
+            remoteElement.styledRanges,
+            remoteElement.originalText.length,
+          );
+          if (normalized) {
+            reconciledElements.push({
+              ...remoteElement,
+              styledRanges: normalized,
+            });
+          } else {
+            const { styledRanges: _removed, ...rest } = remoteElement;
+            reconciledElements.push(rest);
+          }
+        } else {
+          reconciledElements.push(remoteElement);
+        }
         added.add(remoteElement.id);
       }
     }

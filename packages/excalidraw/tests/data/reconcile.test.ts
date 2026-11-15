@@ -7,6 +7,7 @@ import type {
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
+import { getDefaultAppState } from "../../appState";
 import { reconcileElements } from "../../data/reconcile";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
@@ -382,5 +383,55 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+
+  it("preserves local styledRanges while editing and normalizes remote styledRanges", () => {
+    const localText = {
+      id: "T1",
+      type: "text",
+      text: "Bid request timeout 120ms",
+      originalText: "Bid request timeout 120ms",
+      styledRanges: [{ start: 20, end: 25, color: "#e03131" }],
+      version: 1,
+      versionNonce: 10,
+      index: "a0",
+    } as any;
+
+    const remoteText = {
+      id: "T1",
+      type: "text",
+      text: "Bid request timeout 120ms",
+      originalText: "Bid request timeout 120ms",
+      styledRanges: [{ start: 0, end: 50, backgroundColor: "#fff3bf" }],
+      version: 5,
+      versionNonce: 1,
+      index: "a0",
+    } as any;
+
+    // While local is being edited, local styledRanges win over higher-version remote
+    const whileEditing = reconcileElements([localText], [remoteText], {
+      ...getDefaultAppState(),
+      width: 0,
+      height: 0,
+      offsetTop: 0,
+      offsetLeft: 0,
+      editingTextElement: localText,
+    });
+    expect((whileEditing[0] as any).styledRanges).toEqual([
+      { start: 20, end: 25, color: "#e03131" },
+    ]);
+
+    // When not editing locally, remote wins and its styledRanges are normalized
+    const afterEditing = reconcileElements([localText], [remoteText], {
+      ...getDefaultAppState(),
+      width: 0,
+      height: 0,
+      offsetTop: 0,
+      offsetLeft: 0,
+      editingTextElement: null,
+    });
+    expect((afterEditing[0] as any).styledRanges).toEqual([
+      { start: 0, end: 25, backgroundColor: "#fff3bf" },
+    ]);
   });
 });

@@ -250,6 +250,17 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+export type TextStyledRange = Readonly<{
+  /** Start code-unit offset in `originalText` (inclusive) */
+  start: number;
+  /** End code-unit offset in `originalText` (exclusive) */
+  end: number;
+  /** Optional text colour override */
+  color?: string;
+  /** Optional highlight/background colour */
+  backgroundColor?: string;
+}>;
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -288,6 +299,11 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * so it survives midpoint insertion and other geometry changes.
      * */
     labelPosition?: number | null;
+    /**
+     * Per-range text colour and highlight styling, indexed by UTF-16 code-unit
+     * offsets into `originalText`. Sorted, non-overlapping, and non-empty.
+     */
+    styledRanges?: readonly TextStyledRange[];
   }>;
 
 export type ExcalidrawBindableElement =
