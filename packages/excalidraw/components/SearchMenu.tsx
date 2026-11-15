@@ -197,6 +197,12 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        if (
+          match.element.pageId &&
+          match.element.pageId !== app.state.activePageId
+        ) {
+          app.switchPage(match.element.pageId);
+        }
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -800,7 +806,7 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene.getAllNonDeletedElements();
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];

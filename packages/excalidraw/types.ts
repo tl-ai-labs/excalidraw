@@ -327,7 +327,17 @@ export type ScrollConstraints = {
   offsets?: Offsets;
 };
 
+export interface ExcalidrawPage {
+  id: string;
+  name: string;
+  scrollX?: number;
+  scrollY?: number;
+  zoom?: AppState["zoom"];
+}
+
 export interface AppState {
+  pages: readonly ExcalidrawPage[];
+  activePageId: string;
   contextMenu: {
     items: ContextMenuItems;
     top: number;
@@ -1253,6 +1263,11 @@ export type AppClassProperties = {
   activeResizeHandle: App["activeResizeHandle"];
   selectionTool: App["selectionTool"];
   wrap: App["wrap"];
+  createPage: App["createPage"];
+  switchPage: App["switchPage"];
+  renamePage: App["renamePage"];
+  reorderPages: App["reorderPages"];
+  deletePage: App["deletePage"];
   modifiers: App["modifiers"];
   isToolLocked: App["isToolLocked"];
   getEffectiveGridSize: App["getEffectiveGridSize"];
@@ -1462,6 +1477,11 @@ export interface ExcalidrawImperativeAPI {
    * used in conjunction with view mode (props.viewModeEnabled).
    */
   updateFrameRendering: InstanceType<typeof App>["updateFrameRendering"];
+  createPage: InstanceType<typeof App>["createPage"];
+  switchPage: InstanceType<typeof App>["switchPage"];
+  renamePage: InstanceType<typeof App>["renamePage"];
+  reorderPages: InstanceType<typeof App>["reorderPages"];
+  deletePage: InstanceType<typeof App>["deletePage"];
   onChange: (
     callback: (
       elements: readonly ExcalidrawElement[],

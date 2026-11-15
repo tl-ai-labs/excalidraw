@@ -84,12 +84,14 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly { id: string; name: string }[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly { id: string; name: string }[];
     };
   };
   MOUSE_LOCATION: {

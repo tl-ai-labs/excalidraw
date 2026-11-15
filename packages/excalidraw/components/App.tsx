@@ -33,6 +33,7 @@ import {
   ROUNDNESS,
   SCROLL_TIMEOUT,
   TAP_TWICE_TIMEOUT,
+  randomId,
   THEME,
   TOUCH_CTX_MENU_TIMEOUT,
   YOUTUBE_STATES,
@@ -294,7 +295,11 @@ import { ActionManager } from "../actions/manager";
 import { actions } from "../actions/register";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
 import { trackEvent } from "../analytics";
-import { getDefaultAppState, isEraserActive } from "../appState";
+import {
+  DEFAULT_PAGE_ID,
+  getDefaultAppState,
+  isEraserActive,
+} from "../appState";
 import {
   copyTextToSystemClipboard,
   parseDataTransferEvent,
@@ -460,6 +465,8 @@ import type {
   GenerateDiagramToCode,
   NullableGridSize,
   UIConfig,
+  ExcalidrawPage,
+  NormalizedZoomValue,
 } from "../types";
 import type { RoughCanvas } from "roughjs/bin/canvas";
 import type { Action, ActionResult } from "../actions/types";
@@ -820,6 +827,11 @@ class App extends React.Component<AppProps, AppState> {
       resetCursor: this.cursor.reset,
       getEditorInterface: () => this.editorInterface,
       updateFrameRendering: this.updateFrameRendering,
+      createPage: this.createPage,
+      switchPage: this.switchPage,
+      renamePage: this.renamePage,
+      reorderPages: this.reorderPages,
+      deletePage: this.deletePage,
       toggleSidebar: this.toggleSidebar,
       onChange: (cb) => this.onChangeEmitter.on(cb),
       onIncrement: (cb) => this.store.onStoreIncrementEmitter.on(cb),
@@ -908,6 +920,9 @@ class App extends React.Component<AppProps, AppState> {
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.history = new History(this.store);
+    this.scene.setDefaultPageId(DEFAULT_PAGE_ID);
+    this.scene.setActivePageId(this.state.activePageId);
+    this.history.setActivePageId(this.state.activePageId);
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -3147,6 +3162,10 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     if (actionResult.appState || editingTextElement || this.state.contextMenu) {
+      if (actionResult.appState?.activePageId) {
+        this.scene.setActivePageId(actionResult.appState.activePageId);
+        this.history.setActivePageId(actionResult.appState.activePageId);
+      }
       let viewModeEnabled = actionResult?.appState?.viewModeEnabled || false;
       let zenModeEnabled = actionResult?.appState?.zenModeEnabled || false;
       const theme =
@@ -3554,6 +3573,7 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
+      this.scene.setActivePageId(DEFAULT_PAGE_ID);
       this.scene.replaceAllElements([]);
       this.setState((state) => ({
         ...getDefaultAppState(),
@@ -3562,6 +3582,7 @@ class App extends React.Component<AppProps, AppState> {
       }));
       this.resetStore();
       this.resetHistory();
+      this.history.setActivePageId(DEFAULT_PAGE_ID);
     },
   );
 
@@ -3618,11 +3639,14 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
+    let restoredAppState = restoreAppState(initialData?.appState, null);
     const restoredElements = restoreElements(initialData?.elements, null, {
       repairBindings: true,
       deleteInvisibleElements: true,
     });
-    let restoredAppState = restoreAppState(initialData?.appState, null);
+    this.scene.setDefaultPageId(
+      restoredAppState.pages[0]?.id ?? DEFAULT_PAGE_ID,
+    );
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -4624,6 +4648,16 @@ class App extends React.Component<AppProps, AppState> {
   }) => {
     const elements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
+    }).map((el) => {
+      if (this.state.activePageId === DEFAULT_PAGE_ID) {
+        if ("pageId" in el) {
+          const copy = { ...el };
+          delete (copy as Mutable<ExcalidrawElement>).pageId;
+          return copy;
+        }
+        return el;
+      }
+      return { ...el, pageId: this.state.activePageId };
     });
     const clientX =
       typeof opts.position === "object"
@@ -4830,6 +4864,195 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  public createPage = (name?: string): ExcalidrawPage => {
+    const newPage: ExcalidrawPage = {
+      id: randomId(),
+      name: name?.trim() || `Page ${this.state.pages.length + 1}`,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 as NormalizedZoomValue },
+    };
+
+    const updatedPages = this.state.pages.map((page) =>
+      page.id === this.state.activePageId
+        ? {
+            ...page,
+            scrollX: this.state.scrollX,
+            scrollY: this.state.scrollY,
+            zoom: this.state.zoom,
+          }
+        : page,
+    );
+    updatedPages.push(newPage);
+
+    this.scene.setActivePageId(newPage.id);
+    this.history.setActivePageId(newPage.id);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    this.setState({
+      pages: updatedPages,
+      activePageId: newPage.id,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 as NormalizedZoomValue },
+      selectedElementIds: {},
+      selectedGroupIds: {},
+      editingGroupId: null,
+      selectedLinearElement: null,
+      editingTextElement: null,
+      activeLockedId: null,
+      hoveredElementIds: {},
+      selectionElement: null,
+      multiElement: null,
+      newElement: null,
+      selectedElementsAreBeingDragged: false,
+    });
+
+    return newPage;
+  };
+
+  public switchPage = (pageId: string): boolean => {
+    if (pageId === this.state.activePageId) {
+      return false;
+    }
+    const targetPage = this.state.pages.find((p) => p.id === pageId);
+    if (!targetPage) {
+      return false;
+    }
+
+    const updatedPages = this.state.pages.map((page) =>
+      page.id === this.state.activePageId
+        ? {
+            ...page,
+            scrollX: this.state.scrollX,
+            scrollY: this.state.scrollY,
+            zoom: this.state.zoom,
+          }
+        : page,
+    );
+
+    this.scene.setActivePageId(pageId);
+    this.history.setActivePageId(pageId);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    this.setState({
+      pages: updatedPages,
+      activePageId: pageId,
+      scrollX: targetPage.scrollX ?? 0,
+      scrollY: targetPage.scrollY ?? 0,
+      zoom: targetPage.zoom ?? { value: 1 as NormalizedZoomValue },
+      selectedElementIds: {},
+      selectedGroupIds: {},
+      editingGroupId: null,
+      selectedLinearElement: null,
+      editingTextElement: null,
+      activeLockedId: null,
+      hoveredElementIds: {},
+      selectionElement: null,
+      multiElement: null,
+      newElement: null,
+      selectedElementsAreBeingDragged: false,
+    });
+
+    return true;
+  };
+
+  public renamePage = (pageId: string, name: string): boolean => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return false;
+    }
+    const exists = this.state.pages.some((p) => p.id === pageId);
+    if (!exists) {
+      return false;
+    }
+    this.setState((prevState) => ({
+      pages: prevState.pages.map((page) =>
+        page.id === pageId ? { ...page, name: trimmed } : page,
+      ),
+    }));
+    return true;
+  };
+
+  public reorderPages = (fromIndex: number, toIndex: number): boolean => {
+    const { pages } = this.state;
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= pages.length ||
+      toIndex >= pages.length
+    ) {
+      return false;
+    }
+    const nextPages = [...pages];
+    const [moved] = nextPages.splice(fromIndex, 1);
+    nextPages.splice(toIndex, 0, moved);
+    this.setState({ pages: nextPages });
+    return true;
+  };
+
+  public deletePage = (pageId: string): boolean => {
+    const { pages, activePageId } = this.state;
+    if (pages.length <= 1) {
+      return false;
+    }
+    const deletedIndex = pages.findIndex((p) => p.id === pageId);
+    if (deletedIndex === -1) {
+      return false;
+    }
+
+    const nextPages = pages.filter((p) => p.id !== pageId);
+    const nextActivePage =
+      pageId === activePageId
+        ? nextPages[Math.max(0, deletedIndex - 1)]
+        : nextPages.find((p) => p.id === activePageId) || nextPages[0];
+
+    this.history.deletePage(pageId);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    const nextElements = this.scene
+      .getElementsIncludingDeleted()
+      .map((el) =>
+        (el.pageId === pageId || (!el.pageId && pageId === DEFAULT_PAGE_ID)) &&
+        !el.isDeleted
+          ? newElementWith(el, { isDeleted: true })
+          : el,
+      );
+
+    this.scene.setActivePageId(nextActivePage.id);
+    this.history.setActivePageId(nextActivePage.id);
+    this.scene.replaceAllElements(nextElements);
+
+    if (pageId === activePageId) {
+      this.setState({
+        pages: nextPages,
+        activePageId: nextActivePage.id,
+        scrollX: nextActivePage.scrollX ?? 0,
+        scrollY: nextActivePage.scrollY ?? 0,
+        zoom: nextActivePage.zoom ?? { value: 1 as NormalizedZoomValue },
+        selectedElementIds: {},
+        selectedGroupIds: {},
+        editingGroupId: null,
+        selectedLinearElement: null,
+        editingTextElement: null,
+        activeLockedId: null,
+        hoveredElementIds: {},
+        selectionElement: null,
+        multiElement: null,
+        newElement: null,
+        selectedElementsAreBeingDragged: false,
+      });
+    } else {
+      this.setState({
+        pages: nextPages,
+        activePageId: nextActivePage.id,
+      });
+    }
+
+    return true;
+  };
+
   // scroll `elements` into view only if they aren't already fully visible.
   // Targets their bounds rather than the elements so it also works for
   // elements not yet committed to the canvas.
@@ -5008,6 +5231,14 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (appState) {
+        if (
+          "activePageId" in appState &&
+          typeof appState.activePageId === "string" &&
+          appState.activePageId
+        ) {
+          this.scene.setActivePageId(appState.activePageId);
+          this.history.setActivePageId(appState.activePageId);
+        }
         this.setState(appState as Pick<AppState, K> | null);
       }
 
@@ -6811,6 +7042,10 @@ class App extends React.Component<AppProps, AppState> {
     const chunkedElements: ExcalidrawElement[][] = [];
 
     for (const element of elements) {
+      if (!element.pageId && this.state.activePageId !== DEFAULT_PAGE_ID) {
+        (element as Mutable<ExcalidrawElement>).pageId =
+          this.state.activePageId;
+      }
       const currentChunk = chunkedElements[chunkedElements.length - 1];
 
       if (currentChunk?.[0].frameId === element.frameId) {

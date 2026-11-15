@@ -326,7 +326,7 @@ export const actionZoomToFitSelectionInViewport = register({
       ? getCommonBounds(getNonDeletedElements(selectedElements))
       : appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,
@@ -369,7 +369,7 @@ export const actionZoomToFitSelection = register({
       ? getCommonBounds(getNonDeletedElements(selectedElements))
       : appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,
@@ -406,7 +406,7 @@ export const actionZoomToFit = register({
     // under a viewport lock, fits the locked box rather than the elements
     const bounds = appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,

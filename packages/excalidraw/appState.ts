@@ -27,11 +27,16 @@ const getDefaultExportScale = () => {
   return EXPORT_SCALES.includes(devicePixelRatio) ? devicePixelRatio : 1;
 };
 
+export const DEFAULT_PAGE_ID = "page-1";
+export const DEFAULT_PAGE_NAME = "Page 1";
+
 export const getDefaultAppState = (): Omit<
   AppState,
   "offsetTop" | "offsetLeft" | "width" | "height"
 > => {
   return {
+    pages: [{ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME }],
+    activePageId: DEFAULT_PAGE_ID,
     showWelcomeScreen: false,
     theme: THEME.LIGHT,
     collaborators: new Map(),
@@ -294,6 +299,8 @@ const APP_STATE_STORAGE_CONF = (<
   bindMode: { browser: true, export: false, server: false },
   colorTopPicks: { browser: true, export: false, server: false },
   fontTopPicks: { browser: true, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: false },
 });
 
 const _clearAppStateForStorage = <
@@ -325,7 +332,21 @@ export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
 };
 
 export const cleanAppStateForExport = (appState: Partial<AppState>) => {
-  return _clearAppStateForStorage(appState, "export");
+  const cleaned = _clearAppStateForStorage(appState, "export");
+  if (
+    cleaned.pages &&
+    cleaned.pages.length === 1 &&
+    cleaned.pages[0].id === DEFAULT_PAGE_ID &&
+    cleaned.pages[0].name === DEFAULT_PAGE_NAME &&
+    cleaned.pages[0].scrollX === undefined &&
+    cleaned.pages[0].scrollY === undefined &&
+    cleaned.pages[0].zoom === undefined &&
+    cleaned.activePageId === DEFAULT_PAGE_ID
+  ) {
+    delete cleaned.pages;
+    delete cleaned.activePageId;
+  }
+  return cleaned;
 };
 
 export const clearAppStateForDatabase = (appState: Partial<AppState>) => {

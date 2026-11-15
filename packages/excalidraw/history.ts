@@ -99,8 +99,28 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private activePageId = "__default__";
+  private readonly pageStacks = new Map<
+    string,
+    { undoStack: HistoryDelta[]; redoStack: HistoryDelta[] }
+  >();
+
+  private getStacks(pageId: string = this.activePageId) {
+    let stacks = this.pageStacks.get(pageId);
+    if (!stacks) {
+      stacks = { undoStack: [], redoStack: [] };
+      this.pageStacks.set(pageId, stacks);
+    }
+    return stacks;
+  }
+
+  public get undoStack(): HistoryDelta[] {
+    return this.getStacks().undoStack;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    return this.getStacks().redoStack;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -112,9 +132,26 @@ export class History {
 
   constructor(private readonly store: Store) {}
 
-  public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+  public setActivePageId(pageId: string) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  public deletePage(pageId: string) {
+    this.pageStacks.delete(pageId);
+  }
+
+  public clear(pageId?: string) {
+    if (pageId) {
+      this.pageStacks.delete(pageId);
+    } else {
+      this.pageStacks.clear();
+    }
   }
 
   /**

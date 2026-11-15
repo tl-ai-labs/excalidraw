@@ -107,7 +107,11 @@ import type {
 
 import type { MarkOptional, Mutable } from "@excalidraw/common/utility-types";
 
-import { getDefaultAppState } from "../appState";
+import {
+  DEFAULT_PAGE_ID,
+  DEFAULT_PAGE_NAME,
+  getDefaultAppState,
+} from "../appState";
 
 import {
   getNormalizedGridSize,
@@ -115,7 +119,12 @@ import {
   getNormalizedZoom,
 } from "../scene";
 
-import type { AppState, BinaryFiles, LibraryItem } from "../types";
+import type {
+  AppState,
+  BinaryFiles,
+  ExcalidrawPage,
+  LibraryItem,
+} from "../types";
 import type { ImportedDataState, LegacyAppState } from "./types";
 
 type RestoredAppState = Omit<
@@ -448,7 +457,8 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
+    pageId?: ExcalidrawElement["pageId"];
     customData?: ExcalidrawElement["customData"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
@@ -468,7 +478,9 @@ const restoreElementWithProperties = <
   > &
     Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
 ): T => {
-  const base: Pick<T, keyof ExcalidrawElement> = {
+  const base: Pick<T, Exclude<keyof ExcalidrawElement, "pageId">> & {
+    pageId?: string;
+  } = {
     type: extra.type || element.type,
     // all elements must have version > 0 so getSceneVersion() will pick up
     // newly added elements
@@ -517,6 +529,10 @@ const restoreElementWithProperties = <
   if ("customData" in element || "customData" in extra) {
     base.customData =
       "customData" in extra ? extra.customData : element.customData;
+  }
+
+  if ("pageId" in element && typeof element.pageId === "string") {
+    base.pageId = element.pageId;
   }
 
   const ret = {
@@ -1382,7 +1398,80 @@ export const restoreAppState = (
       nextAppState.currentItemStickynoteBackgroundColor,
     ),
     editingFrame: null,
+    ...restorePagesAppState(nextAppState.pages, nextAppState.activePageId),
   };
+};
+
+const restorePagesAppState = (
+  pages: unknown,
+  activePageId: unknown,
+): { pages: readonly ExcalidrawPage[]; activePageId: string } => {
+  const seenIds = new Set<string>();
+  const validPages: ExcalidrawPage[] = [];
+
+  if (Array.isArray(pages)) {
+    for (const page of pages) {
+      if (
+        page &&
+        typeof page === "object" &&
+        typeof (page as ExcalidrawPage).id === "string" &&
+        (page as ExcalidrawPage).id.trim() !== "" &&
+        !seenIds.has((page as ExcalidrawPage).id)
+      ) {
+        const raw = page as ExcalidrawPage;
+        seenIds.add(raw.id);
+        const restoredPage: ExcalidrawPage = {
+          id: raw.id,
+          name:
+            typeof raw.name === "string" && raw.name.trim() !== ""
+              ? raw.name
+              : `Page ${validPages.length + 1}`,
+        };
+        if (isFiniteNumber(raw.scrollX)) {
+          restoredPage.scrollX = raw.scrollX;
+        }
+        if (isFiniteNumber(raw.scrollY)) {
+          restoredPage.scrollY = raw.scrollY;
+        }
+        if (raw.zoom && isFiniteNumber(raw.zoom.value)) {
+          restoredPage.zoom = { value: getNormalizedZoom(raw.zoom.value) };
+        }
+        validPages.push(restoredPage);
+      }
+    }
+  }
+
+  if (validPages.length === 0) {
+    validPages.push({ id: DEFAULT_PAGE_ID, name: DEFAULT_PAGE_NAME });
+  }
+
+  const nextActivePageId =
+    typeof activePageId === "string" &&
+    validPages.some((p) => p.id === activePageId)
+      ? activePageId
+      : validPages[0].id;
+
+  return {
+    pages: validPages,
+    activePageId: nextActivePageId,
+  };
+};
+
+export const assignDefaultPageToElements = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+  defaultPageId: string,
+  pages?: readonly ExcalidrawPage[],
+): T[] => {
+  const validPageIds = pages ? new Set(pages.map((p) => p.id)) : null;
+  let didChange = false;
+  const next = elements.map((el) => {
+    if (!el.pageId || (validPageIds && !validPageIds.has(el.pageId))) {
+      didChange = true;
+      return { ...el, pageId: defaultPageId };
+    }
+    return el;
+  });
+  return didChange ? next : (elements as T[]);
 };
 
 const restoreLibraryItem = (libraryItem: LibraryItem): LibraryItem | null => {

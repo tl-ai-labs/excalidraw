@@ -237,6 +237,7 @@ export class API {
       : never;
     elbowed?: boolean;
     fixedSegments?: FixedSegment[] | null;
+    pageId?: string;
   }): NonDeleted<
     T extends "arrow" | "line"
       ? ExcalidrawLinearElement
@@ -308,6 +309,7 @@ export class API {
       boundElements: rest.boundElements ?? null,
       locked: rest.locked ?? false,
       created: rest.created === undefined ? getUpdatedTimestamp() : rest.created,
+      ...(rest.pageId ? { pageId: rest.pageId } : {}),
     };
     switch (type) {
       case "rectangle":

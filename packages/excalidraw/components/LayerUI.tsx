@@ -41,6 +41,7 @@ import Stack from "./Stack";
 import { UserList } from "./UserList";
 import { PenModeButton } from "./PenModeButton";
 import Footer from "./footer/Footer";
+import { PageTabBar } from "./PageTabBar";
 import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
@@ -662,6 +663,7 @@ const LayerUI = ({
               defaultUIEnabled={defaultUIEnabled}
               zoomUIEnabled={zoomUIEnabled}
             />
+            {defaultUIEnabled && <PageTabBar app={app} appState={appState} />}
             {(appState.toast ||
               (scrollBackToContentUIEnabled && appState.scrolledOutside) ||
               appProps.viewportStatusFrame?.label) && (
