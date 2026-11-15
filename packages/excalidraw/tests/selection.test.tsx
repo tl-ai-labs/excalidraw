@@ -180,6 +180,8 @@ describe("lasso reselection", () => {
     mouse.select([rectA, rectB]);
     act(() => {
       h.app.setActiveTool({ type: "lasso" });
+      // the lasso below only partially covers rectA
+      h.app.setState({ boxSelectionMode: "overlap" });
     });
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
@@ -195,6 +197,82 @@ describe("lasso reselection", () => {
     });
 
     assertSelectedElements([rectA.id]);
+  });
+});
+
+describe("lasso selection mode", () => {
+  const lasso = (points: [number, number][]) => {
+    const [[startX, startY], ...rest] = points;
+    mouse.downAt(startX, startY);
+    for (const [x, y] of rest) {
+      mouse.moveTo(x, y);
+    }
+    mouse.moveTo(startX, startY);
+    mouse.up();
+  };
+
+  // only clips the top-left corner of a 100x100 rectangle at (0, 0)
+  const cornerLasso: [number, number][] = [
+    [-20, -20],
+    [30, -20],
+    [30, 30],
+    [-20, 30],
+  ];
+
+  const enclosingLasso: [number, number][] = [
+    [-20, -20],
+    [120, -20],
+    [120, 120],
+    [-20, 120],
+  ];
+
+  const setup = async (boxSelectionMode: "contain" | "overlap") => {
+    await render(
+      <Excalidraw initialData={{ appState: { boxSelectionMode } }} />,
+    );
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      roundness: null,
+    });
+    API.setElements([rect]);
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+    return rect;
+  };
+
+  it("does not select a partially touched element in Wrap mode", async () => {
+    await setup("contain");
+    lasso(cornerLasso);
+    assertSelectedElements([]);
+  });
+
+  it("selects a partially touched element in Overlap mode", async () => {
+    const rect = await setup("overlap");
+    lasso(cornerLasso);
+    assertSelectedElements([rect.id]);
+  });
+
+  it("selects a fully enclosed element in Wrap mode", async () => {
+    const rect = await setup("contain");
+    lasso(enclosingLasso);
+    assertSelectedElements([rect.id]);
+  });
+
+  it("follows boxSelectionMode changes at runtime", async () => {
+    const rect = await setup("contain");
+    lasso(cornerLasso);
+    assertSelectedElements([]);
+
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+    lasso(cornerLasso);
+    assertSelectedElements([rect.id]);
   });
 });
 
