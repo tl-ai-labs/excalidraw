@@ -512,6 +512,23 @@ export const getStrokeWidthByKey = (
     : STROKE_WIDTH[strokeWidthKey];
 };
 
+/**
+ * Arrowhead sizes offered in the UI, as multiples of each arrowhead type's
+ * default size (see `getArrowheadSize()`).
+ */
+export const ARROWHEAD_SIZE = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+} as const;
+
+/** arrowhead size of elements without an explicit `arrowheadSize` */
+export const DEFAULT_ARROWHEAD_SIZE = ARROWHEAD_SIZE.medium;
+
+/** range `arrowheadSize` is restored into */
+export const MIN_ARROWHEAD_SIZE = 0.25;
+export const MAX_ARROWHEAD_SIZE = 4;
+
 export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = "medium";
 
 export const DEFAULT_ELEMENT_PROPS: {

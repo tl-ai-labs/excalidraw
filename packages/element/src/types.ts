@@ -374,6 +374,12 @@ export type ExcalidrawLinearElement = _ExcalidrawElementBase &
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    /**
+     * Size of both arrowheads, as a multiple of each arrowhead type's default
+     * size. Absent on elements created before it was introduced (and on ones
+     * that never had it changed), which use `DEFAULT_ARROWHEAD_SIZE`.
+     */
+    arrowheadSize?: number;
   }>;
 
 export type ExcalidrawLineElement = ExcalidrawLinearElement &

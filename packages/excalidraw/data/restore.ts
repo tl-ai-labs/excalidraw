@@ -39,6 +39,7 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  normalizeArrowheadSize,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -538,6 +539,20 @@ const restoreElementWithProperties = <
   return ret;
 };
 
+/**
+ * `arrowheadSize` is optional (absent means the default size), so it's only
+ * set on elements that have a valid one, and cleared (to the default) on ones
+ * that have an invalid one, leaving elements without it as they are.
+ */
+const restoreArrowheadSize = (
+  arrowheadSize: unknown,
+): Pick<ExcalidrawLinearElement, "arrowheadSize"> => {
+  if (arrowheadSize === undefined) {
+    return {} as Pick<ExcalidrawLinearElement, "arrowheadSize">;
+  }
+  return { arrowheadSize: normalizeArrowheadSize(arrowheadSize) };
+};
+
 export const restoreElement = (
   /** element to be restored */
   element: Exclude<ExcalidrawElement, ExcalidrawSelectionElement>,
@@ -653,6 +668,7 @@ export const restoreElement = (
         endBinding: null,
         startArrowhead,
         endArrowhead,
+        ...restoreArrowheadSize(element.arrowheadSize),
         points,
         x,
         y,
@@ -705,6 +721,7 @@ export const restoreElement = (
         ),
         startArrowhead,
         endArrowhead,
+        ...restoreArrowheadSize(element.arrowheadSize),
         points,
         x: x ?? 0,
         y: y ?? 0,
