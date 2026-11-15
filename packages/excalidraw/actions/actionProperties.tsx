@@ -42,7 +42,12 @@ import {
 
 import { LinearElementEditor } from "@excalidraw/element";
 
-import { newElementWith } from "@excalidraw/element";
+import {
+  clearTextStyleProperty,
+  getTextStyleOfRange,
+  hasTextStyleRanges,
+  newElementWith,
+} from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
 
 import {
@@ -178,7 +183,17 @@ import {
 } from "./colorTargets";
 import { register } from "./register";
 
-import type { AppClassProperties, AppState, Primitive } from "../types";
+import {
+  getEditingTextSelection,
+  styleEditingTextSelection,
+} from "./actionTextStyle";
+
+import type {
+  AppClassProperties,
+  AppState,
+  Primitive,
+  UIAppState,
+} from "../types";
 
 const FONT_SIZE_RELATIVE_INCREASE_STEP = 0.1;
 
@@ -363,13 +378,35 @@ const changeFontSize = (
 
 // -----------------------------------------------------------------------------
 
+/**
+ * The color of the part of the edited text selected in the editor, if it's
+ * one color (null if mixed, undefined if nothing's selected).
+ */
+const getEditingTextSelectionColor = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState | UIAppState,
+  app: AppClassProperties,
+) => {
+  const selection = getEditingTextSelection(elements, appState, app);
+  if (!selection) {
+    return undefined;
+  }
+  const color = getTextStyleOfRange(
+    selection.element.styleRanges,
+    selection.start,
+    selection.end,
+    "strokeColor",
+  );
+  return color === undefined ? null : color ?? selection.element.strokeColor;
+};
+
 export const actionChangeStrokeColor = register<
   Partial<AppState> & { color?: string }
 >({
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,6 +414,22 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+
+    // part of the text being edited is selected: color just that part
+    const textSelection = getEditingTextSelection(elements, appState, app);
+    if (textSelection) {
+      return {
+        elements: styleEditingTextSelection(
+          elements,
+          textSelection,
+          "strokeColor",
+          color,
+        ),
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
@@ -391,10 +444,19 @@ export const actionChangeStrokeColor = register<
           appState,
           (el) =>
             hasStrokeColor(el.type)
-              ? newElementWith(
-                  el,
-                  getColorUpdate(el, "strokeColor", color, elementsMap),
-                )
+              ? newElementWith(el, {
+                  ...getColorUpdate(el, "strokeColor", color, elementsMap),
+                  // the whole text takes the color, so no part of it keeps
+                  // its own (highlights stay)
+                  ...(isTextElement(el) && hasTextStyleRanges(el)
+                    ? {
+                        styleRanges: clearTextStyleProperty(
+                          el.styleRanges,
+                          "strokeColor",
+                        ),
+                      }
+                    : {}),
+                })
               : el,
           true,
         ),
@@ -425,13 +487,16 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
-            elements,
-            app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+          color={
+            getEditingTextSelectionColor(elements, appState, app) ??
+            getFormValue(
+              elements,
+              app,
+              (element) => element.strokeColor,
+              true,
+              (hasSelection) => (!hasSelection ? target.currentValue : null),
+            )
+          }
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

@@ -6,6 +6,8 @@ import {
   THEME,
   DARK_THEME_FILTER,
   getFontFamilyString,
+  getFontString,
+  hasRTLChars,
   isRTL,
   isTestEnv,
   getVerticalOffset,
@@ -25,7 +27,11 @@ import {
 } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
-import { getLineHeightInPx } from "@excalidraw/element";
+import {
+  getLineHeightInPx,
+  getLineWidth,
+  getTextStyleRunsByLine,
+} from "@excalidraw/element";
 import {
   isArrowElement,
   isIframeLikeElement,
@@ -812,9 +818,79 @@ const renderElementToSvg = (
             : element.textAlign === "right" || direction === "rtl"
             ? "end"
             : "start";
+        const runsByLine = getTextStyleRunsByLine(element);
+        const font = getFontString(element);
+        const isDarkTheme = renderConfig.theme === THEME.DARK;
+
+        // highlights go behind all the lines' text
+        if (runsByLine) {
+          for (let i = 0; i < lines.length; i++) {
+            const runs = runsByLine[i];
+            if (
+              !runs?.some((run) => run.backgroundColor) ||
+              hasRTLChars(lines[i])
+            ) {
+              continue;
+            }
+            const lineWidth = getLineWidth(
+              lines[i],
+              font,
+              renderConfig.renderEnvironment,
+            );
+            let x =
+              horizontalOffset -
+              (element.textAlign === "center"
+                ? lineWidth / 2
+                : element.textAlign === "right"
+                ? lineWidth
+                : 0);
+            for (const run of runs) {
+              const runWidth = getLineWidth(
+                run.text,
+                font,
+                renderConfig.renderEnvironment,
+              );
+              if (run.backgroundColor) {
+                const rect = svgRoot.ownerDocument.createElementNS(
+                  SVG_NS,
+                  "rect",
+                );
+                rect.setAttribute("x", `${x}`);
+                rect.setAttribute("y", `${i * lineHeightPx}`);
+                rect.setAttribute("width", `${runWidth}`);
+                rect.setAttribute("height", `${lineHeightPx}`);
+                rect.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(run.backgroundColor, isDarkTheme),
+                );
+                node.appendChild(rect);
+              }
+              x += runWidth;
+            }
+          }
+        }
+
         for (let i = 0; i < lines.length; i++) {
           const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
-          text.textContent = lines[i];
+          const runs = runsByLine?.[i];
+          if (runs?.some((run) => run.strokeColor)) {
+            for (const run of runs) {
+              const tspan = svgRoot.ownerDocument.createElementNS(
+                SVG_NS,
+                "tspan",
+              );
+              tspan.textContent = run.text;
+              if (run.strokeColor) {
+                tspan.setAttribute(
+                  "fill",
+                  applyDarkModeFilter(run.strokeColor, isDarkTheme),
+                );
+              }
+              text.appendChild(tspan);
+            }
+          } else {
+            text.textContent = lines[i];
+          }
           text.setAttribute("x", `${horizontalOffset}`);
           text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
           text.setAttribute("font-family", getFontFamilyString(element));

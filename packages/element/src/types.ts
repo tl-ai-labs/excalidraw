@@ -288,7 +288,33 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * so it survives midpoint insertion and other geometry changes.
      * */
     labelPosition?: number | null;
+    /**
+     * Styling of parts of the text (colored or highlighted words), on top of
+     * the element's own `strokeColor`. Offsets index into `originalText`, so
+     * wrapping, font and container changes leave them be — only edits to
+     * `originalText` move them (see `shiftTextStyleRanges`).
+     *
+     * Sorted, non-overlapping, non-empty, each with at least one style.
+     * Empty for text that's styled as a whole. (Always present, so that
+     * clearing it is an update like any other — e.g. for undo.)
+     */
+    styleRanges: readonly TextStyleRange[];
   }>;
+
+/**
+ * A styled run of a text element's `originalText`: `[start, end)` in UTF-16
+ * code units.
+ */
+export type TextStyleRange = Readonly<{
+  start: number;
+  end: number;
+  /** the text's color over the range (else the element's `strokeColor`) */
+  strokeColor?: string;
+  /** the highlight painted behind the range's text */
+  backgroundColor?: string;
+}>;
+
+export type TextStyleProperty = "strokeColor" | "backgroundColor";
 
 export type ExcalidrawBindableElement =
   | ExcalidrawRectangleElement

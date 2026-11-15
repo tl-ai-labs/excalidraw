@@ -41,6 +41,7 @@ import { getLineWidth } from "@excalidraw/element";
 import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
+import { normalizeTextStyleRanges } from "@excalidraw/element";
 import {
   isArrowElement,
   isBoundToContainer,
@@ -265,7 +266,7 @@ export const textWysiwyg = ({
    * Note: `text`, which can be wrapped and therefore different from `originalText`,
    *       is derived from `originalText`
    */
-  onChange?: (nextOriginalText: string) => void;
+  onChange?: (nextOriginalText: string, caret: number | null) => void;
   onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;
   getViewportCoords: (x: number, y: number) => [number, number];
   element: ExcalidrawTextElement;
@@ -527,6 +528,114 @@ export const textWysiwyg = ({
       }
 
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
+      renderStyleMirror();
+    }
+  };
+
+  /**
+   * A textarea can't color parts of its text, so a text with styled parts
+   * (see `ExcalidrawTextElement["styleRanges"]`) is shown by a mirror of the
+   * editor right underneath it, laid out the same, with the textarea's own
+   * text made transparent: the caret and the selection stay the textarea's.
+   */
+  const styleMirror = ownerDocument.createElement("div");
+  styleMirror.classList.add("excalidraw-wysiwyg-styles");
+  styleMirror.setAttribute("aria-hidden", "true");
+  styleMirror.dir = "auto";
+
+  const MIRRORED_STYLES = [
+    "position",
+    "display",
+    "font",
+    "lineHeight",
+    "width",
+    "height",
+    "left",
+    "top",
+    "transformOrigin",
+    "transform",
+    "textAlign",
+    "whiteSpace",
+    "wordBreak",
+    "overflowWrap",
+    "boxSizing",
+    "minHeight",
+    "backfaceVisibility",
+    "zIndex",
+    "opacity",
+    "fontFamily",
+    "fontSize",
+  ] as const;
+
+  const renderStyleMirror = () => {
+    const latest = app.scene.getElement<ExcalidrawTextElement>(element.id);
+    const text = editable.value;
+    const ranges =
+      latest && isTextElement(latest)
+        ? normalizeTextStyleRanges(latest.styleRanges, text.length)
+        : [];
+
+    if (!ranges.length) {
+      if (styleMirror.isConnected) {
+        styleMirror.remove();
+        editable.style.removeProperty("caret-color");
+        if (latest && isTextElement(latest)) {
+          editable.style.color = applyDarkModeFilter(
+            latest.strokeColor,
+            app.state.theme === THEME.DARK,
+          );
+        }
+      }
+      return;
+    }
+
+    const isDark = app.state.theme === THEME.DARK;
+    const baseColor = applyDarkModeFilter(latest!.strokeColor, isDark);
+
+    for (const property of MIRRORED_STYLES) {
+      styleMirror.style[property] = editable.style[property];
+    }
+    Object.assign(styleMirror.style, {
+      margin: 0,
+      padding: 0,
+      border: 0,
+      overflow: "hidden",
+      pointerEvents: "none",
+      unicodeBidi: "plaintext",
+      color: baseColor,
+    });
+
+    const nodes: Node[] = [];
+    let offset = 0;
+    for (const range of ranges) {
+      if (range.start > offset) {
+        nodes.push(
+          ownerDocument.createTextNode(text.slice(offset, range.start)),
+        );
+      }
+      const span = ownerDocument.createElement("span");
+      span.textContent = text.slice(range.start, range.end);
+      if (range.strokeColor) {
+        span.style.color = applyDarkModeFilter(range.strokeColor, isDark);
+      }
+      if (range.backgroundColor) {
+        span.style.backgroundColor = applyDarkModeFilter(
+          range.backgroundColor,
+          isDark,
+        );
+      }
+      nodes.push(span);
+      offset = range.end;
+    }
+    // (a trailing line break only makes an empty last line with something
+    // after it)
+    nodes.push(ownerDocument.createTextNode(`${text.slice(offset)}\u200b`));
+    styleMirror.replaceChildren(...nodes);
+
+    editable.style.color = "transparent";
+    editable.style.caretColor = baseColor;
+    if (!styleMirror.isConnected && editable.parentNode) {
+      editable.parentNode.insertBefore(styleMirror, editable);
     }
   };
 
@@ -860,7 +969,12 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      onChange(editable.value);
+      onChange(
+        editable.value,
+        editable.selectionStart === editable.selectionEnd
+          ? editable.selectionEnd
+          : null,
+      );
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1114,6 +1228,7 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("right");
 
     editable.remove();
+    styleMirror.remove();
   };
 
   const bindBlurEvent = (event?: MouseEvent) => {
@@ -1328,6 +1443,7 @@ export const textWysiwyg = ({
   });
   ownerWindow.addEventListener("beforeunload", handleSubmit);
   editorBox!.appendChild(editable);
+  renderStyleMirror();
 
   return handleSubmit;
 };

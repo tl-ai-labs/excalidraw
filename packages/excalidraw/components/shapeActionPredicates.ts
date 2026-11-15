@@ -153,6 +153,9 @@ export const getShapeActionPredicates = (
       activeToolType === "text" ||
       suppportsHorizontalAlign(targetElements, elementsMap),
     verticalAlign: shouldAllowVerticalAlign(targetElements, elementsMap),
+    /** highlighting parts of the edited text, or all of selected texts */
+    textHighlight:
+      !!appState.editingTextElement || targetElements.some(isTextElement),
 
     opacity: activeToolType !== "autoshape" || hasSelection,
 
