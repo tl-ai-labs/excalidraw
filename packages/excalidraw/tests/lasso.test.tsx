@@ -32,6 +32,7 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
 import { act, render } from "./test-utils";
 
 const { h } = window;
@@ -1800,5 +1801,136 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso respects boxSelectionMode", () => {
+  const select = (
+    polygon: [number, number][],
+    boxSelectionMode: "contain" | "overlap",
+  ) => {
+    const elementsMap = h.scene.getNonDeletedElementsMap();
+    const elementsSegments: ElementsSegmentsMap = new Map();
+    for (const element of h.elements) {
+      elementsSegments.set(
+        element.id,
+        getElementLineSegments(element, elementsMap),
+      );
+    }
+    return getLassoSelectedElementIds({
+      lassoPath: polygon.map(([x, y]) => pointFrom<GlobalPoint>(x, y)),
+      elements: h.elements,
+      elementsMap,
+      elementsSegments,
+      intersectedElements: new Set(),
+      enclosedElements: new Set(),
+      boxSelectionMode,
+    }).selectedElementIds;
+  };
+
+  const box = (x1: number, y1: number, x2: number, y2: number) =>
+    [
+      [x1, y1],
+      [x2, y1],
+      [x2, y2],
+      [x1, y2],
+    ] as [number, number][];
+
+  const shapes = () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 60,
+    });
+    const rotated = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 40,
+      angle: (Math.PI / 4) as Radians,
+    });
+    const line = API.createElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+      points: [pointFrom(0, 0), pointFrom(100, 50)],
+    });
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+      points: [pointFrom(0, 0), pointFrom(50, 40), pointFrom(100, 50)],
+    });
+    return { rect, ellipse, rotated, line, freedraw };
+  };
+
+  it("rectangle clipped at its corner: unselected in contain, selected in overlap", () => {
+    const { rect } = shapes();
+    act(() => {
+      h.elements = [rect];
+    });
+    const clip = box(-50, -50, 20, 20);
+    expect(select(clip, "contain")).toEqual([]);
+    expect(select(clip, "overlap")).toEqual([rect.id]);
+  });
+
+  it.each(["rect", "ellipse", "rotated", "line", "freedraw"] as const)(
+    "%s: selected only when fully enclosed in contain, partial hit in overlap",
+    (name) => {
+      const el = shapes()[name];
+      act(() => {
+        h.elements = [el];
+      });
+      const full = box(-200, -200, 300, 300);
+      const partial = box(-200, -200, 30, 30);
+      expect(select(full, "contain")).toEqual([el.id]);
+      expect(select(full, "overlap")).toEqual([el.id]);
+      expect(select(partial, "contain")).toEqual([]);
+      expect(select(partial, "overlap")).toEqual([el.id]);
+    },
+  );
+
+  it("contain: path that loops around a rectangle then crosses it ends unselected", () => {
+    const { rect } = shapes();
+    act(() => {
+      h.elements = [rect];
+    });
+    const loop: [number, number][] = [
+      [-50, -50],
+      [150, -50],
+      [150, 150],
+      [-50, 150],
+      [-50, -50],
+    ];
+    const enclosed = select(loop, "contain");
+    expect(enclosed).toEqual([rect.id]);
+    // same path continues across the rectangle
+    const crossing = [...loop, [50, 50] as [number, number]];
+    expect(select(crossing, "contain")).toEqual([]);
+  });
+
+  it("lasso crossing an outline without any vertex inside is overlap only", () => {
+    const { rect } = shapes();
+    act(() => {
+      h.elements = [rect];
+    });
+    // thin strip crossing the rectangle's top edge
+    const strip = box(40, -20, 60, 5);
+    expect(select(strip, "contain")).toEqual([]);
+    expect(select(strip, "overlap")).toEqual([rect.id]);
   });
 });
