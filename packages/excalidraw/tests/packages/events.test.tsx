@@ -126,6 +126,8 @@ describe("event callbacks", () => {
       }),
       // files
       {},
+      // pages
+      expect.any(Array),
     );
     expect(onChange.mock?.lastCall?.[1].viewBackgroundColor).not.toBe(
       origBackgroundColor,

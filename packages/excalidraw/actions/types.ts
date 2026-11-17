@@ -1,5 +1,6 @@
 import type {
   ExcalidrawElement,
+  ExcalidrawPage,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
@@ -25,6 +26,7 @@ export type ActionSource =
 export type ActionResult =
   | {
       elements?: readonly ExcalidrawElement[] | null;
+      pages?: readonly ExcalidrawPage[] | null;
       appState?: Partial<AppState> | null;
       files?: BinaryFiles | null;
       captureUpdate: CaptureUpdateActionType;
@@ -58,6 +60,11 @@ export type ActionName =
   | "pasteStyles"
   | "gridMode"
   | "zenMode"
+  | "createPage"
+  | "switchPage"
+  | "renamePage"
+  | "deletePage"
+  | "reorderPage"
   | "objectsSnapMode"
   | "arrowBinding"
   | "midpointSnapping"

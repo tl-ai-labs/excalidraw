@@ -209,6 +209,8 @@ import {
   isNonDeletedElement,
 } from "@excalidraw/element";
 
+import { createPage, DEFAULT_PAGE_NAME } from "@excalidraw/element";
+
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
 
 import type {
@@ -235,6 +237,7 @@ import type {
   SceneElementsMap,
   NonDeletedSceneElementsMap,
   ExcalidrawBindableElement,
+  ExcalidrawPage,
 } from "@excalidraw/element/types";
 
 import type {
@@ -288,6 +291,7 @@ import {
   actionWrapSelectionInFrame,
 } from "../actions/actionFrame";
 import { createRedoAction, createUndoAction } from "../actions/actionHistory";
+import { getPageSwitchAppState } from "../actions/actionPages";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { actionToggleViewMode } from "../actions/actionToggleViewMode";
 import { ActionManager } from "../actions/manager";
@@ -302,7 +306,11 @@ import {
 
 import { exportCanvas, loadFromBlob } from "../data";
 import Library, { distributeLibraryItemsOnSquareGrid } from "../data/library";
-import { restoreAppState, restoreElements } from "../data/restore";
+import {
+  restoreAppState,
+  restoreElements,
+  restorePages,
+} from "../data/restore";
 import { getCenter, getDistance } from "../gesture";
 import {
   copyElementRenderOverrides,
@@ -736,6 +744,7 @@ class App extends React.Component<AppProps, AppState> {
       elements: readonly ExcalidrawElement[],
       appState: AppState,
       files: BinaryFiles,
+      pages: readonly ExcalidrawPage[],
     ]
   >();
 
@@ -806,6 +815,8 @@ class App extends React.Component<AppProps, AppState> {
       getViewportOffsets: this.viewport.getOffsets,
       setElementRenderOverrides: this.setElementRenderOverrides,
       getSceneElements: this.getSceneElements,
+      getPages: this.getPages,
+      setActivePage: this.setActivePage,
       getAppState: () => this.state,
       getFiles: () => this.files,
       getName: this.getName,
@@ -892,6 +903,13 @@ class App extends React.Component<AppProps, AppState> {
       this,
     );
     this.scene = new Scene();
+    const initialPage = createPage({ name: DEFAULT_PAGE_NAME });
+    this.scene.replaceAllPages([initialPage]);
+    this.scene.setActivePageId(initialPage.id);
+    this.state = {
+      ...this.state,
+      activePageId: initialPage.id,
+    };
 
     this.canvas = this.ownerDocument.createElement("canvas");
     this.rc = rough.canvas(this.canvas);
@@ -900,6 +918,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.store = new Store(this);
     this.history = new History(this.store);
+    this.history.setActivePageId(initialPage.id);
 
     this.excalidrawContainerValue = {
       container: this.excalidrawContainerRef.current,
@@ -908,6 +927,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.history = new History(this.store);
+    this.history.setActivePageId(initialPage.id);
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -2767,8 +2787,39 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public getSceneElements = () => {
-    return this.scene.getNonDeletedElements();
+    return this.scene.getAllNonDeletedElements();
   };
+
+  public getPages = () => {
+    return this.scene.getPages();
+  };
+
+  public clearPageHistory = (pageId: string) => {
+    this.history.clearPage(pageId);
+  };
+
+  public setActivePage = withBatchedUpdates((pageId: string) => {
+    const pages = this.scene.getPages();
+    if (!pages.some((p) => p.id === pageId)) {
+      return;
+    }
+    const oldPageId = this.state.activePageId;
+    if (oldPageId === pageId && this.scene.getActivePageId() === pageId) {
+      return;
+    }
+
+    const switchState = getPageSwitchAppState({
+      appState: this.state,
+      targetPageId: pageId,
+      elements: this.scene.getElementsIncludingDeleted(),
+    });
+
+    this.scene.setActivePageId(pageId);
+    this.history.setActivePageId(pageId);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    this.setState(switchState);
+  });
 
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
     this.addElementsFromPasteOrLibrary({
@@ -3136,6 +3187,14 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    if (actionResult.pages) {
+      this.scene.replaceAllPages(actionResult.pages);
+      didUpdate = true;
+    }
+    if (actionResult.appState?.activePageId !== undefined) {
+      this.scene.setActivePageId(actionResult.appState.activePageId);
+      this.history.setActivePageId(actionResult.appState.activePageId);
+    }
     if (actionResult.elements) {
       this.scene.replaceAllElements(actionResult.elements);
       didUpdate = true;
@@ -3554,14 +3613,19 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
+      const defaultPage = createPage({ name: DEFAULT_PAGE_NAME });
+      this.scene.replaceAllPages([defaultPage]);
+      this.scene.setActivePageId(defaultPage.id);
       this.scene.replaceAllElements([]);
       this.setState((state) => ({
         ...getDefaultAppState(),
+        activePageId: defaultPage.id,
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
         theme: this.state.theme,
       }));
       this.resetStore();
       this.resetHistory();
+      this.history.setActivePageId(defaultPage.id);
     },
   );
 
@@ -3618,11 +3682,20 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
-    const restoredElements = restoreElements(initialData?.elements, null, {
+    const restoredElementsRaw = restoreElements(initialData?.elements, null, {
       repairBindings: true,
       deleteInvisibleElements: true,
     });
     let restoredAppState = restoreAppState(initialData?.appState, null);
+    const {
+      pages: restoredPages,
+      elements: restoredElements,
+      activePageId,
+    } = restorePages(initialData?.pages, restoredElementsRaw, restoredAppState);
+    restoredAppState = {
+      ...restoredAppState,
+      activePageId,
+    };
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -3663,8 +3736,12 @@ class App extends React.Component<AppProps, AppState> {
     };
     const initialViewport = this.props.initialState?.viewport;
 
+    const activePageElements = restoredElements.filter(
+      (element) => element.pageId === activePageId,
+    );
+
     if (initialViewport) {
-      const restoredNonDeletedElements = restoredElements.filter(
+      const restoredNonDeletedElements = activePageElements.filter(
         (element) => !element.isDeleted,
       ) as readonly NonDeletedExcalidrawElement[];
       const restoredElementsMap = arrayToMap(
@@ -3686,7 +3763,7 @@ class App extends React.Component<AppProps, AppState> {
     } else if (initialData?.scrollToContent) {
       restoredAppState = {
         ...restoredAppState,
-        ...getScrollToContentState(restoredElements, viewportAppState),
+        ...getScrollToContentState(activePageElements, viewportAppState),
       };
     }
 
@@ -3694,6 +3771,7 @@ class App extends React.Component<AppProps, AppState> {
     this.resetHistory();
     this.syncActionResult({
       elements: restoredElements,
+      pages: restoredPages,
       appState: restoredAppState,
       files: initialData?.files,
       captureUpdate: CaptureUpdateAction.NEVER,
@@ -4501,8 +4579,9 @@ class App extends React.Component<AppProps, AppState> {
     // init, which would trigger onChange with empty elements, which would then
     // override whatever is in localStorage currently.
     if (!this.state.isLoading) {
-      this.props.onChange?.(elements, this.state, this.files);
-      this.onChangeEmitter.trigger(elements, this.state, this.files);
+      const pages = this.scene.getPages();
+      this.props.onChange?.(elements, this.state, this.files, pages);
+      this.onChangeEmitter.trigger(elements, this.state, this.files, pages);
     }
   }
 
@@ -4622,9 +4701,10 @@ class App extends React.Component<AppProps, AppState> {
     fit?: SetViewportOptions["fit"];
     preserveFrameChildrenOrder?: boolean;
   }) => {
+    const activePageId = this.scene.getActivePageId();
     const elements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
-    });
+    }).map((el) => (activePageId ? { ...el, pageId: activePageId } : el));
     const clientX =
       typeof opts.position === "object"
         ? opts.position.clientX
@@ -4974,6 +5054,7 @@ class App extends React.Component<AppProps, AppState> {
   public updateScene = withBatchedUpdates(
     <K extends keyof AppState>(sceneData: {
       elements?: SceneData["elements"];
+      pages?: SceneData["pages"];
       appState?: Pick<AppState, K> | null;
       collaborators?: SceneData["collaborators"];
       /**
@@ -4989,7 +5070,8 @@ class App extends React.Component<AppProps, AppState> {
        */
       captureUpdate?: SceneData["captureUpdate"];
     }) => {
-      const { elements, appState, collaborators, captureUpdate } = sceneData;
+      const { elements, pages, appState, collaborators, captureUpdate } =
+        sceneData;
 
       if (captureUpdate) {
         const nextElements = elements ? elements : undefined;
@@ -5007,7 +5089,16 @@ class App extends React.Component<AppProps, AppState> {
         });
       }
 
+      if (pages) {
+        this.scene.replaceAllPages(pages);
+      }
+
       if (appState) {
+        const nextActivePageId = (appState as Partial<AppState>).activePageId;
+        if (nextActivePageId !== undefined) {
+          this.scene.setActivePageId(nextActivePageId);
+          this.history.setActivePageId(nextActivePageId);
+        }
         this.setState(appState as Pick<AppState, K> | null);
       }
 

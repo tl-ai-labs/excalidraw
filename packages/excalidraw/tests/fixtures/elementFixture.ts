@@ -22,6 +22,7 @@ const elementBase: Omit<ExcalidrawElement, "type"> = {
   frameId: null,
   roundness: null,
   index: null,
+  pageId: null,
   seed: 1041657908,
   version: 120,
   versionNonce: 1188004276,

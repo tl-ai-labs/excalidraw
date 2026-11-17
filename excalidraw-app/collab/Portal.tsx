@@ -5,7 +5,10 @@ import { newElementWith } from "@excalidraw/element";
 import throttle from "lodash.throttle";
 
 import type { UserIdleState } from "@excalidraw/common";
-import type { OrderedExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawPage,
+  OrderedExcalidrawElement,
+} from "@excalidraw/element/types";
 import type {
   OnUserFollowedPayload,
   SocketId,
@@ -51,6 +54,7 @@ class Portal {
         WS_SUBTYPES.INIT,
         this.collab.getSceneElementsIncludingDeleted(),
         /* syncAll */ true,
+        this.collab.getPagesIncludingDeleted(),
       );
     });
     this.socket.on("room-user-change", (clients: SocketId[]) => {
@@ -143,6 +147,7 @@ class Portal {
     updateType: WS_SUBTYPES.INIT | WS_SUBTYPES.UPDATE,
     elements: readonly OrderedExcalidrawElement[],
     syncAll: boolean,
+    pages?: readonly ExcalidrawPage[],
   ) => {
     if (updateType === WS_SUBTYPES.INIT && !syncAll) {
       throw new Error("syncAll must be true when sending SCENE.INIT");
@@ -163,12 +168,21 @@ class Portal {
       return acc;
     }, [] as SyncableExcalidrawElement[]);
 
-    const data: SocketUpdateDataSource[typeof updateType] = {
-      type: updateType,
-      payload: {
-        elements: syncableElements,
-      },
-    };
+    const data: SocketUpdateDataSource[typeof updateType] =
+      updateType === WS_SUBTYPES.INIT
+        ? {
+            type: WS_SUBTYPES.INIT,
+            payload: {
+              elements: syncableElements,
+              ...(pages?.length ? { pages } : {}),
+            },
+          }
+        : {
+            type: WS_SUBTYPES.UPDATE,
+            payload: {
+              elements: syncableElements,
+            },
+          };
 
     for (const syncableElement of syncableElements) {
       this.broadcastedElementVersions.set(
@@ -179,6 +193,16 @@ class Portal {
 
     this.queueFileUpload();
 
+    await this._broadcastSocketData(data as SocketUpdateData);
+  };
+
+  broadcastPages = async (pages: readonly ExcalidrawPage[]) => {
+    const data: SocketUpdateDataSource["PAGES_UPDATE"] = {
+      type: WS_SUBTYPES.PAGES_UPDATE,
+      payload: {
+        pages,
+      },
+    };
     await this._broadcastSocketData(data as SocketUpdateData);
   };
 

@@ -187,6 +187,7 @@ export class API {
     id?: string;
     isDeleted?: boolean;
     frameId?: ExcalidrawElement["id"] | null;
+    pageId?: ExcalidrawElement["pageId"];
     index?: ExcalidrawElement["index"];
     groupIds?: ExcalidrawElement["groupIds"];
     created?: ExcalidrawElement["created"];
@@ -275,6 +276,7 @@ export class API {
       width,
       height,
       frameId: rest.frameId ?? null,
+      pageId: rest.pageId ?? null,
       index: rest.index ?? null,
       angle: (rest.angle ?? 0) as Radians,
       strokeColor:

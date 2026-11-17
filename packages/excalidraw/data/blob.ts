@@ -25,6 +25,7 @@ import {
   restoreAppState,
   restoreElements,
   restoreLibraryItems,
+  restorePages,
 } from "./restore";
 
 import type { AppState, DataURL, LibraryItem } from "../types";
@@ -160,21 +161,32 @@ export const loadSceneOrLibraryFromBlob = async (
       throw error;
     }
     if (isValidExcalidrawData(data)) {
-      const elements = restoreElements(data.elements, localElements, {
+      const restoredElements = restoreElements(data.elements, localElements, {
         repairBindings: true,
         deleteInvisibleElements: true,
       });
+      const { pages, elements, activePageId } = restorePages(
+        data.pages,
+        restoredElements,
+        data.appState,
+        localAppState,
+      );
+      const activePageElements = elements.filter(
+        (el) => el.pageId === activePageId,
+      );
       return {
         type: MIME_TYPES.excalidraw,
         data: {
           elements,
+          pages,
           appState: restoreAppState(
             {
               theme: localAppState?.theme,
               fileHandle: fileHandle || blob.handle || null,
               ...cleanAppStateForExport(data.appState || {}),
+              activePageId,
               ...(localAppState
-                ? getScrollToContentState(elements, localAppState)
+                ? getScrollToContentState(activePageElements, localAppState)
                 : {}),
             },
             localAppState,

@@ -1,4 +1,3 @@
-import { getNonDeletedElements } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { isLinearElement, isTextElement } from "@excalidraw/element";
 
@@ -24,12 +23,14 @@ export const actionSelectAll = register({
   icon: selectAllIcon,
   trackEvent: { category: "canvas" },
   viewMode: false,
-  perform: (elements, appState, value, app) => {
+  perform: (_elements, appState, value, app) => {
     if (appState.selectedLinearElement?.isEditing) {
       return false;
     }
 
-    const selectedElementIds = elements
+    const activeElements = app.scene.getNonDeletedElements();
+
+    const selectedElementIds = activeElements
       .filter(
         (element) =>
           !element.isDeleted &&
@@ -49,17 +50,17 @@ export const actionSelectAll = register({
             editingGroupId: null,
             selectedElementIds,
           },
-          getNonDeletedElements(elements),
+          activeElements,
           appState,
           app,
         ),
         selectedLinearElement:
           // single linear element selected
           Object.keys(selectedElementIds).length === 1 &&
-          isLinearElement(elements[0])
+          isLinearElement(activeElements[0])
             ? new LinearElementEditor(
-                elements[0] as NonDeleted<ExcalidrawLinearElement>,
-                arrayToMap(elements),
+                activeElements[0] as NonDeleted<ExcalidrawLinearElement>,
+                arrayToMap(activeElements),
               )
             : null,
       },

@@ -3,7 +3,10 @@ import {
   getDefaultAppState,
 } from "@excalidraw/excalidraw/appState";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  ExcalidrawPage,
+} from "@excalidraw/element/types";
 import type { AppState } from "@excalidraw/excalidraw/types";
 
 import { STORAGE_KEYS } from "../app_constants";
@@ -36,10 +39,12 @@ export const importUsernameFromLocalStorage = (): string | null => {
 
 export const importFromLocalStorage = () => {
   let savedElements = null;
+  let savedPages = null;
   let savedState = null;
 
   try {
     savedElements = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS);
+    savedPages = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_PAGES);
     savedState = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_APP_STATE);
   } catch (error: any) {
     // Unable to access localStorage
@@ -53,6 +58,15 @@ export const importFromLocalStorage = () => {
     } catch (error: any) {
       console.error(error);
       // Do nothing because elements array is already empty
+    }
+  }
+
+  let pages: ExcalidrawPage[] | null = null;
+  if (savedPages) {
+    try {
+      pages = JSON.parse(savedPages);
+    } catch (error: any) {
+      console.error(error);
     }
   }
 
@@ -70,7 +84,7 @@ export const importFromLocalStorage = () => {
       // Do nothing because appState is already null
     }
   }
-  return { elements, appState };
+  return { elements, pages, appState };
 };
 
 export const getElementsStorageSize = () => {
@@ -87,12 +101,14 @@ export const getElementsStorageSize = () => {
 export const getTotalStorageSize = () => {
   try {
     const appState = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_APP_STATE);
+    const pages = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_PAGES);
     const collab = localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_COLLAB);
 
     const appStateSize = appState?.length || 0;
+    const pagesSize = pages?.length || 0;
     const collabSize = collab?.length || 0;
 
-    return appStateSize + collabSize + getElementsStorageSize();
+    return appStateSize + pagesSize + collabSize + getElementsStorageSize();
   } catch (error: any) {
     console.error(error);
     return 0;

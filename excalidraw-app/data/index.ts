@@ -18,6 +18,7 @@ import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
 import type { SceneBounds } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
+  ExcalidrawPage,
   FileId,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
@@ -84,12 +85,19 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+    };
+  };
+  PAGES_UPDATE: {
+    type: WS_SUBTYPES.PAGES_UPDATE;
+    payload: {
+      pages: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {
@@ -195,6 +203,7 @@ const legacy_decodeFromBackend = async ({
 
   return {
     elements: data.elements || null,
+    pages: data.pages || null,
     appState: data.appState || null,
   };
 };
@@ -225,6 +234,7 @@ export const importFromBackend = async (
 
       return {
         elements: data.elements || null,
+        pages: data.pages || null,
         appState: data.appState || null,
       };
     } catch (error: any) {
@@ -249,12 +259,13 @@ export const exportToBackend = async (
   elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
   files: BinaryFiles,
+  pages?: readonly ExcalidrawPage[],
 ): Promise<ExportToBackendResult> => {
   const encryptionKey = await generateEncryptionKey("string");
 
   const payload = await compressData(
     new TextEncoder().encode(
-      serializeAsJSON(elements, appState, files, "database"),
+      serializeAsJSON(elements, appState, files, "database", pages),
     ),
     { encryptionKey },
   );
