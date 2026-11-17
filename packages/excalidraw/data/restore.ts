@@ -44,6 +44,7 @@ import {
   projectFixedPointOntoDiagonal,
   isNonDeletedElement,
 } from "@excalidraw/element";
+import { normalizeTextStyles } from "@excalidraw/element";
 import { normalizeFixedPoint } from "@excalidraw/element";
 import {
   updateElbowArrowPoints,
@@ -593,6 +594,20 @@ export const restoreElement = (
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
       });
+
+      {
+        // keep the styled ranges valid against the restored `originalText`
+        const textStyles = normalizeTextStyles(
+          (element as { textStyles?: unknown }).textStyles,
+          element.originalText.length,
+        );
+        if (textStyles.length) {
+          element = { ...element, textStyles };
+        } else if ("textStyles" in element) {
+          element = { ...element };
+          delete (element as { textStyles?: unknown }).textStyles;
+        }
+      }
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)

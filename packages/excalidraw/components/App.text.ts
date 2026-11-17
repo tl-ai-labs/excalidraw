@@ -43,7 +43,9 @@ import {
   updateBoundElements,
 } from "@excalidraw/element";
 
-import type { ArrowEndpoint } from "@excalidraw/element";
+import { shiftTextStylesForTextChange } from "@excalidraw/element";
+
+import type { ArrowEndpoint, TextEdit } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
   ExcalidrawTextContainer,
@@ -184,7 +186,11 @@ export class AppText {
   ) {
     const elementsMap = this.app.scene.getElementsMapIncludingDeleted();
 
-    const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
+    const updateElement = (
+      nextOriginalText: string,
+      isDeleted: boolean,
+      edit?: TextEdit,
+    ) => {
       const latestTextElement =
         this.app.scene.getElement<ExcalidrawTextElement>(element.id);
 
@@ -222,6 +228,17 @@ export class AppText {
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              // the styled ranges move along with the edit
+              ...(_element.textStyles?.length
+                ? {
+                    textStyles: shiftTextStylesForTextChange(
+                      _element.textStyles,
+                      _element.originalText,
+                      nextOriginalText,
+                      { edit },
+                    ),
+                  }
+                : null),
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
@@ -278,6 +295,23 @@ export class AppText {
       }
     };
 
+    const handleChange = withBatchedUpdates(
+      ({
+        nextOriginalText,
+        edit,
+      }: {
+        nextOriginalText: string;
+        edit?: TextEdit;
+      }) => {
+        updateElement(nextOriginalText, false, edit);
+        if (isNonDeletedElement(element)) {
+          updateBoundElements(element, this.app.scene, {
+            renderEnvironment: this.app.renderEnvironment,
+          });
+        }
+      },
+    );
+
     this.textWysiwygSubmitHandler = textWysiwyg({
       canvas: this.app.canvas,
       getViewportCoords: (x, y) => {
@@ -293,14 +327,8 @@ export class AppText {
           viewportY - this.app.state.offsetTop,
         ];
       },
-      onChange: withBatchedUpdates((nextOriginalText) => {
-        updateElement(nextOriginalText, false);
-        if (isNonDeletedElement(element)) {
-          updateBoundElements(element, this.app.scene, {
-            renderEnvironment: this.app.renderEnvironment,
-          });
-        }
-      }),
+      onChange: (nextOriginalText: string, edit?: TextEdit) =>
+        handleChange({ nextOriginalText, edit }),
       onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
         this.textWysiwygSubmitHandler = null;
 

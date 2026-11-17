@@ -250,6 +250,19 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+/**
+ * A styled run of a text element. Offsets are UTF-16 indices into
+ * `originalText` (not the wrapped `text`), half-open `[start, end)`.
+ */
+export type TextStyleRange = {
+  start: number;
+  end: number;
+  /** text colour of the range (the element's `strokeColor` if omitted) */
+  color?: string;
+  /** highlight (background) colour of the range */
+  highlight?: string;
+};
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -269,6 +282,11 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
     verticalAlign: VerticalAlign;
     containerId: ExcalidrawTextContainer["id"] | null;
     originalText: string;
+    /**
+     * Per-range colour / highlight. Kept in canonical form (see
+     * `normalizeTextStyles`) and omitted when there are no ranges.
+     */
+    textStyles?: readonly TextStyleRange[];
     /**
      * If `true` the width will fit the text. If `false`, the text will
      * wrap to fit the width.

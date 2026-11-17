@@ -26,6 +26,8 @@ import {
   type StrokeWidthKey,
 } from "@excalidraw/common";
 
+import { applyTextStyle, toTextStylesProp } from "@excalidraw/element";
+
 import {
   canBecomePolygon,
   normalizeStickyNote,
@@ -100,6 +102,11 @@ import type {
 import type { ElementUpdate, Scene } from "@excalidraw/element";
 
 import type { CaptureUpdateActionType } from "@excalidraw/element";
+
+import {
+  getTextEditorSelection,
+  restoreTextEditorSelection,
+} from "../wysiwyg/textEditorSelection";
 
 import { trackEvent } from "../analytics";
 import { RadioSelection } from "../components/RadioSelection";
@@ -363,6 +370,56 @@ const changeFontSize = (
 
 // -----------------------------------------------------------------------------
 
+/**
+ * While editing text with a (non-collapsed) selection in the editor, a colour
+ * pick styles that selection only: the element's own colours are left alone.
+ * Returns `null` when that is not the case.
+ */
+const applyColorToEditorSelection = (
+  elements: readonly ExcalidrawElement[],
+  appState: AppState,
+  property: "color" | "highlight",
+  color: string,
+  appStateUpdates: Partial<AppState>,
+) => {
+  const editing = appState.editingTextElement;
+  if (!editing) {
+    return null;
+  }
+  const selection = getTextEditorSelection(editing.id);
+  if (!selection) {
+    return null;
+  }
+  const textElement = elements.find((el) => el.id === editing.id);
+  if (!textElement || !isTextElement(textElement)) {
+    return null;
+  }
+  // a selection of all the text is the whole element's colour
+  if (
+    selection.start <= 0 &&
+    selection.end >= textElement.originalText.length
+  ) {
+    return null;
+  }
+  const textStyles = toTextStylesProp(
+    applyTextStyle(
+      textElement.textStyles,
+      textElement.originalText.length,
+      selection.start,
+      selection.end,
+      { [property]: color },
+    ),
+  );
+  restoreTextEditorSelection(editing.id, selection);
+  return {
+    elements: elements.map((el) =>
+      el === textElement ? newElementWith(textElement, { textStyles }) : el,
+    ),
+    appState: { ...appState, ...appStateUpdates },
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  };
+};
+
 export const actionChangeStrokeColor = register<
   Partial<AppState> & { color?: string }
 >({
@@ -376,6 +433,16 @@ export const actionChangeStrokeColor = register<
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
+    }
+    const rangeResult = applyColorToEditorSelection(
+      elements,
+      appState,
+      "color",
+      color,
+      appStateUpdates,
+    );
+    if (rangeResult) {
+      return rangeResult;
     }
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
@@ -455,6 +522,16 @@ export const actionChangeBackgroundColor = register<
         appState: { ...appState, ...appStateUpdates },
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
+    }
+    const rangeResult = applyColorToEditorSelection(
+      elements,
+      appState,
+      "highlight",
+      color,
+      appStateUpdates,
+    );
+    if (rangeResult) {
+      return rangeResult;
     }
     const target = resolveColorTarget(appState, elements, "backgroundColor");
     const elementsMap = arrayToMap(elements);

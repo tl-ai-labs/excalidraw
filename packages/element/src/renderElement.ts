@@ -59,6 +59,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { getTextStyleRunsByLine } from "./textStyles";
 import {
   isTextElement,
   isLinearElement,
@@ -703,12 +704,66 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
+          const isDark = renderConfig.theme === THEME.DARK;
+          const runsByLine = element.textStyles?.length
+            ? getTextStyleRunsByLine(
+                element.text.replace(/\r\n?/g, "\n"),
+                element.originalText,
+                element.textStyles,
+              )
+            : null;
+
           for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+            const runs = runsByLine?.[index];
+            if (!runs) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+              continue;
+            }
+
+            // styled line: draw it run by run, left to right
+            const lineWidth = context.measureText(lines[index]).width;
+            let x =
+              element.textAlign === "center"
+                ? horizontalOffset - lineWidth / 2
+                : element.textAlign === "right"
+                ? horizontalOffset - lineWidth
+                : horizontalOffset;
+            const runWidths = runs.map(
+              (run) => context.measureText(run.text).width,
             );
+            const lineTop = index * lineHeightPx;
+            const defaultFill = applyDarkModeFilter(
+              element.strokeColor,
+              isDark,
+            );
+
+            context.textAlign = "left";
+            let highlightX = x;
+            runs.forEach((run, runIndex) => {
+              if (run.highlight) {
+                context.fillStyle = applyDarkModeFilter(run.highlight, isDark);
+                context.fillRect(
+                  highlightX,
+                  lineTop,
+                  runWidths[runIndex],
+                  lineHeightPx,
+                );
+              }
+              highlightX += runWidths[runIndex];
+            });
+            runs.forEach((run, runIndex) => {
+              context.fillStyle = run.color
+                ? applyDarkModeFilter(run.color, isDark)
+                : defaultFill;
+              context.fillText(run.text, x, lineTop + verticalOffset);
+              x += runWidths[runIndex];
+            });
+            context.fillStyle = defaultFill;
+            context.textAlign = element.textAlign as CanvasTextAlign;
           }
         });
         if (shouldTemporarilyAttach) {

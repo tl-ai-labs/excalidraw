@@ -38,7 +38,11 @@ import {
 import { getTextWidth } from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
 import { getLineWidth } from "@excalidraw/element";
-import { normalizeText } from "@excalidraw/element";
+import {
+  normalizeText,
+  diffText,
+  normalizeTextStyles,
+} from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
 import {
@@ -56,6 +60,8 @@ import type {
   ExcalidrawTextContainer,
 } from "@excalidraw/element/types";
 
+import type { TextEdit } from "@excalidraw/element";
+
 import { actionSaveFileToDisk, actionSaveToActiveFile } from "../actions";
 
 import {
@@ -72,6 +78,8 @@ import {
   actionZoomIn,
   actionZoomOut,
 } from "../actions/actionCanvas";
+
+import { registerTextEditorSelection } from "./textEditorSelection";
 
 import type { ParsedDataTranferList } from "../clipboard";
 
@@ -265,7 +273,7 @@ export const textWysiwyg = ({
    * Note: `text`, which can be wrapped and therefore different from `originalText`,
    *       is derived from `originalText`
    */
-  onChange?: (nextOriginalText: string) => void;
+  onChange?: (nextOriginalText: string, edit?: TextEdit) => void;
   onSubmit: (data: { viaKeyboard: boolean; nextOriginalText: string }) => void;
   getViewportCoords: (x: number, y: number) => [number, number];
   element: ExcalidrawTextElement;
@@ -500,10 +508,20 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color: applyDarkModeFilter(
-          updatedTextElement.strokeColor,
-          appState.theme === THEME.DARK,
-        ),
+        // styled ranges are painted by the mirror behind the (then
+        // transparent) text, see updateMirror
+        color: updatedTextElement.textStyles?.length
+          ? "transparent"
+          : applyDarkModeFilter(
+              updatedTextElement.strokeColor,
+              appState.theme === THEME.DARK,
+            ),
+        caretColor: updatedTextElement.textStyles?.length
+          ? applyDarkModeFilter(
+              updatedTextElement.strokeColor,
+              appState.theme === THEME.DARK,
+            )
+          : "",
         opacity: updatedTextElement.opacity / 100,
       });
       currentTextLayout = {
@@ -527,6 +545,7 @@ export const textWysiwyg = ({
       }
 
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
+      updateMirror();
     }
   };
 
@@ -567,6 +586,110 @@ export const textWysiwyg = ({
     boxSizing: "content-box",
   });
   editable.value = element.originalText;
+
+  /**
+   * Behind the editor's (transparent) text, a copy of it laid out the same
+   * way, with the styled ranges painted. Only exists while the element has
+   * `textStyles`.
+   */
+  let mirror: HTMLDivElement | null = null;
+  const updateMirror = () => {
+    const current = app.scene.getElement<ExcalidrawTextElement>(element.id);
+    const value = editable.value;
+    const ranges =
+      current && isTextElement(current) && current.textStyles?.length
+        ? normalizeTextStyles(current.textStyles, value.length)
+        : [];
+    if (!ranges.length) {
+      mirror?.remove();
+      mirror = null;
+      return;
+    }
+    if (!mirror) {
+      mirror = ownerDocument.createElement("div");
+      mirror.classList.add("excalidraw-wysiwyg-mirror");
+      mirror.setAttribute("aria-hidden", "true");
+      mirror.dir = "auto";
+    }
+    if (editable.parentNode && mirror.nextSibling !== editable) {
+      editable.parentNode.insertBefore(mirror, editable);
+    }
+    const style = editable.style;
+    Object.assign(mirror.style, {
+      position: "absolute",
+      pointerEvents: "none",
+      overflow: "hidden",
+      margin: 0,
+      padding: 0,
+      border: 0,
+      boxSizing: style.boxSizing,
+      zIndex: style.zIndex,
+      font: style.font,
+      fontFamily: style.fontFamily,
+      lineHeight: style.lineHeight,
+      width: style.width,
+      height: style.height,
+      left: style.left,
+      top: style.top,
+      transform: style.transform,
+      transformOrigin: style.transformOrigin,
+      textAlign: style.textAlign,
+      whiteSpace: style.whiteSpace,
+      wordBreak: style.wordBreak,
+      overflowWrap: style.overflowWrap,
+      opacity: style.opacity,
+      color: applyDarkModeFilter(
+        current!.strokeColor,
+        app.state.theme === THEME.DARK,
+      ),
+    });
+    mirror.textContent = "";
+    const isDark = app.state.theme === THEME.DARK;
+    let cursor = 0;
+    const addSpan = (text: string, color?: string, highlight?: string) => {
+      if (!text) {
+        return;
+      }
+      const span = ownerDocument.createElement("span");
+      span.textContent = text;
+      if (color) {
+        span.style.color = applyDarkModeFilter(color, isDark);
+      }
+      if (highlight) {
+        span.style.backgroundColor = applyDarkModeFilter(highlight, isDark);
+      }
+      mirror!.appendChild(span);
+    };
+    for (const range of ranges) {
+      addSpan(value.slice(cursor, range.start));
+      addSpan(
+        value.slice(range.start, range.end),
+        range.color,
+        range.highlight,
+      );
+      cursor = range.end;
+    }
+    addSpan(value.slice(cursor));
+    mirror.scrollTop = editable.scrollTop;
+    mirror.scrollLeft = editable.scrollLeft;
+  };
+  editable.addEventListener("scroll", updateMirror);
+
+  const unregisterSelection = registerTextEditorSelection(element.id, {
+    getSelection: () => ({
+      start: editable.selectionStart,
+      end: editable.selectionEnd,
+    }),
+    restoreSelection: ({ start, end }) => {
+      editable.setSelectionRange(start, end);
+      // never take the focus from an open colour popup, the scene update
+      // hands it back once that is closed
+      if (!ownerDocument.activeElement?.closest(".properties-content")) {
+        editable.focus({ preventScroll: true });
+      }
+    },
+  });
+
   updateWysiwygStyle();
 
   const getCaretIndexFromInitialSceneCoords = () => {
@@ -850,6 +973,7 @@ export const textWysiwyg = ({
       }
     };
 
+    let lastValue = element.originalText;
     editable.oninput = () => {
       const normalized = normalizeText(editable.value);
       if (editable.value !== normalized) {
@@ -860,7 +984,10 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      onChange(editable.value);
+      const edit = diffText(lastValue, editable.value, editable.selectionEnd);
+      lastValue = editable.value;
+      onChange(editable.value, edit);
+      updateMirror();
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
       queueMicrotask(followCaretFromUnderPanels);
@@ -1093,6 +1220,9 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    unregisterSelection();
+    mirror?.remove();
+    mirror = null;
 
     if (observer) {
       observer.disconnect();
@@ -1328,6 +1458,7 @@ export const textWysiwyg = ({
   });
   ownerWindow.addEventListener("beforeunload", handleSubmit);
   editorBox!.appendChild(editable);
+  updateMirror();
 
   return handleSubmit;
 };
