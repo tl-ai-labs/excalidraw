@@ -13,6 +13,15 @@ Please add the latest change on the top under the correct section.
 
 ## Unreleased
 
+### Pages (2026-11-17)
+
+A drawing can now hold several pages (tabs), each with its own elements and viewport, saved in one `.excalidraw` file and shared in collaboration. A tab bar at the bottom of the canvas creates, switches, renames, reorders (drag, or the tab menu) and deletes pages.
+
+- Elements get an optional `pageId`; elements without one belong to the default page (`DEFAULT_PAGE_ID`, `"default"`), so existing files and older collaboration clients keep working. Files without `pages` restore onto a single "Page 1".
+- `AppState` gains `pages` (`{ id, name, index, version, versionNonce, isDeleted }[]`, deleted pages stay as tombstones), `activePageId` and `pageViewports`. `pages` is saved to files, local storage and shared scenes; `activePageId` and `pageViewports` are per user and never synced. `updateScene({ appState: { pages } })` works.
+- API: `getPages()` (live pages in tab order), `getActivePageId()` and `setActivePage(id)`. `getSceneElements()`, selection, hit-testing, actions, export and undo / redo operate on the active page only; `getSceneElementsIncludingDeleted()` still returns every page's elements. Undo / redo stacks are kept per page, and deleting a page isn't undoable.
+- Search finds text across all pages and switches to a result's page when it is selected. `reconcilePages(local, remote)` merges page lists per id (higher `version` wins, ties go to the lower `versionNonce`).
+
 ### Export API: `exportScene` (2026-10-18) [#12347](https://github.com/excalidraw/excalidraw/pull/12347)
 
 Breaking. `exportToCanvas`, `exportToBlob` and `exportToSvg` (in both `@excalidraw/excalidraw` and `@excalidraw/utils`) are replaced by a single `exportScene`, and every rendering option moved from `appState` into an explicit `config`.

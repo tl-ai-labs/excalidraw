@@ -252,6 +252,7 @@ function prepareDataForJSONExport(
 
 export const actionSaveToActiveFile = register({
   name: "saveToActiveFile",
+  allPages: true,
   label: "buttons.save",
   icon: ExportIcon,
   trackEvent: { category: "export" },
@@ -327,6 +328,7 @@ export const actionSaveToActiveFile = register({
 
 export const actionSaveFileToDisk = register({
   name: "saveFileToDisk",
+  allPages: true,
   label: "exportDialog.disk_title",
   icon: ExportIcon,
   viewMode: true,
@@ -392,6 +394,7 @@ export const actionSaveFileToDisk = register({
 
 export const actionLoadScene = register({
   name: "loadScene",
+  allPages: true,
   label: "buttons.load",
   trackEvent: { category: "export" },
   predicate: (elements, appState, props, app) => {

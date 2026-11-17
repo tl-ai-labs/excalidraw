@@ -19,7 +19,9 @@ import type { SceneBounds } from "@excalidraw/element";
 import type {
   ExcalidrawElement,
   FileId,
+  NonDeleted,
   OrderedExcalidrawElement,
+  Page,
 } from "@excalidraw/element/types";
 import type {
   AppState,
@@ -84,12 +86,15 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      /** optional: clients which don't know about pages omit / ignore it */
+      pages?: readonly Page[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly Page[];
     };
   };
   MOUSE_LOCATION: {
@@ -305,3 +310,14 @@ export const exportToBackend = async (
     return { url: null, errorMessage: t("alerts.couldNotCreateShareableLink") };
   }
 };
+
+/**
+ * Non-deleted elements of ALL pages (`getSceneElements()` only returns the
+ * active page's). Use for anything that persists / shares the whole drawing.
+ */
+export const getAllPagesSceneElements = (api: {
+  getSceneElementsIncludingDeleted: () => readonly OrderedExcalidrawElement[];
+}): NonDeleted<OrderedExcalidrawElement>[] =>
+  api
+    .getSceneElementsIncludingDeleted()
+    .filter((el): el is NonDeleted<OrderedExcalidrawElement> => !el.isDeleted);

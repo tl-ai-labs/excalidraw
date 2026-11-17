@@ -422,6 +422,7 @@ export {
 } from "./data/restore";
 
 export { reconcileElements } from "./data/reconcile";
+export { reconcilePages } from "@excalidraw/element";
 
 export { exportScene, exportToClipboard } from "./scene/export";
 

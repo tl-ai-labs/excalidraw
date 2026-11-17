@@ -68,6 +68,7 @@ type ActionCreator = (history: History) => Action;
 
 export const createUndoAction: ActionCreator = (history) => ({
   name: "undo",
+  allPages: true,
   label: "buttons.undo",
   icon: UndoIcon,
   trackEvent: { category: "history" },
@@ -111,6 +112,7 @@ export const createUndoAction: ActionCreator = (history) => ({
 
 export const createRedoAction: ActionCreator = (history) => ({
   name: "redo",
+  allPages: true,
   label: "buttons.redo",
   icon: RedoIcon,
   trackEvent: { category: "history" },

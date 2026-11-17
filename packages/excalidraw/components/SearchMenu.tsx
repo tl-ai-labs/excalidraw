@@ -15,7 +15,7 @@ import {
   isElementCompletelyInViewport,
 } from "@excalidraw/element";
 
-import { measureText } from "@excalidraw/element";
+import { measureText, getLivePages } from "@excalidraw/element";
 
 import {
   KEYS,
@@ -31,12 +31,15 @@ import { getDefaultFrameName } from "@excalidraw/element/frame";
 
 import type { RenderEnvironment } from "@excalidraw/element";
 import type {
+  ExcalidrawElement,
   ExcalidrawFrameLikeElement,
   ExcalidrawTextElement,
+  Page,
 } from "@excalidraw/element/types";
 
 import { atom, useAtom } from "../editor-jotai";
 
+import { useUIAppState } from "../context/ui-appState";
 import { useStable } from "../hooks/useStable";
 import { t } from "../i18n";
 
@@ -61,6 +64,7 @@ export const searchItemInFocusAtom = atom<number | null>(null);
 const SEARCH_DEBOUNCE = 350;
 
 type SearchMatchItem = {
+  pageId: string;
   element: ExcalidrawTextElement | ExcalidrawFrameLikeElement;
   searchQuery: SearchQuery;
   index: number;
@@ -83,6 +87,7 @@ type SearchQuery = string & { _brand: "SearchQuery" };
 export const SearchMenu = () => {
   const app = useApp();
   const setAppState = useExcalidrawSetAppState();
+  const appState = useUIAppState();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -196,7 +201,11 @@ export const SearchMenu = () => {
     if (searchMatches.items.length > 0 && focusIndex !== null) {
       const match = searchMatches.items[focusIndex];
 
-      if (match) {
+      if (match && match.pageId !== app.state.activePageId) {
+        // the match is on another page: switch to it first. The scene update
+        // re-runs this effect, which then focuses the match.
+        app.setActivePage(match.pageId);
+      } else if (match) {
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -426,6 +435,8 @@ export const SearchMenu = () => {
         onItemClick={setFocusIndex}
         focusIndex={focusIndex}
         searchQuery={searchQuery}
+        activePageId={appState.activePageId}
+        pages={appState.pages}
       />
     </div>
   );
@@ -435,6 +446,8 @@ const ListItem = (props: {
   preview: SearchMatchItem["preview"];
   searchQuery: SearchQuery;
   highlighted: boolean;
+  /** name of the page the match is on, when it's not the active one */
+  pageName?: string;
   onClick?: () => void;
 }) => {
   const preview = [
@@ -468,6 +481,11 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName && (
+        <div className="preview-page-name" data-testid="search-result-page">
+          {props.pageName}
+        </div>
+      )}
     </div>
   );
 };
@@ -477,9 +495,16 @@ interface MatchListProps {
   onItemClick: (index: number) => void;
   focusIndex: number | null;
   searchQuery: SearchQuery;
+  activePageId: string;
+  pages: readonly Page[];
 }
 
 const MatchListBase = (props: MatchListProps) => {
+  const getPageName = (pageId: string) =>
+    pageId === props.activePageId
+      ? undefined
+      : props.pages.find((page) => page.id === pageId)?.name;
+
   const frameNameMatches = useMemo(
     () =>
       props.matches.items.filter((match) => isFrameLikeElement(match.element)),
@@ -504,6 +529,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={getPageName(searchMatch.pageId)}
               highlighted={index === props.focusIndex}
               onClick={() => props.onItemClick(index)}
             />
@@ -524,6 +550,7 @@ const MatchListBase = (props: MatchListProps) => {
               key={searchMatch.element.id + searchMatch.index}
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
+              pageName={getPageName(searchMatch.pageId)}
               highlighted={index + frameNameMatches.length === props.focusIndex}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
             />
@@ -537,7 +564,9 @@ const MatchListBase = (props: MatchListProps) => {
 const areEqual = (prevProps: MatchListProps, nextProps: MatchListProps) => {
   return (
     prevProps.matches.nonce === nextProps.matches.nonce &&
-    prevProps.focusIndex === nextProps.focusIndex
+    prevProps.focusIndex === nextProps.focusIndex &&
+    prevProps.activePageId === nextProps.activePageId &&
+    prevProps.pages === nextProps.pages
   );
 };
 
@@ -800,7 +829,17 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    // search across all (live) pages, in tab order
+    const livePages = getLivePages(app.state.pages);
+    const pageOrder = new Map(livePages.map((page, i) => [page.id, i]));
+    const getPageId = (el: ExcalidrawElement) => app.scene.getElementPageId(el);
+    const comparePageThenY = (a: ExcalidrawElement, b: ExcalidrawElement) =>
+      (pageOrder.get(getPageId(a)) ?? 0) - (pageOrder.get(getPageId(b)) ?? 0) ||
+      a.y - b.y;
+
+    const elements = app.scene
+      .getElementsIncludingDeleted()
+      .filter((el) => !el.isDeleted);
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -809,8 +848,8 @@ const handleSearch = debounce(
       isFrameLikeElement(el),
     ) as ExcalidrawFrameLikeElement[];
 
-    texts.sort((a, b) => a.y - b.y);
-    frames.sort((a, b) => a.y - b.y);
+    texts.sort(comparePageThenY);
+    frames.sort(comparePageThenY);
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -831,6 +870,7 @@ const handleSearch = debounce(
 
         if (matchedLines.length > 0) {
           textMatches.push({
+            pageId: getPageId(textEl),
             element: textEl,
             searchQuery,
             preview,
@@ -859,6 +899,7 @@ const handleSearch = debounce(
 
         if (matchedLines.length > 0) {
           frameMatches.push({
+            pageId: getPageId(frame),
             element: frame,
             searchQuery,
             preview,

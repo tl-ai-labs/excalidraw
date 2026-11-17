@@ -82,7 +82,11 @@ import { refreshTextDimensions } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
-import { isInvisiblySmallElement } from "@excalidraw/element";
+import {
+  isInvisiblySmallElement,
+  getLivePages,
+  restorePages,
+} from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
@@ -448,8 +452,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: string;
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -1265,6 +1270,33 @@ const restoreFontTopPicks = (
   return fontFamilies.size ? [...fontFamilies] : null;
 };
 
+const restorePageViewports = (
+  raw: unknown,
+  livePages: readonly { id: string }[],
+): AppState["pageViewports"] => {
+  const viewports: AppState["pageViewports"] = {};
+  if (!raw || typeof raw !== "object") {
+    return viewports;
+  }
+  for (const page of livePages) {
+    const viewport = (raw as Record<string, any>)[page.id];
+    if (
+      viewport &&
+      Number.isFinite(viewport.scrollX) &&
+      Number.isFinite(viewport.scrollY) &&
+      Number.isFinite(viewport.zoom?.value) &&
+      viewport.zoom.value > 0
+    ) {
+      viewports[page.id] = {
+        scrollX: viewport.scrollX,
+        scrollY: viewport.scrollY,
+        zoom: { value: viewport.zoom.value },
+      };
+    }
+  }
+  return viewports;
+};
+
 export const restoreAppState = (
   appState: ImportedDataState["appState"],
   localAppState: Partial<AppState> | null | undefined,
@@ -1304,6 +1336,20 @@ export const restoreAppState = (
         ? localValue
         : defaultValue;
   }
+
+  // pages are never inherited from the current editor: a file without pages
+  // (legacy) lands on exactly one default page
+  nextAppState.pages = restorePages(appState.pages);
+  const livePages = getLivePages(nextAppState.pages);
+  nextAppState.activePageId = livePages.some(
+    (page) => page.id === appState.activePageId,
+  )
+    ? (appState.activePageId as string)
+    : livePages[0].id;
+  nextAppState.pageViewports = restorePageViewports(
+    appState.pageViewports,
+    livePages,
+  );
 
   const boxSelectionMode =
     appState.boxSelectionMode ?? localAppState?.boxSelectionMode;

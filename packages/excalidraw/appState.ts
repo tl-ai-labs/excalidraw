@@ -1,4 +1,5 @@
 import {
+  DEFAULT_PAGE_ID,
   COLOR_PALETTE,
   ARROW_TYPE,
   DEFAULT_ELEMENT_PROPS,
@@ -14,6 +15,8 @@ import {
   isTestEnv,
   DEFAULT_STICKY_NOTE_BG,
 } from "@excalidraw/common";
+
+import { createDefaultPage } from "@excalidraw/element";
 
 import type { AppState, InputDevice, NormalizedZoomValue } from "./types";
 
@@ -117,6 +120,9 @@ export const getDefaultAppState = (): Omit<
     textToolHover: null,
     frameRendering: { enabled: true, clip: true, name: true, outline: true },
     frameToHighlight: null,
+    pages: [createDefaultPage()],
+    activePageId: DEFAULT_PAGE_ID,
+    pageViewports: {},
     editingFrame: null,
     elementsToHighlight: null,
     toast: null,
@@ -273,6 +279,9 @@ const APP_STATE_STORAGE_CONF = (<
   textToolHover: { browser: false, export: false, server: false },
   frameRendering: { browser: false, export: false, server: false },
   frameToHighlight: { browser: false, export: false, server: false },
+  pages: { browser: true, export: true, server: true },
+  activePageId: { browser: true, export: true, server: false },
+  pageViewports: { browser: true, export: true, server: false },
   editingFrame: { browser: false, export: false, server: false },
   elementsToHighlight: { browser: false, export: false, server: false },
   toast: { browser: false, export: false, server: false },

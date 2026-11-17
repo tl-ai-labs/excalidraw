@@ -4,6 +4,7 @@ import {
   TTDDialogTrigger,
   CaptureUpdateAction,
   reconcileElements,
+  reconcilePages,
   useEditorInterface,
   ExcalidrawAPIProvider,
   useExcalidrawAPI,
@@ -110,6 +111,7 @@ import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
   exportToBackend,
+  getAllPagesSceneElements,
   getCollaborationLinkData,
   importFromBackend,
   isCollaborationLink,
@@ -342,6 +344,13 @@ const initializeScene = async (opts: {
             {
               ...scene?.appState,
               theme: localDataState?.appState?.theme || scene?.appState?.theme,
+              // pages (and the user's own active page) may have been updated
+              // by remote clients already, reconcile them with the local ones
+              pages: reconcilePages(
+                excalidrawAPI.getAppState().pages,
+                scene?.appState?.pages || [],
+              ),
+              activePageId: excalidrawAPI.getAppState().activePageId,
             },
             excalidrawAPI.getAppState(),
           ),
@@ -694,7 +703,7 @@ const ExcalidrawWrapper = () => {
       if (
         excalidrawAPI &&
         LocalData.fileStorage.shouldPreventUnload(
-          excalidrawAPI.getSceneElements(),
+          getAllPagesSceneElements(excalidrawAPI),
         )
       ) {
         if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
@@ -1055,7 +1064,7 @@ const ExcalidrawWrapper = () => {
               actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
               onClick={() => {
                 exportToExcalidrawPlus(
-                  excalidrawAPI.getSceneElements(),
+                  getAllPagesSceneElements(excalidrawAPI),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                   excalidrawAPI.getName(),
@@ -1097,7 +1106,7 @@ const ExcalidrawWrapper = () => {
             if (excalidrawAPI) {
               try {
                 await onExportToBackend(
-                  excalidrawAPI.getSceneElements(),
+                  getAllPagesSceneElements(excalidrawAPI),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
                 );
@@ -1273,7 +1282,7 @@ const ExcalidrawWrapper = () => {
               perform: () => {
                 if (excalidrawAPI) {
                   exportToExcalidrawPlus(
-                    excalidrawAPI.getSceneElements(),
+                    getAllPagesSceneElements(excalidrawAPI),
                     excalidrawAPI.getAppState(),
                     excalidrawAPI.getFiles(),
                     excalidrawAPI.getName(),

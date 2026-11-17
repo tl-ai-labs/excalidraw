@@ -1,4 +1,4 @@
-import { Emitter } from "@excalidraw/common";
+import { DEFAULT_PAGE_ID, Emitter } from "@excalidraw/common";
 
 import {
   CaptureUpdateAction,
@@ -99,8 +99,48 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  /** undo / redo stacks are kept per page, only the active page's are used */
+  private readonly pageStacks = new Map<
+    string,
+    { undoStack: HistoryDelta[]; redoStack: HistoryDelta[] }
+  >();
+  private activePageId: string = DEFAULT_PAGE_ID;
+
+  private getStacks(pageId: string = this.activePageId) {
+    let stacks = this.pageStacks.get(pageId);
+    if (!stacks) {
+      stacks = { undoStack: [], redoStack: [] };
+      this.pageStacks.set(pageId, stacks);
+    }
+    return stacks;
+  }
+
+  public get undoStack(): HistoryDelta[] {
+    return this.getStacks().undoStack;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    return this.getStacks().redoStack;
+  }
+
+  /** swaps to the stacks of the given page. Switching is never recorded. */
+  public setActivePage(pageId: string) {
+    if (pageId === this.activePageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  /** drops the stacks of a (deleted) page */
+  public deletePage(pageId: string) {
+    this.pageStacks.delete(pageId);
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -113,8 +153,7 @@ export class History {
   constructor(private readonly store: Store) {}
 
   public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+    this.pageStacks.clear();
   }
 
   /**
