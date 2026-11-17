@@ -83,6 +83,7 @@ export const actionChangeViewBackgroundColor = register<Partial<AppState>>({
 
 export const actionClearCanvas = register({
   name: "clearCanvas",
+  allPages: true,
   label: "labels.clearCanvas",
   icon: TrashIcon,
   trackEvent: { category: "canvas" },

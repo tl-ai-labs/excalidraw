@@ -67,16 +67,68 @@ export class ActionManager {
     this.updater = (actionResult) => {
       if (isPromiseLike(actionResult)) {
         actionResult.then((actionResult) => {
-          return updater(actionResult);
+          return updater(this.mergeOtherPages(actionResult));
         });
       } else {
-        return updater(actionResult);
+        return updater(this.mergeOtherPages(actionResult));
       }
     };
     this.getAppState = getAppState;
     this.getElementsIncludingDeleted = getElementsIncludingDeleted;
     this.app = app;
   }
+
+  /**
+   * Elements an action operates on: the active page's elements (including
+   * deleted), unless the action explicitly handles all pages.
+   */
+  private getElementsForAction = (action?: Action) => {
+    const all = this.getElementsIncludingDeleted();
+    if (action?.allPages) {
+      return all;
+    }
+    return this.app.scene.getActivePageElementsIncludingDeleted();
+  };
+
+  /**
+   * Merges the elements returned by an action (which only saw the active
+   * page) back with the other pages' elements, preserving the global order.
+   */
+  private mergeOtherPages = (result: ActionResult): ActionResult => {
+    if (result === false || !result.elements) {
+      return result;
+    }
+    const scene = this.app.scene;
+    const resultIds = new Set<string>();
+    for (const element of result.elements) {
+      resultIds.add(element.id);
+    }
+    const others = scene
+      .getElementsIncludingDeleted()
+      .filter(
+        (element) =>
+          !scene.isElementOnActivePage(element) && !resultIds.has(element.id),
+      );
+    if (!others.length) {
+      return result;
+    }
+    const merged: ExcalidrawElement[] = [];
+    let i = 0;
+    let j = 0;
+    const own = result.elements;
+    while (i < own.length || j < others.length) {
+      const a = own[i];
+      const b = others[j];
+      if (!b || (a && (a.index == null || a.index <= (b.index as string)))) {
+        merged.push(a);
+        i++;
+      } else {
+        merged.push(b);
+        j++;
+      }
+    }
+    return { ...result, elements: merged };
+  };
 
   registerAction(action: Action) {
     this.actions[action.name] = action;
@@ -106,7 +158,7 @@ export class ActionManager {
           action.keyTest(
             event,
             this.getAppState(),
-            this.getElementsIncludingDeleted(),
+            this.getElementsForAction(action),
             this.app,
           ),
       );
@@ -136,7 +188,7 @@ export class ActionManager {
       return true;
     }
 
-    const elements = this.getElementsIncludingDeleted();
+    const elements = this.getElementsForAction(action);
     const appState = this.getAppState();
     const value = null;
 
@@ -168,7 +220,7 @@ export class ActionManager {
       return;
     }
 
-    const elements = this.getElementsIncludingDeleted();
+    const elements = this.getElementsForAction(action);
     const appState = this.getAppState();
 
     trackAction(action, source, appState, elements, this.app, value);
@@ -203,14 +255,14 @@ export class ActionManager {
           action,
           "ui",
           this.getAppState(),
-          this.getElementsIncludingDeleted(),
+          this.getElementsForAction(action),
           this.app,
           formState,
         );
 
         this.updater(
           action.perform(
-            this.getElementsIncludingDeleted(),
+            this.getElementsForAction(action),
             this.getAppState(),
             formState,
             this.app,
@@ -220,7 +272,7 @@ export class ActionManager {
 
       return (
         <PanelComponent
-          elements={this.getElementsIncludingDeleted()}
+          elements={this.getElementsForAction(action)}
           appState={this.getAppState()}
           updateData={updateData}
           appProps={this.app.props}
@@ -235,7 +287,7 @@ export class ActionManager {
   };
 
   isActionEnabled = (action: Action) => {
-    const elements = this.getElementsIncludingDeleted();
+    const elements = this.getElementsForAction(action);
     const appState = this.getAppState();
 
     return (

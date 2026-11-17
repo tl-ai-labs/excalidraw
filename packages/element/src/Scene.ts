@@ -7,6 +7,7 @@ import {
   isDevEnv,
   isTestEnv,
   toArray,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
@@ -39,6 +40,8 @@ import type {
   Mutable,
   SameType,
 } from "@excalidraw/common/utility-types";
+
+import { getElementPageId } from "./pages";
 
 import type { AppState } from "../../excalidraw/types";
 
@@ -123,6 +126,11 @@ export class Scene {
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
+  /** all elements (incl. deleted) of the active page */
+  private activePageElements: readonly OrderedExcalidrawElement[] = [];
+  private activePageId: string = DEFAULT_PAGE_ID;
+  /** ids of live (non-deleted) pages, in tab order. Empty = unknown. */
+  private livePageIds: readonly string[] = [];
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
     elements: readonly NonDeletedExcalidrawElement[] | null;
@@ -142,6 +150,57 @@ export class Scene {
 
   getSceneNonce() {
     return this.sceneNonce;
+  }
+
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  /**
+   * Switches the page whose elements are exposed via the non-deleted
+   * getters, selection and frame caches.
+   */
+  setActivePageId(pageId: string, livePageIds?: readonly string[]) {
+    const nextLivePageIds = livePageIds ?? this.livePageIds;
+    if (
+      pageId === this.activePageId &&
+      nextLivePageIds.length === this.livePageIds.length &&
+      nextLivePageIds.every((id, i) => id === this.livePageIds[i])
+    ) {
+      return;
+    }
+    const prevActivePageElements = this.activePageElements;
+    const prevActivePageId = this.activePageId;
+    this.activePageId = pageId;
+    this.livePageIds = nextLivePageIds;
+    this.recomputeCaches();
+    // only notify if what's exposed actually changed
+    if (
+      prevActivePageId !== pageId ||
+      prevActivePageElements.length !== this.activePageElements.length ||
+      prevActivePageElements.some((el, i) => el !== this.activePageElements[i])
+    ) {
+      this.triggerUpdate();
+    }
+  }
+
+  /** page the element is displayed on (resolves orphaned pageIds) */
+  getElementPageId(element: { pageId?: string }) {
+    return getElementPageId(element, this.livePageIds);
+  }
+
+  isElementOnActivePage(element: { pageId?: string }) {
+    return this.getElementPageId(element) === this.activePageId;
+  }
+
+  /** all elements (incl. deleted) of the active page only */
+  getActivePageElementsIncludingDeleted() {
+    return this.activePageElements;
+  }
+
+  /** all elements (incl. deleted) of the given page */
+  getPageElementsIncludingDeleted(pageId: string) {
+    return this.elements.filter((el) => this.getElementPageId(el) === pageId);
   }
 
   getNonDeletedElementsMap() {
@@ -290,14 +349,30 @@ export class Scene {
       }
       this.elementsMap.set(element.id, element);
     });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
+    this.frames = nextFrameLikes;
+    this.recomputeCaches();
+
+    this.triggerUpdate();
+  }
+
+  /** derives the active-page-only caches from the all-pages element list */
+  private recomputeCaches() {
+    const activePageElements = this.elements.filter((element) =>
+      this.isElementOnActivePage(element),
+    );
+    // keep the reference stable when nothing page-related changed
+    this.activePageElements =
+      activePageElements.length === this.elements.length
+        ? this.elements
+        : activePageElements;
+
+    const nonDeletedElements = getNonDeletedElements(this.activePageElements);
     this.nonDeletedElements = nonDeletedElements.elements;
     this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
 
-    this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
-
-    this.triggerUpdate();
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames.filter((frame) => this.isElementOnActivePage(frame)),
+    ).elements;
   }
 
   triggerUpdate() {
@@ -325,6 +400,7 @@ export class Scene {
 
   destroy() {
     this.elements = [];
+    this.activePageElements = [];
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
     this.frames = [];
@@ -350,6 +426,15 @@ export class Scene {
 
     if (index === null) {
       index = this.elements.length;
+    }
+
+    // new elements created on a non-default page belong to that page
+    if (this.activePageId !== DEFAULT_PAGE_ID) {
+      for (const element of elements) {
+        if (element.pageId === undefined) {
+          (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+        }
+      }
     }
 
     if (!Number.isFinite(index) || index < 0) {

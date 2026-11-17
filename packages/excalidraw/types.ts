@@ -39,6 +39,7 @@ import type {
   BindMode,
   ExcalidrawTextElement,
   StrokeVariability,
+  Page,
 } from "@excalidraw/element/types";
 
 import type {
@@ -327,6 +328,14 @@ export type ScrollConstraints = {
   offsets?: Offsets;
 };
 
+export type { Page };
+
+export type PageViewport = {
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
+};
+
 export interface AppState {
   contextMenu: {
     items: ContextMenuItems;
@@ -406,6 +415,11 @@ export interface AppState {
       }
     | null;
   frameToHighlight: NonDeleted<ExcalidrawFrameLikeElement> | null;
+  /** all pages of the drawing (including tombstoned ones) */
+  pages: Page[];
+  activePageId: string;
+  /** per-page saved viewport, restored on page switch */
+  pageViewports: Record<string, PageViewport>;
   frameRendering: {
     enabled: boolean;
     name: boolean;
@@ -1225,6 +1239,7 @@ export type AppClassProperties = {
   files: BinaryFiles;
   editorInterface: App["editorInterface"];
   scene: App["scene"];
+  setActivePage: App["setActivePage"];
   syncActionResult: App["syncActionResult"];
   fonts: App["fonts"];
   clipboard: App["clipboard"];
@@ -1423,6 +1438,11 @@ export interface ExcalidrawImperativeAPI {
     "select" | "add" | "remove" | "clear"
   >;
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
+  /** live (non-deleted) pages, in tab order */
+  getPages: InstanceType<typeof App>["getPages"];
+  getActivePageId: InstanceType<typeof App>["getActivePageId"];
+  /** switches to the page, saving the current page's viewport */
+  setActivePage: InstanceType<typeof App>["setActivePage"];
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];

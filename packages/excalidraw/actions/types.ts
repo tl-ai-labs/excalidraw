@@ -143,7 +143,14 @@ export type ActionName =
   | "wrapSelectionInFrame"
   | "toggleWrap"
   | "toggleShapeSwitch"
-  | "togglePolygon";
+  | "togglePolygon"
+  | "switchPage"
+  | "createPage"
+  | "renamePage"
+  | "movePage"
+  | "movePageLeft"
+  | "movePageRight"
+  | "deletePage";
 
 export type PanelComponentProps = {
   elements: readonly ExcalidrawElement[];
@@ -221,4 +228,8 @@ export interface Action<TData = any> {
    *  available in the non-interactive editor when
    *  `interaction: { enabled: { navigation: true } }`. Defaults to `false` */
   navigation?: boolean;
+  /** if set to `true`, the action receives (and may return) the elements of
+   *  all pages. By default actions only see the active page's elements and
+   *  the other pages' elements are preserved automatically. */
+  allPages?: boolean;
 }

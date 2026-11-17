@@ -29,6 +29,7 @@ class Portal {
   roomId: string | null = null;
   roomKey: string | null = null;
   broadcastedElementVersions: Map<string, number> = new Map();
+  broadcastedPageVersions: Map<string, number> = new Map();
 
   constructor(collab: TCollabClass) {
     this.collab = collab;
@@ -71,6 +72,7 @@ class Portal {
     this.roomKey = null;
     this.socketInitialized = false;
     this.broadcastedElementVersions = new Map();
+    this.broadcastedPageVersions = new Map();
   }
 
   isOpen() {
@@ -163,12 +165,27 @@ class Portal {
       return acc;
     }, [] as SyncableExcalidrawElement[]);
 
+    // pages are synced the same way as elements (by version)
+    const syncablePages = this.collab.excalidrawAPI
+      .getAppState()
+      .pages.filter(
+        (page) =>
+          syncAll ||
+          !this.broadcastedPageVersions.has(page.id) ||
+          page.version > this.broadcastedPageVersions.get(page.id)!,
+      );
+
     const data: SocketUpdateDataSource[typeof updateType] = {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages: syncablePages,
       },
     };
+
+    for (const page of syncablePages) {
+      this.broadcastedPageVersions.set(page.id, page.version);
+    }
 
     for (const syncableElement of syncableElements) {
       this.broadcastedElementVersions.set(

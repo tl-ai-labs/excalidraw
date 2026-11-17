@@ -12,6 +12,9 @@ import { COLOR_PALETTE } from "./colors";
 
 export { DEFAULT_STICKY_NOTE_BG } from "./colors";
 
+/** id of the page every legacy (page-less) element belongs to */
+export const DEFAULT_PAGE_ID = "default";
+
 export const supportsResizeObserver =
   typeof window !== "undefined" && "ResizeObserver" in window;
 

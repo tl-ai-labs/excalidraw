@@ -94,3 +94,14 @@ export { actionToggleLinearEditor } from "./actionLinearEditor";
 export { actionToggleSearchMenu } from "./actionToggleSearchMenu";
 
 export { actionToggleCropEditor } from "./actionCropEditor";
+
+export {
+  actionSwitchPage,
+  actionCreatePage,
+  actionRenamePage,
+  actionMovePage,
+  actionMovePageLeft,
+  actionMovePageRight,
+  actionDeletePage,
+  getSwitchPageAppState,
+} from "./actionPages";

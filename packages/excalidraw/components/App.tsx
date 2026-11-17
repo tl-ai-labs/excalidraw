@@ -92,6 +92,7 @@ import {
   isSelectionLikeTool,
   oneOf,
   getStrokeWidthByKey,
+  DEFAULT_PAGE_ID,
 } from "@excalidraw/common";
 
 import {
@@ -207,6 +208,7 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  getLivePages,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -278,6 +280,10 @@ import {
   actionToggleMidpointSnapping,
   actionToggleCropEditor,
 } from "../actions";
+import {
+  actionSwitchPage,
+  getSwitchPageAppState,
+} from "../actions/actionPages";
 import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionPaste } from "../actions/actionClipboard";
 import { actionCopyElementLink } from "../actions/actionElementLink";
@@ -806,6 +812,9 @@ class App extends React.Component<AppProps, AppState> {
       getViewportOffsets: this.viewport.getOffsets,
       setElementRenderOverrides: this.setElementRenderOverrides,
       getSceneElements: this.getSceneElements,
+      getPages: this.getPages,
+      getActivePageId: this.getActivePageId,
+      setActivePage: this.setActivePage,
       getAppState: () => this.state,
       getFiles: () => this.files,
       getName: this.getName,
@@ -2766,6 +2775,16 @@ class App extends React.Component<AppProps, AppState> {
     return this.scene.getElementsMapIncludingDeleted();
   };
 
+  /** live pages in tab order */
+  public getPages = () => getLivePages(this.state.pages);
+
+  public getActivePageId = () => this.state.activePageId;
+
+  /** switches the canvas to the given page (saving the current viewport) */
+  public setActivePage = (pageId: string) => {
+    this.actionManager.executeAction(actionSwitchPage, "api", { id: pageId });
+  };
+
   public getSceneElements = () => {
     return this.scene.getNonDeletedElements();
   };
@@ -3136,7 +3155,21 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    // the scene must follow the page state in the same update
+    this.applyPageState(actionResult.appState);
     if (actionResult.elements) {
+      // elements created by an action belong to the active page
+      if (this.state.activePageId !== DEFAULT_PAGE_ID) {
+        for (const element of actionResult.elements) {
+          if (
+            element.pageId === undefined &&
+            !this.scene.getElement(element.id)
+          ) {
+            (element as Mutable<ExcalidrawElement>).pageId =
+              this.state.activePageId;
+          }
+        }
+      }
       this.scene.replaceAllElements(actionResult.elements);
       didUpdate = true;
     }
@@ -4290,6 +4323,72 @@ class App extends React.Component<AppProps, AppState> {
     );
   }
 
+  /**
+   * Keeps the scene's (and history's) active page in sync with the page
+   * state, and recovers from the active page disappearing (i.e. it was
+   * deleted by a collaborator).
+   */
+  /**
+   * Applies a pending page change (active page / page list) to the scene and
+   * history right away, so they're updated in the same batch as the state.
+   */
+  private applyPageState = (next: Partial<AppState> | null | undefined) => {
+    if (!next || (!("pages" in next) && !("activePageId" in next))) {
+      return;
+    }
+    const pages = next.pages ?? this.state.pages;
+    const activePageId = next.activePageId ?? this.state.activePageId;
+    this.history.setActivePage(activePageId);
+    this.scene.setActivePageId(
+      activePageId,
+      getLivePages(pages).map((page) => page.id),
+    );
+  };
+
+  private syncPages(prevState: AppState) {
+    const { pages, activePageId } = this.state;
+    const livePages = getLivePages(pages);
+
+    if (
+      livePages.length &&
+      !livePages.some((page) => page.id === activePageId)
+    ) {
+      const nextActive = livePages[0];
+      this.setState((state) => ({
+        ...state,
+        ...getSwitchPageAppState(
+          state,
+          nextActive.id,
+          this.scene
+            .getElementsIncludingDeleted()
+            .filter((el) => this.scene.getElementPageId(el) === nextActive.id),
+        ),
+      }));
+    }
+
+    if (pages !== prevState.pages) {
+      for (const page of pages) {
+        if (
+          page.isDeleted &&
+          !prevState.pages.find((prev) => prev.id === page.id)?.isDeleted
+        ) {
+          this.history.deletePage(page.id);
+        }
+      }
+    }
+
+    if (
+      pages !== prevState.pages ||
+      activePageId !== this.scene.getActivePageId()
+    ) {
+      this.history.setActivePage(activePageId);
+      this.scene.setActivePageId(
+        activePageId,
+        livePages.map((page) => page.id),
+      );
+    }
+  }
+
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
     const renderOverridesUpdatePending = this.renderOverridesUpdatePending;
     this.renderOverridesUpdatePending = false;
@@ -4302,6 +4401,8 @@ class App extends React.Component<AppProps, AppState> {
     ) {
       return;
     }
+
+    this.syncPages(prevState);
 
     // must be updated *before* state change listeners are triggered below
     if (!this._initialized && !this.state.isLoading) {
@@ -4652,6 +4753,16 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     const { nextElements, duplicatedElements } = duplication;
+
+    // pasted / library elements always land on the active page
+    for (const element of duplicatedElements) {
+      const mutable = element as Mutable<ExcalidrawElement>;
+      if (this.state.activePageId === DEFAULT_PAGE_ID) {
+        delete mutable.pageId;
+      } else {
+        mutable.pageId = this.state.activePageId;
+      }
+    }
 
     this.scene.replaceAllElements(nextElements);
 
@@ -5008,6 +5119,7 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (appState) {
+        this.applyPageState(appState);
         this.setState(appState as Pick<AppState, K> | null);
       }
 

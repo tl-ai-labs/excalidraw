@@ -32,6 +32,17 @@ type VerticalAlignKeys = keyof typeof VERTICAL_ALIGN;
 export type VerticalAlign = typeof VERTICAL_ALIGN[VerticalAlignKeys];
 export type FractionalIndex = string & { _brand: "franctionalIndex" };
 
+/** A page (tab) of a drawing. Elements reference it via `pageId`. */
+export type Page = {
+  id: string;
+  name: string;
+  /** fractional index, defines the tab order */
+  index: FractionalIndex;
+  version: number;
+  versionNonce: number;
+  isDeleted: boolean;
+};
+
 export type BoundElement = Readonly<{
   id: ExcalidrawLinearElement["id"];
   type: "arrow" | "text";
@@ -68,6 +79,9 @@ type _ExcalidrawElementBase = Readonly<{
       Could be null, i.e. for new elements which were not yet assigned to the scene. */
   index: FractionalIndex | null;
   isDeleted: boolean;
+  /** Id of the page the element belongs to. Omitted for elements on the
+      default page (legacy files / old collab clients). */
+  pageId?: string;
   /** List of groups the element belongs to.
       Ordered from deepest to shallowest. */
   groupIds: readonly GroupId[];
