@@ -19,6 +19,8 @@ import {
 import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
 
+import type { BoxSelectionMode } from "../types";
+
 export const getLassoSelectedElementIds = (input: {
   lassoPath: GlobalPoint[];
   elements: readonly ExcalidrawElement[];
@@ -27,6 +29,7 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  boxSelectionMode?: BoxSelectionMode;
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +41,7 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "contain",
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -70,10 +74,15 @@ export const getLassoSelectedElementIds = (input: {
       !intersectedElements.has(element.id) &&
       !enclosedElements.has(element.id)
     ) {
-      const enclosed = enclosureTest(path, element, elementsSegments);
+      const enclosed = enclosureTest(
+        path,
+        element,
+        elementsSegments,
+        elementsMap,
+      );
       if (enclosed) {
         enclosedElements.add(element.id);
-      } else {
+      } else if (boxSelectionMode === "overlap") {
         const intersects = intersectionTest(path, element, elementsMap);
         if (intersects) {
           intersectedElements.add(element.id);
@@ -93,18 +102,27 @@ const enclosureTest = (
   lassoPath: GlobalPoint[],
   element: ExcalidrawElement,
   elementsSegments: ElementsSegmentsMap,
+  elementsMap: ElementsMap,
 ): boolean => {
-  const lassoPolygon = polygonFromPoints(lassoPath);
-  const segments = elementsSegments.get(element.id);
-  if (!segments) {
+  if (lassoPath.length < 3) {
     return false;
   }
 
-  return segments.some((segment) => {
-    return segment.some((point) =>
-      polygonIncludesPointNonZero(point, lassoPolygon),
-    );
-  });
+  const lassoPolygon = polygonFromPoints(lassoPath);
+  const segments = elementsSegments.get(element.id);
+  if (!segments?.length) {
+    return false;
+  }
+
+  const allPointsEnclosed = segments.every((segment) =>
+    segment.every((point) => polygonIncludesPointNonZero(point, lassoPolygon)),
+  );
+
+  if (!allPointsEnclosed) {
+    return false;
+  }
+
+  return !intersectionTest(lassoPath, element, elementsMap);
 };
 
 const intersectionTest = (

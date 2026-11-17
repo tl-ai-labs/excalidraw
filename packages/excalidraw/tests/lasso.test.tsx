@@ -43,7 +43,11 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode = h.state.boxSelectionMode,
+) => {
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +78,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode,
     });
 
     act(() =>
@@ -365,6 +370,7 @@ describe("Basic lasso selection tests", () => {
     act(() => {
       h.elements = elements;
       h.app.setActiveTool({ type: "lasso" });
+      h.app.setState({ boxSelectionMode: "overlap" });
     });
   });
 
@@ -918,6 +924,12 @@ describe("Basic lasso selection tests", () => {
 });
 
 describe("Special cases", () => {
+  beforeEach(() => {
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+  });
+
   it("Select only frame if its children are also selected", () => {
     act(() => {
       const elements = [
@@ -1800,5 +1812,301 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("boxSelectionMode", () => {
+  const createRect = (
+    id: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    angle = 0 as Radians,
+  ): ExcalidrawElement =>
+    ({
+      id,
+      type: "rectangle",
+      x,
+      y,
+      width,
+      height,
+      angle,
+      strokeColor: "#1e1e1e",
+      backgroundColor: "transparent",
+      fillStyle: "solid",
+      strokeWidth: 2,
+      strokeStyle: "solid",
+      roughness: 1,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      index: null,
+      roundness: null,
+      seed: 1,
+      version: 1,
+      versionNonce: 1,
+      isDeleted: false,
+      boundElements: [],
+      updated: 1,
+      link: null,
+      locked: false,
+    } as ExcalidrawElement);
+
+  const createEllipse = (
+    id: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    angle = 0 as Radians,
+  ): ExcalidrawElement =>
+    ({
+      ...createRect(id, x, y, width, height, angle),
+      type: "ellipse",
+    } as ExcalidrawElement);
+
+  const createLine = (
+    id: string,
+    x: number,
+    y: number,
+    points: LocalPoint[],
+    angle = 0 as Radians,
+  ): ExcalidrawElement => {
+    const xs = points.map((p) => p[0]);
+    const ys = points.map((p) => p[1]);
+    return {
+      ...createRect(
+        id,
+        x,
+        y,
+        Math.max(...xs) - Math.min(...xs),
+        Math.max(...ys) - Math.min(...ys),
+        angle,
+      ),
+      type: "line",
+      points,
+      startBinding: null,
+      endBinding: null,
+      startArrowhead: null,
+      endArrowhead: null,
+    } as ExcalidrawElement;
+  };
+
+  const createFreedraw = (
+    id: string,
+    x: number,
+    y: number,
+    points: LocalPoint[],
+  ): ExcalidrawElement => {
+    const xs = points.map((p) => p[0]);
+    const ys = points.map((p) => p[1]);
+    return {
+      ...createRect(
+        id,
+        x,
+        y,
+        Math.max(...xs) - Math.min(...xs),
+        Math.max(...ys) - Math.min(...ys),
+      ),
+      type: "freedraw",
+      points,
+      pressures: [],
+      simulatePressure: true,
+    } as ExcalidrawElement;
+  };
+
+  const drawLassoLoop = (
+    vertices: GlobalPoint[],
+    boxSelectionMode?: "contain" | "overlap",
+  ) => {
+    const [start, ...rest] = vertices;
+    const localPoints = [...rest, start].map(
+      (p) => [p[0] - start[0], p[1] - start[1]] as LocalPoint,
+    );
+    updatePath(start, localPoints, boxSelectionMode);
+  };
+
+  it("defaults to contain mode and does not select a rectangle when only its corner is clipped", () => {
+    const rect = createRect("rect-1", 0, 0, 100, 100);
+    act(() => {
+      h.elements = [rect];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    expect(h.state.boxSelectionMode).toBe("contain");
+
+    // Lasso clips only the top-left corner (0, 0) of the rectangle
+    drawLassoLoop([
+      pointFrom(-20, -20),
+      pointFrom(30, -20),
+      pointFrom(30, 30),
+      pointFrom(-20, 30),
+    ]);
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    // Lasso fully encloses the rectangle
+    drawLassoLoop([
+      pointFrom(-20, -20),
+      pointFrom(120, -20),
+      pointFrom(120, 120),
+      pointFrom(-20, 120),
+    ]);
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      "rect-1",
+    ]);
+  });
+
+  it("selects a corner-clipped rectangle in overlap mode", () => {
+    const rect = createRect("rect-1", 0, 0, 100, 100);
+    act(() => {
+      h.elements = [rect];
+      h.app.setActiveTool({ type: "lasso" });
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+
+    drawLassoLoop([
+      pointFrom(-20, -20),
+      pointFrom(30, -20),
+      pointFrom(30, 30),
+      pointFrom(-20, 30),
+    ]);
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      "rect-1",
+    ]);
+  });
+
+  it("does not select an element in contain mode when a concave lasso encloses all vertices but crosses an edge", () => {
+    const rect = createRect("rect-1", 0, 0, 100, 100);
+    act(() => {
+      h.elements = [rect];
+      h.app.setActiveTool({ type: "lasso" });
+      h.app.setState({ boxSelectionMode: "contain" });
+    });
+
+    // Concave C-shaped lasso: all 4 corners of rect (0,0), (100,0), (100,100), (0,100)
+    // are inside the polygon, but the lasso dips inward across the right edge (x=100).
+    drawLassoLoop([
+      pointFrom(-20, -20),
+      pointFrom(120, -20),
+      pointFrom(120, 30),
+      pointFrom(70, 50),
+      pointFrom(120, 70),
+      pointFrom(120, 120),
+      pointFrom(-20, 120),
+    ]);
+    expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+
+    // Same concave lasso selects in overlap mode
+    drawLassoLoop(
+      [
+        pointFrom(-20, -20),
+        pointFrom(120, -20),
+        pointFrom(120, 30),
+        pointFrom(70, 50),
+        pointFrom(120, 70),
+        pointFrom(120, 120),
+        pointFrom(-20, 120),
+      ],
+      "overlap",
+    );
+    expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual([
+      "rect-1",
+    ]);
+  });
+
+  it("respects contain vs overlap for ellipses, rotated shapes, lines, and freedraw strokes", () => {
+    const ellipse = createEllipse("ellipse-1", 0, 0, 100, 80);
+    const rotatedRect = createRect(
+      "rot-rect-1",
+      200,
+      0,
+      100,
+      60,
+      (Math.PI / 4) as Radians,
+    );
+    const line = createLine("line-1", 400, 0, [
+      pointFrom<LocalPoint>(0, 0),
+      pointFrom<LocalPoint>(100, 100),
+    ]);
+    const freedraw = createFreedraw("freedraw-1", 600, 0, [
+      pointFrom<LocalPoint>(0, 0),
+      pointFrom<LocalPoint>(40, 60),
+      pointFrom<LocalPoint>(100, 20),
+    ]);
+
+    act(() => {
+      h.elements = [ellipse, rotatedRect, line, freedraw];
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const partialLoops: [string, GlobalPoint[]][] = [
+      [
+        "ellipse-1",
+        [
+          pointFrom(-10, -10),
+          pointFrom(40, -10),
+          pointFrom(40, 40),
+          pointFrom(-10, 40),
+        ],
+      ],
+      [
+        "rot-rect-1",
+        [
+          pointFrom(190, -20),
+          pointFrom(250, -20),
+          pointFrom(250, 30),
+          pointFrom(190, 30),
+        ],
+      ],
+      [
+        "line-1",
+        [
+          pointFrom(390, -10),
+          pointFrom(440, -10),
+          pointFrom(440, 40),
+          pointFrom(390, 40),
+        ],
+      ],
+      [
+        "freedraw-1",
+        [
+          pointFrom(590, -10),
+          pointFrom(630, -10),
+          pointFrom(630, 40),
+          pointFrom(590, 40),
+        ],
+      ],
+    ];
+
+    // None of the partially clipped shapes should be selected in contain mode
+    for (const [, loop] of partialLoops) {
+      drawLassoLoop(loop, "contain");
+      expect(getSelectedElements(h.elements, h.state)).toEqual([]);
+    }
+
+    // Each partially clipped shape should be selected in overlap mode
+    for (const [expectedId, loop] of partialLoops) {
+      drawLassoLoop(loop, "overlap");
+      expect(getSelectedElements(h.elements, h.state).map((e) => e.id)).toEqual(
+        [expectedId],
+      );
+    }
+
+    // Fully enclosing loop selects all four in contain mode
+    drawLassoLoop(
+      [
+        pointFrom(-50, -50),
+        pointFrom(750, -50),
+        pointFrom(750, 150),
+        pointFrom(-50, 150),
+      ],
+      "contain",
+    );
+    expect(
+      getSelectedElements(h.elements, h.state)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(["ellipse-1", "freedraw-1", "line-1", "rot-rect-1"]);
   });
 });

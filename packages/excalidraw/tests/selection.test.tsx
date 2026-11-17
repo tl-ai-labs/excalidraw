@@ -184,17 +184,63 @@ describe("lasso reselection", () => {
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
       mouse.downAt(110, 50);
-      mouse.moveTo(50, -20);
+      mouse.moveTo(110, -20);
 
       expect(h.app.lassoTrail.hasCurrentTrail).toBe(true);
 
-      mouse.moveTo(-20, 50);
-      mouse.moveTo(50, 120);
+      mouse.moveTo(-20, -20);
+      mouse.moveTo(-20, 120);
+      mouse.moveTo(110, 120);
       mouse.moveTo(110, 50);
       mouse.up();
     });
 
     assertSelectedElements([rectA.id]);
+  });
+
+  it("lasso respects boxSelectionMode contain (default) vs overlap", async () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    // Default mode is "contain": clipping only the top-left corner should not select
+    expect(h.state.boxSelectionMode).toBe("contain");
+    mouse.downAt(-20, -20);
+    mouse.moveTo(30, -20);
+    mouse.moveTo(30, 30);
+    mouse.moveTo(-20, 30);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+    assertSelectedElements([]);
+
+    // Fully enclosing the rectangle in "contain" mode selects it
+    mouse.downAt(-20, -20);
+    mouse.moveTo(120, -20);
+    mouse.moveTo(120, 120);
+    mouse.moveTo(-20, 120);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+    assertSelectedElements([rect.id]);
+
+    // Switch to "overlap" mode: the same corner-clipping lasso selects the rectangle
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap", selectedElementIds: {} });
+    });
+    mouse.downAt(-20, -20);
+    mouse.moveTo(30, -20);
+    mouse.moveTo(30, 30);
+    mouse.moveTo(-20, 30);
+    mouse.moveTo(-20, -20);
+    mouse.up();
+    assertSelectedElements([rect.id]);
   });
 });
 
