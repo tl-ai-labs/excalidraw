@@ -79,6 +79,11 @@ import {
   getStickyNotePathCommands,
   type StickyNotePathCommand,
 } from "./stickyNote";
+import {
+  mapWrappedLinesToOriginalOffsets,
+  normalizeTextStyleRanges,
+  splitLineIntoStyledRuns,
+} from "./textStyleRanges";
 
 import type { RenderEnvironment } from "./renderEnvironment";
 
@@ -676,10 +681,11 @@ const drawElementOnCanvas = (
         }
         withSavedContext(context, () => {
           context.font = getFontString(element);
-          context.fillStyle = applyDarkModeFilter(
+          const defaultFillStyle = applyDarkModeFilter(
             element.strokeColor,
             renderConfig.theme === THEME.DARK,
           );
+          context.fillStyle = defaultFillStyle;
           context.textAlign = element.textAlign as CanvasTextAlign;
 
           // Canvas does not support multiline text by default
@@ -703,12 +709,102 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
+          const styleRanges = element.styleRanges?.length
+            ? normalizeTextStyleRanges(
+                element.styleRanges,
+                element.originalText.length,
+              )
+            : null;
+          const mappedLines =
+            styleRanges && styleRanges.length > 0
+              ? mapWrappedLinesToOriginalOffsets(
+                  element.originalText,
+                  element.text,
+                )
+              : null;
+
           for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
-            );
+            const line = lines[index];
+            const mappedLine = mappedLines?.[index];
+            const runs =
+              styleRanges && styleRanges.length > 0 && mappedLine
+                ? splitLineIntoStyledRuns(line, mappedLine.start, styleRanges)
+                : null;
+            const hasStyledRuns =
+              runs && runs.some((run) => run.color || run.highlight);
+
+            if (!hasStyledRuns) {
+              context.fillStyle = defaultFillStyle;
+              context.textAlign = element.textAlign as CanvasTextAlign;
+              context.fillText(
+                line,
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+              continue;
+            }
+
+            const lineY = index * lineHeightPx;
+            const baselineY = lineY + verticalOffset;
+            const lineWidth = context.measureText(line).width;
+            const lineLeft =
+              element.textAlign === "center"
+                ? (element.width - lineWidth) / 2
+                : element.textAlign === "right"
+                ? element.width - lineWidth
+                : 0;
+
+            if (!rtl) {
+              let x = lineLeft;
+              for (const run of runs) {
+                const runWidth = context.measureText(run.text).width;
+                if (run.highlight) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.highlight,
+                    renderConfig.theme === THEME.DARK,
+                  );
+                  context.fillRect(x, lineY, runWidth, lineHeightPx);
+                }
+                x += runWidth;
+              }
+
+              context.textAlign = "left";
+              x = lineLeft;
+              for (const run of runs) {
+                const runWidth = context.measureText(run.text).width;
+                context.fillStyle = applyDarkModeFilter(
+                  run.color ?? element.strokeColor,
+                  renderConfig.theme === THEME.DARK,
+                );
+                context.fillText(run.text, x, baselineY);
+                x += runWidth;
+              }
+            } else {
+              let x = lineLeft + lineWidth;
+              for (const run of runs) {
+                const runWidth = context.measureText(run.text).width;
+                x -= runWidth;
+                if (run.highlight) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.highlight,
+                    renderConfig.theme === THEME.DARK,
+                  );
+                  context.fillRect(x, lineY, runWidth, lineHeightPx);
+                }
+              }
+
+              context.textAlign = "right";
+              x = lineLeft + lineWidth;
+              for (const run of runs) {
+                const runWidth = context.measureText(run.text).width;
+                context.fillStyle = applyDarkModeFilter(
+                  run.color ?? element.strokeColor,
+                  renderConfig.theme === THEME.DARK,
+                );
+                context.fillText(run.text, x, baselineY);
+                x -= runWidth;
+              }
+            }
           }
         });
         if (shouldTemporarilyAttach) {

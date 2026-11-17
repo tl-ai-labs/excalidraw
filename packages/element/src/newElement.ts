@@ -347,6 +347,7 @@ export const newTextElement = (
     autoResize?: ExcalidrawTextElement["autoResize"];
     labelPosition?: ExcalidrawTextElement["labelPosition"];
     baseFontSize?: ExcalidrawTextElement["baseFontSize"];
+    styleRanges?: ExcalidrawTextElement["styleRanges"];
     renderEnvironment?: RenderEnvironment;
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawTextElement> => {
@@ -384,6 +385,9 @@ export const newTextElement = (
     autoResize: opts.autoResize ?? true,
     lineHeight,
     labelPosition: opts.labelPosition ?? null,
+    ...(opts.styleRanges !== undefined
+      ? { styleRanges: opts.styleRanges }
+      : {}),
   };
 
   const textElement: NonDeleted<ExcalidrawTextElement> = newElementWith(

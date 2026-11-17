@@ -39,6 +39,7 @@ import {
   calculateFixedPointForNonElbowArrowBinding,
   getNonDeletedElements,
   normalizeArrowhead,
+  normalizeTextStyleRanges,
   isPointInElement,
   isValidPolygon,
   projectFixedPointOntoDiagonal,
@@ -570,10 +571,20 @@ export const restoreElement = (
         fontSize = DEFAULT_FONT_SIZE;
       }
       const text = (typeof element.text === "string" && element.text) || "";
+      const originalText = element.originalText || text;
 
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
+      const styleRanges =
+        "styleRanges" in element && element.styleRanges !== undefined
+          ? normalizeTextStyleRanges(
+              Array.isArray(element.styleRanges)
+                ? element.styleRanges
+                : undefined,
+              originalText.length,
+            )
+          : undefined;
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
@@ -581,7 +592,7 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -592,6 +603,7 @@ export const restoreElement = (
         baseFontSize: isFiniteNumber(element.baseFontSize)
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
+        ...(styleRanges !== undefined ? { styleRanges } : {}),
       });
 
       // if empty text, mark as deleted. We keep in array

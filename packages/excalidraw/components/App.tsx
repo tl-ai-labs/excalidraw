@@ -5893,6 +5893,23 @@ class App extends React.Component<AppProps, AppState> {
     return gesture.pointers.size >= 2;
   };
 
+  private editingTextSelectionGetter:
+    | (() => { start: number; end: number } | null)
+    | null = null;
+
+  public setEditingTextSelectionGetter = (
+    getter: (() => { start: number; end: number } | null) | null,
+  ) => {
+    this.editingTextSelectionGetter = getter;
+  };
+
+  public getEditingTextSelection = (): {
+    start: number;
+    end: number;
+  } | null => {
+    return this.editingTextSelectionGetter?.() ?? null;
+  };
+
   public getName = () => {
     return (
       this.state.name ||

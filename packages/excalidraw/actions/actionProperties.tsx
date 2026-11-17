@@ -6,6 +6,7 @@ import {
   BUCKET_FILL_BACKGROUND_PICKS,
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
+  DEFAULT_ELEMENT_BACKGROUND_PICKS,
   ARROW_TYPE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -32,6 +33,7 @@ import {
   getNonDeletedElements,
   isNonDeletedElement,
   syncStickyNoteInk,
+  applyTextStyleRange,
 } from "@excalidraw/element";
 
 import {
@@ -369,7 +371,7 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,6 +379,49 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+
+    const editingTextElement = appState.editingTextElement;
+    const selection = editingTextElement
+      ? app.getEditingTextSelection?.()
+      : null;
+    const rawEditingEl = editingTextElement
+      ? elements.find((el) => el.id === editingTextElement.id)
+      : undefined;
+    const editingEl =
+      rawEditingEl && isTextElement(rawEditingEl) ? rawEditingEl : undefined;
+    const hasPartialSelection = Boolean(
+      editingEl &&
+        selection &&
+        selection.start < selection.end &&
+        !(
+          selection.start === 0 &&
+          selection.end >= editingEl.originalText.length
+        ),
+    );
+
+    if (hasPartialSelection && editingEl && selection) {
+      return {
+        elements: elements.map((el) =>
+          el.id === editingEl.id && isTextElement(el)
+            ? newElementWith(el, {
+                styleRanges: applyTextStyleRange(
+                  el.styleRanges,
+                  el.originalText.length,
+                  selection.start,
+                  selection.end,
+                  { color },
+                ),
+              })
+            : el,
+        ),
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
@@ -389,13 +434,30 @@ export const actionChangeStrokeColor = register<
         changeProperty(
           elements,
           appState,
-          (el) =>
-            hasStrokeColor(el.type)
-              ? newElementWith(
-                  el,
-                  getColorUpdate(el, "strokeColor", color, elementsMap),
-                )
-              : el,
+          (el) => {
+            if (!hasStrokeColor(el.type)) {
+              return el;
+            }
+            const colorUpdate = getColorUpdate(
+              el,
+              "strokeColor",
+              color,
+              elementsMap,
+            );
+            if (isTextElement(el) && el.styleRanges?.length) {
+              return newElementWith(el, {
+                ...colorUpdate,
+                styleRanges: applyTextStyleRange(
+                  el.styleRanges,
+                  el.originalText.length,
+                  0,
+                  el.originalText.length,
+                  { color: null },
+                ),
+              });
+            }
+            return newElementWith(el, colorUpdate);
+          },
           true,
         ),
         elementsMap,
@@ -432,6 +494,142 @@ export const actionChangeStrokeColor = register<
             true,
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={appState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+export const actionChangeTextHighlight = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextHighlight",
+  label: "labels.textHighlight",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const { color, ...appStateUpdates } = value ?? {};
+    if (color === undefined) {
+      return {
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+
+    const highlightPatch = isTransparent(color) ? null : color;
+    const editingTextElement = appState.editingTextElement;
+    const selection = editingTextElement
+      ? app.getEditingTextSelection?.()
+      : null;
+    const rawEditingEl = editingTextElement
+      ? elements.find((el) => el.id === editingTextElement.id)
+      : undefined;
+    const editingEl =
+      rawEditingEl && isTextElement(rawEditingEl) ? rawEditingEl : undefined;
+    const hasPartialSelection = Boolean(
+      editingEl &&
+        selection &&
+        selection.start < selection.end &&
+        !(
+          selection.start === 0 &&
+          selection.end >= editingEl.originalText.length
+        ),
+    );
+
+    if (hasPartialSelection && editingEl && selection) {
+      return {
+        elements: elements.map((el) =>
+          el.id === editingEl.id && isTextElement(el)
+            ? newElementWith(el, {
+                styleRanges: applyTextStyleRange(
+                  el.styleRanges,
+                  el.originalText.length,
+                  selection.start,
+                  selection.end,
+                  { highlight: highlightPatch },
+                ),
+              })
+            : el,
+        ),
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
+    return {
+      elements: changeProperty(
+        elements,
+        appState,
+        (el) =>
+          isTextElement(el)
+            ? newElementWith(el, {
+                styleRanges: applyTextStyleRange(
+                  el.styleRanges,
+                  el.originalText.length,
+                  0,
+                  el.originalText.length,
+                  { highlight: highlightPatch },
+                ),
+              })
+            : el,
+        true,
+      ),
+      appState: {
+        ...appState,
+        ...appStateUpdates,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+    const label = t("labels.textHighlight");
+    const selection = appState.editingTextElement
+      ? app.getEditingTextSelection?.()
+      : null;
+
+    const currentHighlight = getFormValue(
+      elements,
+      app,
+      (element) => {
+        if (!isTextElement(element)) {
+          return COLOR_PALETTE.transparent;
+        }
+        const ranges = element.styleRanges;
+        if (!ranges?.length) {
+          return COLOR_PALETTE.transparent;
+        }
+        if (
+          appState.editingTextElement?.id === element.id &&
+          selection &&
+          selection.start < selection.end
+        ) {
+          const matching = ranges.find(
+            (r) => r.start < selection.end && r.end > selection.start,
+          );
+          return matching?.highlight ?? COLOR_PALETTE.transparent;
+        }
+        return ranges[0]?.highlight ?? COLOR_PALETTE.transparent;
+      },
+      isTextElement,
+      COLOR_PALETTE.transparent,
+    );
+
+    return (
+      <>
+        {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
+        <ColorPicker
+          topPicks={DEFAULT_ELEMENT_BACKGROUND_PICKS}
+          palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+          type="elementBackground"
+          label={label}
+          color={currentHighlight}
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

@@ -149,6 +149,7 @@ export const getShapeActionPredicates = (
 
     // text
     text: activeToolType === "text" || targetElements.some(isTextElement),
+    textHighlight: targetElements.some(isTextElement),
     textAlign:
       activeToolType === "text" ||
       suppportsHorizontalAlign(targetElements, elementsMap),

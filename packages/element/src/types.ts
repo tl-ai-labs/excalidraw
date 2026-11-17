@@ -250,6 +250,13 @@ export type NonDeleted<TElement extends ExcalidrawElement> = TElement & {
 
 export type NonDeletedExcalidrawElement = NonDeleted<ExcalidrawElement>;
 
+export type TextStyleRange = Readonly<{
+  start: number;
+  end: number;
+  color?: string;
+  highlight?: string;
+}>;
+
 export type ExcalidrawTextElement = _ExcalidrawElementBase &
   Readonly<{
     type: "text";
@@ -269,6 +276,13 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
     verticalAlign: VerticalAlign;
     containerId: ExcalidrawTextContainer["id"] | null;
     originalText: string;
+    /**
+     * Per-range text color and highlight overrides, indexed in UTF-16 code
+     * units into `originalText` (end-exclusive). Sorted, non-overlapping,
+     * non-empty, each with at least one of `color`/`highlight`, adjacent
+     * identical styles merged.
+     */
+    styleRanges?: readonly TextStyleRange[];
     /**
      * If `true` the width will fit the text. If `false`, the text will
      * wrap to fit the width.
