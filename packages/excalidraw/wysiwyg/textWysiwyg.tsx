@@ -42,6 +42,10 @@ import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
 import { getWrappedTextLines } from "@excalidraw/element";
 import {
+  normalizeTextStyleRanges,
+  splitLineIntoStyledRuns,
+} from "@excalidraw/element";
+import {
   isArrowElement,
   isBoundToContainer,
   isStickyNoteElement,
@@ -479,6 +483,18 @@ export const textWysiwyg = ({
         editable.style.wordBreak = "break-word";
       }
 
+      const strokeColor = applyDarkModeFilter(
+        updatedTextElement.strokeColor,
+        appState.theme === THEME.DARK,
+      );
+      const normalizedRanges = updatedTextElement.styleRanges?.length
+        ? normalizeTextStyleRanges(
+            updatedTextElement.styleRanges,
+            editable.value.length,
+          )
+        : [];
+      const hasStyledRanges = normalizedRanges.length > 0;
+
       Object.assign(editable.style, {
         font,
         // must be defined *after* font ¯\_(ツ)_/¯
@@ -500,10 +516,8 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color: applyDarkModeFilter(
-          updatedTextElement.strokeColor,
-          appState.theme === THEME.DARK,
-        ),
+        color: hasStyledRanges ? "transparent" : strokeColor,
+        caretColor: hasStyledRanges ? strokeColor : "",
         opacity: updatedTextElement.opacity / 100,
       });
       currentTextLayout = {
@@ -526,10 +540,84 @@ export const textWysiwyg = ({
         editable.style.fontFamily = getFontFamilyString(updatedTextElement);
       }
 
+      if (hasStyledRanges) {
+        if (!backdrop) {
+          backdrop = ownerDocument.createElement("div");
+          backdrop.setAttribute("aria-hidden", "true");
+          backdrop.dataset.type = "wysiwyg-backdrop";
+          Object.assign(backdrop.style, {
+            position: "absolute",
+            display: "inline-block",
+            minHeight: "1em",
+            backfaceVisibility: "hidden",
+            margin: 0,
+            padding: 0,
+            border: 0,
+            outline: 0,
+            background: "transparent",
+            overflow: "hidden",
+            zIndex: "var(--zIndex-wysiwyg)",
+            pointerEvents: "none",
+            overflowWrap: "break-word",
+            boxSizing: "content-box",
+          });
+          if (editable.parentElement) {
+            editable.parentElement.insertBefore(backdrop, editable);
+          } else {
+            editorBox?.appendChild(backdrop);
+          }
+        }
+        backdrop.dir = editable.dir;
+        Object.assign(backdrop.style, {
+          font: editable.style.font,
+          lineHeight: editable.style.lineHeight,
+          width: editable.style.width,
+          height: editable.style.height,
+          left: editable.style.left,
+          top: editable.style.top,
+          transformOrigin: editable.style.transformOrigin,
+          transform: editable.style.transform,
+          textAlign: editable.style.textAlign,
+          verticalAlign: editable.style.verticalAlign,
+          whiteSpace: editable.style.whiteSpace,
+          wordBreak: editable.style.wordBreak,
+          opacity: editable.style.opacity,
+        });
+        if (isTestEnv()) {
+          backdrop.style.fontFamily = editable.style.fontFamily;
+        }
+        const runs = splitLineIntoStyledRuns(
+          editable.value,
+          0,
+          normalizedRanges,
+        );
+        const fragment = ownerDocument.createDocumentFragment();
+        for (const run of runs) {
+          const span = ownerDocument.createElement("span");
+          span.textContent = run.text;
+          span.style.color = applyDarkModeFilter(
+            run.color ?? updatedTextElement.strokeColor,
+            appState.theme === THEME.DARK,
+          );
+          if (run.highlight) {
+            span.style.backgroundColor = applyDarkModeFilter(
+              run.highlight,
+              appState.theme === THEME.DARK,
+            );
+          }
+          fragment.appendChild(span);
+        }
+        backdrop.replaceChildren(fragment);
+      } else if (backdrop) {
+        backdrop.remove();
+        backdrop = null;
+      }
+
       app.scene.mutateElement(updatedTextElement, { x: coordX, y: coordY });
     }
   };
 
+  let backdrop: HTMLDivElement | null = null;
   const editable = ownerDocument.createElement("textarea");
 
   editable.dir = "auto";
@@ -567,6 +655,47 @@ export const textWysiwyg = ({
     boxSizing: "content-box",
   });
   editable.value = element.originalText;
+
+  let lastNonCollapsedSelection: { start: number; end: number } | null = null;
+  const syncTextSelection = () => {
+    const { selectionStart, selectionEnd } = editable;
+    if (
+      selectionStart !== null &&
+      selectionEnd !== null &&
+      selectionStart !== selectionEnd
+    ) {
+      lastNonCollapsedSelection = {
+        start: Math.min(selectionStart, selectionEnd),
+        end: Math.max(selectionStart, selectionEnd),
+      };
+    } else if (ownerDocument.activeElement === editable) {
+      lastNonCollapsedSelection = null;
+    }
+  };
+  const onDocumentSelectionChange = () => {
+    if (ownerDocument.activeElement === editable) {
+      syncTextSelection();
+    }
+  };
+  editable.addEventListener("select", syncTextSelection);
+  editable.addEventListener("keyup", syncTextSelection);
+  editable.addEventListener("mouseup", syncTextSelection);
+  ownerDocument.addEventListener("selectionchange", onDocumentSelectionChange);
+  app.setEditingTextSelectionGetter?.(() => {
+    const { selectionStart, selectionEnd } = editable;
+    if (
+      selectionStart !== null &&
+      selectionEnd !== null &&
+      selectionStart !== selectionEnd
+    ) {
+      return {
+        start: Math.min(selectionStart, selectionEnd),
+        end: Math.max(selectionStart, selectionEnd),
+      };
+    }
+    return lastNonCollapsedSelection;
+  });
+
   updateWysiwygStyle();
 
   const getCaretIndexFromInitialSceneCoords = () => {
@@ -860,6 +989,7 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
+      syncTextSelection();
       onChange(editable.value);
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
@@ -1113,6 +1243,17 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
 
+    editable.removeEventListener("select", syncTextSelection);
+    editable.removeEventListener("keyup", syncTextSelection);
+    editable.removeEventListener("mouseup", syncTextSelection);
+    ownerDocument.removeEventListener(
+      "selectionchange",
+      onDocumentSelectionChange,
+    );
+    app.setEditingTextSelectionGetter?.(null);
+
+    backdrop?.remove();
+    backdrop = null;
     editable.remove();
   };
 

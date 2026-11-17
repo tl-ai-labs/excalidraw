@@ -16,6 +16,7 @@ import { pointFrom, type Radians } from "@excalidraw/math";
 
 import {
   DEFAULT_BOUND_TEXT_LABEL_POSITION,
+  adjustTextStyleRangesForTextChange,
   fixBindingsAfterDeletion,
   getActiveTextElement,
   getApproxMinLineHeight,
@@ -220,8 +221,19 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
+            const nextStyleRanges =
+              _element.styleRanges !== undefined
+                ? adjustTextStyleRangesForTextChange(
+                    _element.styleRanges,
+                    _element.originalText,
+                    nextOriginalText,
+                  )
+                : undefined;
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              ...(nextStyleRanges !== undefined
+                ? { styleRanges: nextStyleRanges }
+                : {}),
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions
