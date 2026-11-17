@@ -18,6 +18,7 @@ import {
   isFrameLikeElement,
   isArrowElement,
   isElbowArrow,
+  isLinearElement,
   isExcalidrawElement,
   getColorUpdate,
   isNonDeletedElement,
@@ -183,12 +184,22 @@ export const actionPasteStyles = register({
             }
 
             if (
-              newElement.type === "arrow" &&
-              isArrowElement(elementStylesToCopyFrom)
+              isLinearElement(newElement) &&
+              isLinearElement(elementStylesToCopyFrom)
             ) {
               newElement = newElementWith(newElement, {
-                startArrowhead: elementStylesToCopyFrom.startArrowhead,
-                endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                ...(newElement.type === "arrow" &&
+                isArrowElement(elementStylesToCopyFrom)
+                  ? {
+                      startArrowhead: elementStylesToCopyFrom.startArrowhead,
+                      endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                    }
+                  : {}),
+                ...(elementStylesToCopyFrom.arrowheadSize !== undefined
+                  ? { arrowheadSize: elementStylesToCopyFrom.arrowheadSize }
+                  : newElement.arrowheadSize !== undefined
+                  ? { arrowheadSize: undefined }
+                  : {}),
               });
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(

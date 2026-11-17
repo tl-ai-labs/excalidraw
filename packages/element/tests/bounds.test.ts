@@ -375,4 +375,61 @@ describe("getArrowheadPoints()", () => {
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
   });
+
+  it("scales arrowhead points with arrowheadSize", () => {
+    const longArrow = (arrowheadSize?: number) =>
+      API.createElement({
+        type: "arrow",
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead: "arrow",
+        arrowheadSize,
+        roundness: null,
+        roughness: 0,
+      });
+
+    const defaultPts = getArrowheadPoints(
+      longArrow(),
+      ShapeCache.generateElementShape(longArrow(), null),
+      "end",
+      "arrow",
+    )!;
+    const smallPts = getArrowheadPoints(
+      longArrow(0.5),
+      ShapeCache.generateElementShape(longArrow(0.5), null),
+      "end",
+      "arrow",
+    )!;
+    const largePts = getArrowheadPoints(
+      longArrow(1.5),
+      ShapeCache.generateElementShape(longArrow(1.5), null),
+      "end",
+      "arrow",
+    )!;
+
+    const span = (pts: number[]) =>
+      Math.hypot(pts[0] - pts[2], pts[1] - pts[3]);
+
+    expect(span(smallPts)).toBeCloseTo(span(defaultPts) * 0.5);
+    expect(span(largePts)).toBeCloseTo(span(defaultPts) * 1.5);
+  });
+
+  it("caps scaled arrowheadSize with short-segment fitting", () => {
+    const shortArrow = API.createElement({
+      type: "arrow",
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(10, 0)],
+      endArrowhead: "triangle",
+      arrowheadSize: 1.5,
+      roundness: null,
+      roughness: 0,
+    });
+
+    const [tipX, , baseX] = getArrowheadPoints(
+      shortArrow,
+      ShapeCache.generateElementShape(shortArrow, null),
+      "end",
+      "triangle",
+    )!;
+
+    expect(tipX - baseX).toBeLessThanOrEqual(10);
+  });
 });

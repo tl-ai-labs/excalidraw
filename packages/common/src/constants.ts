@@ -512,6 +512,14 @@ export const getStrokeWidthByKey = (
     : STROKE_WIDTH[strokeWidthKey];
 };
 
+export const ARROWHEAD_SIZES = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+} as const;
+
+export const DEFAULT_ARROWHEAD_SIZE = ARROWHEAD_SIZES.medium;
+
 export const DEFAULT_ELEMENT_STROKE_WIDTH_KEY: StrokeWidthKey = "medium";
 
 export const DEFAULT_ELEMENT_PROPS: {

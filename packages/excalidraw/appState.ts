@@ -1,6 +1,7 @@
 import {
   COLOR_PALETTE,
   ARROW_TYPE,
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -44,6 +45,7 @@ export const getDefaultAppState = (): Omit<
     currentItemRoughness: DEFAULT_ELEMENT_PROPS.roughness,
     currentItemStrokeVariability: "constant",
     currentItemStartArrowhead: null,
+    currentItemArrowheadSize: DEFAULT_ARROWHEAD_SIZE,
     currentItemStrokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
     currentItemStickynoteStrokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
     currentItemStickynoteBackgroundColor: DEFAULT_STICKY_NOTE_BG,
@@ -194,6 +196,7 @@ const APP_STATE_STORAGE_CONF = (<
     server: false,
   },
   currentItemStartArrowhead: { browser: true, export: false, server: false },
+  currentItemArrowheadSize: { browser: true, export: false, server: false },
   currentItemStrokeColor: { browser: true, export: false, server: false },
   currentItemStickynoteStrokeColor: {
     browser: true,
