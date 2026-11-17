@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ARROWHEAD_SIZE,
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -625,6 +626,7 @@ export const newLinearElement = (
     type: ExcalidrawLinearElement["type"];
     points?: ExcalidrawLinearElement["points"];
     polygon?: ExcalidrawLineElement["polygon"];
+    arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"];
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawLinearElement> => {
   const element = {
@@ -635,6 +637,10 @@ export const newLinearElement = (
     endBinding: null,
     startArrowhead: null,
     endArrowhead: null,
+    ...(opts.arrowheadSize != null &&
+    opts.arrowheadSize !== DEFAULT_ARROWHEAD_SIZE
+      ? { arrowheadSize: opts.arrowheadSize }
+      : {}),
   };
 
   if (isLineElement(element)) {
@@ -654,6 +660,7 @@ export const newArrowElement = <T extends boolean>(
     type: ExcalidrawArrowElement["type"];
     startArrowhead?: Arrowhead | null;
     endArrowhead?: Arrowhead | null;
+    arrowheadSize?: ExcalidrawArrowElement["arrowheadSize"];
     points?: ExcalidrawArrowElement["points"];
     elbowed?: T;
     fixedSegments?: ExcalidrawElbowArrowElement["fixedSegments"] | null;
@@ -661,6 +668,11 @@ export const newArrowElement = <T extends boolean>(
 ): T extends true
   ? NonDeleted<ExcalidrawElbowArrowElement>
   : NonDeleted<ExcalidrawArrowElement> => {
+  const arrowheadSizeOpt =
+    opts.arrowheadSize != null && opts.arrowheadSize !== DEFAULT_ARROWHEAD_SIZE
+      ? { arrowheadSize: opts.arrowheadSize }
+      : {};
+
   if (opts.elbowed) {
     return {
       ..._newElementBase<ExcalidrawElbowArrowElement>(opts.type, opts),
@@ -669,6 +681,7 @@ export const newArrowElement = <T extends boolean>(
       endBinding: null,
       startArrowhead: opts.startArrowhead || null,
       endArrowhead: opts.endArrowhead || null,
+      ...arrowheadSizeOpt,
       elbowed: true,
       fixedSegments: opts.fixedSegments || [],
       startIsSpecial: false,
@@ -683,6 +696,7 @@ export const newArrowElement = <T extends boolean>(
     endBinding: null,
     startArrowhead: opts.startArrowhead || null,
     endArrowhead: opts.endArrowhead || null,
+    ...arrowheadSizeOpt,
     elbowed: false,
   } as T extends true
     ? NonDeleted<ExcalidrawElbowArrowElement>

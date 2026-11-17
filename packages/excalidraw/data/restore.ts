@@ -457,7 +457,10 @@ const restoreElementWithProperties = <
     /** @deprecated `movePoints()` option wrongly persisted on linear elements */
     moveMidPointsWithElement?: boolean | null;
   },
-  K extends Pick<T, keyof Omit<Required<T>, keyof ExcalidrawElement>>,
+  K extends Pick<
+    T,
+    keyof Omit<Required<T>, keyof ExcalidrawElement | "arrowheadSize">
+  >,
 >(
   element: T,
   extra: Pick<
@@ -466,7 +469,8 @@ const restoreElementWithProperties = <
     // @ts-ignore TS complains here but type checks the call sites fine.
     keyof K
   > &
-    Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
+    Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">> &
+    Partial<Pick<ExcalidrawLinearElement, "arrowheadSize">>,
 ): T => {
   const base: Pick<T, keyof ExcalidrawElement> = {
     type: extra.type || element.type,
@@ -534,6 +538,19 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+
+  if ("arrowheadSize" in ret) {
+    const { arrowheadSize } = ret as { arrowheadSize?: unknown };
+    if (
+      !(
+        typeof arrowheadSize === "number" &&
+        Number.isFinite(arrowheadSize) &&
+        arrowheadSize > 0
+      )
+    ) {
+      delete (ret as { arrowheadSize?: unknown }).arrowheadSize;
+    }
+  }
 
   return ret;
 };

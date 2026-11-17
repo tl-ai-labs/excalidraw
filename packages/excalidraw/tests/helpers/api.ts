@@ -235,6 +235,9 @@ export class API {
     endArrowhead?: T extends "arrow"
       ? ExcalidrawArrowElement["endArrowhead"] | ExcalidrawElbowArrowElement["endArrowhead"]
       : never;
+    arrowheadSize?: T extends "arrow" | "line"
+      ? ExcalidrawLinearElement["arrowheadSize"]
+      : never;
     elbowed?: boolean;
     fixedSegments?: FixedSegment[] | null;
   }): NonDeleted<
@@ -418,6 +421,12 @@ export class API {
       element.endBinding = rest.endBinding ?? null;
       element.startArrowhead = rest.startArrowhead ?? null;
       element.endArrowhead = rest.endArrowhead ?? null;
+    }
+    if (
+      (element.type === "arrow" || element.type === "line") &&
+      rest.arrowheadSize !== undefined
+    ) {
+      element.arrowheadSize = rest.arrowheadSize;
     }
     if (id) {
       element.id = id;

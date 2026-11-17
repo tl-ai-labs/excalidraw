@@ -8650,6 +8650,7 @@ class App extends React.Component<AppProps, AppState> {
                     null,
               startArrowhead,
               endArrowhead,
+              arrowheadSize: this.state.currentItemArrowheadSize,
               locked: false,
               frameId: topLayerFrame ? topLayerFrame.id : null,
               elbowed: this.state.currentItemArrowType === ARROW_TYPE.elbow,
@@ -8675,6 +8676,7 @@ class App extends React.Component<AppProps, AppState> {
                   : null,
               locked: false,
               frameId: topLayerFrame ? topLayerFrame.id : null,
+              arrowheadSize: this.state.currentItemArrowheadSize,
             });
 
       const point = pointFrom<GlobalPoint>(
