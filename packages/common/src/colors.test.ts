@@ -1,5 +1,6 @@
 import {
   applyDarkModeFilter,
+  invertDarkModeFilter,
   COLOR_PALETTE,
   rgbToHex,
 } from "@excalidraw/common";
@@ -212,6 +213,102 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("invertDarkModeFilter", () => {
+  const parseHexRgba = (hex: string) => {
+    const clean = hex.replace(/^#/, "");
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    const a = clean.length === 8 ? parseInt(clean.slice(6, 8), 16) : 255;
+    return { r, g, b, a };
+  };
+
+  it("returns input unchanged when enable is false", () => {
+    expect(invertDarkModeFilter("#121212", false)).toBe("#121212");
+    expect(invertDarkModeFilter("#ededed", false)).toBe("#ededed");
+  });
+
+  it("round-trips black, white, and grays", () => {
+    for (const color of [
+      "#000000",
+      "#ffffff",
+      COLOR_PALETTE.black,
+      ...COLOR_PALETTE.gray,
+    ]) {
+      const roundTripped = invertDarkModeFilter(applyDarkModeFilter(color));
+      const orig = parseHexRgba(color);
+      const back = parseHexRgba(roundTripped);
+      expect(Math.abs(back.r - orig.r)).toBeLessThanOrEqual(1);
+      expect(Math.abs(back.g - orig.g)).toBeLessThanOrEqual(1);
+      expect(Math.abs(back.b - orig.b)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("round-trips non-clamping colors across hues within rounding", () => {
+    const colors = [
+      "#5078a0",
+      "#8c643c",
+      "#609060",
+      "#996699",
+      "#c8a080",
+      "#405060",
+      "#b0c4de",
+      "#708090",
+    ];
+
+    for (const color of colors) {
+      const roundTripped = invertDarkModeFilter(applyDarkModeFilter(color));
+      const orig = parseHexRgba(color);
+      const back = parseHexRgba(roundTripped);
+      expect(Math.abs(back.r - orig.r)).toBeLessThanOrEqual(2);
+      expect(Math.abs(back.g - orig.g)).toBeLessThanOrEqual(2);
+      expect(Math.abs(back.b - orig.b)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("preserves alpha during round-trip", () => {
+    const color = "#5078a080";
+    const roundTripped = invertDarkModeFilter(applyDarkModeFilter(color));
+    const orig = parseHexRgba(color);
+    const back = parseHexRgba(roundTripped);
+    expect(Math.abs(back.r - orig.r)).toBeLessThanOrEqual(2);
+    expect(Math.abs(back.g - orig.g)).toBeLessThanOrEqual(2);
+    expect(Math.abs(back.b - orig.b)).toBeLessThanOrEqual(2);
+    expect(back.a).toBe(orig.a);
+  });
+
+  it("acts as a right-inverse for all COLOR_PALETTE colors", () => {
+    const allColors = [
+      COLOR_PALETTE.black,
+      COLOR_PALETTE.white,
+      ...COLOR_PALETTE.gray,
+      ...COLOR_PALETTE.red,
+      ...COLOR_PALETTE.pink,
+      ...COLOR_PALETTE.grape,
+      ...COLOR_PALETTE.violet,
+      ...COLOR_PALETTE.blue,
+      ...COLOR_PALETTE.cyan,
+      ...COLOR_PALETTE.teal,
+      ...COLOR_PALETTE.green,
+      ...COLOR_PALETTE.yellow,
+      ...COLOR_PALETTE.orange,
+      ...COLOR_PALETTE.bronze,
+    ];
+
+    for (const color of allColors) {
+      const darkColor = applyDarkModeFilter(color);
+      const inverted = invertDarkModeFilter(darkColor);
+      const reDarkened = applyDarkModeFilter(inverted);
+
+      const expected = parseHexRgba(darkColor);
+      const actual = parseHexRgba(reDarkened);
+      expect(Math.abs(actual.r - expected.r)).toBeLessThanOrEqual(2);
+      expect(Math.abs(actual.g - expected.g)).toBeLessThanOrEqual(2);
+      expect(Math.abs(actual.b - expected.b)).toBeLessThanOrEqual(2);
+    }
   });
 });
 

@@ -12,6 +12,8 @@ import type { Degrees } from "@excalidraw/math";
 // Browser-only cache to avoid memory leaks on server
 const DARK_MODE_COLORS_CACHE: Map<string, string> | null =
   typeof window !== "undefined" ? new Map() : null;
+const INVERT_DARK_MODE_COLORS_CACHE: Map<string, string> | null =
+  typeof window !== "undefined" ? new Map() : null;
 
 function cssHueRotate(
   red: number,
@@ -108,6 +110,67 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
 
   if (DARK_MODE_COLORS_CACHE) {
     DARK_MODE_COLORS_CACHE.set(color, result);
+  }
+
+  return result;
+};
+
+const inverseCssInvert = (
+  r: number,
+  g: number,
+  b: number,
+  percent: number,
+): { r: number; g: number; b: number } => {
+  const p = clamp(percent, 0, 100) / 100;
+  const denom = 1 - 2 * p;
+
+  if (denom === 0) {
+    return {
+      r: Math.round(clamp(r, 0, 255)),
+      g: Math.round(clamp(g, 0, 255)),
+      b: Math.round(clamp(b, 0, 255)),
+    };
+  }
+
+  const uninvertComponent = (color: number): number => {
+    const uninverted = (color - 255 * p) / denom;
+    return Math.round(clamp(uninverted, 0, 255));
+  };
+
+  return {
+    r: uninvertComponent(r),
+    g: uninvertComponent(g),
+    b: uninvertComponent(b),
+  };
+};
+
+export const invertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const cached = INVERT_DARK_MODE_COLORS_CACHE?.get(color);
+  if (cached) {
+    return cached;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+
+  // Inverse of applyDarkModeFilter: undo hue-rotate(180deg), then undo invert(93%)
+  const rgb = tc.toRgb();
+  const unrotated = cssHueRotate(rgb.r, rgb.g, rgb.b, -180 as Degrees);
+  const uninverted = inverseCssInvert(
+    unrotated.r,
+    unrotated.g,
+    unrotated.b,
+    93,
+  );
+
+  const result = rgbToHex(uninverted.r, uninverted.g, uninverted.b, alpha);
+
+  if (INVERT_DARK_MODE_COLORS_CACHE) {
+    INVERT_DARK_MODE_COLORS_CACHE.set(color, result);
   }
 
   return result;
