@@ -2055,6 +2055,81 @@ export const actionChangeArrowhead = register<{
   },
 });
 
+const ARROWHEAD_SIZES = [
+  { value: 0.5, label: "small", icon: StrokeWidthBaseIcon },
+  { value: 1, label: "medium", icon: StrokeWidthBoldIcon },
+  { value: 1.5, label: "large", icon: StrokeWidthExtraBoldIcon },
+] as const;
+
+const hasArrowheads = (element: ExcalidrawElement) =>
+  isLinearElement(element) &&
+  canHaveArrowheads(element.type) &&
+  (!!element.startArrowhead || !!element.endArrowhead);
+
+export const actionChangeArrowheadSize = register<number>({
+  name: "changeArrowheadSize",
+  label: "labels.arrowheadSize",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    invariant(value, "actionChangeArrowheadSize: value must be defined");
+
+    return {
+      elements: changeProperty(elements, appState, (el) => {
+        if (hasArrowheads(el)) {
+          const element = newElementWith(el as ExcalidrawLinearElement, {
+            arrowheadSize: value,
+          });
+          return isElbowArrow(element)
+            ? newElementWith(
+                element,
+                updateElbowArrowRoute(
+                  element,
+                  app.scene.getNonDeletedElementsMap(),
+                ),
+              )
+            : element;
+        }
+        return el;
+      }),
+      appState,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, updateData, app }) => {
+    const hasTarget = app.scene
+      .getSelectedElements(app.state)
+      .some(hasArrowheads);
+    if (!hasTarget) {
+      return null;
+    }
+    return (
+      <fieldset>
+        <legend>{t("labels.arrowheadSize")}</legend>
+        <div className="buttonList">
+          <RadioSelection
+            group="arrowheadSize"
+            options={ARROWHEAD_SIZES.map(({ value, label, icon }) => ({
+              value,
+              text: t(`labels.arrowheadSize_${label}`),
+              icon,
+              testId: `arrowhead-size-${label}`,
+            }))}
+            value={getFormValue(
+              elements,
+              app,
+              (element) =>
+                isLinearElement(element) ? element.arrowheadSize ?? 1 : 1,
+              hasArrowheads,
+              1,
+            )}
+            onChange={(value) => updateData(value)}
+          />
+        </div>
+      </fieldset>
+    );
+  },
+});
+
 export const actionChangeArrowProperties = register({
   name: "changeArrowProperties",
   label: "Change arrow properties",
@@ -2068,6 +2143,7 @@ export const actionChangeArrowProperties = register({
     return (
       <div className="selected-shape-actions">
         {renderAction("changeArrowhead")}
+        {renderAction("changeArrowheadSize")}
         {renderAction("changeArrowType")}
       </div>
     );
