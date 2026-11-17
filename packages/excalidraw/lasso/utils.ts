@@ -19,6 +19,8 @@ import {
 import type { ElementsSegmentsMap, GlobalPoint } from "@excalidraw/math/types";
 import type { ElementsMap, ExcalidrawElement } from "@excalidraw/element/types";
 
+import type { BoxSelectionMode } from "../types";
+
 export const getLassoSelectedElementIds = (input: {
   lassoPath: GlobalPoint[];
   elements: readonly ExcalidrawElement[];
@@ -27,6 +29,12 @@ export const getLassoSelectedElementIds = (input: {
   intersectedElements: Set<ExcalidrawElement["id"]>;
   enclosedElements: Set<ExcalidrawElement["id"]>;
   simplifyDistance?: number;
+  /**
+   * "overlap": select elements the lasso touches or encloses any part of.
+   * "contain" (wrap): select only elements fully enclosed by the lasso.
+   * Defaults to "overlap" (the historical lasso behavior).
+   */
+  boxSelectionMode?: BoxSelectionMode;
 }): {
   selectedElementIds: string[];
 } => {
@@ -38,6 +46,7 @@ export const getLassoSelectedElementIds = (input: {
     intersectedElements,
     enclosedElements,
     simplifyDistance,
+    boxSelectionMode = "overlap",
   } = input;
   // simplify the path to reduce the number of points
   let path: GlobalPoint[] = lassoPath;
@@ -67,9 +76,19 @@ export const getLassoSelectedElementIds = (input: {
 
     if (
       doBoundsIntersect(lassoBounds, elementBounds) &&
-      !intersectedElements.has(element.id) &&
-      !enclosedElements.has(element.id)
+      (boxSelectionMode === "contain" ||
+        (!intersectedElements.has(element.id) &&
+          !enclosedElements.has(element.id)))
     ) {
+      if (boxSelectionMode === "contain") {
+        if (
+          fullEnclosureTest(path, element, elementsSegments) &&
+          !intersectionTest(path, element, elementsMap)
+        ) {
+          enclosedElements.add(element.id);
+        }
+        continue;
+      }
       const enclosed = enclosureTest(path, element, elementsSegments);
       if (enclosed) {
         enclosedElements.add(element.id);
@@ -87,6 +106,23 @@ export const getLassoSelectedElementIds = (input: {
   return {
     selectedElementIds: results,
   };
+};
+
+// true only if every point of the element's outline is inside the lasso
+const fullEnclosureTest = (
+  lassoPath: GlobalPoint[],
+  element: ExcalidrawElement,
+  elementsSegments: ElementsSegmentsMap,
+): boolean => {
+  const lassoPolygon = polygonFromPoints(lassoPath);
+  const segments = elementsSegments.get(element.id);
+  if (!segments || !segments.length) {
+    return false;
+  }
+
+  return segments.every((segment) =>
+    segment.every((point) => polygonIncludesPointNonZero(point, lassoPolygon)),
+  );
 };
 
 const enclosureTest = (

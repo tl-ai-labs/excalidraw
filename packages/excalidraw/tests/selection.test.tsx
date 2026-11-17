@@ -7,7 +7,12 @@ import {
   getElementLineSegments,
   getElementsWithinSelection,
 } from "@excalidraw/element";
-import { pointFrom, pointRotateRads, type LocalPoint } from "@excalidraw/math";
+import {
+  pointFrom,
+  pointRotateRads,
+  type LocalPoint,
+  type Radians,
+} from "@excalidraw/math";
 
 import { TOOLS } from "../components/Tools";
 
@@ -153,7 +158,11 @@ describe("box-selection", () => {
 
 describe("lasso reselection", () => {
   beforeEach(async () => {
-    await render(<Excalidraw />);
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "overlap" } }}
+      />,
+    );
   });
 
   it("should allow ctrl+alt lasso reselection when starting inside the active common bounds", () => {
@@ -1458,4 +1467,112 @@ describe("deselecting", () => {
     expect(h.state.editingGroupId).toBeNull();
     expect(h.state.selectedGroupIds).toEqual({});
   });
+});
+
+describe("lasso respects boxSelectionMode", () => {
+  const lasso = (points: [number, number][]) => {
+    act(() => {
+      h.app.setActiveTool({ type: "lasso" });
+      h.app.lassoTrail.startPath(points[0][0], points[0][1]);
+      points
+        .slice(1)
+        .forEach(([x, y]) => h.app.lassoTrail.addPointToPath(x, y));
+      h.app.lassoTrail.endPath();
+    });
+  };
+
+  const makeElements = () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 60,
+    });
+    const rotated = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 40,
+      angle: (Math.PI / 4) as Radians,
+    });
+    const line = API.createElement({
+      type: "line",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(100, 50)],
+    });
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(50, 40),
+        pointFrom<LocalPoint>(100, 50),
+      ],
+    });
+    return { rect, ellipse, rotated, line, freedraw };
+  };
+
+  const clipAround = (x: number, y: number): [number, number][] => [
+    [x - 50, y - 50],
+    [x + 20, y - 50],
+    [x + 20, y + 20],
+    [x - 50, y + 20],
+  ];
+
+  it.each(["rect", "ellipse", "rotated", "line", "freedraw"] as const)(
+    "%s partially touched is selected only in overlap mode",
+    async (name) => {
+      for (const [mode, expected] of [
+        ["contain", false],
+        ["overlap", true],
+      ] as const) {
+        await render(
+          <Excalidraw initialData={{ appState: { boxSelectionMode: mode } }} />,
+        );
+        h.state.width = 1000;
+        h.state.height = 1000;
+        const el = makeElements()[name];
+        API.setElements([el]);
+        const [bx1, by1, bx2, by2] = getElementBounds(
+          el,
+          h.scene.getNonDeletedElementsMap(),
+        );
+        lasso(clipAround((bx1 + bx2) / 2, (by1 + by2) / 2));
+        assertSelectedElements(expected ? [el.id] : []);
+      }
+    },
+  );
+
+  it.each(["contain", "overlap"] as const)(
+    "fully enclosed element is selected in %s mode",
+    async (mode) => {
+      await render(
+        <Excalidraw initialData={{ appState: { boxSelectionMode: mode } }} />,
+      );
+      const { rect } = makeElements();
+      API.setElements([rect]);
+      lasso([
+        [-50, -50],
+        [200, -50],
+        [200, 200],
+        [-50, 200],
+      ]);
+      assertSelectedElements([rect.id]);
+    },
+  );
 });
