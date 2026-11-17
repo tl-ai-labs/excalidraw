@@ -1,6 +1,9 @@
 import type { VERSIONS } from "@excalidraw/common";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  ExcalidrawPage,
+} from "@excalidraw/element/types";
 
 import type { cleanAppStateForExport } from "../appState";
 import type {
@@ -16,6 +19,7 @@ export interface ExportedDataState {
   version: number;
   source: string;
   elements: readonly ExcalidrawElement[];
+  pages?: readonly ExcalidrawPage[];
   appState: ReturnType<typeof cleanAppStateForExport>;
   files: BinaryFiles | undefined;
 }
@@ -37,6 +41,7 @@ export interface ImportedDataState {
   version?: number;
   source?: string;
   elements?: readonly ExcalidrawElement[] | null;
+  pages?: readonly ExcalidrawPage[] | null;
   appState?: Readonly<
     Partial<
       AppState & {

@@ -1,4 +1,5 @@
-// Re-export from @excalidraw/excalidraw for backwards compatibility
+// Re-export from @excalidraw/excalidraw for backwards compatibility.
+// Note: exportScene accepts elements as supplied by the caller; filtering by page is the caller's job.
 export {
   exportScene,
   exportToClipboard,

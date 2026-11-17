@@ -41,6 +41,7 @@ import Stack from "./Stack";
 import { UserList } from "./UserList";
 import { PenModeButton } from "./PenModeButton";
 import Footer from "./footer/Footer";
+import { PageTabs } from "./PageTabs";
 import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
@@ -654,6 +655,9 @@ const LayerUI = ({
           >
             {renderWelcomeScreen && <tunnels.WelcomeScreenCenterTunnel.Out />}
             {renderFixedSideContainer()}
+            {defaultUIEnabled && !appState.zenModeEnabled && (
+              <PageTabs appState={appState} actionManager={actionManager} />
+            )}
             <Footer
               appState={appState}
               actionManager={actionManager}

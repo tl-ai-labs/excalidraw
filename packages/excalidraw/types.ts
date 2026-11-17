@@ -21,6 +21,7 @@ import type {
   NonDeleted,
   TextAlign,
   ExcalidrawElement,
+  ExcalidrawPage,
   GroupId,
   ExcalidrawBindableElement,
   ExcalidrawArrowElement,
@@ -588,7 +589,15 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  activePageId: string | null;
+  pageViewports: Record<string, PageViewport>;
 }
+
+export type PageViewport = {
+  scrollX: number;
+  scrollY: number;
+  zoom: Zoom;
+};
 
 export type SearchMatch = {
   id: string;
@@ -880,6 +889,7 @@ export interface ExcalidrawProps {
     elements: readonly OrderedExcalidrawElement[],
     appState: AppState,
     files: BinaryFiles,
+    pages: readonly ExcalidrawPage[],
   ) => void;
   onThemeChange?: (theme: Theme | "system") => void;
   /**
@@ -1120,6 +1130,7 @@ export interface ExcalidrawProps {
 export type SceneData = {
   /** Expects normalized elements; restore imported data before updating the scene. */
   elements?: readonly ExcalidrawElement[] | null;
+  pages?: readonly ExcalidrawPage[] | null;
   appState?: ImportedDataState["appState"];
   collaborators?: Map<SocketId, Collaborator>;
   captureUpdate?: CaptureUpdateActionType;
@@ -1278,6 +1289,8 @@ export type AppClassProperties = {
 
   isInteractionEnabled: App["isInteractionEnabled"];
   isNavigationEnabled: App["isNavigationEnabled"];
+  setActivePage: App["setActivePage"];
+  clearPageHistory: App["clearPageHistory"];
 };
 
 export type PointerDownState = Readonly<{
@@ -1423,6 +1436,8 @@ export interface ExcalidrawImperativeAPI {
     "select" | "add" | "remove" | "clear"
   >;
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
+  getPages: InstanceType<typeof App>["getPages"];
+  setActivePage: InstanceType<typeof App>["setActivePage"];
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];
@@ -1467,6 +1482,7 @@ export interface ExcalidrawImperativeAPI {
       elements: readonly ExcalidrawElement[],
       appState: AppState,
       files: BinaryFiles,
+      pages: readonly ExcalidrawPage[],
     ) => void,
   ) => UnsubscribeCallback;
   onIncrement: (

@@ -197,6 +197,13 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        if (
+          match.element.pageId &&
+          match.element.pageId !== app.state.activePageId
+        ) {
+          app.setActivePage(match.element.pageId);
+        }
+
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -426,6 +433,7 @@ export const SearchMenu = () => {
         onItemClick={setFocusIndex}
         focusIndex={focusIndex}
         searchQuery={searchQuery}
+        pages={app.scene.getPages()}
       />
     </div>
   );
@@ -459,7 +467,7 @@ const ListItem = (props: {
       onClick={props.onClick}
       ref={(ref) => {
         if (props.highlighted) {
-          ref?.scrollIntoView({ behavior: "auto", block: "nearest" });
+          ref?.scrollIntoView?.({ behavior: "auto", block: "nearest" });
         }
       }}
     >
@@ -477,59 +485,96 @@ interface MatchListProps {
   onItemClick: (index: number) => void;
   focusIndex: number | null;
   searchQuery: SearchQuery;
+  pages: readonly { id: string; name: string }[];
 }
 
 const MatchListBase = (props: MatchListProps) => {
-  const frameNameMatches = useMemo(
-    () =>
-      props.matches.items.filter((match) => isFrameLikeElement(match.element)),
-    [props.matches],
-  );
+  const groupedByPage = useMemo(() => {
+    const pageMap = new Map(props.pages.map((p) => [p.id, p.name]));
+    const groups: {
+      pageId: string | null;
+      pageName: string;
+      items: { match: SearchMatchItem; flatIndex: number }[];
+    }[] = [];
+    const groupById = new Map<string | null, typeof groups[number]>();
 
-  const textMatches = useMemo(
-    () => props.matches.items.filter((match) => isTextElement(match.element)),
-    [props.matches],
-  );
+    props.matches.items.forEach((match, flatIndex) => {
+      const pageId = match.element.pageId ?? null;
+      let group = groupById.get(pageId);
+      if (!group) {
+        group = {
+          pageId,
+          pageName: (pageId && pageMap.get(pageId)) || "",
+          items: [],
+        };
+        groupById.set(pageId, group);
+        groups.push(group);
+      }
+      group.items.push({ match, flatIndex });
+    });
+
+    return groups;
+  }, [props.matches, props.pages]);
 
   return (
     <div>
-      {frameNameMatches.length > 0 && (
-        <div className="layer-ui__search-result-container">
-          <div className="layer-ui__search-result-title">
-            <div className="title-icon">{frameToolIcon}</div>
-            <div>{t("search.frames")}</div>
-          </div>
-          {frameNameMatches.map((searchMatch, index) => (
-            <ListItem
-              key={searchMatch.element.id + searchMatch.index}
-              searchQuery={props.searchQuery}
-              preview={searchMatch.preview}
-              highlighted={index === props.focusIndex}
-              onClick={() => props.onItemClick(index)}
-            />
-          ))}
+      {groupedByPage.map((group, groupIdx) => {
+        const frameNameMatches = group.items.filter((item) =>
+          isFrameLikeElement(item.match.element),
+        );
+        const textMatches = group.items.filter((item) =>
+          isTextElement(item.match.element),
+        );
 
-          {textMatches.length > 0 && <div className="layer-ui__divider" />}
-        </div>
-      )}
+        return (
+          <div key={group.pageId ?? `page-${groupIdx}`}>
+            {group.pageName && (
+              <div className="layer-ui__search-page-title">
+                {group.pageName}
+              </div>
+            )}
+            {frameNameMatches.length > 0 && (
+              <div className="layer-ui__search-result-container">
+                <div className="layer-ui__search-result-title">
+                  <div className="title-icon">{frameToolIcon}</div>
+                  <div>{t("search.frames")}</div>
+                </div>
+                {frameNameMatches.map(({ match: searchMatch, flatIndex }) => (
+                  <ListItem
+                    key={searchMatch.element.id + searchMatch.index}
+                    searchQuery={props.searchQuery}
+                    preview={searchMatch.preview}
+                    highlighted={flatIndex === props.focusIndex}
+                    onClick={() => props.onItemClick(flatIndex)}
+                  />
+                ))}
 
-      {textMatches.length > 0 && (
-        <div className="layer-ui__search-result-container">
-          <div className="layer-ui__search-result-title">
-            <div className="title-icon">{TextIcon}</div>
-            <div>{t("search.texts")}</div>
+                {textMatches.length > 0 && (
+                  <div className="layer-ui__divider" />
+                )}
+              </div>
+            )}
+
+            {textMatches.length > 0 && (
+              <div className="layer-ui__search-result-container">
+                <div className="layer-ui__search-result-title">
+                  <div className="title-icon">{TextIcon}</div>
+                  <div>{t("search.texts")}</div>
+                </div>
+                {textMatches.map(({ match: searchMatch, flatIndex }) => (
+                  <ListItem
+                    key={searchMatch.element.id + searchMatch.index}
+                    searchQuery={props.searchQuery}
+                    preview={searchMatch.preview}
+                    highlighted={flatIndex === props.focusIndex}
+                    onClick={() => props.onItemClick(flatIndex)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          {textMatches.map((searchMatch, index) => (
-            <ListItem
-              key={searchMatch.element.id + searchMatch.index}
-              searchQuery={props.searchQuery}
-              preview={searchMatch.preview}
-              highlighted={index + frameNameMatches.length === props.focusIndex}
-              onClick={() => props.onItemClick(index + frameNameMatches.length)}
-            />
-          ))}
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 };
@@ -800,7 +845,9 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const elements = app.scene
+      .getElementsIncludingDeleted()
+      .filter((el) => !el.isDeleted);
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -873,13 +920,32 @@ const handleSearch = debounce(
       app.visibleElements.map((visibleElement) => visibleElement.id),
     );
 
-    // putting frame matches first
-    const matchItems: SearchMatchItem[] = [...frameMatches, ...textMatches];
+    const pages = app.scene.getPages();
+    const pageOrder = new Map(pages.map((p, idx) => [p.id, idx]));
 
-    const focusIndex =
-      matchItems.findIndex((matchItem) =>
-        visibleIds.has(matchItem.element.id),
-      ) ?? null;
+    // putting frame matches first within each page, ordered by page order
+    const allUnsorted: SearchMatchItem[] = [...frameMatches, ...textMatches];
+    const matchItems: SearchMatchItem[] = allUnsorted.sort((a, b) => {
+      const orderA =
+        a.element.pageId != null
+          ? pageOrder.get(a.element.pageId) ?? Number.MAX_SAFE_INTEGER
+          : Number.MAX_SAFE_INTEGER;
+      const orderB =
+        b.element.pageId != null
+          ? pageOrder.get(b.element.pageId) ?? Number.MAX_SAFE_INTEGER
+          : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      const aIsFrame = isFrameLikeElement(a.element) ? 0 : 1;
+      const bIsFrame = isFrameLikeElement(b.element) ? 0 : 1;
+      return aIsFrame - bIsFrame;
+    });
+
+    const foundFocusIndex = matchItems.findIndex((matchItem) =>
+      visibleIds.has(matchItem.element.id),
+    );
+    const focusIndex = foundFocusIndex >= 0 ? foundFocusIndex : null;
 
     cb(matchItems, focusIndex);
   },

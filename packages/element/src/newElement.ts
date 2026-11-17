@@ -82,6 +82,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "roundness"
   | "locked"
   | "opacity"
+  | "pageId"
   | "customData"
   | "created"
 >;
@@ -108,6 +109,7 @@ const _newElementBase = <T extends ExcalidrawElement>(
     boundElements = null,
     link = null,
     locked = DEFAULT_ELEMENT_PROPS.locked,
+    pageId = null,
     ...rest
   }: ElementConstructorOpts & Omit<Partial<ExcalidrawGenericElement>, "type">,
 ) => {
@@ -168,6 +170,7 @@ const _newElementBase = <T extends ExcalidrawElement>(
     created: rest.created === undefined ? timestamp : rest.created,
     link,
     locked,
+    pageId,
     customData: rest.customData,
   };
   return element;

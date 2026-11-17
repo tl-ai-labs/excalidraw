@@ -82,7 +82,13 @@ import { refreshTextDimensions } from "@excalidraw/element";
 
 import { getNormalizedDimensions } from "@excalidraw/element";
 
-import { isInvisiblySmallElement } from "@excalidraw/element";
+import {
+  isInvisiblySmallElement,
+  createPage,
+  DEFAULT_PAGE_NAME,
+  orderPagesByFractionalIndex,
+  syncInvalidPageIndices,
+} from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
@@ -94,6 +100,7 @@ import type {
   ExcalidrawElbowArrowElement,
   ExcalidrawElement,
   ExcalidrawLinearElement,
+  ExcalidrawPage,
   ExcalidrawSelectionElement,
   ExcalidrawTextElement,
   FixedPointBinding,
@@ -512,6 +519,7 @@ const restoreElementWithProperties = <
     created: element.created ?? null,
     link: element.link ? normalizeLink(element.link) : null,
     locked: element.locked ?? false,
+    pageId: element.pageId ?? null,
   };
 
   if ("customData" in element || "customData" in extra) {
@@ -1426,4 +1434,85 @@ export const restoreLibraryItems = (
     }
   }
   return restoredItems;
+};
+
+export const restorePages = <T extends ExcalidrawElement>(
+  rawPages: readonly Partial<ExcalidrawPage>[] | null | undefined,
+  elements: readonly T[],
+  appState?: Partial<AppState> | null,
+  localAppState?: Partial<AppState> | null,
+): {
+  pages: ExcalidrawPage[];
+  elements: T[];
+  activePageId: string;
+} => {
+  const seenIds = new Set<string>();
+  let restoredPages: ExcalidrawPage[] = [];
+
+  if (Array.isArray(rawPages)) {
+    for (const rawPage of rawPages) {
+      if (!rawPage || typeof rawPage !== "object") {
+        continue;
+      }
+      const id =
+        typeof rawPage.id === "string" && rawPage.id ? rawPage.id : randomId();
+      if (seenIds.has(id)) {
+        continue;
+      }
+      seenIds.add(id);
+      restoredPages.push({
+        id,
+        name:
+          typeof rawPage.name === "string" && rawPage.name.trim()
+            ? rawPage.name
+            : DEFAULT_PAGE_NAME,
+        index: rawPage.index as ExcalidrawPage["index"],
+        version: rawPage.version || 1,
+        versionNonce: rawPage.versionNonce ?? 0,
+        isDeleted: rawPage.isDeleted ?? false,
+        updated: rawPage.updated ?? getUpdatedTimestamp(),
+      });
+    }
+  }
+
+  restoredPages = syncInvalidPageIndices(restoredPages);
+
+  let nonDeletedPages = orderPagesByFractionalIndex(
+    restoredPages.filter((page) => !page.isDeleted),
+  );
+
+  if (nonDeletedPages.length === 0) {
+    const defaultPage = createPage({
+      id: localAppState?.activePageId || undefined,
+      name: DEFAULT_PAGE_NAME,
+    });
+    restoredPages = [...restoredPages, defaultPage];
+    nonDeletedPages = [defaultPage];
+  }
+
+  const pagesMap = new Map(restoredPages.map((page) => [page.id, page]));
+  const fallbackPageId = nonDeletedPages[0].id;
+  const activePageId =
+    appState?.activePageId &&
+    pagesMap.get(appState.activePageId) &&
+    !pagesMap.get(appState.activePageId)!.isDeleted
+      ? appState.activePageId
+      : fallbackPageId;
+
+  const nextElements = elements.map((element) => {
+    if (element.pageId && pagesMap.has(element.pageId)) {
+      const page = pagesMap.get(element.pageId)!;
+      if (page.isDeleted && !element.isDeleted) {
+        return { ...element, isDeleted: true };
+      }
+      return element;
+    }
+    return { ...element, pageId: fallbackPageId };
+  });
+
+  return {
+    pages: restoredPages,
+    elements: nextElements,
+    activePageId,
+  };
 };

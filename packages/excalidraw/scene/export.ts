@@ -1350,6 +1350,9 @@ export type ExportSceneOptions = { data: ExportSceneData } & (
 
 /**
  * Exports the scene to a canvas, a PNG or JPEG blob, or an SVG element.
+ *
+ * Accepts `elements` as supplied by the caller; filtering by page (`pageId`)
+ * is the caller's responsibility.
  */
 export function exportScene(
   opts: Extract<ExportSceneOptions, { type: "canvas" }>,

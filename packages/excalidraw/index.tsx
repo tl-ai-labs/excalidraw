@@ -419,9 +419,10 @@ export {
   restoreElement,
   restoreElements,
   restoreLibraryItems,
+  restorePages,
 } from "./data/restore";
 
-export { reconcileElements } from "./data/reconcile";
+export { reconcileElements, reconcilePages } from "./data/reconcile";
 
 export { exportScene, exportToClipboard } from "./scene/export";
 

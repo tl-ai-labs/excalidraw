@@ -234,6 +234,7 @@ function prepareDataForJSONExport(
 
     resolve({
       elements,
+      pages: app.scene.getPages(),
       appState,
       // return latest files in case they finished loading during onExport
       files: app.files,

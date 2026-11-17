@@ -66,6 +66,7 @@ import type { RestoredDataState } from "@excalidraw/excalidraw/data/restore";
 import type {
   FileId,
   NonDeletedExcalidrawElement,
+  ExcalidrawPage,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 import type {
@@ -716,41 +717,51 @@ const ExcalidrawWrapper = () => {
     elements: readonly OrderedExcalidrawElement[],
     appState: AppState,
     files: BinaryFiles,
+    pages: readonly ExcalidrawPage[],
   ) => {
     if (collabAPI?.isCollaborating()) {
       collabAPI.syncElements(elements);
+      collabAPI.syncPages(pages);
     }
 
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
-      LocalData.save(elements, appState, files, () => {
-        if (excalidrawAPI) {
-          let didChange = false;
+      LocalData.save(
+        elements,
+        appState,
+        files,
+        () => {
+          if (excalidrawAPI) {
+            let didChange = false;
 
-          const elements = excalidrawAPI
-            .getSceneElementsIncludingDeleted()
-            .map((element) => {
-              if (
-                LocalData.fileStorage.shouldUpdateImageElementStatus(element)
-              ) {
-                const newElement = newElementWith(element, { status: "saved" });
-                if (newElement !== element) {
-                  didChange = true;
+            const elements = excalidrawAPI
+              .getSceneElementsIncludingDeleted()
+              .map((element) => {
+                if (
+                  LocalData.fileStorage.shouldUpdateImageElementStatus(element)
+                ) {
+                  const newElement = newElementWith(element, {
+                    status: "saved",
+                  });
+                  if (newElement !== element) {
+                    didChange = true;
+                  }
+                  return newElement;
                 }
-                return newElement;
-              }
-              return element;
-            });
+                return element;
+              });
 
-          if (didChange) {
-            excalidrawAPI.updateScene({
-              elements,
-              captureUpdate: CaptureUpdateAction.NEVER,
-            });
+            if (didChange) {
+              excalidrawAPI.updateScene({
+                elements,
+                captureUpdate: CaptureUpdateAction.NEVER,
+              });
+            }
           }
-        }
-      });
+        },
+        pages,
+      );
     }
 
     // Render the debug scene if the debug canvas is available
@@ -777,8 +788,10 @@ const ExcalidrawWrapper = () => {
       throw new Error(t("alerts.cannotExportEmptyCanvas"));
     }
     try {
+      const allElements = excalidrawAPI?.getSceneElements() || exportedElements;
+      const pages = excalidrawAPI?.getPages();
       const { url, errorMessage } = await exportToBackend(
-        exportedElements,
+        allElements,
         {
           ...appState,
           viewBackgroundColor: appState.exportBackground
@@ -786,6 +799,7 @@ const ExcalidrawWrapper = () => {
             : getDefaultAppState().viewBackgroundColor,
         },
         files,
+        pages,
       );
 
       if (errorMessage) {

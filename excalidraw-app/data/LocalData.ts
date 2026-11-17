@@ -30,7 +30,11 @@ import { getNonDeletedElements } from "@excalidraw/element";
 
 import type { LibraryPersistedData } from "@excalidraw/excalidraw/data/library";
 import type { ImportedDataState } from "@excalidraw/excalidraw/data/types";
-import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  ExcalidrawPage,
+  FileId,
+} from "@excalidraw/element/types";
 import type {
   AppState,
   BinaryFileData,
@@ -73,6 +77,7 @@ class LocalFileManager extends FileManager {
 const saveDataStateToLocalStorage = (
   elements: readonly ExcalidrawElement[],
   appState: AppState,
+  pages?: readonly ExcalidrawPage[],
 ) => {
   const localStorageQuotaExceeded = appJotaiStore.get(
     localStorageQuotaExceededAtom,
@@ -91,6 +96,12 @@ const saveDataStateToLocalStorage = (
       STORAGE_KEYS.LOCAL_STORAGE_ELEMENTS,
       JSON.stringify(getNonDeletedElements(elements)),
     );
+    if (pages) {
+      localStorage.setItem(
+        STORAGE_KEYS.LOCAL_STORAGE_PAGES,
+        JSON.stringify(pages),
+      );
+    }
     localStorage.setItem(
       STORAGE_KEYS.LOCAL_STORAGE_APP_STATE,
       JSON.stringify(_appState),
@@ -128,8 +139,9 @@ export class LocalData {
       appState: AppState,
       files: BinaryFiles,
       onFilesSaved: () => void,
+      pages?: readonly ExcalidrawPage[],
     ) => {
-      saveDataStateToLocalStorage(elements, appState);
+      saveDataStateToLocalStorage(elements, appState, pages);
 
       await this.fileStorage.saveFiles({
         elements,
@@ -146,10 +158,11 @@ export class LocalData {
     appState: AppState,
     files: BinaryFiles,
     onFilesSaved: () => void,
+    pages?: readonly ExcalidrawPage[],
   ) => {
     // we need to make the `isSavePaused` check synchronously (undebounced)
     if (!this.isSavePaused()) {
-      this._save(elements, appState, files, onFilesSaved);
+      this._save(elements, appState, files, onFilesSaved, pages);
     }
   };
 

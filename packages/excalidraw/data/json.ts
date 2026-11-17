@@ -5,7 +5,10 @@ import {
   VERSIONS,
 } from "@excalidraw/common";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  ExcalidrawPage,
+} from "@excalidraw/element/types";
 
 import type { MaybePromise } from "@excalidraw/common/utility-types";
 
@@ -24,6 +27,7 @@ import type {
 
 export type JSONExportData = {
   elements: readonly ExcalidrawElement[];
+  pages?: readonly ExcalidrawPage[];
   appState: AppState;
   files: BinaryFiles;
 };
@@ -54,12 +58,14 @@ export const serializeAsJSON = (
   appState: Partial<AppState>,
   files: BinaryFiles,
   type: "local" | "database",
+  pages?: readonly ExcalidrawPage[],
 ): string => {
   const data: ExportedDataState = {
     type: EXPORT_DATA_TYPES.excalidraw,
     version: VERSIONS.excalidraw,
     source: getExportSource(),
     elements,
+    ...(pages?.length ? { pages } : {}),
     appState:
       type === "local"
         ? cleanAppStateForExport(appState)
@@ -83,12 +89,20 @@ export const saveAsJSON = async ({
   filename: string;
   fileHandle: AppState["fileHandle"];
 }) => {
-  const blob = Promise.resolve(data).then(({ elements, appState, files }) => {
-    const serialized = serializeAsJSON(elements, appState, files, "local");
-    return new Blob([serialized], {
-      type: MIME_TYPES.excalidraw,
-    });
-  });
+  const blob = Promise.resolve(data).then(
+    ({ elements, appState, files, pages }) => {
+      const serialized = serializeAsJSON(
+        elements,
+        appState,
+        files,
+        "local",
+        pages,
+      );
+      return new Blob([serialized], {
+        type: MIME_TYPES.excalidraw,
+      });
+    },
+  );
 
   const savedFileHandle = await fileSave(blob, {
     name: filename,

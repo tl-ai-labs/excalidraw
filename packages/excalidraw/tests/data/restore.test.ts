@@ -1657,3 +1657,76 @@ describe("restoreLibraryItems creation timestamps", () => {
     },
   );
 });
+
+describe("restorePages", () => {
+  it("restores a legacy file without pages onto one default Page 1", () => {
+    const rect = API.createElement({ type: "rectangle", x: 10, y: 20 });
+    const text = API.createElement({ type: "text", x: 30, y: 40, text: "hi" });
+    // Simulate legacy JSON where pageId is absent
+    const legacyInput = JSON.parse(
+      JSON.stringify({
+        elements: [
+          { ...rect, pageId: undefined },
+          { ...text, pageId: undefined },
+        ],
+      }),
+    );
+
+    const restoredElements = restore.restoreElements(
+      legacyInput.elements,
+      null,
+    );
+    const { pages, elements, activePageId } = restore.restorePages(
+      legacyInput.pages,
+      restoredElements,
+      null,
+    );
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0].name).toBe("Page 1");
+    expect(pages[0].isDeleted).toBe(false);
+    expect(activePageId).toBe(pages[0].id);
+    expect(elements).toHaveLength(2);
+    expect(elements.every((el) => el.pageId === pages[0].id)).toBe(true);
+  });
+
+  it("keeps elements on deleted pages deleted and reassigns orphan elements", () => {
+    const page1 = {
+      id: "page-1",
+      name: "Page 1",
+      index: "a0" as FractionalIndex,
+      version: 1,
+      versionNonce: 1,
+      isDeleted: false,
+      updated: 100,
+    };
+    const page2 = {
+      id: "page-2",
+      name: "Page 2",
+      index: "a1" as FractionalIndex,
+      version: 2,
+      versionNonce: 2,
+      isDeleted: true,
+      updated: 200,
+    };
+    const el1 = API.createElement({ type: "rectangle", pageId: "page-1" });
+    const el2 = API.createElement({ type: "rectangle", pageId: "page-2" });
+    const elOrphan = API.createElement({
+      type: "rectangle",
+      pageId: "missing-page",
+    });
+
+    const { pages, elements, activePageId } = restore.restorePages(
+      [page1, page2],
+      [el1, el2, elOrphan],
+      { activePageId: "page-2" },
+    );
+
+    expect(pages).toHaveLength(2);
+    expect(activePageId).toBe("page-1");
+    expect(elements[0].pageId).toBe("page-1");
+    expect(elements[0].isDeleted).toBe(false);
+    expect(elements[1].isDeleted).toBe(true);
+    expect(elements[2].pageId).toBe("page-1");
+  });
+});

@@ -1,5 +1,12 @@
 export { actionDeleteSelected } from "./actionDeleteSelected";
 export {
+  actionCreatePage,
+  actionSwitchPage,
+  actionRenamePage,
+  actionDeletePage,
+  actionReorderPage,
+} from "./actionPages";
+export {
   actionBringForward,
   actionBringToFront,
   actionSendBackward,

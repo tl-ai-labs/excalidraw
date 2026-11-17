@@ -4,11 +4,16 @@ import { arrayToMap, isDevEnv, isTestEnv } from "@excalidraw/common";
 
 import {
   orderByFractionalIndex,
+  orderPagesByFractionalIndex,
   syncInvalidIndices,
+  syncInvalidPageIndices,
   validateFractionalIndices,
 } from "@excalidraw/element";
 
-import type { OrderedExcalidrawElement } from "@excalidraw/element/types";
+import type {
+  ExcalidrawPage,
+  OrderedExcalidrawElement,
+} from "@excalidraw/element/types";
 
 import type { MakeBrand } from "@excalidraw/common/utility-types";
 
@@ -115,4 +120,41 @@ export const reconcileElements = (
   syncInvalidIndices(orderedElements);
 
   return orderedElements as ReconciledExcalidrawElement[];
+};
+
+export const reconcilePages = (
+  localPages: readonly ExcalidrawPage[],
+  remotePages: readonly ExcalidrawPage[],
+): ExcalidrawPage[] => {
+  const localPagesMap = arrayToMap(localPages);
+  const reconciledPages: ExcalidrawPage[] = [];
+  const added = new Set<string>();
+
+  for (const remotePage of remotePages) {
+    if (!added.has(remotePage.id)) {
+      const localPage = localPagesMap.get(remotePage.id);
+      const discardRemotePage =
+        localPage &&
+        (localPage.version > remotePage.version ||
+          (localPage.version === remotePage.version &&
+            localPage.versionNonce <= remotePage.versionNonce));
+
+      if (localPage && discardRemotePage) {
+        reconciledPages.push(localPage);
+        added.add(localPage.id);
+      } else {
+        reconciledPages.push(remotePage);
+        added.add(remotePage.id);
+      }
+    }
+  }
+
+  for (const localPage of localPages) {
+    if (!added.has(localPage.id)) {
+      reconciledPages.push(localPage);
+      added.add(localPage.id);
+    }
+  }
+
+  return syncInvalidPageIndices(orderPagesByFractionalIndex(reconciledPages));
 };

@@ -8,7 +8,6 @@ import {
   isTestEnv,
   toArray,
 } from "@excalidraw/common";
-import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
 import { getElementsInGroup } from "@excalidraw/element";
 
@@ -24,6 +23,7 @@ import { mutateElement, type ElementUpdate } from "@excalidraw/element";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawPage,
   NonDeletedExcalidrawElement,
   NonDeleted,
   ExcalidrawFrameLikeElement,
@@ -40,6 +40,8 @@ import type {
   SameType,
 } from "@excalidraw/common/utility-types";
 
+import { orderPagesByFractionalIndex } from "./pages";
+
 import type { AppState } from "../../excalidraw/types";
 
 type SceneStateCallback = () => void;
@@ -49,11 +51,15 @@ type SelectionHash = string & { __brand: "selectionHash" };
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
   allElements: readonly T[],
+  activePageId: string | null = null,
 ) => {
   const elementsMap = new Map() as NonDeletedSceneElementsMap;
   const elements: NonDeleted<T>[] = [];
   for (const element of allElements) {
-    if (!element.isDeleted) {
+    if (
+      !element.isDeleted &&
+      (activePageId === null || element.pageId === activePageId)
+    ) {
       elements.push(element as NonDeleted<T>);
       elementsMap.set(
         element.id,
@@ -123,6 +129,9 @@ export class Scene {
     [];
   private frames: readonly ExcalidrawFrameLikeElement[] = [];
   private elementsMap = toBrandedType<SceneElementsMap>(new Map());
+  private pages: readonly ExcalidrawPage[] = [];
+  private nonDeletedPages: readonly ExcalidrawPage[] = [];
+  private activePageId: string | null = null;
   private selectedElementsCache: {
     selectedElementIds: AppState["selectedElementIds"] | null;
     elements: readonly NonDeletedExcalidrawElement[] | null;
@@ -158,6 +167,55 @@ export class Scene {
 
   getNonDeletedElements() {
     return this.nonDeletedElements;
+  }
+
+  getAllNonDeletedElements() {
+    return getNonDeletedElements(this.elements, null).elements;
+  }
+
+  getPages() {
+    return this.nonDeletedPages;
+  }
+
+  getPagesIncludingDeleted() {
+    return this.pages;
+  }
+
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  setActivePageId(pageId: string | null) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.recomputeNonDeletedElements();
+    this.triggerUpdate();
+  }
+
+  replaceAllPages(nextPages: readonly ExcalidrawPage[]) {
+    this.pages = nextPages;
+    this.nonDeletedPages = orderPagesByFractionalIndex(
+      nextPages.filter((page) => !page.isDeleted),
+    );
+    this.triggerUpdate();
+  }
+
+  private recomputeNonDeletedElements() {
+    const nonDeletedElements = getNonDeletedElements(
+      this.elements,
+      this.activePageId,
+    );
+    this.nonDeletedElements = nonDeletedElements.elements;
+    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames,
+      this.activePageId,
+    ).elements;
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
   }
 
   getFramesIncludingDeleted() {
@@ -232,11 +290,7 @@ export class Scene {
   getNonDeletedElement(
     id: ExcalidrawElement["id"],
   ): NonDeleted<ExcalidrawElement> | null {
-    const element = this.getElement(id);
-    if (element && isNonDeletedElement(element)) {
-      return element;
-    }
-    return null;
+    return this.nonDeletedElementsMap.get(id) || null;
   }
 
   /**
@@ -276,6 +330,13 @@ export class Scene {
   ) {
     // we do trust the insertion order on the map, though maybe we shouldn't and should prefer order defined by fractional indices
     const _nextElements = toArray(nextElements);
+    if (this.activePageId != null) {
+      for (const element of _nextElements) {
+        if (element.pageId == null) {
+          (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+        }
+      }
+    }
     const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
 
     if (!options?.skipValidation) {
@@ -290,12 +351,8 @@ export class Scene {
       }
       this.elementsMap.set(element.id, element);
     });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
-    this.nonDeletedElements = nonDeletedElements.elements;
-    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
-
     this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+    this.recomputeNonDeletedElements();
 
     this.triggerUpdate();
   }
@@ -328,6 +385,9 @@ export class Scene {
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
     this.frames = [];
+    this.pages = [];
+    this.nonDeletedPages = [];
+    this.activePageId = null;
     this.elementsMap.clear();
     this.selectedElementsCache.selectedElementIds = null;
     this.selectedElementsCache.elements = null;
@@ -346,6 +406,14 @@ export class Scene {
   ) {
     if (!elements.length) {
       return;
+    }
+
+    if (this.activePageId != null) {
+      for (const element of elements) {
+        if (element.pageId == null) {
+          (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+        }
+      }
     }
 
     if (index === null) {
