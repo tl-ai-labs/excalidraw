@@ -447,6 +447,29 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
   return null;
 };
 
+export const ARROWHEAD_SIZE_MIN = 0.25;
+export const ARROWHEAD_SIZE_MAX = 3;
+
+/** keeps `arrowheadSize` only when valid (clamped), never adds the key */
+const restoreArrowheadSize = <T extends ExcalidrawLinearElement>(
+  element: T,
+): T => {
+  if (!("arrowheadSize" in element)) {
+    return element;
+  }
+  const { arrowheadSize, ...rest } = element;
+  if (typeof arrowheadSize !== "number" || !Number.isFinite(arrowheadSize)) {
+    return rest as T;
+  }
+  return {
+    ...rest,
+    arrowheadSize: Math.min(
+      ARROWHEAD_SIZE_MAX,
+      Math.max(ARROWHEAD_SIZE_MIN, arrowheadSize),
+    ),
+  } as T;
+};
+
 const restoreElementWithProperties = <
   T extends Required<Omit<ExcalidrawElement, "customData">> & {
     customData?: ExcalidrawElement["customData"];
@@ -666,7 +689,7 @@ export const restoreElement = (
         ...getSizeFromPoints(points),
       });
 
-      return handleOversizedLinearElements(restoredLine);
+      return handleOversizedLinearElements(restoreArrowheadSize(restoredLine));
     case "arrow": {
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead =
@@ -733,7 +756,9 @@ export const restoreElement = (
         ),
       };
 
-      return handleOversizedLinearElements(normalizedRestoredElement);
+      return handleOversizedLinearElements(
+        restoreArrowheadSize(normalizedRestoredElement),
+      );
     }
 
     // generic elements

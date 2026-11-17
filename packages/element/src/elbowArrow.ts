@@ -55,7 +55,7 @@ import {
 import {
   aabbForElement,
   doBoundsIntersect,
-  getArrowheadSize,
+  getElementArrowheadSize,
   pointInsideBounds,
 } from "./bounds";
 import { getHoveredElementForBinding } from "./collision";
@@ -98,6 +98,7 @@ type ElbowArrowState = {
   endBinding: FixedPointBinding | null;
   startArrowhead: Arrowhead | null;
   endArrowhead: Arrowhead | null;
+  arrowheadSize?: number;
 };
 
 type ElbowArrowData = {
@@ -1022,6 +1023,9 @@ export const updateElbowArrowPoints = (
       endBinding,
       startArrowhead: arrow.startArrowhead,
       endArrowhead: arrow.endArrowhead,
+      ...(arrow.arrowheadSize !== undefined
+        ? { arrowheadSize: arrow.arrowheadSize }
+        : {}),
       points: arrow.points,
     },
     elementsMap,
@@ -1180,6 +1184,7 @@ const getElbowArrowData = (
     endBinding: FixedPointBinding | null;
     startArrowhead: Arrowhead | null;
     endArrowhead: Arrowhead | null;
+    arrowheadSize?: number;
     points: readonly LocalPoint[];
   },
   elementsMap: NonDeletedSceneElementsMap,
@@ -1490,12 +1495,16 @@ const getSimpleRoute = (
     firstLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.startArrowhead ? getArrowheadSize(arrow.startArrowhead) : 0,
+        arrow.startArrowhead
+          ? getElementArrowheadSize(arrow, arrow.startArrowhead)
+          : 0,
       ) ||
     lastLeg <=
       Math.max(
         ELBOW_ARROW_CORNER_RADIUS / 2,
-        arrow.endArrowhead ? getArrowheadSize(arrow.endArrowhead) : 0,
+        arrow.endArrowhead
+          ? getElementArrowheadSize(arrow, arrow.endArrowhead)
+          : 0,
       )
   ) {
     return null;

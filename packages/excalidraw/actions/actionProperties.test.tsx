@@ -13,6 +13,8 @@ import { API } from "../tests/helpers/api";
 import { UI } from "../tests/helpers/ui";
 import { render } from "../tests/test-utils";
 
+import { actionChangeArrowheadSize } from "./actionProperties";
+
 describe("element locking", () => {
   beforeEach(async () => {
     await render(<Excalidraw />);
@@ -251,5 +253,32 @@ describe("element locking", () => {
         "active",
       );
     });
+  });
+});
+
+describe("arrowhead size", () => {
+  beforeEach(async () => {
+    await render(<Excalidraw />);
+  });
+
+  it("changeArrowheadSize updates selected arrows with arrowheads", () => {
+    const arrow = API.createElement({
+      type: "arrow",
+      width: 100,
+      height: 0,
+      endArrowhead: "arrow",
+    });
+    const plain = API.createElement({ type: "arrow", width: 100, height: 0 });
+    API.setElements([arrow, plain]);
+    API.setSelectedElements([arrow, plain]);
+
+    window.h.app.actionManager.executeAction(
+      actionChangeArrowheadSize,
+      "ui",
+      0.5,
+    );
+
+    expect((window.h.elements[0] as any).arrowheadSize).toBe(0.5);
+    expect("arrowheadSize" in window.h.elements[1]).toBe(false);
   });
 });

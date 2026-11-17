@@ -376,3 +376,30 @@ describe("getArrowheadPoints()", () => {
     ).toBeCloseTo(lastSegmentLength);
   });
 });
+
+describe("arrowheadSize", () => {
+  const make = (arrowheadSize?: number) => ({
+    ...API.createElement({
+      type: "arrow",
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+      endArrowhead: "triangle",
+      roughness: 0,
+    }),
+    ...(arrowheadSize !== undefined ? { arrowheadSize } : {}),
+  });
+
+  it("scales the head geometry with the size", () => {
+    const base = make();
+    const small = make(0.5);
+    const headLength = (el: ExcalidrawLinearElement) => {
+      const [tipX, , x1] = getArrowheadPoints(
+        el,
+        ShapeCache.generateElementShape(el, null),
+        "end",
+        "triangle",
+      )!;
+      return Math.abs(tipX - x1);
+    };
+    expect(headLength(small)).toBeCloseTo(headLength(base) / 2);
+  });
+});
