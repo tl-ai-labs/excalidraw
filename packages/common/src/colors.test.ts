@@ -1,6 +1,7 @@
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  revertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -282,5 +283,99 @@ describe("rgbToHex", () => {
       // 0.05 * 255 = 12.75 -> rounds to 13 = 0x0d
       expect(rgbToHex(255, 0, 0, 0.05)).toBe("#ff00000d");
     });
+  });
+});
+
+describe("revertDarkModeFilter", () => {
+  const hex = (r: number, g: number, b: number) => rgbToHex(r, g, b);
+
+  const named = [
+    "#000000",
+    "#010101",
+    "#1e1e1e",
+    "#121212",
+    "#ededed",
+    "#fefefe",
+    "#ffffff",
+    "#808080",
+    "#e03131",
+    "#a5d8ff",
+    "#868e96",
+    "#0c8599",
+    "#6741d9",
+    "#fafafa",
+  ];
+
+  it("round-trips named colors exactly (near-black, near-white, saturated, greys)", () => {
+    for (const c of named) {
+      expect(revertDarkModeFilter(applyDarkModeFilter(c))).toBe(c);
+    }
+  });
+
+  it("recovers every grey within +-1 and always forward-equal", () => {
+    for (let v = 0; v < 256; v++) {
+      const c = hex(v, v, v);
+      const screen = applyDarkModeFilter(c);
+      const back = revertDarkModeFilter(screen);
+      expect(applyDarkModeFilter(back)).toBe(screen);
+      const channels = [1, 3, 5].map((i) => parseInt(back.slice(i, i + 2), 16));
+      for (const ch of channels) {
+        expect(Math.abs(ch - v)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("returns a same-looking color for saturated, clamped colors", () => {
+    for (const c of ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff"]) {
+      const screen = applyDarkModeFilter(c);
+      expect(applyDarkModeFilter(revertDarkModeFilter(screen))).toBe(screen);
+    }
+  });
+
+  it("round-trips the whole palette", () => {
+    const colors = Object.values(COLOR_PALETTE)
+      .flat()
+      .filter((c) => c !== "transparent");
+    for (const c of colors) {
+      expect(revertDarkModeFilter(applyDarkModeFilter(c))).toBe(c);
+    }
+  });
+
+  it("round-trips a grid of colors (always forward-equal, often exact)", () => {
+    let exact = 0;
+    let total = 0;
+    for (let r = 0; r < 256; r += 15) {
+      for (let g = 0; g < 256; g += 15) {
+        for (let b = 0; b < 256; b += 15) {
+          const c = hex(r, g, b);
+          const screen = applyDarkModeFilter(c);
+          const back = revertDarkModeFilter(screen);
+          total++;
+          if (back === c) {
+            exact++;
+          }
+          // always looks identical on screen, even when not exactly equal
+          expect(applyDarkModeFilter(back)).toBe(screen);
+        }
+      }
+    }
+    // the forward transform is lossy (see revertDarkModeFilter docs), so only
+    // part of the colors can be recovered exactly
+    expect(exact / total).toBeGreaterThan(0.3);
+  });
+
+  it("preserves alpha", () => {
+    expect(revertDarkModeFilter(applyDarkModeFilter("#1e1e1e80"))).toBe(
+      "#1e1e1e80",
+    );
+  });
+
+  it("is a no-op when disabled", () => {
+    expect(revertDarkModeFilter("#123456", false)).toBe("#123456");
+  });
+
+  it("reverts the known forward values", () => {
+    expect(revertDarkModeFilter("#ededed")).toBe("#000000");
+    expect(revertDarkModeFilter("#121212")).toBe("#ffffff");
   });
 });

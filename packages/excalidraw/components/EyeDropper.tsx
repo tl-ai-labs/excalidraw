@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { EVENT, KEYS, rgbToHex } from "@excalidraw/common";
+import {
+  EVENT,
+  KEYS,
+  THEME,
+  revertDarkModeFilter,
+  rgbToHex,
+} from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -77,7 +83,8 @@ export const EyeDropper: React.FC<{
 
     const ctx = app.canvas.getContext("2d")!;
 
-    const getCurrentColor = ({
+    // raw on-screen color (in dark theme: after the dark mode filter)
+    const getScreenColor = ({
       clientX,
       clientY,
     }: {
@@ -92,6 +99,17 @@ export const EyeDropper: React.FC<{
       ).data;
 
       return rgbToHex(pixel[0], pixel[1], pixel[2]);
+    };
+
+    // the element's real color, i.e. what should be saved/applied
+    const getCurrentColor = (position: {
+      clientX: number;
+      clientY: number;
+    }) => {
+      const screenColor = getScreenColor(position);
+      return appState.theme === THEME.DARK
+        ? revertDarkModeFilter(screenColor)
+        : screenColor;
     };
 
     const mouseMoveListener = ({
@@ -116,7 +134,11 @@ export const EyeDropper: React.FC<{
       colorPreviewDiv.style.top = `${top}px`;
       colorPreviewDiv.style.left = `${left}px`;
 
-      const currentColor = getCurrentColor({ clientX, clientY });
+      const screenColor = getScreenColor({ clientX, clientY });
+      const currentColor =
+        appState.theme === THEME.DARK
+          ? revertDarkModeFilter(screenColor)
+          : screenColor;
 
       if (isHoldingPointerDown) {
         stableProps.onChange(
@@ -127,7 +149,8 @@ export const EyeDropper: React.FC<{
         );
       }
 
-      colorPreviewDiv.style.background = currentColor;
+      // preview shows what's on screen
+      colorPreviewDiv.style.background = screenColor;
     };
 
     const onCancel = () => {
@@ -215,6 +238,7 @@ export const EyeDropper: React.FC<{
     excalidrawContainer,
     appState.offsetLeft,
     appState.offsetTop,
+    appState.theme,
   ]);
 
   const ref = useRef<HTMLDivElement>(null);

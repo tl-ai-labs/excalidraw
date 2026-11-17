@@ -80,6 +80,125 @@ const cssInvert = (
   return { r: invertedR, g: invertedG, b: invertedB };
 };
 
+const DARK_MODE_INVERT_PERCENT = 93;
+
+// order of operations matters
+// (corresponds to "filter: invert(invertPercent) hue-rotate(hueDegrees)" in css)
+const darkModeFilterRgb = (r: number, g: number, b: number) => {
+  const inverted = cssInvert(r, g, b, DARK_MODE_INVERT_PERCENT);
+  return cssHueRotate(inverted.r, inverted.g, inverted.b, 180 as Degrees);
+};
+
+let paletteColors: Map<string, [number, number, number]> | null = null;
+const getPaletteColors = () => {
+  if (!paletteColors) {
+    paletteColors = new Map();
+    for (const c of Object.values(COLOR_PALETTE).flat()) {
+      if (c !== "transparent") {
+        const { r, g, b } = tinycolor(c).toRgb();
+        paletteColors.set(rgbToHex(r, g, b), [r, g, b]);
+      }
+    }
+  }
+  return paletteColors;
+};
+
+/**
+ * Inverse of `applyDarkModeFilter`: given a color as it appears on the
+ * (dark-mode filtered) canvas, returns the original element color. Alpha is
+ * preserved.
+ *
+ * The forward transform is invert(93%) followed by hue-rotate(180deg), each
+ * with rounding, and the latter with clamping. Both are inverted analytically
+ * (hue-rotate(180deg) is its own inverse; invert is linear), which gives an
+ * estimate that may be off by a couple of units due to rounding. We then
+ * search the neighbourhood (+-2 per channel) for the color whose forward
+ * transform equals the input exactly.
+ *
+ * Guarantees: `apply(revert(apply(c))) === apply(c)` for every color `c`, i.e.
+ * the result always looks identical on screen. The forward transform is lossy
+ * (it squeezes 256 levels into ~220 per channel, rounds twice and clamps), so
+ * several originals can share one on-screen color and the exact original
+ * can't always be known. In that case the result is, among the colors that
+ * render identically, a COLOR_PALETTE color if there's one, else the one
+ * closest to the analytic estimate. Where the forward transform is injective
+ * the result is exact; for strongly saturated colors that were clamped when
+ * drawn, the original can't be known and a same-looking color is returned.
+ * Inputs that are not an output of `apply` (e.g. antialiased pixels) resolve
+ * to the closest color in output space.
+ */
+export const revertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+  const { r, g, b } = tc.toRgb();
+
+  // hue-rotate(180deg) is an involution; apply it without rounding/clamping
+  const a = degreesToRadians(180 as Degrees);
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const m = [
+    0.213 + cos * 0.787 - sin * 0.213,
+    0.715 - cos * 0.715 - sin * 0.715,
+    0.072 - cos * 0.072 + sin * 0.928,
+    0.213 - cos * 0.213 + sin * 0.143,
+    0.715 + cos * 0.285 + sin * 0.14,
+    0.072 - cos * 0.072 - sin * 0.283,
+    0.213 - cos * 0.213 - sin * 0.787,
+    0.715 - cos * 0.715 + sin * 0.715,
+    0.072 + cos * 0.928 + sin * 0.072,
+  ];
+  const p = DARK_MODE_INVERT_PERCENT / 100;
+  const unrotated = [
+    r * m[0] + g * m[1] + b * m[2],
+    r * m[3] + g * m[4] + b * m[5],
+    r * m[6] + g * m[7] + b * m[8],
+  ];
+  // invert: v = 255p + c(1 - 2p)
+  const estimate = unrotated.map((v) =>
+    clamp((v - 255 * p) / (1 - 2 * p), 0, 255),
+  );
+  const center = estimate.map((v) => Math.round(v));
+
+  const palette = getPaletteColors();
+  const candidates: [number, number, number][] = [...palette.values()];
+  for (let dr = -2; dr <= 2; dr++) {
+    for (let dg = -2; dg <= 2; dg++) {
+      for (let db = -2; db <= 2; db++) {
+        candidates.push([
+          clamp(center[0] + dr, 0, 255),
+          clamp(center[1] + dg, 0, 255),
+          clamp(center[2] + db, 0, 255),
+        ]);
+      }
+    }
+  }
+
+  let best = candidates[0];
+  let bestScore = Infinity;
+  for (const [cr, cg, cb] of candidates) {
+    const f = darkModeFilterRgb(cr, cg, cb);
+    const outDist = (f.r - r) ** 2 + (f.g - g) ** 2 + (f.b - b) ** 2;
+    const estDist =
+      (cr - estimate[0]) ** 2 +
+      (cg - estimate[1]) ** 2 +
+      (cb - estimate[2]) ** 2;
+    // output-space match dominates, then known palette colors (the most
+    // likely originals), then the distance to the analytic estimate
+    const score =
+      outDist * 1e6 + (palette.has(rgbToHex(cr, cg, cb)) ? 0 : 1e5) + estDist;
+    if (score < bestScore) {
+      bestScore = score;
+      best = [cr, cg, cb];
+    }
+  }
+
+  return rgbToHex(best[0], best[1], best[2], alpha);
+};
+
 export const applyDarkModeFilter = (color: string, enable = true): string => {
   if (!enable) {
     return color;
@@ -93,16 +212,8 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
   const tc = tinycolor(color);
   const alpha = tc.getAlpha();
 
-  // order of operations matters
-  // (corresponds to "filter: invert(invertPercent) hue-rotate(hueDegrees)" in css)
   const rgb = tc.toRgb();
-  const inverted = cssInvert(rgb.r, rgb.g, rgb.b, 93);
-  const rotated = cssHueRotate(
-    inverted.r,
-    inverted.g,
-    inverted.b,
-    180 as Degrees,
-  );
+  const rotated = darkModeFilterRgb(rgb.r, rgb.g, rgb.b);
 
   const result = rgbToHex(rotated.r, rotated.g, rotated.b, alpha);
 
