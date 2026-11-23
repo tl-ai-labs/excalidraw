@@ -87,6 +87,7 @@ import { isInvisiblySmallElement } from "@excalidraw/element";
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
+  ArrowheadSize,
   ElementsMap,
   ElementsMapOrArray,
   ExcalidrawArrowElement,
@@ -247,6 +248,21 @@ export type RestoredDataState = {
   elements: OrderedExcalidrawElement[];
   appState: RestoredAppState;
   files: BinaryFiles;
+};
+
+const ALLOWED_ARROWHEAD_SIZES = new Set<ArrowheadSize>([
+  "small",
+  "medium",
+  "large",
+]);
+
+const restoreArrowheadSize = (
+  arrowheadSize: unknown,
+): ArrowheadSize | undefined => {
+  return typeof arrowheadSize === "string" &&
+    ALLOWED_ARROWHEAD_SIZES.has(arrowheadSize as ArrowheadSize)
+    ? (arrowheadSize as ArrowheadSize)
+    : undefined;
 };
 
 const ALLOWED_STROKE_VARIABILITIES = new Set<StrokeVariability>([
@@ -629,6 +645,7 @@ export const restoreElement = (
     case "draw":
       const startArrowhead = normalizeArrowhead(element.startArrowhead);
       const endArrowhead = normalizeArrowhead(element.endArrowhead);
+      const lineArrowheadSize = restoreArrowheadSize(element.arrowheadSize);
       let x = element.x;
       let y = element.y;
       let points = restoreLinearElementPoints(
@@ -653,6 +670,7 @@ export const restoreElement = (
         endBinding: null,
         startArrowhead,
         endArrowhead,
+        ...(lineArrowheadSize ? { arrowheadSize: lineArrowheadSize } : {}),
         points,
         x,
         y,
@@ -665,6 +683,9 @@ export const restoreElement = (
           : {}),
         ...getSizeFromPoints(points),
       });
+      if (!lineArrowheadSize) {
+        delete (restoredLine as { arrowheadSize?: unknown }).arrowheadSize;
+      }
 
       return handleOversizedLinearElements(restoredLine);
     case "arrow": {
@@ -673,6 +694,7 @@ export const restoreElement = (
         element.endArrowhead === undefined
           ? "arrow"
           : normalizeArrowhead(element.endArrowhead);
+      const arrowheadSize = restoreArrowheadSize(element.arrowheadSize);
       const x = element.x as number | undefined;
       const y = element.y as number | undefined;
       const points = restoreLinearElementPoints(
@@ -705,6 +727,7 @@ export const restoreElement = (
         ),
         startArrowhead,
         endArrowhead,
+        ...(arrowheadSize ? { arrowheadSize } : {}),
         points,
         x: x ?? 0,
         y: y ?? 0,
@@ -732,6 +755,10 @@ export const restoreElement = (
           restoredElement,
         ),
       };
+      if (!arrowheadSize) {
+        delete (normalizedRestoredElement as { arrowheadSize?: unknown })
+          .arrowheadSize;
+      }
 
       return handleOversizedLinearElements(normalizedRestoredElement);
     }
@@ -1330,6 +1357,9 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+  nextAppState.currentItemArrowheadSize =
+    restoreArrowheadSize(nextAppState.currentItemArrowheadSize) ??
+    defaultAppState.currentItemArrowheadSize;
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {

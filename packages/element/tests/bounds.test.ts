@@ -375,4 +375,116 @@ describe("getArrowheadPoints()", () => {
       pointDistance(pointFrom(tipX, tipY), pointFrom(backX, backY)),
     ).toBeCloseTo(lastSegmentLength);
   });
+
+  it("scales arrowhead size and points with element.arrowheadSize", () => {
+    expect(getArrowheadSize("arrow")).toBe(25);
+    expect(getArrowheadSize("arrow", "small")).toBe(12.5);
+    expect(getArrowheadSize("arrow", "medium")).toBe(25);
+    expect(getArrowheadSize("arrow", "large")).toBe(37.5);
+
+    const makeHorizontalArrow = (
+      arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"],
+    ) =>
+      API.createElement({
+        type: "arrow",
+        x: 0,
+        y: 0,
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead: "arrow",
+        arrowheadSize,
+        roundness: null,
+        roughness: 0,
+        strokeWidth: 2,
+      });
+
+    const headLength = (arrow: ExcalidrawLinearElement) => {
+      const [tx, ty, x3, y3] = getArrowheadPoints(
+        arrow,
+        ShapeCache.generateElementShape(arrow, null),
+        "end",
+        "arrow",
+      )!;
+      return pointDistance(pointFrom(tx, ty), pointFrom(x3, y3));
+    };
+
+    const smallArrow = makeHorizontalArrow("small");
+    const defaultArrow = makeHorizontalArrow(undefined);
+    const mediumArrow = makeHorizontalArrow("medium");
+    const largeArrow = makeHorizontalArrow("large");
+
+    expect(headLength(smallArrow)).toBeCloseTo(12.5);
+    expect(headLength(defaultArrow)).toBeCloseTo(25);
+    expect(headLength(mediumArrow)).toBeCloseTo(25);
+    expect(headLength(largeArrow)).toBeCloseTo(37.5);
+  });
+
+  it("still applies short-segment shrinking after arrowheadSize scaling", () => {
+    const shortArrow = API.createElement({
+      type: "arrow",
+      x: 0,
+      y: 0,
+      points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(16, 0)],
+      endArrowhead: "arrow",
+      arrowheadSize: "small",
+      roundness: null,
+      roughness: 0,
+    });
+    const [tx, ty, x3, y3] = getArrowheadPoints(
+      shortArrow,
+      ShapeCache.generateElementShape(shortArrow, null),
+      "end",
+      "arrow",
+    )!;
+    // 16 * 0.5 = 8 < 12.5 (small scaled size)
+    expect(pointDistance(pointFrom(tx, ty), pointFrom(x3, y3))).toBeCloseTo(8);
+  });
+});
+
+describe("getElementBounds() with arrowheadSize", () => {
+  it("preserves legacy bounds when arrowheadSize is absent or medium and scales bounds for small/large", () => {
+    const makeArrow = (
+      arrowheadSize?: ExcalidrawLinearElement["arrowheadSize"],
+    ) =>
+      API.createElement({
+        type: "arrow",
+        x: 0,
+        y: 100,
+        points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(200, 0)],
+        endArrowhead: "arrow",
+        arrowheadSize,
+        roundness: null,
+        roughness: 0,
+      });
+
+    const smallArrow = makeArrow("small");
+    const defaultArrow = makeArrow(undefined);
+    const mediumArrow = makeArrow("medium");
+    const largeArrow = makeArrow("large");
+
+    const defaultBounds = getElementBounds(
+      defaultArrow,
+      arrayToMap([defaultArrow]),
+    );
+    const mediumBounds = getElementBounds(
+      mediumArrow,
+      arrayToMap([mediumArrow]),
+    );
+    const [, smallMinY, , smallMaxY] = getElementBounds(
+      smallArrow,
+      arrayToMap([smallArrow]),
+    );
+    const [, largeMinY, , largeMaxY] = getElementBounds(
+      largeArrow,
+      arrayToMap([largeArrow]),
+    );
+
+    expect(defaultBounds).toEqual([0, 100, 200, 100]);
+    expect(mediumBounds).toEqual(defaultBounds);
+
+    const smallHeight = smallMaxY - smallMinY;
+    const largeHeight = largeMaxY - largeMinY;
+
+    expect(smallHeight).toBeGreaterThan(0);
+    expect(largeHeight).toBeGreaterThan(smallHeight);
+  });
 });

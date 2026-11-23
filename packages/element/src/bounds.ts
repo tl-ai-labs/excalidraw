@@ -58,6 +58,7 @@ import type { Drawable, Op } from "roughjs/bin/core";
 import type { Point as RoughPoint } from "roughjs/bin/geometry";
 import type {
   Arrowhead,
+  ArrowheadSize,
   CardinalityArrowhead,
   ElementsMap,
   ElementsMapOrArray,
@@ -723,25 +724,41 @@ export const CARDINALITY_INNER_BAR_OFFSET = -0.5;
 export const CARDINALITY_ZERO_CIRCLE_OFFSET = 1.5;
 export const CARDINALITY_ZERO_CIRCLE_SCALE = 0.8;
 
+export const ARROWHEAD_SIZE_SCALE: Record<ArrowheadSize, number> = {
+  small: 0.5,
+  medium: 1,
+  large: 1.5,
+};
+
 /** @returns number in pixels */
-export const getArrowheadSize = (arrowhead: Arrowhead): number => {
+export const getArrowheadSize = (
+  arrowhead: Arrowhead,
+  arrowheadSize: ArrowheadSize = "medium",
+): number => {
+  let baseSize: number;
   switch (arrowhead) {
     case "arrow":
-      return 25;
+      baseSize = 25;
+      break;
     case "diamond":
     case "diamond_outline":
-      return 12;
+      baseSize = 12;
+      break;
     case "cardinality_many":
     case "cardinality_one_or_many":
     case "cardinality_zero_or_many":
-      return CROWFOOT_ARROWHEAD_SIZE;
+      baseSize = CROWFOOT_ARROWHEAD_SIZE;
+      break;
     case "cardinality_one":
     case "cardinality_exactly_one":
     case "cardinality_zero_or_one":
-      return CARDINALITY_MARKER_SIZE;
+      baseSize = CARDINALITY_MARKER_SIZE;
+      break;
     default:
-      return 15;
+      baseSize = 15;
+      break;
   }
+  return baseSize * (ARROWHEAD_SIZE_SCALE[arrowheadSize] ?? 1);
 };
 
 const ARROW_ARROWHEAD_ANGLE = 20;
@@ -862,13 +879,14 @@ const getCardinalityMarkerScale = (
   marker: CardinalityArrowhead,
   { length, turn }: ArrowheadCorner,
   strokeWidth: number,
+  arrowheadSize?: ArrowheadSize,
 ) => {
   // scales at which each part reaches back from the tip at most to the corner
   const bar = (offset: number) => {
     const angle = degreesToRadians(getArrowheadAngle("cardinality_one"));
     return (
       length /
-      (getArrowheadSize("cardinality_one") *
+      (getArrowheadSize("cardinality_one", arrowheadSize) *
         (offset +
           Math.cos(angle) +
           // the bar's ends stay closer to the arrow than to the previous
@@ -876,13 +894,14 @@ const getCardinalityMarkerScale = (
           Math.sin(angle) * Math.tan(turn / 2)))
     );
   };
-  const crowsFoot = () => length / getArrowheadSize("cardinality_many");
+  const crowsFoot = () =>
+    length / getArrowheadSize("cardinality_many", arrowheadSize);
   // see generateArrowheadOutlineCircle() for the diameter
   const circle = () =>
     (length -
       ((strokeWidth - 2) * CARDINALITY_ZERO_CIRCLE_SCALE) / 2 -
       strokeWidth) /
-    (getArrowheadSize("circle_outline") *
+    (getArrowheadSize("circle_outline", arrowheadSize) *
       (CARDINALITY_ZERO_CIRCLE_OFFSET + CARDINALITY_ZERO_CIRCLE_SCALE / 2));
 
   switch (marker) {
@@ -933,8 +952,13 @@ const getArrowheadSizeBeyondLastSegment = (
   if (marker && isCardinalityArrowhead(marker)) {
     return isCurved
       ? 0
-      : getArrowheadSize(arrowhead) *
-          getCardinalityMarkerScale(marker, corner, element.strokeWidth);
+      : getArrowheadSize(arrowhead, element.arrowheadSize) *
+          getCardinalityMarkerScale(
+            marker,
+            corner,
+            element.strokeWidth,
+            element.arrowheadSize,
+          );
   }
 
   // circles have no direction, the previous segment can run into them
@@ -966,7 +990,8 @@ const getArrowheadSizeBeyondLastSegment = (
     case "arrow": {
       // only grow as much as legibility needs, a full-size arrowhead past
       // a sharp turn looks like an outline triangle
-      const legibleSize = getArrowheadSize(arrowhead) / 2;
+      const legibleSize =
+        getArrowheadSize(arrowhead, element.arrowheadSize) / 2;
       // keep the open sides' strokes off the previous segment's. Smaller
       // arrowheads are wider, so check the angles at both ends of the range.
       return Math.min(
@@ -1055,7 +1080,7 @@ export const getArrowheadPoints = (
   const nx = (x2 - x1) / distance;
   const ny = (y2 - y1) / distance;
 
-  const size = getArrowheadSize(arrowhead);
+  const size = getArrowheadSize(arrowhead, element.arrowheadSize);
 
   let length = 0;
 
@@ -1186,6 +1211,160 @@ const generateLinearElementShape = (
   );
 };
 
+const expandBoundsWithArrowheadPart = (
+  bounds: [number, number, number, number],
+  element: ExcalidrawLinearElement,
+  shape: Drawable[],
+  position: "start" | "end",
+  arrowhead: Arrowhead,
+  transformXY: (p: GlobalPoint) => GlobalPoint,
+  offsetMultiplier = 0,
+  circleScale = 1,
+) => {
+  const pts = getArrowheadPoints(
+    element,
+    shape,
+    position,
+    arrowhead,
+    offsetMultiplier,
+  );
+  if (!pts) {
+    return;
+  }
+
+  if (arrowhead === "circle" || arrowhead === "circle_outline") {
+    const [cx, cy, diameter] = pts;
+    const radius = (diameter * circleScale) / 2;
+    if (
+      !Number.isFinite(cx) ||
+      !Number.isFinite(cy) ||
+      !Number.isFinite(radius)
+    ) {
+      return;
+    }
+    const [tx, ty] = transformXY(pointFrom<GlobalPoint>(cx, cy));
+    bounds[0] = Math.min(bounds[0], tx - radius);
+    bounds[1] = Math.min(bounds[1], ty - radius);
+    bounds[2] = Math.max(bounds[2], tx + radius);
+    bounds[3] = Math.max(bounds[3], ty + radius);
+    return;
+  }
+
+  for (let i = 0; i + 1 < pts.length; i += 2) {
+    const px = pts[i];
+    const py = pts[i + 1];
+    if (!Number.isFinite(px) || !Number.isFinite(py)) {
+      continue;
+    }
+    const [tx, ty] = transformXY(pointFrom<GlobalPoint>(px, py));
+    bounds[0] = Math.min(bounds[0], tx);
+    bounds[1] = Math.min(bounds[1], ty);
+    bounds[2] = Math.max(bounds[2], tx);
+    bounds[3] = Math.max(bounds[3], ty);
+  }
+};
+
+const expandBoundsWithArrowhead = (
+  bounds: [number, number, number, number],
+  element: ExcalidrawLinearElement,
+  shape: Drawable[],
+  position: "start" | "end",
+  arrowhead: Arrowhead,
+  transformXY: (p: GlobalPoint) => GlobalPoint,
+) => {
+  switch (arrowhead) {
+    case "cardinality_one_or_many":
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_many",
+        transformXY,
+      );
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_one",
+        transformXY,
+        CARDINALITY_ONE_OR_MANY_BAR_OFFSET,
+      );
+      break;
+    case "cardinality_exactly_one":
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_one",
+        transformXY,
+        CARDINALITY_INNER_BAR_OFFSET,
+      );
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_one",
+        transformXY,
+      );
+      break;
+    case "cardinality_zero_or_one":
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "circle_outline",
+        transformXY,
+        CARDINALITY_ZERO_CIRCLE_OFFSET,
+        CARDINALITY_ZERO_CIRCLE_SCALE,
+      );
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_one",
+        transformXY,
+        CARDINALITY_INNER_BAR_OFFSET,
+      );
+      break;
+    case "cardinality_zero_or_many":
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "cardinality_many",
+        transformXY,
+      );
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        "circle_outline",
+        transformXY,
+        CARDINALITY_ZERO_CIRCLE_OFFSET,
+        CARDINALITY_ZERO_CIRCLE_SCALE,
+      );
+      break;
+    default:
+      expandBoundsWithArrowheadPart(
+        bounds,
+        element,
+        shape,
+        position,
+        arrowhead,
+        transformXY,
+      );
+      break;
+  }
+};
+
 const getLinearElementRotatedBounds = (
   element: ExcalidrawLinearElement,
   cx: number,
@@ -1231,7 +1410,40 @@ const getLinearElementRotatedBounds = (
       element.angle,
     );
   const res = getMinMaxXYFromCurvePathOps(ops, transformXY);
-  let coords: Bounds = [res[0], res[1], res[2], res[3]];
+  let coords: [number, number, number, number] = [
+    res[0],
+    res[1],
+    res[2],
+    res[3],
+  ];
+  if (
+    element.type === "arrow" &&
+    element.arrowheadSize &&
+    element.arrowheadSize !== "medium"
+  ) {
+    const { startArrowhead = null, endArrowhead = "arrow" } = element;
+    const curveShape = [shape];
+    if (startArrowhead !== null) {
+      expandBoundsWithArrowhead(
+        coords,
+        element,
+        curveShape,
+        "start",
+        startArrowhead,
+        transformXY,
+      );
+    }
+    if (endArrowhead !== null) {
+      expandBoundsWithArrowhead(
+        coords,
+        element,
+        curveShape,
+        "end",
+        endArrowhead,
+        transformXY,
+      );
+    }
+  }
   if (boundTextElement) {
     const coordsWithBoundText = LinearElementEditor.getMinMaxXYWithBoundText(
       element,

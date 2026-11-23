@@ -189,6 +189,13 @@ export const actionPasteStyles = register({
               newElement = newElementWith(newElement, {
                 startArrowhead: elementStylesToCopyFrom.startArrowhead,
                 endArrowhead: elementStylesToCopyFrom.endArrowhead,
+                ...(elementStylesToCopyFrom.arrowheadSize !== undefined ||
+                newElement.arrowheadSize !== undefined
+                  ? {
+                      arrowheadSize:
+                        elementStylesToCopyFrom.arrowheadSize ?? "medium",
+                    }
+                  : {}),
               });
               if (isElbowArrow(newElement)) {
                 newElement = newElementWith(
