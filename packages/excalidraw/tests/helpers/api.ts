@@ -201,6 +201,11 @@ export class API {
     opacity?: ExcalidrawGenericElement["opacity"];
     // text props
     text?: T extends "text" ? ExcalidrawTextElement["text"] : never;
+    originalText?: T extends "text"
+      ? ExcalidrawTextElement["originalText"]
+      : never;
+    autoResize?: T extends "text" ? ExcalidrawTextElement["autoResize"] : never;
+    ranges?: T extends "text" ? ExcalidrawTextElement["ranges"] : never;
     fontSize?: T extends "text" ? ExcalidrawTextElement["fontSize"] : never;
     fontFamily?: T extends "text" ? ExcalidrawTextElement["fontFamily"] : never;
     textAlign?: T extends "text" ? ExcalidrawTextElement["textAlign"] : never;
@@ -345,11 +350,14 @@ export class API {
         element = newTextElement({
           ...base,
           text: rest.text || "test",
+          originalText: rest.originalText,
+          autoResize: rest.autoResize,
           fontSize,
           fontFamily,
           textAlign: rest.textAlign ?? appState.currentItemTextAlign,
           verticalAlign: rest.verticalAlign ?? DEFAULT_VERTICAL_ALIGN,
           containerId: rest.containerId ?? undefined,
+          ranges: rest.ranges,
         });
         element.width = width;
         element.height = height;

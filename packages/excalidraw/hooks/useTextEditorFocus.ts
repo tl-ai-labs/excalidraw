@@ -27,6 +27,32 @@ export const saveCaretPosition = (
   return null;
 };
 
+/**
+ * Returns the active non-empty selection range `[start, end)` in the open
+ * WYSIWYG text editor (in `originalText` code units), or `null` if no editor
+ * is open or the caret is collapsed.
+ */
+export const getEditingTextSelection = (
+  ownerDocument: Document = document,
+): CaretPosition | null => {
+  const textEditor = getTextEditor(ownerDocument);
+  if (!textEditor) {
+    return null;
+  }
+  const { selectionStart, selectionEnd } = textEditor;
+  if (
+    typeof selectionStart !== "number" ||
+    typeof selectionEnd !== "number" ||
+    selectionStart === selectionEnd
+  ) {
+    return null;
+  }
+  return {
+    start: Math.min(selectionStart, selectionEnd),
+    end: Math.max(selectionStart, selectionEnd),
+  };
+};
+
 export const restoreCaretPosition = (
   position: CaretPosition | null,
   ownerDocument: Document = document,

@@ -6,6 +6,7 @@ import {
   getContainerElement,
   redrawTextBoundingBox,
 } from "./textElement";
+import { shiftTextRangesOnEdit } from "./textRanges";
 import { isBoundToContainer, isTextElement } from "./typeChecks";
 
 import type { RenderEnvironment } from "./renderEnvironment";
@@ -211,13 +212,24 @@ const setText = (
   scene: Scene,
   renderEnvironment: RenderEnvironment | undefined,
 ) => {
+  const rangesUpdate =
+    element.ranges?.length && element.originalText !== originalText
+      ? {
+          ranges: shiftTextRangesOnEdit(
+            element.ranges,
+            element.originalText,
+            originalText,
+          ),
+        }
+      : {};
   if (container) {
-    scene.mutateElement(element, { originalText });
+    scene.mutateElement(element, { originalText, ...rangesUpdate });
     // re-wraps the label, and grows the container if need be
     redrawTextBoundingBox(element, container, scene, renderEnvironment);
   } else {
     scene.mutateElement(element, {
       originalText,
+      ...rangesUpdate,
       // re-wraps the text, and keeps it anchored as per its alignment
       ...refreshTextDimensions(
         element,

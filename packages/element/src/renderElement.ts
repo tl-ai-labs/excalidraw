@@ -21,6 +21,7 @@ import {
   distance,
   getFontString,
   isRTL,
+  isTransparent,
   getVerticalOffset,
   invariant,
   applyDarkModeFilter,
@@ -59,6 +60,7 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { getStyledTextLines } from "./textRanges";
 import {
   isTextElement,
   isLinearElement,
@@ -457,7 +459,7 @@ export const withSavedContext = (
   }
 };
 
-const drawElementOnCanvas = (
+export const drawElementOnCanvas = (
   element: NonDeletedExcalidrawElement,
   rc: RoughCanvas,
   context: CanvasRenderingContext2D,
@@ -703,12 +705,71 @@ const drawElementOnCanvas = (
             lineHeightPx,
           );
 
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
+          if (element.ranges && element.ranges.length > 0) {
+            const isDark = renderConfig.theme === THEME.DARK;
+            const styledLines = getStyledTextLines(
+              element.text,
+              element.originalText,
+              element.ranges,
             );
+            context.textAlign = "left";
+
+            for (let index = 0; index < lines.length; index++) {
+              const lineText = lines[index];
+              const runs = styledLines[index] ?? [
+                { text: lineText, start: 0, end: lineText.length },
+              ];
+              const lineWidth = context.measureText(lineText).width;
+              const lineStartX =
+                element.textAlign === "center"
+                  ? element.width / 2 - lineWidth / 2
+                  : element.textAlign === "right"
+                  ? element.width - lineWidth
+                  : 0;
+              const lineTopY = index * lineHeightPx;
+              const baselineY = lineTopY + verticalOffset;
+
+              let localOffset = 0;
+              const positionedRuns = runs.map((run) => {
+                const startX =
+                  lineStartX +
+                  (localOffset === 0
+                    ? 0
+                    : context.measureText(lineText.slice(0, localOffset))
+                        .width);
+                localOffset += run.text.length;
+                const endX =
+                  lineStartX +
+                  context.measureText(lineText.slice(0, localOffset)).width;
+                return { run, startX, width: Math.max(0, endX - startX) };
+              });
+
+              for (const { run, startX, width } of positionedRuns) {
+                if (run.highlight && !isTransparent(run.highlight)) {
+                  context.fillStyle = applyDarkModeFilter(
+                    run.highlight,
+                    isDark,
+                  );
+                  context.fillRect(startX, lineTopY, width, lineHeightPx);
+                }
+              }
+
+              for (const { run, startX } of positionedRuns) {
+                context.fillStyle = applyDarkModeFilter(
+                  run.color || element.strokeColor,
+                  isDark,
+                );
+                context.fillText(run.text, startX, baselineY);
+              }
+            }
+          } else {
+            for (let index = 0; index < lines.length; index++) {
+              context.fillText(
+                lines[index],
+                horizontalOffset,
+                index * lineHeightPx + verticalOffset,
+              );
+            }
           }
         });
         if (shouldTemporarilyAttach) {

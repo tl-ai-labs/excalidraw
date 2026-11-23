@@ -11,6 +11,7 @@ import {
   MIME_TYPES,
   applyDarkModeFilter,
   isRTL,
+  isTransparent,
   hasRTLChars,
 } from "@excalidraw/common";
 import { pointFrom, pointRotateRads, type Radians } from "@excalidraw/math";
@@ -40,7 +41,7 @@ import { getLineHeightInPx } from "@excalidraw/element";
 import { getLineWidth } from "@excalidraw/element";
 import { normalizeText } from "@excalidraw/element";
 import { wrapText } from "@excalidraw/element";
-import { getWrappedTextLines } from "@excalidraw/element";
+import { getWrappedTextLines, getStyledRunsForLine } from "@excalidraw/element";
 import {
   isArrowElement,
   isBoundToContainer,
@@ -479,6 +480,14 @@ export const textWysiwyg = ({
         editable.style.wordBreak = "break-word";
       }
 
+      const defaultColor = applyDarkModeFilter(
+        updatedTextElement.strokeColor,
+        appState.theme === THEME.DARK,
+      );
+      const hasRanges = Boolean(
+        updatedTextElement.ranges && updatedTextElement.ranges.length > 0,
+      );
+
       Object.assign(editable.style, {
         font,
         // must be defined *after* font ¯\_(ツ)_/¯
@@ -500,12 +509,77 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color: applyDarkModeFilter(
-          updatedTextElement.strokeColor,
-          appState.theme === THEME.DARK,
-        ),
+        color: hasRanges ? "transparent" : defaultColor,
+        caretColor: hasRanges ? defaultColor : "",
         opacity: updatedTextElement.opacity / 100,
       });
+
+      if (hasRanges && editorBox) {
+        if (!styledBackdrop) {
+          styledBackdrop = ownerDocument.createElement("div");
+          styledBackdrop.className = "excalidraw-wysiwyg-backdrop";
+          styledBackdrop.setAttribute("aria-hidden", "true");
+          if (editable.parentNode === editorBox) {
+            editorBox.insertBefore(styledBackdrop, editable);
+          } else {
+            editorBox.appendChild(styledBackdrop);
+          }
+        }
+        Object.assign(styledBackdrop.style, {
+          position: "absolute",
+          pointerEvents: "none",
+          margin: "0",
+          padding: "0",
+          border: "0",
+          outline: "0",
+          overflow: "hidden",
+          whiteSpace: editable.style.whiteSpace || "pre",
+          wordBreak: editable.style.wordBreak || "normal",
+          wordWrap: "break-word",
+          font,
+          lineHeight: `${updatedTextElement.lineHeight}`,
+          width: `${width}px`,
+          height: `${height}px`,
+          left: `${viewportX - editorBoxLeft}px`,
+          top: `${viewportY}px`,
+          transformOrigin: `${updatedTextElement.width / 2}px ${
+            updatedTextElement.height / 2
+          }px`,
+          transform: getTransform(
+            updatedTextElement.width,
+            updatedTextElement.height,
+            angle,
+            appState,
+          ),
+          textAlign,
+          color: defaultColor,
+          opacity: `${updatedTextElement.opacity / 100}`,
+        });
+        const isDark = appState.theme === THEME.DARK;
+        const sourceText = editable.value;
+        const runs = getStyledRunsForLine(
+          { text: sourceText, start: 0, end: sourceText.length },
+          updatedTextElement.ranges,
+        );
+        styledBackdrop.textContent = "";
+        for (const run of runs) {
+          const span = ownerDocument.createElement("span");
+          span.textContent = run.text;
+          if (run.color) {
+            span.style.color = applyDarkModeFilter(run.color, isDark);
+          }
+          if (run.highlight && !isTransparent(run.highlight)) {
+            span.style.backgroundColor = applyDarkModeFilter(
+              run.highlight,
+              isDark,
+            );
+          }
+          styledBackdrop.appendChild(span);
+        }
+      } else if (styledBackdrop) {
+        styledBackdrop.remove();
+        styledBackdrop = null;
+      }
       currentTextLayout = {
         angle: angle as Radians,
         font,
@@ -530,6 +604,7 @@ export const textWysiwyg = ({
     }
   };
 
+  let styledBackdrop: HTMLDivElement | null = null;
   const editable = ownerDocument.createElement("textarea");
 
   editable.dir = "auto";
@@ -1113,6 +1188,8 @@ export const textWysiwyg = ({
     editorBox?.style.removeProperty("left");
     editorBox?.style.removeProperty("right");
 
+    styledBackdrop?.remove();
+    styledBackdrop = null;
     editable.remove();
   };
 

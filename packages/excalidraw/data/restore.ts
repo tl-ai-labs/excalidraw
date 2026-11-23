@@ -58,6 +58,7 @@ import {
   normalizeStickyNoteBackgroundColor,
   normalizeStickyNoteFontSize,
   normalizeStickyNoteStrokeColor,
+  sanitizeTextRanges,
 } from "@excalidraw/element";
 import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { isStickyNoteElement } from "@excalidraw/element";
@@ -571,6 +572,15 @@ export const restoreElement = (
       }
       const text = (typeof element.text === "string" && element.text) || "";
 
+      const originalText = element.originalText || text;
+      const sanitizedRanges = sanitizeTextRanges(
+        element.ranges,
+        originalText.length,
+      );
+      if (!sanitizedRanges) {
+        delete (element as any).ranges;
+      }
+
       const lineHeight =
         element.lineHeight ||
         restoreLineHeight({ ...element, fontSize, fontFamily, text });
@@ -581,7 +591,7 @@ export const restoreElement = (
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
         containerId: element.containerId ?? null,
-        originalText: element.originalText || text,
+        originalText,
         autoResize: element.autoResize ?? true,
         lineHeight,
         labelPosition: isFiniteNumber(element.labelPosition)
@@ -592,6 +602,7 @@ export const restoreElement = (
         baseFontSize: isFiniteNumber(element.baseFontSize)
           ? normalizeStickyNoteFontSize(element.baseFontSize)
           : null,
+        ...(sanitizedRanges ? { ranges: sanitizedRanges } : {}),
       });
 
       // if empty text, mark as deleted. We keep in array

@@ -47,7 +47,13 @@ import {
   restoreOriginalGetBoundingClientRect,
 } from "../tests/test-utils";
 import * as dataModule from "../data";
-import { actionBindText } from "../actions";
+import {
+  actionBindText,
+  actionChangeFontFamily,
+  actionChangeFontSize,
+  actionChangeStrokeColor,
+  actionChangeTextHighlight,
+} from "../actions";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { getTextAutoResizeHandle } from "../textAutoResizeHandle";
 
@@ -3592,6 +3598,142 @@ describe("textWysiwyg", () => {
       Keyboard.undo();
 
       expect(h.elements.filter((el) => !el.isDeleted)).toHaveLength(0);
+    });
+  });
+
+  describe("styled text ranges", () => {
+    beforeEach(async () => {
+      await render(<Excalidraw handleKeyboardGlobally={true} />);
+      API.setElements([]);
+    });
+
+    it("applies stroke color and highlight to a selected substring without recoloring the whole element", async () => {
+      const textElement = API.createElement({
+        type: "text",
+        text: "Bid request timeout 120ms",
+        strokeColor: "#1e1e1e",
+      });
+      API.setElements([textElement]);
+      API.setSelectedElements([textElement]);
+
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor = await getTextEditor();
+      // Select "120ms" (offsets 20..25)
+      editor.setSelectionRange(20, 25);
+
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      let updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.strokeColor).toBe("#1e1e1e");
+      expect(updated.ranges).toEqual([
+        { start: 20, end: 25, color: "#e03131" },
+      ]);
+
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeTextHighlight, "ui", {
+          color: "#ffec99",
+        });
+      });
+
+      updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.ranges).toEqual([
+        { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+      ]);
+
+      Keyboard.exitTextEditor(editor);
+      updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.ranges).toEqual([
+        { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+      ]);
+    });
+
+    it("shifts ranges when inserting and deleting text while editing", async () => {
+      const textElement = API.createElement({
+        type: "text",
+        text: "Bid request timeout 120ms",
+        strokeColor: "#1e1e1e",
+        ranges: [{ start: 20, end: 25, color: "#e03131" }],
+      });
+      API.setElements([textElement]);
+      API.setSelectedElements([textElement]);
+
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor = await getTextEditor();
+
+      // Insert prefix "RPC " before the styled range
+      updateTextEditor(editor, "RPC Bid request timeout 120ms");
+      let updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.ranges).toEqual([
+        { start: 24, end: 29, color: "#e03131" },
+      ]);
+      expect(updated.originalText.slice(24, 29)).toBe("120ms");
+
+      // Delete "ms" from the end of the styled range
+      updateTextEditor(editor, "RPC Bid request timeout 120");
+      updated = h.elements[0] as ExcalidrawTextElement;
+      expect(updated.ranges).toEqual([
+        { start: 24, end: 27, color: "#e03131" },
+      ]);
+      expect(updated.originalText.slice(24, 27)).toBe("120");
+
+      Keyboard.exitTextEditor(editor);
+    });
+
+    it("preserves ranges across bound-text containers and font changes", async () => {
+      const container = API.createElement({
+        type: "rectangle",
+        width: 140,
+        height: 100,
+      });
+      const boundText = API.createElement({
+        type: "text",
+        text: "Bid request timeout 120ms",
+        originalText: "Bid request timeout 120ms",
+        containerId: container.id,
+        strokeColor: "#1e1e1e",
+      });
+      API.setElements([
+        newElementWith(container, {
+          boundElements: [{ id: boundText.id, type: "text" }],
+        }),
+        boundText,
+      ]);
+      API.setSelectedElements([container]);
+
+      Keyboard.keyPress(KEYS.ENTER);
+      const editor = await getTextEditor();
+      editor.setSelectionRange(20, 25);
+
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color: "#e03131",
+        });
+      });
+
+      Keyboard.exitTextEditor(editor);
+
+      // Change font size & font family on the container
+      API.setSelectedElements([container]);
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeFontSize, "ui", 28);
+        h.app.actionManager.executeAction(actionChangeFontFamily, "ui", {
+          currentItemFontFamily: FONT_FAMILY.Helvetica,
+          currentHoveredFontFamily: null,
+        });
+      });
+
+      const updatedText = h.elements.find(
+        (el) => el.id === boundText.id,
+      ) as ExcalidrawTextElement;
+      expect(updatedText.fontSize).toBe(28);
+      expect(updatedText.fontFamily).toBe(FONT_FAMILY.Helvetica);
+      expect(updatedText.ranges).toEqual([
+        { start: 20, end: 25, color: "#e03131" },
+      ]);
     });
   });
 });
