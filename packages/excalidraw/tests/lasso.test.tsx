@@ -32,7 +32,10 @@ import { getSelectedElements } from "../scene";
 
 import { getLassoSelectedElementIds } from "../lasso/utils";
 
+import { API } from "./helpers/api";
 import { act, render } from "./test-utils";
+
+import type { BoxSelectionMode } from "../types";
 
 const { h } = window;
 
@@ -43,7 +46,11 @@ beforeEach(async () => {
   h.state.height = 1000;
 });
 
-const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
+const updatePath = (
+  startPoint: GlobalPoint,
+  points: LocalPoint[],
+  boxSelectionMode: BoxSelectionMode = h.state.boxSelectionMode,
+) => {
   act(() => {
     h.app.lassoTrail.startPath(startPoint[0], startPoint[1]);
 
@@ -74,6 +81,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
       elementsSegments,
       intersectedElements: new Set(),
       enclosedElements: new Set(),
+      boxSelectionMode,
     });
 
     act(() =>
@@ -86,6 +94,7 @@ const updatePath = (startPoint: GlobalPoint, points: LocalPoint[]) => {
 
 describe("Basic lasso selection tests", () => {
   beforeEach(() => {
+    h.state.boxSelectionMode = "overlap";
     const elements: ExcalidrawElement[] = [
       {
         id: "FLZN67ISZbMV-RH8SzS9W",
@@ -918,6 +927,10 @@ describe("Basic lasso selection tests", () => {
 });
 
 describe("Special cases", () => {
+  beforeEach(() => {
+    h.state.boxSelectionMode = "overlap";
+  });
+
   it("Select only frame if its children are also selected", () => {
     act(() => {
       const elements = [
@@ -1800,5 +1813,271 @@ describe("Special cases", () => {
     const selectedElements = getSelectedElements(h.elements, h.state);
     expect(selectedElements.length).toBe(16);
     expect(h.app.state.selectedGroupIds["-9NzH7Fa5JaHu4ArEFpa_"]).toBe(true);
+  });
+});
+
+describe("Lasso boxSelectionMode (contain vs overlap)", () => {
+  const drawLassoPolygon = (
+    polygon: [number, number][],
+    boxSelectionMode: BoxSelectionMode,
+  ) => {
+    act(() => {
+      h.app.setState({ boxSelectionMode });
+    });
+    const [startX, startY] = polygon[0];
+    const startPoint = pointFrom<GlobalPoint>(startX, startY);
+    const localPoints = polygon.map(([x, y]) =>
+      pointFrom<LocalPoint>(x - startX, y - startY),
+    );
+    updatePath(startPoint, localPoints, boxSelectionMode);
+    return getSelectedElements(h.elements, h.state).map((el) => el.id);
+  };
+
+  it("rectangle: clipping a corner selects only in overlap mode, full enclosure selects in both", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    // Lasso that clips only the top-left corner of the rectangle
+    const clippingLasso: [number, number][] = [
+      [80, 80],
+      [130, 80],
+      [130, 130],
+      [80, 130],
+    ];
+    expect(drawLassoPolygon(clippingLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(clippingLasso, "overlap")).toEqual([rect.id]);
+
+    // Lasso that fully encloses the rectangle
+    const enclosingLasso: [number, number][] = [
+      [80, 80],
+      [220, 80],
+      [220, 220],
+      [80, 220],
+    ];
+    expect(drawLassoPolygon(enclosingLasso, "contain")).toEqual([rect.id]);
+    expect(drawLassoPolygon(enclosingLasso, "overlap")).toEqual([rect.id]);
+  });
+
+  it("concave lasso wrapping all corners but cutting an edge selects only in overlap mode", () => {
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    // Concave polygon whose interior contains all 4 corners of rect,
+    // but dips down across the top edge (y=100) into y=130 in the middle
+    const concaveLasso: [number, number][] = [
+      [80, 80],
+      [140, 80],
+      [150, 130],
+      [160, 80],
+      [220, 80],
+      [220, 220],
+      [80, 220],
+    ];
+    expect(drawLassoPolygon(concaveLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(concaveLasso, "overlap")).toEqual([rect.id]);
+  });
+
+  it("ellipse: partial overlap selects only in overlap mode, full enclosure selects in both", () => {
+    const ellipse = API.createElement({
+      type: "ellipse",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 60,
+    });
+    API.setElements([ellipse]);
+
+    const partialLasso: [number, number][] = [
+      [80, 80],
+      [150, 80],
+      [150, 180],
+      [80, 180],
+    ];
+    expect(drawLassoPolygon(partialLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(partialLasso, "overlap")).toEqual([ellipse.id]);
+
+    const enclosingLasso: [number, number][] = [
+      [80, 80],
+      [220, 80],
+      [220, 180],
+      [80, 180],
+    ];
+    expect(drawLassoPolygon(enclosingLasso, "contain")).toEqual([ellipse.id]);
+    expect(drawLassoPolygon(enclosingLasso, "overlap")).toEqual([ellipse.id]);
+  });
+
+  it("rotated shapes: respects rotated geometry in contain and overlap modes", () => {
+    // 100x40 rectangle rotated 45 deg around its center (150, 120)
+    const rotatedRect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 40,
+      angle: (Math.PI / 4) as Radians,
+    });
+    const rotatedEllipse = API.createElement({
+      type: "ellipse",
+      x: 300,
+      y: 100,
+      width: 100,
+      height: 40,
+      angle: (Math.PI / 4) as Radians,
+    });
+    API.setElements([rotatedRect, rotatedEllipse]);
+
+    // Tight box around unrotated rect [95, 95, 205, 145] clips the rotated corners
+    const unrotatedBoxLasso: [number, number][] = [
+      [95, 95],
+      [205, 95],
+      [205, 145],
+      [95, 145],
+    ];
+    expect(drawLassoPolygon(unrotatedBoxLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(unrotatedBoxLasso, "overlap")).toEqual([
+      rotatedRect.id,
+    ]);
+
+    // Enclosing both rotated shapes
+    const enclosingBoth: [number, number][] = [
+      [80, 50],
+      [420, 50],
+      [420, 200],
+      [80, 200],
+    ];
+    expect(drawLassoPolygon(enclosingBoth, "contain")).toEqual([
+      rotatedRect.id,
+      rotatedEllipse.id,
+    ]);
+    expect(drawLassoPolygon(enclosingBoth, "overlap")).toEqual([
+      rotatedRect.id,
+      rotatedEllipse.id,
+    ]);
+  });
+
+  it("line: crossing part of a line selects only in overlap mode, full enclosure selects in both", () => {
+    const line = API.createElement({
+      type: "line",
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 60,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(60, 60),
+        pointFrom<LocalPoint>(120, 0),
+      ],
+    });
+    API.setElements([line]);
+
+    const partialLasso: [number, number][] = [
+      [80, 80],
+      [150, 80],
+      [150, 180],
+      [80, 180],
+    ];
+    expect(drawLassoPolygon(partialLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(partialLasso, "overlap")).toEqual([line.id]);
+
+    const enclosingLasso: [number, number][] = [
+      [80, 80],
+      [240, 80],
+      [240, 180],
+      [80, 180],
+    ];
+    expect(drawLassoPolygon(enclosingLasso, "contain")).toEqual([line.id]);
+    expect(drawLassoPolygon(enclosingLasso, "overlap")).toEqual([line.id]);
+  });
+
+  it("freedraw: crossing part of a stroke selects only in overlap mode, full enclosure selects in both", () => {
+    const freedraw = API.createElement({
+      type: "freedraw",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 50,
+      points: [
+        pointFrom<LocalPoint>(0, 0),
+        pointFrom<LocalPoint>(30, 25),
+        pointFrom<LocalPoint>(60, 10),
+        pointFrom<LocalPoint>(100, 50),
+      ],
+    });
+    API.setElements([freedraw]);
+
+    const partialLasso: [number, number][] = [
+      [80, 80],
+      [150, 80],
+      [150, 170],
+      [80, 170],
+    ];
+    expect(drawLassoPolygon(partialLasso, "contain")).toEqual([]);
+    expect(drawLassoPolygon(partialLasso, "overlap")).toEqual([freedraw.id]);
+
+    const enclosingLasso: [number, number][] = [
+      [80, 80],
+      [220, 80],
+      [220, 170],
+      [80, 170],
+    ];
+    expect(drawLassoPolygon(enclosingLasso, "contain")).toEqual([freedraw.id]);
+    expect(drawLassoPolygon(enclosingLasso, "overlap")).toEqual([freedraw.id]);
+  });
+
+  it("groups: wrapping only one group member selects only in overlap mode, wrapping all selects in contain mode", () => {
+    const rect1 = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 50,
+      height: 50,
+      groupIds: ["G1"],
+    });
+    const rect2 = API.createElement({
+      type: "rectangle",
+      x: 220,
+      y: 100,
+      width: 50,
+      height: 50,
+      groupIds: ["G1"],
+    });
+    API.setElements([rect1, rect2]);
+
+    // Encloses only rect1
+    const aroundRect1: [number, number][] = [
+      [80, 80],
+      [170, 80],
+      [170, 170],
+      [80, 170],
+    ];
+    expect(drawLassoPolygon(aroundRect1, "contain")).toEqual([]);
+    expect(drawLassoPolygon(aroundRect1, "overlap")).toEqual([
+      rect1.id,
+      rect2.id,
+    ]);
+
+    // Encloses both rect1 and rect2
+    const aroundBoth: [number, number][] = [
+      [80, 80],
+      [290, 80],
+      [290, 170],
+      [80, 170],
+    ];
+    expect(drawLassoPolygon(aroundBoth, "contain")).toEqual([
+      rect1.id,
+      rect2.id,
+    ]);
   });
 });

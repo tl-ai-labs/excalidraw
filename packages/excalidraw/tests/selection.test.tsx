@@ -184,17 +184,145 @@ describe("lasso reselection", () => {
 
     Keyboard.withModifierKeys({ ctrl: true, alt: true }, () => {
       mouse.downAt(110, 50);
-      mouse.moveTo(50, -20);
+      mouse.moveTo(110, -20);
 
       expect(h.app.lassoTrail.hasCurrentTrail).toBe(true);
 
-      mouse.moveTo(-20, 50);
-      mouse.moveTo(50, 120);
+      mouse.moveTo(-20, -20);
+      mouse.moveTo(-20, 120);
+      mouse.moveTo(110, 120);
       mouse.moveTo(110, 50);
       mouse.up();
     });
 
     assertSelectedElements([rectA.id]);
+  });
+});
+
+describe("lasso selection mode (contain vs overlap)", () => {
+  const lassoSelect = (points: [number, number][]) => {
+    act(() => {
+      h.app.setState({ width: 1000, height: 1000 });
+      h.app.setActiveTool({ type: "lasso" });
+    });
+
+    const [startX, startY] = points[0];
+    mouse.downAt(startX, startY);
+    for (let i = 1; i < points.length; i++) {
+      mouse.moveTo(points[i][0], points[i][1]);
+    }
+    mouse.up();
+  };
+
+  it("should not select a partially touched rectangle in contain mode, and should select it when fully enclosed", async () => {
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "contain" } }}
+      />,
+    );
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    // Clips only the top-left corner of the rectangle
+    lassoSelect([
+      [80, 80],
+      [130, 80],
+      [130, 130],
+      [80, 130],
+      [80, 80],
+    ]);
+    assertSelectedElements([]);
+
+    // Fully encloses the rectangle
+    lassoSelect([
+      [80, 80],
+      [220, 80],
+      [220, 220],
+      [80, 220],
+      [80, 80],
+    ]);
+    assertSelectedElements([rect.id]);
+  });
+
+  it("should select a partially touched rectangle in overlap mode", async () => {
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "overlap" } }}
+      />,
+    );
+
+    const rect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([rect]);
+
+    // Clips only the top-left corner of the rectangle
+    lassoSelect([
+      [80, 80],
+      [130, 80],
+      [130, 130],
+      [80, 130],
+      [80, 80],
+    ]);
+    assertSelectedElements([rect.id]);
+  });
+
+  it("should select only fully enclosed elements in contain mode when another element is partially touched", async () => {
+    await render(
+      <Excalidraw
+        initialData={{ appState: { boxSelectionMode: "contain" } }}
+      />,
+    );
+
+    const enclosedRect = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 40,
+      height: 40,
+    });
+    const touchedEllipse = API.createElement({
+      type: "ellipse",
+      x: 160,
+      y: 100,
+      width: 100,
+      height: 60,
+    });
+    API.setElements([enclosedRect, touchedEllipse]);
+
+    // Fully encloses enclosedRect, partially touches touchedEllipse
+    lassoSelect([
+      [80, 80],
+      [190, 80],
+      [190, 170],
+      [80, 170],
+      [80, 80],
+    ]);
+    assertSelectedElements([enclosedRect.id]);
+
+    // Switching to overlap mode selects both with the same lasso
+    act(() => {
+      h.app.setState({ boxSelectionMode: "overlap" });
+    });
+    lassoSelect([
+      [80, 80],
+      [190, 80],
+      [190, 170],
+      [80, 170],
+      [80, 80],
+    ]);
+    assertSelectedElements([enclosedRect.id, touchedEllipse.id]);
   });
 });
 
