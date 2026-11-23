@@ -163,10 +163,15 @@ class Portal {
       return acc;
     }, [] as SyncableExcalidrawElement[]);
 
+    const pages = this.collab.excalidrawAPI
+      .getAppState()
+      .pages.map(({ id, name }) => ({ id, name }));
+
     const data: SocketUpdateDataSource[typeof updateType] = {
       type: updateType,
       payload: {
         elements: syncableElements,
+        pages,
       },
     };
 

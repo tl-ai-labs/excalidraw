@@ -22,6 +22,7 @@ import type {
   TextAlign,
   ExcalidrawElement,
   GroupId,
+  PageId,
   ExcalidrawBindableElement,
   ExcalidrawArrowElement,
   Arrowhead,
@@ -588,6 +589,16 @@ export interface AppState {
   /** user-customized font-picker top picks (pinned via drag & drop from the
    * font picker popup). `null` means no customization (defaults are used) */
   fontTopPicks: readonly FontFamilyValues[] | null;
+  pages: readonly Page[];
+  activePageId: PageId;
+}
+
+export interface Page {
+  id: PageId;
+  name: string;
+  scrollX?: number;
+  scrollY?: number;
+  zoom?: Zoom;
 }
 
 export type SearchMatch = {
@@ -1237,6 +1248,11 @@ export type AppClassProperties = {
   togglePenMode: App["togglePenMode"];
   toggleLock: App["toggleLock"];
   setActiveTool: App["setActiveTool"];
+  createPage: App["createPage"];
+  switchPage: App["switchPage"];
+  renamePage: App["renamePage"];
+  deletePage: App["deletePage"];
+  reorderPage: App["reorderPage"];
   setOpenDialog: App["setOpenDialog"];
   insertEmbeddableElement: App["insertEmbeddableElement"];
   onMagicframeToolSelect: App["onMagicframeToolSelect"];
@@ -1423,6 +1439,11 @@ export interface ExcalidrawImperativeAPI {
     "select" | "add" | "remove" | "clear"
   >;
   getSceneElements: InstanceType<typeof App>["getSceneElements"];
+  createPage: InstanceType<typeof App>["createPage"];
+  switchPage: InstanceType<typeof App>["switchPage"];
+  renamePage: InstanceType<typeof App>["renamePage"];
+  deletePage: InstanceType<typeof App>["deletePage"];
+  reorderPage: InstanceType<typeof App>["reorderPage"];
   getAppState: () => InstanceType<typeof App>["state"];
   getFiles: () => InstanceType<typeof App>["files"];
   getName: InstanceType<typeof App>["getName"];

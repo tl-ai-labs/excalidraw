@@ -5,6 +5,7 @@ import { useTunnels } from "../../context/tunnels";
 import { ExitZenModeButton, UndoRedoActions, ZoomActions } from "../Actions";
 import { useApp } from "../App";
 import { HelpButton } from "../HelpButton";
+import { PageTabBar } from "../PageTabBar";
 import { Section } from "../Section";
 import Stack from "../Stack";
 
@@ -58,6 +59,7 @@ const Footer = ({
         </div>
       )}
       <FooterCenterTunnel.Out />
+      {defaultUIEnabled && <PageTabBar appState={appState} />}
       {(defaultUIEnabled || renderWelcomeScreen) && (
         <div
           className={clsx(

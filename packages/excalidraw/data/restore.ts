@@ -448,8 +448,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -466,7 +467,9 @@ const restoreElementWithProperties = <
     // @ts-ignore TS complains here but type checks the call sites fine.
     keyof K
   > &
-    Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
+    Partial<
+      Pick<ExcalidrawElement, "type" | "x" | "y" | "customData" | "pageId">
+    >,
 ): T => {
   const base: Pick<T, keyof ExcalidrawElement> = {
     type: extra.type || element.type,
@@ -517,6 +520,11 @@ const restoreElementWithProperties = <
   if ("customData" in element || "customData" in extra) {
     base.customData =
       "customData" in extra ? extra.customData : element.customData;
+  }
+
+  const pageId = "pageId" in extra ? extra.pageId : element.pageId;
+  if (typeof pageId === "string" && pageId.length > 0) {
+    base.pageId = pageId;
   }
 
   const ret = {
@@ -1265,6 +1273,61 @@ const restoreFontTopPicks = (
   return fontFamilies.size ? [...fontFamilies] : null;
 };
 
+const restorePages = (
+  value: unknown,
+  defaultPages: AppState["pages"],
+): AppState["pages"] => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return defaultPages;
+  }
+  const seen = new Set<string>();
+  const restored: AppState["pages"][number][] = [];
+  for (const item of value) {
+    if (
+      item &&
+      typeof item === "object" &&
+      typeof (item as any).id === "string" &&
+      (item as any).id.length > 0 &&
+      !seen.has((item as any).id)
+    ) {
+      seen.add((item as any).id);
+      const rawName = (item as any).name;
+      const name =
+        typeof rawName === "string" && rawName.trim().length > 0
+          ? rawName
+          : `Page ${restored.length + 1}`;
+      const page: {
+        id: string;
+        name: string;
+        scrollX?: number;
+        scrollY?: number;
+        zoom?: AppState["zoom"];
+      } = {
+        id: (item as any).id,
+        name,
+      };
+      if (isFiniteNumber((item as any).scrollX)) {
+        page.scrollX = (item as any).scrollX;
+      }
+      if (isFiniteNumber((item as any).scrollY)) {
+        page.scrollY = (item as any).scrollY;
+      }
+      const rawZoom = (item as any).zoom;
+      if (
+        rawZoom &&
+        typeof rawZoom === "object" &&
+        isFiniteNumber(rawZoom.value)
+      ) {
+        page.zoom = { value: getNormalizedZoom(rawZoom.value) };
+      } else if (isFiniteNumber(rawZoom)) {
+        page.zoom = { value: getNormalizedZoom(rawZoom) };
+      }
+      restored.push(page);
+    }
+  }
+  return restored.length > 0 ? restored : defaultPages;
+};
+
 export const restoreAppState = (
   appState: ImportedDataState["appState"],
   localAppState: Partial<AppState> | null | undefined,
@@ -1337,6 +1400,17 @@ export const restoreAppState = (
       getStrokeWidthKey((appState as any).currentItemStrokeWidth) ??
       defaultAppState.currentItemStrokeWidthKey;
   }
+
+  // Always restore pages from imported appState (or default to one page for
+  // legacy files), never inheriting another document's pages from localAppState.
+  const restoredPages = restorePages(appState.pages, defaultAppState.pages);
+  const restoredActivePageId =
+    typeof appState.activePageId === "string" &&
+    restoredPages.some((p) => p.id === appState.activePageId)
+      ? appState.activePageId
+      : restoredPages[0].id;
+  nextAppState.pages = restoredPages;
+  nextAppState.activePageId = restoredActivePageId;
 
   return {
     ...nextAppState,

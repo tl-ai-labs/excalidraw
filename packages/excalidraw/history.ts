@@ -2,6 +2,7 @@ import { Emitter } from "@excalidraw/common";
 
 import {
   CaptureUpdateAction,
+  DEFAULT_PAGE_ID,
   StoreChange,
   StoreDelta,
 } from "@excalidraw/element";
@@ -12,7 +13,7 @@ import type {
   Store,
 } from "@excalidraw/element";
 
-import type { SceneElementsMap } from "@excalidraw/element/types";
+import type { PageId, SceneElementsMap } from "@excalidraw/element/types";
 
 import type { AppState } from "./types";
 
@@ -99,8 +100,28 @@ export class History {
     [HistoryChangedEvent]
   >();
 
-  public readonly undoStack: HistoryDelta[] = [];
-  public readonly redoStack: HistoryDelta[] = [];
+  private readonly pageStacks = new Map<
+    PageId,
+    { undoStack: HistoryDelta[]; redoStack: HistoryDelta[] }
+  >();
+  private activePageId: PageId = DEFAULT_PAGE_ID;
+
+  private getPageStacks(pageId: PageId = this.activePageId) {
+    let stacks = this.pageStacks.get(pageId);
+    if (!stacks) {
+      stacks = { undoStack: [], redoStack: [] };
+      this.pageStacks.set(pageId, stacks);
+    }
+    return stacks;
+  }
+
+  public get undoStack(): HistoryDelta[] {
+    return this.getPageStacks().undoStack;
+  }
+
+  public get redoStack(): HistoryDelta[] {
+    return this.getPageStacks().redoStack;
+  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -112,9 +133,22 @@ export class History {
 
   constructor(private readonly store: Store) {}
 
+  public setActivePageId(pageId: PageId) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
+
+  public deletePage(pageId: PageId) {
+    this.pageStacks.delete(pageId);
+  }
+
   public clear() {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+    this.pageStacks.clear();
   }
 
   /**

@@ -24,6 +24,7 @@ import {
   getLineWidth,
   getNonDeletedElements,
   getRenderEnvironment,
+  isElementOnPage,
   updateImageCache,
 } from "@excalidraw/element";
 
@@ -606,8 +607,13 @@ const configExportDimension = async ({
     frameRendering.clip = false;
   }
 
+  const activePageId = data.appState?.activePageId;
+  const pageElements = activePageId
+    ? elements.filter((el) => isElementOnPage(el, activePageId))
+    : elements;
+
   const elementsForRender = prepareElementsForRender({
-    elements,
+    elements: pageElements,
     exportingFrame,
     theme,
     frameRendering,

@@ -1,8 +1,7 @@
-import { getNonDeletedElements } from "@excalidraw/element";
 import { LinearElementEditor } from "@excalidraw/element";
 import { isLinearElement, isTextElement } from "@excalidraw/element";
 
-import { arrayToMap, KEYS } from "@excalidraw/common";
+import { KEYS } from "@excalidraw/common";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -29,17 +28,23 @@ export const actionSelectAll = register({
       return false;
     }
 
-    const selectedElementIds = elements
+    const activePageElements = app.scene.getNonDeletedElements();
+
+    const selectedElementIds = activePageElements
       .filter(
         (element) =>
-          !element.isDeleted &&
-          !(isTextElement(element) && element.containerId) &&
-          !element.locked,
+          !(isTextElement(element) && element.containerId) && !element.locked,
       )
       .reduce((map: Record<ExcalidrawElement["id"], true>, element) => {
         map[element.id] = true;
         return map;
       }, {});
+
+    const selectedIds = Object.keys(selectedElementIds);
+    const singleSelectedElement =
+      selectedIds.length === 1
+        ? app.scene.getNonDeletedElementsMap().get(selectedIds[0])
+        : null;
 
     return {
       appState: {
@@ -49,17 +54,16 @@ export const actionSelectAll = register({
             editingGroupId: null,
             selectedElementIds,
           },
-          getNonDeletedElements(elements),
+          activePageElements,
           appState,
           app,
         ),
         selectedLinearElement:
           // single linear element selected
-          Object.keys(selectedElementIds).length === 1 &&
-          isLinearElement(elements[0])
+          singleSelectedElement && isLinearElement(singleSelectedElement)
             ? new LinearElementEditor(
-                elements[0] as NonDeleted<ExcalidrawLinearElement>,
-                arrayToMap(elements),
+                singleSelectedElement as NonDeleted<ExcalidrawLinearElement>,
+                app.scene.getNonDeletedElementsMap(),
               )
             : null,
       },

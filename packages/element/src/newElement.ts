@@ -84,6 +84,7 @@ export type ElementConstructorOpts = MarkOptional<
   | "opacity"
   | "customData"
   | "created"
+  | "pageId"
 >;
 
 const _newElementBase = <T extends ExcalidrawElement>(
@@ -169,6 +170,7 @@ const _newElementBase = <T extends ExcalidrawElement>(
     link,
     locked,
     customData: rest.customData,
+    ...(rest.pageId ? { pageId: rest.pageId } : {}),
   };
   return element;
 };

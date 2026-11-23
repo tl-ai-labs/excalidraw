@@ -172,6 +172,9 @@ import {
   isElementLink,
   isMeasureTextSupported,
   getMinTextElementWidth,
+  DEFAULT_PAGE_ID,
+  isElementOnPage,
+  withElementPageId,
   ShapeCache,
   resolveElementRenderState,
   getRenderElementWithPositionOverride,
@@ -460,6 +463,8 @@ import type {
   GenerateDiagramToCode,
   NullableGridSize,
   UIConfig,
+  Page,
+  NormalizedZoomValue,
 } from "../types";
 import type { RoughCanvas } from "roughjs/bin/canvas";
 import type { Action, ActionResult } from "../actions/types";
@@ -806,6 +811,11 @@ class App extends React.Component<AppProps, AppState> {
       getViewportOffsets: this.viewport.getOffsets,
       setElementRenderOverrides: this.setElementRenderOverrides,
       getSceneElements: this.getSceneElements,
+      createPage: this.createPage,
+      switchPage: this.switchPage,
+      renamePage: this.renamePage,
+      deletePage: this.deletePage,
+      reorderPage: this.reorderPage,
       getAppState: () => this.state,
       getFiles: () => this.files,
       getName: this.getName,
@@ -892,6 +902,7 @@ class App extends React.Component<AppProps, AppState> {
       this,
     );
     this.scene = new Scene();
+    this.scene.setActivePageId(this.state.activePageId);
 
     this.canvas = this.ownerDocument.createElement("canvas");
     this.rc = rough.canvas(this.canvas);
@@ -908,6 +919,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
     this.history = new History(this.store);
+    this.history.setActivePageId(this.state.activePageId);
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -2770,6 +2782,207 @@ class App extends React.Component<AppProps, AppState> {
     return this.scene.getNonDeletedElements();
   };
 
+  private getPagesWithCurrentViewport = (
+    pages: readonly Page[],
+    activePageId: Page["id"],
+  ): Page[] => {
+    return pages.map((page) =>
+      page.id === activePageId
+        ? {
+            ...page,
+            scrollX: this.state.scrollX,
+            scrollY: this.state.scrollY,
+            zoom: this.state.zoom,
+          }
+        : page,
+    );
+  };
+
+  public createPage = (name?: string): Page => {
+    this.text.textWysiwygSubmitHandler?.();
+
+    const defaultPrefix = t("pages.defaultName");
+    const existingNames = new Set(this.state.pages.map((p) => p.name));
+    let resolvedName = name?.trim();
+    if (!resolvedName) {
+      let counter = this.state.pages.length + 1;
+      while (existingNames.has(`${defaultPrefix} ${counter}`)) {
+        counter++;
+      }
+      resolvedName = `${defaultPrefix} ${counter}`;
+    }
+
+    const newPage: Page = {
+      id: nanoid(),
+      name: resolvedName,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 as NormalizedZoomValue },
+    };
+
+    const nextPages = [
+      ...this.getPagesWithCurrentViewport(
+        this.state.pages,
+        this.state.activePageId,
+      ),
+      newPage,
+    ];
+
+    this.scene.setActivePageId(newPage.id);
+    this.history.setActivePageId(newPage.id);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    this.setState({
+      pages: nextPages,
+      activePageId: newPage.id,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: { value: 1 as NormalizedZoomValue },
+      selectedElementIds: {},
+      selectedGroupIds: {},
+      previousSelectedElementIds: {},
+      editingGroupId: null,
+      selectedLinearElement: null,
+      activeEmbeddable: null,
+      frameToHighlight: null,
+      elementsToHighlight: null,
+      editingFrame: null,
+      editingTextElement: null,
+    });
+
+    return newPage;
+  };
+
+  public switchPage = (pageId: Page["id"]) => {
+    if (pageId === this.state.activePageId) {
+      return;
+    }
+    const targetPage = this.state.pages.find((p) => p.id === pageId);
+    if (!targetPage) {
+      return;
+    }
+
+    this.text.textWysiwygSubmitHandler?.();
+
+    const nextPages = this.getPagesWithCurrentViewport(
+      this.state.pages,
+      this.state.activePageId,
+    );
+
+    const nextScrollX = targetPage.scrollX ?? 0;
+    const nextScrollY = targetPage.scrollY ?? 0;
+    const nextZoom = targetPage.zoom ?? { value: 1 as NormalizedZoomValue };
+
+    this.scene.setActivePageId(pageId);
+    this.history.setActivePageId(pageId);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    this.setState({
+      pages: nextPages,
+      activePageId: pageId,
+      scrollX: nextScrollX,
+      scrollY: nextScrollY,
+      zoom: nextZoom,
+      selectedElementIds: {},
+      selectedGroupIds: {},
+      previousSelectedElementIds: {},
+      editingGroupId: null,
+      selectedLinearElement: null,
+      activeEmbeddable: null,
+      frameToHighlight: null,
+      elementsToHighlight: null,
+      editingFrame: null,
+      editingTextElement: null,
+    });
+  };
+
+  public renamePage = (pageId: Page["id"], name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (!this.state.pages.some((p) => p.id === pageId)) {
+      return;
+    }
+    const nextPages = this.state.pages.map((page) =>
+      page.id === pageId ? { ...page, name: trimmed } : page,
+    );
+    this.setState({ pages: nextPages });
+  };
+
+  public deletePage = (pageId: Page["id"]) => {
+    if (this.state.pages.length <= 1) {
+      return;
+    }
+    const pageIndex = this.state.pages.findIndex((p) => p.id === pageId);
+    if (pageIndex === -1) {
+      return;
+    }
+
+    this.text.textWysiwygSubmitHandler?.();
+
+    const pagesWithViewport = this.getPagesWithCurrentViewport(
+      this.state.pages,
+      this.state.activePageId,
+    );
+    const nextPages = pagesWithViewport.filter((p) => p.id !== pageId);
+
+    const nextElements = this.scene
+      .getElementsIncludingDeleted()
+      .map((element) =>
+        !element.isDeleted && isElementOnPage(element, pageId)
+          ? newElementWith(element, { isDeleted: true })
+          : element,
+      );
+
+    this.history.deletePage(pageId);
+    this.store.scheduleAction(CaptureUpdateAction.NEVER);
+
+    if (pageId === this.state.activePageId) {
+      const fallbackPage = nextPages[Math.max(0, pageIndex - 1)];
+      this.scene.setActivePageId(fallbackPage.id);
+      this.history.setActivePageId(fallbackPage.id);
+      this.scene.replaceAllElements(nextElements);
+      this.setState({
+        pages: nextPages,
+        activePageId: fallbackPage.id,
+        scrollX: fallbackPage.scrollX ?? 0,
+        scrollY: fallbackPage.scrollY ?? 0,
+        zoom: fallbackPage.zoom ?? { value: 1 as NormalizedZoomValue },
+        selectedElementIds: {},
+        selectedGroupIds: {},
+        previousSelectedElementIds: {},
+        editingGroupId: null,
+        selectedLinearElement: null,
+        activeEmbeddable: null,
+        frameToHighlight: null,
+        elementsToHighlight: null,
+        editingFrame: null,
+        editingTextElement: null,
+      });
+    } else {
+      this.scene.replaceAllElements(nextElements);
+      this.setState({ pages: nextPages });
+    }
+  };
+
+  public reorderPage = (fromIndex: number, toIndex: number) => {
+    const { pages } = this.state;
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= pages.length ||
+      toIndex >= pages.length
+    ) {
+      return;
+    }
+    const nextPages = [...pages];
+    const [moved] = nextPages.splice(fromIndex, 1);
+    nextPages.splice(toIndex, 0, moved);
+    this.setState({ pages: nextPages });
+  };
+
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
     this.addElementsFromPasteOrLibrary({
       elements,
@@ -3136,6 +3349,10 @@ class App extends React.Component<AppProps, AppState> {
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
+    if (actionResult.appState?.activePageId) {
+      this.scene.setActivePageId(actionResult.appState.activePageId);
+      this.history.setActivePageId(actionResult.appState.activePageId);
+    }
     if (actionResult.elements) {
       this.scene.replaceAllElements(actionResult.elements);
       didUpdate = true;
@@ -3554,6 +3771,8 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
+      this.scene.setActivePageId(DEFAULT_PAGE_ID);
+      this.history.setActivePageId(DEFAULT_PAGE_ID);
       this.scene.replaceAllElements([]);
       this.setState((state) => ({
         ...getDefaultAppState(),
@@ -3686,10 +3905,17 @@ class App extends React.Component<AppProps, AppState> {
     } else if (initialData?.scrollToContent) {
       restoredAppState = {
         ...restoredAppState,
-        ...getScrollToContentState(restoredElements, viewportAppState),
+        ...getScrollToContentState(
+          restoredElements.filter((el) =>
+            isElementOnPage(el, restoredAppState.activePageId),
+          ),
+          viewportAppState,
+        ),
       };
     }
 
+    this.scene.setActivePageId(restoredAppState.activePageId);
+    this.history.setActivePageId(restoredAppState.activePageId);
     this.resetStore();
     this.resetHistory();
     this.syncActionResult({
@@ -4316,6 +4542,11 @@ class App extends React.Component<AppProps, AppState> {
 
     this.appStateObserver.flush(prevState);
 
+    if (this.scene.getActivePageId() !== this.state.activePageId) {
+      this.scene.setActivePageId(this.state.activePageId);
+      this.history.setActivePageId(this.state.activePageId);
+    }
+
     this.updateEmbeddables();
     const elements = this.scene.getElementsIncludingDeleted();
     const elementsMap = this.scene.getElementsMapIncludingDeleted();
@@ -4624,7 +4855,7 @@ class App extends React.Component<AppProps, AppState> {
   }) => {
     const elements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
-    });
+    }).map((el) => withElementPageId(el, this.state.activePageId));
     const clientX =
       typeof opts.position === "object"
         ? opts.position.clientX
@@ -5008,6 +5239,13 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (appState) {
+        if (
+          "activePageId" in appState &&
+          typeof appState.activePageId === "string"
+        ) {
+          this.scene.setActivePageId(appState.activePageId);
+          this.history.setActivePageId(appState.activePageId);
+        }
         this.setState(appState as Pick<AppState, K> | null);
       }
 
