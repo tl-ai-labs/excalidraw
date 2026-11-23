@@ -1,6 +1,9 @@
+import tinycolor from "tinycolor2";
+
 import {
   applyDarkModeFilter,
   COLOR_PALETTE,
+  invertDarkModeFilter,
   rgbToHex,
 } from "@excalidraw/common";
 
@@ -212,6 +215,122 @@ describe("applyDarkModeFilter", () => {
       const result2 = applyDarkModeFilter("#ff0000");
       expect(result1).toBe(result2);
     });
+  });
+});
+
+describe("invertDarkModeFilter", () => {
+  const maxChannelDiff = (a: string, b: string) => {
+    const rgbA = tinycolor(a).toRgb();
+    const rgbB = tinycolor(b).toRgb();
+    return Math.max(
+      Math.abs(rgbA.r - rgbB.r),
+      Math.abs(rgbA.g - rgbB.g),
+      Math.abs(rgbA.b - rgbB.b),
+    );
+  };
+
+  it("returns input unchanged when disabled", () => {
+    expect(invertDarkModeFilter("#d3d3d3", false)).toBe("#d3d3d3");
+  });
+
+  it("inverts dark-mode neutrals back to original colors", () => {
+    expect(invertDarkModeFilter(applyDarkModeFilter("#000000"))).toBe(
+      "#000000",
+    );
+    expect(invertDarkModeFilter(applyDarkModeFilter("#ffffff"))).toBe(
+      "#ffffff",
+    );
+    expect(invertDarkModeFilter(applyDarkModeFilter(COLOR_PALETTE.black))).toBe(
+      COLOR_PALETTE.black,
+    );
+  });
+
+  it("round-trips forward(inverse(c)) ≈ c for arbitrary in-gamut dark-mode colors", () => {
+    const samples = [
+      "#121212",
+      "#ededed",
+      "#d3d3d3",
+      "#808080",
+      "#56a2e8",
+      "#ff9090",
+      "#008f00",
+      "#cdcdff",
+      "#9c6f44",
+      "#4a8c7c",
+      "#b57edc",
+    ];
+
+    for (const darkColor of samples) {
+      const inverted = invertDarkModeFilter(darkColor);
+      const reapplied = applyDarkModeFilter(inverted);
+      expect(maxChannelDiff(reapplied, darkColor)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("round-trips inverse(forward(c)) ≈ c for non-clamping colors across the palette", () => {
+    const colors = [
+      COLOR_PALETTE.black,
+      COLOR_PALETTE.white,
+      ...COLOR_PALETTE.gray,
+      ...COLOR_PALETTE.bronze,
+      COLOR_PALETTE.red[1],
+      COLOR_PALETTE.green[1],
+      COLOR_PALETTE.blue[1],
+      COLOR_PALETTE.blue[4],
+      COLOR_PALETTE.violet[1],
+      COLOR_PALETTE.orange[1],
+      "#336699",
+      "#7a5c8f",
+      "#a07050",
+      "#607d8b",
+    ];
+
+    for (const color of colors) {
+      const dark = applyDarkModeFilter(color);
+      const restored = invertDarkModeFilter(dark);
+      // Forward then inverse recovers the original color within rounding tolerance
+      expect(maxChannelDiff(restored, color)).toBeLessThanOrEqual(2);
+      // Re-applying dark mode to the restored color reproduces the dark pixel
+      expect(
+        maxChannelDiff(applyDarkModeFilter(restored), dark),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("handles clamping colors honestly (forward(inverse(forward(c))) ≈ forward(c))", () => {
+    // Highly saturated colors clamp during forward hue-rotate(180deg), so
+    // inverse(forward(c)) cannot recover the clipped channel, but re-applying
+    // the forward transform still reproduces the on-screen dark-mode color.
+    for (const saturated of [
+      "#ff0000",
+      "#00ff00",
+      "#0000ff",
+      "#ffff00",
+      COLOR_PALETTE.green[4],
+      COLOR_PALETTE.teal[4],
+      COLOR_PALETTE.violet[4],
+      COLOR_PALETTE.grape[4],
+    ]) {
+      const dark = applyDarkModeFilter(saturated);
+      const restored = invertDarkModeFilter(dark);
+      expect(
+        maxChannelDiff(applyDarkModeFilter(restored), dark),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("clamps out-of-range dark-mode inputs to valid hex colors", () => {
+    // Pure black (#000000) and pure white (#ffffff) lie outside the [18, 237]
+    // range of invert(93%), so their inverse clamps to #ffffff and #000000.
+    expect(invertDarkModeFilter("#000000")).toBe("#ffffff");
+    expect(invertDarkModeFilter("#ffffff")).toBe("#000000");
+  });
+
+  it("preserves alpha channel", () => {
+    expect(invertDarkModeFilter("#d3d3d3ff")).toBe("#1e1e1e");
+    expect(invertDarkModeFilter("#d3d3d380")).toBe("#1e1e1e80");
+    expect(invertDarkModeFilter("rgba(211, 211, 211, 0.5)")).toBe("#1e1e1e80");
+    expect(invertDarkModeFilter("#ededed00")).toBe("#00000000");
   });
 });
 

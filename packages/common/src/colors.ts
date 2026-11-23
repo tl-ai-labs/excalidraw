@@ -12,8 +12,10 @@ import type { Degrees } from "@excalidraw/math";
 // Browser-only cache to avoid memory leaks on server
 const DARK_MODE_COLORS_CACHE: Map<string, string> | null =
   typeof window !== "undefined" ? new Map() : null;
+const DARK_MODE_INVERSE_COLORS_CACHE: Map<string, string> | null =
+  typeof window !== "undefined" ? new Map() : null;
 
-function cssHueRotate(
+function cssHueRotateRaw(
   red: number,
   green: number,
   blue: number,
@@ -44,15 +46,26 @@ function cssHueRotate(
   ];
 
   // transform
-  const newR = r * matrix[0] + g * matrix[1] + b * matrix[2];
-  const newG = r * matrix[3] + g * matrix[4] + b * matrix[5];
-  const newB = r * matrix[6] + g * matrix[7] + b * matrix[8];
-
-  // clamp the values to [0, 1] range and convert back to [0, 255]
   return {
-    r: Math.round(Math.max(0, Math.min(1, newR)) * 255),
-    g: Math.round(Math.max(0, Math.min(1, newG)) * 255),
-    b: Math.round(Math.max(0, Math.min(1, newB)) * 255),
+    r: (r * matrix[0] + g * matrix[1] + b * matrix[2]) * 255,
+    g: (r * matrix[3] + g * matrix[4] + b * matrix[5]) * 255,
+    b: (r * matrix[6] + g * matrix[7] + b * matrix[8]) * 255,
+  };
+}
+
+function cssHueRotate(
+  red: number,
+  green: number,
+  blue: number,
+  degrees: Degrees,
+): { r: number; g: number; b: number } {
+  const { r, g, b } = cssHueRotateRaw(red, green, blue, degrees);
+
+  // clamp the values to [0, 255] range
+  return {
+    r: Math.round(clamp(r, 0, 255)),
+    g: Math.round(clamp(g, 0, 255)),
+    b: Math.round(clamp(b, 0, 255)),
   };
 }
 
@@ -78,6 +91,31 @@ const cssInvert = (
   const invertedB = invertComponent(b);
 
   return { r: invertedR, g: invertedG, b: invertedB };
+};
+
+const cssInvertInverse = (
+  r: number,
+  g: number,
+  b: number,
+  percent: number,
+): { r: number; g: number; b: number } => {
+  const p = clamp(percent, 0, 100) / 100;
+  const denom = 1 - 2 * p;
+
+  if (denom === 0) {
+    return { r: 128, g: 128, b: 128 };
+  }
+
+  const uninvertComponent = (color: number): number => {
+    const original = (color - 255 * p) / denom;
+    return Math.round(clamp(original, 0, 255));
+  };
+
+  return {
+    r: uninvertComponent(r),
+    g: uninvertComponent(g),
+    b: uninvertComponent(b),
+  };
 };
 
 export const applyDarkModeFilter = (color: string, enable = true): string => {
@@ -108,6 +146,39 @@ export const applyDarkModeFilter = (color: string, enable = true): string => {
 
   if (DARK_MODE_COLORS_CACHE) {
     DARK_MODE_COLORS_CACHE.set(color, result);
+  }
+
+  return result;
+};
+
+export const invertDarkModeFilter = (color: string, enable = true): string => {
+  if (!enable) {
+    return color;
+  }
+
+  const cached = DARK_MODE_INVERSE_COLORS_CACHE?.get(color);
+  if (cached) {
+    return cached;
+  }
+
+  const tc = tinycolor(color);
+  const alpha = tc.getAlpha();
+
+  // Reverse of applyDarkModeFilter: undo hue-rotate(180deg) first, then invert(93%).
+  // Keep unrotated channels as floats before un-inverting to avoid double-rounding.
+  const rgb = tc.toRgb();
+  const unrotated = cssHueRotateRaw(rgb.r, rgb.g, rgb.b, -180 as Degrees);
+  const uninverted = cssInvertInverse(
+    unrotated.r,
+    unrotated.g,
+    unrotated.b,
+    93,
+  );
+
+  const result = rgbToHex(uninverted.r, uninverted.g, uninverted.b, alpha);
+
+  if (DARK_MODE_INVERSE_COLORS_CACHE) {
+    DARK_MODE_INVERSE_COLORS_CACHE.set(color, result);
   }
 
   return result;
