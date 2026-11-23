@@ -1,0 +1,198 @@
+{
+  "section": "units",
+  "source": "units-005.json",
+  "value": [
+    {
+      "id": "U14",
+      "path": "packages/excalidraw/locales/en.json",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the English strings for the page tab bar, page actions and page-labelled search results.",
+      "rules": [
+        "A new top-level `pages` object holds: `tabBar` \"Pages\", `newPage` \"Add page\", `newPageName` \"Page {{number}}\", `rename` \"Rename page\", `renameInput` \"Page name\", `moveLeft` \"Move page left\", `moveRight` \"Move page right\", `delete` \"Delete page\", `deleteConfirmTitle` \"Delete page\", `deleteConfirm` \"Delete \\\"{{name}}\\\" and everything on it?\", `switchTo` \"Switch to page\".",
+        "`search` gains `onPage` \"on {{name}}\"."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 233,
+          "to": 234,
+          "first_line": "\"texts\": \"Texts\"",
+          "last_line": "},",
+          "rule": "Add a comma after `\"texts\": \"Texts\"`, then `\"onPage\": \"on {{name}}\"`, close the search object with `},` and add the `pages` object (closed with `},`)."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-16"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U15",
+      "path": "packages/excalidraw/actions/types.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the page action names to `ActionName`.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 146,
+          "to": 146,
+          "first_line": "| \"togglePolygon\";",
+          "rule": "Replace with `| \"togglePolygon\"` followed by `| \"createPage\"`, `| \"switchPage\"`, `| \"renamePage\"`, `| \"movePage\"`, `| \"deletePage\";`."
+        }
+      ],
+      "depends_on": [],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U16",
+      "path": "packages/excalidraw/actions/actionPages.ts",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Registers the create, switch, rename, move and delete page actions and the pure page-switch app-state helper.",
+      "rules": [
+        "`getSwitchPageAppState(appState, pageId)` returns null when `pageId === appState.activePageId` or no visible page has that id; otherwise it returns a Partial<AppState> with `activePageId: pageId`; `pageViewports` = previous map without `pageId`, plus the current page's `{ scrollX, scrollY, zoom: zoom.value }`; `scrollX`/`scrollY`/`zoom` from the target's saved viewport (zoom via `{ value: getNormalizedZoom(v.zoom) }`), else `0`, `0`, `{ value: 1 as NormalizedZoomValue }`; and resets `selectedElementIds: {}`, `selectedGroupIds: {}`, `previousSelectedElementIds: {}`, `hoveredElementIds: {}`, `editingGroupId: null`, `editingTextElement: null`, `selectedLinearElement: null`, `newElement: null`, `multiElement: null`, `resizingElement: null`, `selectionElement: null`, `activeEmbeddable: null`, `isCropping: false`, `croppingElementId: null`, `editingFrame: null`, `frameToHighlight: null`, `elementsToHighlight: null`; `searchMatches` is left unchanged (the renderer skips match ids that are not on the active page).",
+        "`actionSwitchPage` (name `switchPage`, `viewMode: true`, label `pages.switchTo`, trackEvent `{ category: \"canvas\" }`): `perform(_elements, appState, pageId: string)` returns false when `getSwitchPageAppState` is null, else `{ appState: { ...appState, ...switchState }, captureUpdate: CaptureUpdateAction.NEVER }`.",
+        "`actionCreatePage` (name `createPage`, label `pages.newPage`, `viewMode: false`, trackEvent canvas): `perform(_elements, appState)` creates a page named `getNewPageName(appState.pages, (n) => t(\"pages.newPageName\", { number: n }))` with `createPage`, then applies `getSwitchPageAppState` on `{ ...appState, pages }` to the new id; returns `{ appState: { ...appState, ...switchState, pages }, captureUpdate: NEVER }`.",
+        "`actionRenamePage` (name `renamePage`, label `pages.rename`, `viewMode: false`): value `{ pageId: string; name: string }`; returns false when `renamePage` returns the same reference, else `{ appState: { ...appState, pages }, captureUpdate: NEVER }`.",
+        "`actionMovePage` (name `movePage`, label `pages.moveLeft`, `viewMode: false`): value `{ pageId: string; direction: -1 | 1 }`; returns false when `movePage` returns the same reference, else `{ appState: { ...appState, pages }, captureUpdate: NEVER }`.",
+        "`actionDeletePage` (name `deletePage`, label `pages.delete`, `viewMode: false`): value `pageId: string`; computes `adjacentId = getAdjacentPageId(appState.pages, pageId)` first, then `pages = deletePage(...)`; returns false when the reference is unchanged; marks every non-deleted element of that page from `app.scene.getAllPagesElementsIncludingDeleted()` with `newElementWith(el, { isDeleted: true })`; when the deleted page is active, applies `getSwitchPageAppState({ ...appState, pages }, adjacentId)`; returns `{ elements: <all pages' elements with the deleted ones replaced>, appState: { ...appState, ...switchState, pages }, captureUpdate: NEVER }` (a new `pages` reference, so App replaces every page).",
+        "None of the actions has a keyTest; all are registered via `register` so `actions/register` picks them up when imported."
+      ],
+      "exports": [
+        {
+          "name": "getSwitchPageAppState",
+          "kind": "function",
+          "params": [
+            {
+              "name": "appState",
+              "type": "Readonly<AppState>"
+            },
+            {
+              "name": "pageId",
+              "type": "string"
+            }
+          ],
+          "returns": "Partial<AppState> | null"
+        },
+        {
+          "name": "actionSwitchPage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action<string>"
+        },
+        {
+          "name": "actionCreatePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action"
+        },
+        {
+          "name": "actionRenamePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action<{ pageId: string; name: string }>"
+        },
+        {
+          "name": "actionMovePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action<{ pageId: string; direction: -1 | 1 }>"
+        },
+        {
+          "name": "actionDeletePage",
+          "kind": "const",
+          "params": [],
+          "returns": "Action<string>"
+        }
+      ],
+      "import_line": "import { actionCreatePage, actionDeletePage, actionMovePage, actionRenamePage, actionSwitchPage, getSwitchPageAppState } from \"../actions/actionPages\";",
+      "style_from": {
+        "path": "packages/excalidraw/actions/actionToggleSearchMenu.ts",
+        "reason": "Shape of a registered action module with CaptureUpdateAction and register."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/actions/types.ts",
+          "lines": [
+            25,
+            60
+          ],
+          "reason": "ActionResult and ActionFn signatures."
+        },
+        {
+          "path": "packages/excalidraw/scene/normalize.ts",
+          "lines": [
+            1,
+            18
+          ],
+          "reason": "getNormalizedZoom import path and signature."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U05",
+        "U06",
+        "U14",
+        "U15"
+      ],
+      "covers": [
+        "FR-3",
+        "FR-7",
+        "FR-8",
+        "FR-9",
+        "FR-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U17",
+      "path": "packages/excalidraw/actions/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Exports the page actions from the actions barrel so App's import registers them.",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 96,
+          "to": 96,
+          "first_line": "export { actionToggleCropEditor } from \"./actionCropEditor\";",
+          "rule": "Add a blank line and `export { actionCreatePage, actionDeletePage, actionMovePage, actionRenamePage, actionSwitchPage } from \"./actionPages\";`."
+        }
+      ],
+      "depends_on": [
+        "U16"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/locales/en.json": "07a8de221b3bcc8fa3c7f2241ecc7acec0a95fec27f2599c776a2b83c6c06296",
+    "packages/excalidraw/actions/types.ts": "98d4efb4ffa5832154d4ef0cf099956019fcf9a012761fc753ccfc6ac4dd2339",
+    "packages/excalidraw/actions/actionToggleSearchMenu.ts": "3c0d2a9afbd63a34e2bc8c9bd218882ff8991150aee91ccad171f22542d16e78",
+    "packages/excalidraw/scene/normalize.ts": "c8bb23a964c8df6090f0ca394144ab9db3382d562ca8617b9fa0bfad164e0d61",
+    "packages/excalidraw/actions/index.ts": "460b9cd44005a87c92d73ae1cfb77302bcf08f83b5ca677c55a7dbfbea16b724"
+  }
+}

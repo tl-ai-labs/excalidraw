@@ -1,0 +1,172 @@
+{
+  "section": "units",
+  "source": "units-003.json",
+  "value": [
+    {
+      "id": "U08",
+      "path": "packages/excalidraw/data/restore.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Restores the element `pageId` and the AppState page keys, repairing invalid page data deterministically.",
+      "rules": [
+        "`restorePages` and `restoreActivePageId` are added to the existing `@excalidraw/element` import that holds `syncInvalidIndices`; `PageViewport` is added to the `@excalidraw/element/types` type import.",
+        "In `restoreElementWithProperties`, after the legacy-prop deletes: when `typeof ret.pageId !== \"string\"` or it is empty, `delete` it from `ret` (through a `Mutable` cast), so a missing or malformed page id is left for the page repair step.",
+        "In `restoreAppState`, after `fontTopPicks` is restored, normalize the values the generic loop already picked (supplied, else local, else default): `pages = restorePages(nextAppState.pages)`, `activePageId = restoreActivePageId(pages, nextAppState.activePageId)`; `pageViewports` keeps only entries of `nextAppState.pageViewports` whose key is the id of a page in `pages` other than `activePageId` and whose `scrollX`, `scrollY` and `zoom` are finite numbers, with `zoom` passed through `getNormalizedZoom`; a non-object `pageViewports` yields `{}`.",
+        "The three values are assigned onto `nextAppState` so the returned object carries them."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 75,
+          "to": 79,
+          "first_line": "import {",
+          "last_line": "} from \"@excalidraw/element\";",
+          "rule": "Add `restoreActivePageId` and `restorePages` to this import list."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 106,
+          "to": 106,
+          "first_line": "} from \"@excalidraw/element/types\";",
+          "rule": "Add `PageViewport,` to the type import list."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 536,
+          "to": 536,
+          "first_line": "delete ret.moveMidPointsWithElement;",
+          "rule": "Drop a non-string or empty `pageId` per the rules."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 1332,
+          "to": 1332,
+          "first_line": "nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);",
+          "rule": "Restore pages, activePageId and pageViewports per the rules, with a short comment."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U07"
+      ],
+      "covers": [
+        "FR-12",
+        "NFR-1"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U09",
+      "path": "packages/excalidraw/data/blob.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Loads a scene file onto its pages: repairs element page membership and scrolls to the active page's content.",
+      "rules": [
+        "Import `getPageElements`, `repairElementPages`, `restoreActivePageId` and `restorePages` from `@excalidraw/element` in a new import statement before the `@excalidraw/element/renderEnvironment` import.",
+        "In `loadSceneOrLibraryFromBlob`, for valid excalidraw data: compute `pages = restorePages(data.appState?.pages)` and `activePageId = restoreActivePageId(pages, data.appState?.activePageId)`, then `elements = repairElementPages(restoreElements(...same args...), pages, activePageId)`.",
+        "`getScrollToContentState` receives `getPageElements(elements, activePageId)` instead of all elements.",
+        "The object passed to `restoreAppState` sets `pages` and `activePageId` right after the `...cleanAppStateForExport(data.appState || {})` spread (and `pageViewports: data.appState?.pageViewports ?? {}`), so a legacy file never inherits the local pages."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 10,
+          "to": 10,
+          "first_line": "import { getRenderEnvironment } from \"@excalidraw/element/renderEnvironment\";",
+          "rule": "Insert the import of the four page helpers, sorted alphabetically."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 163,
+          "to": 166,
+          "first_line": "const elements = restoreElements(data.elements, localElements, {",
+          "last_line": "});",
+          "rule": "Compute pages, activePageId and the repaired elements per the rules."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 175,
+          "to": 175,
+          "first_line": "...cleanAppStateForExport(data.appState || {}),",
+          "rule": "Add `pages,`, `activePageId,` and `pageViewports: data.appState?.pageViewports ?? {},`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 177,
+          "to": 177,
+          "first_line": "? getScrollToContentState(elements, localAppState)",
+          "rule": "Pass the active page's elements."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U08"
+      ],
+      "covers": [
+        "FR-12",
+        "AC-10"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U10",
+      "path": "packages/excalidraw/actions/actionExport.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Saves every page's elements when writing a `.excalidraw` JSON file.",
+      "rules": [
+        "In `actionSaveToActiveFile`, when `previousFileHandle` is not an image file handle the data passed to `prepareDataForJSONExport` uses `app.scene.getAllPagesElementsIncludingDeleted()`; for an image file handle it keeps the action's `elements` (the active page), since an image export holds one page.",
+        "In `actionSaveFileToDisk`, `prepareDataForJSONExport` always receives `app.scene.getAllPagesElementsIncludingDeleted()`.",
+        "The `appState` passed is unchanged (it already holds pages, activePageId and pageViewports)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 275,
+          "to": 275,
+          "first_line": "prepareDataForJSONExport(elements, appState, app.files, app);",
+          "rule": "Pass `isImageFileHandle(previousFileHandle) ? elements : app.scene.getAllPagesElementsIncludingDeleted()`."
+        },
+        {
+          "id": "S2",
+          "at": "replace",
+          "from": 341,
+          "to": 341,
+          "first_line": "prepareDataForJSONExport(elements, appState, app.files, app);",
+          "rule": "Pass `app.scene.getAllPagesElementsIncludingDeleted()`."
+        }
+      ],
+      "depends_on": [
+        "U05",
+        "U06"
+      ],
+      "covers": [
+        "FR-11"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/data/restore.ts": "3e14fa4f10a8f4282ee7fa821bfded0358381911d45ad0d67046029c144e0b5f",
+    "packages/excalidraw/data/blob.ts": "f0d835720c7680edfd3938b4578e12cc5f606b5aad515cfb873d1cc54576d08d",
+    "packages/excalidraw/actions/actionExport.tsx": "e23c3ff540df6fbfdd4e2508478cb16fa9869457197891fe6438614e77e4719a"
+  }
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "U06",
+    "path": "packages/excalidraw/types.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Adds the page keys to AppState, a page id to collaborators and search matches, and `setActivePage` to the imperative API.",
+    "rules": [
+      "`ExcalidrawPage` and `PageViewport` are added to the existing `@excalidraw/element/types` type import list.",
+      "AppState gains, after `fontTopPicks`: `pages: readonly ExcalidrawPage[]` (doc: ordered by index, deleted pages kept as tombstones), `activePageId: ExcalidrawPage[\"id\"]` and `pageViewports: Readonly<Record<ExcalidrawPage[\"id\"], PageViewport>>` (doc: saved viewports of the pages that are not active).",
+      "`Collaborator` gains `pageId?: string` (doc: the page the collaborator is on; pointers render only for the local active page).",
+      "`SearchMatch` gains `pageId: string` (doc: the page holding the matched element).",
+      "`ExcalidrawImperativeAPI` gains `setActivePage: InstanceType<typeof App>[\"setActivePage\"];` with a doc comment saying it switches to a visible page and restores its viewport, and does nothing for an unknown id.",
+      "SceneData is unchanged: pages arrive through `appState`."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 42, "to": 42, "first_line": "} from \"@excalidraw/element/types\";", "rule": "Add `ExcalidrawPage,` and `PageViewport,` to the import list." },
+      { "id": "S2", "at": "insert_after", "from": 98, "to": 98, "first_line": "isMuted?: boolean;", "rule": "Add the documented `pageId?: string;` field to Collaborator." },
+      { "id": "S6", "at": "insert_after", "from": 245, "to": 245, "first_line": "collaborators: AppState[\"collaborators\"];", "rule": "In InteractiveCanvasAppState add `activePageId: AppState[\"activePageId\"];`." },
+      { "id": "S3", "at": "insert_after", "from": 590, "to": 590, "first_line": "fontTopPicks: readonly FontFamilyValues[] | null;", "rule": "Add the three documented page keys to AppState." },
+      { "id": "S4", "at": "insert_after", "from": 595, "to": 595, "first_line": "focus: boolean;", "rule": "Add `pageId: string;` to SearchMatch." },
+      { "id": "S7", "at": "insert_after", "from": 1234, "to": 1234, "first_line": "viewport: App[\"viewport\"];", "rule": "In AppClassProperties add `setActivePage: App[\"setActivePage\"];`." },
+      { "id": "S5", "at": "insert_after", "from": 1393, "to": 1393, "first_line": "updateScene: InstanceType<typeof App>[\"updateScene\"];", "rule": "Add the documented `setActivePage` member." }
+    ],
+    "depends_on": ["U01"],
+    "covers": ["FR-6", "FR-15", "FR-20"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U07",
+    "path": "packages/excalidraw/appState.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Gives the page keys a one-page default and registers their storage flags.",
+    "rules": [
+      "`getDefaultAppState` returns `pages: [getDefaultPage()]`, `activePageId: DEFAULT_PAGE_ID` and `pageViewports: {}`; `getDefaultPage` and `DEFAULT_PAGE_ID` are imported from `@excalidraw/element` in a new import statement placed after the `@excalidraw/common` import.",
+      "`APP_STATE_STORAGE_CONF` gains `pages: { browser: true, export: true, server: false }`, `activePageId: { browser: true, export: true, server: false }`, `pageViewports: { browser: true, export: true, server: false }`."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 16, "to": 16, "first_line": "} from \"@excalidraw/common\";", "rule": "Add a blank line and `import { DEFAULT_PAGE_ID, getDefaultPage } from \"@excalidraw/element\";`." },
+      { "id": "S2", "at": "insert_after", "from": 151, "to": 151, "first_line": "fontTopPicks: null,", "rule": "Add the three page defaults." },
+      { "id": "S3", "at": "insert_after", "from": 296, "to": 296, "first_line": "fontTopPicks: { browser: true, export: false, server: false },", "rule": "Add the three storage flags." }
+    ],
+    "depends_on": ["U03", "U06"],
+    "covers": ["FR-6"],
+    "checks": ["eslint", "prettier"]
+  }
+]

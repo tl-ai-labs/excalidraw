@@ -1,0 +1,108 @@
+[
+  {
+    "id": "U30",
+    "path": "packages/excalidraw/index.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Exports the page helpers and types hosts need for persistence and collaboration.",
+    "rules": [
+      "The `@excalidraw/element` re-export block that holds `getSceneVersion` also exports `DEFAULT_PAGE_ID`, `getActivePage`, `getPageElements`, `getPagesVersion`, `getVisiblePages`, `reconcilePages` and `restorePages`.",
+      "A new line `export type { ExcalidrawPage, PageViewport } from \"@excalidraw/element/types\";` follows that block."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 406, "to": 411, "first_line": "export {", "last_line": "} from \"@excalidraw/element\";", "rule": "Add the seven page exports to this block, then a blank line and the type re-export." }
+    ],
+    "depends_on": ["U03"],
+    "covers": ["FR-4", "FR-15"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U31",
+    "path": "packages/excalidraw/CHANGELOG.md",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Adds an Unreleased feature entry for pages.",
+    "rules": [
+      "A `### Pages in a drawing` subsection is inserted right after `## Unreleased`, before the existing Export API entry.",
+      "Bullets: the footer tab bar (create, rename, move, delete, switch; switch-only in view mode, hidden in zen mode); the new AppState keys `pages`, `activePageId`, `pageViewports` and element `pageId`; `excalidrawAPI.setActivePage(pageId)`; `onChange` and `getSceneElementsIncludingDeleted()` now return every page's elements while `getSceneElements()` stays the active page; undo/redo act on the active page only; export of PNG/SVG/clipboard covers the active page while `.excalidraw` saves keep every page; files without pages load onto one default page (`VERSIONS.excalidraw` stays 2); new exports `DEFAULT_PAGE_ID`, `getActivePage`, `getPageElements`, `getPagesVersion`, `getVisiblePages`, `reconcilePages`, `restorePages`, types `ExcalidrawPage`, `PageViewport`."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 14, "to": 14, "first_line": "## Unreleased", "rule": "Insert a blank line, the subsection and its bullets." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21", "AC-16"],
+    "checks": ["prettier"]
+  },
+  {
+    "id": "U32",
+    "path": "dev-docs/docs/codebase/json-schema.mdx",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Documents the page fields of the `.excalidraw` file format.",
+    "rules": [
+      "A `### Pages` section is inserted before `## Excalidraw clipboard format`: elements carry an optional `pageId`; `appState.pages` is an array of `{ id, name, index, version, versionNonce, isDeleted }` ordered by `index` (a fractional-index key; deleted pages are tombstones); `appState.activePageId` and `appState.pageViewports` (`{ [pageId]: { scrollX, scrollY, zoom } }` for non-active pages).",
+      "A table states the restore rules: no pages means one default page `page-1` named \"Page 1\"; duplicate ids keep the first; unknown `activePageId` falls back to the first visible page; an element with a missing or unknown `pageId` moves to the active page; cross-page bindings, bound text and frame membership are cut.",
+      "It states that the format version stays 2 and that older readers show every page's elements on one canvas."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_before", "from": 77, "to": 77, "first_line": "## Excalidraw clipboard format", "rule": "Insert the Pages section followed by a blank line." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21", "AC-16"],
+    "checks": ["prettier"]
+  },
+  {
+    "id": "U33",
+    "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/excalidraw-api.mdx",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Documents `setActivePage` and the page scope of the element getters and onChange.",
+    "rules": [
+      "`getSceneElementsIncludingDeleted` text becomes: returns the elements of every page, including deleted ones.",
+      "`getSceneElements` text becomes: returns the non-deleted elements of the active page.",
+      "A new `## setActivePage` section after `getSceneElements` shows the signature `(pageId: string) => void`, says it switches to a visible page, saves the current page's viewport and restores the target's, clears the selection, is not recorded in undo history, and ignores unknown ids; it notes `updateScene({ appState: { pages, activePageId } })` replaces the page list.",
+      "The `onChange` section gains a sentence that `elements` holds every page's elements; use `getPageElements(elements, appState.activePageId)` for the visible page."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 245, "to": 245, "first_line": "Returns all the elements including the deleted in the scene.", "rule": "All pages, including deleted." },
+      { "id": "S2", "at": "replace", "from": 257, "to": 257, "first_line": "Returns all the elements excluding the deleted in the scene", "rule": "Active page, non-deleted; then a blank line and the setActivePage section." },
+      { "id": "S3", "at": "insert_after", "from": 415, "to": 415, "first_line": "Subscribes to change events, similar to [`props.onChange`](/docs/@excalidraw/excalidraw/api/props#onchange).", "rule": "Add a blank line and the every-page sentence." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21", "AC-16"],
+    "checks": []
+  },
+  {
+    "id": "U34",
+    "path": "dev-docs/docs/@excalidraw/excalidraw/api/utils/restore.mdx",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Documents how restore handles page data.",
+    "rules": [
+      "After the `localAppState` paragraph of `restoreAppState`, a paragraph explains that `pages`, `activePageId` and `pageViewports` are normalized: a missing or empty page list becomes one default page, duplicate ids keep the first, an unknown active page falls back to the first visible page, and viewports of unknown pages are dropped.",
+      "It adds that `restoreElements` keeps a string `pageId` and drops a malformed one, and that `getPageElements`/`restorePages` are exported for hosts that restore scenes themselves."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 24, "to": 24, "first_line": "You can pass `null` / `undefined` if not applicable.", "rule": "Add a blank line and the page paragraphs." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21", "AC-16"],
+    "checks": []
+  },
+  {
+    "id": "U35",
+    "path": "dev-docs/docs/@excalidraw/excalidraw/api/props/initialdata.mdx",
+    "action": "edit",
+    "phase": "docs",
+    "behaviour": "Documents that `initialData` may carry pages.",
+    "rules": [
+      "After the table, a paragraph says `appState.pages`, `appState.activePageId` and `appState.pageViewports` load a multi-page drawing, elements carry `pageId`, and data without pages loads onto one default page."
+    ],
+    "sites": [
+      { "id": "S1", "at": "insert_after", "from": 15, "to": 15, "first_line": "| `files` | [BinaryFiles](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/types.ts#L82) | The `files` added to the scene. |", "rule": "Add a blank line and the pages paragraph." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-21"],
+    "checks": []
+  }
+]

@@ -70,9 +70,26 @@ export const validateFractionalIndices = (
   const elementsMap = includeBoundTextValidation ? arrayToMap(elements) : null;
 
   const indices = elements.map((x) => x.index);
+  const previousPositions: (number | undefined)[] = new Array(elements.length);
+  const nextPositions: (number | undefined)[] = new Array(elements.length);
+  const lastPositionByPage = new Map<string | undefined, number>();
+  const fallbackPageId = getFallbackPageId(elements);
+  for (let j = 0; j < elements.length; j++) {
+    const pageId = elements[j].pageId ?? fallbackPageId;
+    const previous = lastPositionByPage.get(pageId);
+    previousPositions[j] = previous;
+    if (previous !== undefined) {
+      nextPositions[previous] = j;
+    }
+    lastPositionByPage.set(pageId, j);
+  }
   for (const [i, index] of indices.entries()) {
-    const predecessorIndex = indices[i - 1];
-    const successorIndex = indices[i + 1];
+    const previousPosition = previousPositions[i];
+    const nextPosition = nextPositions[i];
+    const predecessorIndex =
+      previousPosition !== undefined ? indices[previousPosition] : undefined;
+    const successorIndex =
+      nextPosition !== undefined ? indices[nextPosition] : undefined;
 
     if (!isValidFractionalIndex(index, predecessorIndex, successorIndex)) {
       errorMessages.push(
@@ -215,6 +232,29 @@ export const syncMovedIndices = (
   return elements as OrderedExcalidrawElement[];
 };
 
+/** First defined `pageId` in the array; elements without a `pageId` share its group. */
+const getFallbackPageId = (
+  elements: readonly ExcalidrawElement[],
+): string | undefined => elements.find((element) => element.pageId)?.pageId;
+
+/** Groups elements by `pageId` (groups in first-appearance order, each in input order). */
+const groupElementsByPage = <T extends ExcalidrawElement>(
+  elements: readonly T[],
+): T[][] => {
+  const groups = new Map<string | undefined, T[]>();
+  const fallbackPageId = getFallbackPageId(elements);
+  for (const element of elements) {
+    const pageId = element.pageId ?? fallbackPageId;
+    const group = groups.get(pageId);
+    if (group) {
+      group.push(element);
+    } else {
+      groups.set(pageId, [element]);
+    }
+  }
+  return Array.from(groups.values());
+};
+
 /**
  * Synchronizes all invalid fractional indices within the array order by mutating elements in the passed array.
  *
@@ -224,11 +264,14 @@ export const syncInvalidIndices = <T extends ExcalidrawElement>(
   elements: readonly T[],
 ): Ordered<T>[] => {
   const elementsMap = arrayToMap(elements);
-  const indicesGroups = getInvalidIndicesGroups(elements);
-  const elementsUpdates = generateIndices(elements, indicesGroups);
 
-  for (const [element, { index }] of elementsUpdates) {
-    mutateElement(element, elementsMap, { index });
+  for (const pageElements of groupElementsByPage(elements)) {
+    const indicesGroups = getInvalidIndicesGroups(pageElements);
+    const elementsUpdates = generateIndices(pageElements, indicesGroups);
+
+    for (const [element, { index }] of elementsUpdates) {
+      mutateElement(element, elementsMap, { index });
+    }
   }
 
   return elements as Ordered<T>[];
@@ -243,11 +286,14 @@ export const syncInvalidIndicesImmutable = (
   elements: readonly ExcalidrawElement[],
 ): SceneElementsMap | undefined => {
   const syncedElements = arrayToMap(elements);
-  const indicesGroups = getInvalidIndicesGroups(elements);
-  const elementsUpdates = generateIndices(elements, indicesGroups);
 
-  for (const [element, { index }] of elementsUpdates) {
-    syncedElements.set(element.id, newElementWith(element, { index }));
+  for (const pageElements of groupElementsByPage(elements)) {
+    const indicesGroups = getInvalidIndicesGroups(pageElements);
+    const elementsUpdates = generateIndices(pageElements, indicesGroups);
+
+    for (const [element, { index }] of elementsUpdates) {
+      syncedElements.set(element.id, newElementWith(element, { index }));
+    }
   }
 
   return syncedElements as SceneElementsMap;

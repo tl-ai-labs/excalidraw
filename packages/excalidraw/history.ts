@@ -102,15 +102,33 @@ export class History {
   public readonly undoStack: HistoryDelta[] = [];
   public readonly redoStack: HistoryDelta[] = [];
 
+  private readonly entryPageIds = new WeakMap<HistoryDelta, string | null>();
+
+  private isOnActivePage(entry: HistoryDelta) {
+    const pageId = this.entryPageIds.get(entry);
+    return pageId === null || pageId === undefined
+      ? true
+      : pageId === this.getActivePageId();
+  }
+
   public get isUndoStackEmpty() {
-    return this.undoStack.length === 0;
+    return !this.undoStack.some((entry) => this.isOnActivePage(entry));
   }
 
   public get isRedoStackEmpty() {
-    return this.redoStack.length === 0;
+    return !this.redoStack.some((entry) => this.isOnActivePage(entry));
   }
 
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly getActivePageId: () => string | null = () => null,
+  ) {}
+
+  public notifyActivePageChanged() {
+    this.onHistoryChangedEmitter.trigger(
+      new HistoryChangedEvent(this.isUndoStackEmpty, this.isRedoStackEmpty),
+    );
+  }
 
   public clear() {
     this.undoStack.length = 0;
@@ -129,13 +147,18 @@ export class History {
     // construct history entry, so once it's emitted, it's not recorded again
     const historyDelta = HistoryDelta.inverse(delta);
 
+    this.entryPageIds.set(historyDelta, this.getActivePageId());
     this.undoStack.push(historyDelta);
 
     if (!historyDelta.elements.isEmpty()) {
       // don't reset redo stack on local appState changes,
       // as a simple click (unselect) could lead to losing all the redo entries
       // only reset on non empty elements changes!
-      this.redoStack.length = 0;
+      for (let i = this.redoStack.length - 1; i >= 0; i--) {
+        if (this.isOnActivePage(this.redoStack[i])) {
+          this.redoStack.splice(i, 1);
+        }
+      }
     }
 
     this.onHistoryChangedEmitter.trigger(
@@ -152,8 +175,8 @@ export class History {
     return this.perform(
       elements,
       appState,
-      () => History.pop(this.undoStack),
-      (entry: HistoryDelta) => History.push(this.redoStack, entry),
+      () => this.popForActivePage(this.undoStack),
+      (entry: HistoryDelta) => this.pushTagged(this.redoStack, entry),
       renderEnvironment,
     );
   }
@@ -167,8 +190,8 @@ export class History {
     return this.perform(
       elements,
       appState,
-      () => History.pop(this.redoStack),
-      (entry: HistoryDelta) => History.push(this.undoStack, entry),
+      () => this.popForActivePage(this.redoStack),
+      (entry: HistoryDelta) => this.pushTagged(this.undoStack, entry),
       renderEnvironment,
     );
   }
@@ -253,22 +276,27 @@ export class History {
     }
   }
 
-  private static pop(stack: HistoryDelta[]): HistoryDelta | null {
-    if (!stack.length) {
-      return null;
-    }
-
-    const entry = stack.pop();
-
-    if (entry !== undefined) {
-      return entry;
+  private popForActivePage(stack: HistoryDelta[]): HistoryDelta | null {
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const entry = stack[i];
+      if (this.isOnActivePage(entry)) {
+        stack.splice(i, 1);
+        return entry;
+      }
     }
 
     return null;
   }
 
+  private pushTagged(stack: HistoryDelta[], entry: HistoryDelta) {
+    const pageId = this.entryPageIds.get(entry) ?? this.getActivePageId();
+    const inversedEntry = History.push(stack, entry);
+    this.entryPageIds.set(inversedEntry, pageId);
+  }
+
   private static push(stack: HistoryDelta[], entry: HistoryDelta) {
     const inversedEntry = HistoryDelta.inverse(entry);
-    return stack.push(inversedEntry);
+    stack.push(inversedEntry);
+    return inversedEntry;
   }
 }

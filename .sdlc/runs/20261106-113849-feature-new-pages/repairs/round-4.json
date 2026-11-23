@@ -1,0 +1,345 @@
+[
+  {
+    "id": "tp_debug_r4_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/SearchMenu.tsx",
+    "instruction": "Fix `packages/excalidraw/components/SearchMenu.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. blocker (line 204): Search can bounce between pages forever when matches sit on two or more pages. handleSearch lists matches in the order of getAllPagesElementsIncludingDeleted(), and that getter puts the other pages first and the active page last, so the order changes on every page switch. When the focused match is on another page, the effect calls app.setActivePage and returns. The scene nonce change re-runs the search, but the rerun callback (line 119) never re-derives focusIndex. The same index then points at a match on the previous page, the effect switches back, and the loop repeats. Example: 'pipeline' on page 1 and on page 2, page 1 active, click the page-2 result. Confidence: high (follows from Scene.getAllPagesElementsIncludingDeleted ordering and the [focusIndex, searchMatches] effect deps). The AC-11 test passes only because it has a single match. — fix: Make the match order independent of which page is active: collect matches page by page in getVisiblePages(app.state.pages) order, then in scene order within each page. Also keep focus by element id when the search re-runs (look the focused id up in the new items and call setFocusIndex). Add a test with matches on two pages that clicks the off-page match and checks that activePageId settles on that page.\n2. minor (line 75): SearchMatchItem.pageId is optional, but the plan requires it. The '?? app.state.activePageId' fallback is therefore repeated in three places (lines ~131, ~382 and inside handleSearch). handleSearch also reassigns its `cb` parameter to add page fields, which is hard to follow. — fix: Make pageId: string and pageName: string | null required, and set them where each match item is pushed in handleSearch. Then remove the cb re-wrapping and the downstream fallbacks.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/SearchMenu.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U24.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/SearchMenu.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/App.tsx",
+    "instruction": "Fix `packages/excalidraw/components/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 5050): This is where the 18 '\"pageId\": undefined' entries in history.test.tsx.snap come from, and they are NOT intended. updateScene calls store.scheduleMicroAction(elements), which deep-copies the elements into the Store snapshot before applySceneElements runs. Scene.replaceAllElements then stamps pageId onto the live objects by direct mutation, with no version bump. From then on the Store snapshot (pageId undefined) and the scene (pageId 'page-1') disagree. The next recorded change carries a spurious pageId undefined->'page-1' delta into history and into durable increments. If a host replays such an increment with applyDeltas, pageId is unset on the receiving client, and its Scene re-stamps the element onto that client's own active page, which can be the wrong page. The same in-place stamping also writes to element objects the host passed in, which fails if those objects are frozen. — fix: In updateScene (and applySceneElements generally), give elements without a pageId the target active page id before scheduleMicroAction runs. Do it with shallow copies ({ ...el, pageId }) instead of mutating the caller's objects, so the Store snapshot and the Scene see the same pageId. Then re-run yarn test:update and confirm that no '\"pageId\": undefined' delta entries remain.\n2. minor (line 2781): applySceneElements and syncActivePage do not validate the active page id. updateScene({ appState: { activePageId: 'unknown' } }), or { pages } without an activePageId that exists in them, moves every element to otherPagesElements and stamps or repairs elements onto a page that does not exist. The canvas goes blank and no tab is active. Separately, applyDeltas (line ~5118) still applies deltas to the active-page-only map (getElementsMapIncludingDeleted), while the Store now emits all-pages deltas. — fix: Resolve nextActive with restoreActivePageId(nextPages ?? this.state.pages, nextActive) and write the corrected id into the state that gets set. In applyDeltas, use getAllPagesElementsMapIncludingDeleted() so it matches the Store and History.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U19.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          1,
+          6015
+        ],
+        "reason": "current text: part 1 of 2"
+      },
+      {
+        "path": "packages/excalidraw/components/App.tsx",
+        "lines": [
+          6016,
+          11553
+        ],
+        "reason": "current text: part 2 of 2"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.collab.test.tsx",
+    "instruction": "Fix `excalidraw-app/tests/pages.collab.test.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major: U39 as re-specified in round 2 does not cover AC-12 or AC-13 in the code this run changed. (1) None of Collab.handleRemotePagesUpdate, Collab.broadcastElements, Portal.broadcastScene/broadcastMouseLocation, or firebase.ts saveToFirebase/loadFromFirebase/encryptPages/decryptPages is called. (2) 'pages round-trip through room encryption' calls the generic encryptData/decryptData, not firebase.ts. (3) 'a stored scene without pagesCiphertext yields the default page' only asserts restorePages(undefined), so it says nothing about the legacy-room path. (4) The localStorage test only exercises importFromLocalStorage on hand-written JSON. It never saves through LocalData, so the save half of AC-13 is untested. Covered today: reconcilePages rules and the reconcileElements pageId pass-through. — fix: Add a describe block that renders <ExcalidrawApp /> with the firebase and socket.io mocks from collab.test.tsx. It should call window.collab.handleRemotePagesUpdate with rename, reorder and tombstone lists, check that the active page falls back when its page is deleted, and spy on Portal.broadcastScene to check that the payload includes pages. Add another describe for firebase.ts with an in-memory firebaseSDK mock: save two pages and load them back, and load a document that has no pagesCiphertext. For AC-13, save through LocalData.save + flushSave before importFromLocalStorage.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/tests/pages.collab.test.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/tests/pages.collab.test.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U39.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/tests/pages.collab.test.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run --watch=false '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/App.tsx",
+    "instruction": "Fix `excalidraw-app/App.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. major (line 275): Not in provenance, but the breakage comes from this change. A share-link (#json=) import calls restoreAppState(imported.appState, localDataState?.appState). Pages are server:false, so the link carries no pages, and the receiver's local pages and activePageId are used instead. The imported elements keep the sender's pageId. When that id exists locally but is not the receiver's active page (e.g. 'page-1' while the receiver is on another page), the content lands on a non-active page and the link opens to an empty canvas. The receiver's unrelated local page tabs (now empty) also appear. blob.ts guards against this by passing pages and activePageId explicitly; the share-link path has no such guard. Confidence: medium. — fix: In the importFromBackend branch, pass explicit pages and activePageId the way blob.ts does: the default page, with the imported elements' pageId removed (or set to DEFAULT_PAGE_ID). That way a share link never inherits local pages. This needs a new unit because the file is outside the run's touched set.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/App.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/App.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": "excalidraw-app/App.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [],
+      "baseline": false,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_005",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 852): handleRemotePagesUpdate calls updateScene on every SCENE_INIT, SCENE_UPDATE and Firebase save, even when nothing changed. reconcilePages always returns a new array. It also sends the whole getAppState() snapshot ({ ...appState, ...switchState, pages }) instead of only the page keys. That is one extra setState per incoming message, and a stale snapshot can overwrite state changes that are still pending. — fix: Return early when getPagesVersion(pages) equals getPagesVersion(appState.pages) and the ids are the same. Otherwise call updateScene({ appState: { pages, ...switchState }, captureUpdate: NEVER }), as the change plan specifies.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_006",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/excalidraw/components/PageTabBar.tsx",
+    "instruction": "Fix `packages/excalidraw/components/PageTabBar.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 95): onBlur checks renamingPageId through a closure taken at render time. When Escape unmounts the input and the browser fires blur on removal, the guard still sees the old id and commits the typed name, so Escape does not reliably cancel. Confidence: low; it depends on the browser. — fix: Keep a ref like cancelledRef that the Escape handler sets and onBlur checks, or commit only from Enter and an onBlur that reads a ref instead of state.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/components/PageTabBar.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/components/PageTabBar.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U22.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/components/PageTabBar.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r4_007",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/data/firebase.ts",
+    "instruction": "Fix `excalidraw-app/data/firebase.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. minor (line 420): loadFromFirebase stores its { elements, pages } result in a variable named `elements` and returns it, which is misleading next to the real elements field. — fix: Return { elements: syncableElements, pages } directly.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/data/firebase.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/data/firebase.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U28.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/data/firebase.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

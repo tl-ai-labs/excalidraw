@@ -1,0 +1,425 @@
+{
+  "section": "units",
+  "source": "units-009.json",
+  "value": [
+    {
+      "id": "U26",
+      "path": "excalidraw-app/data/index.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Adds the optional page list to the encrypted SCENE_INIT/SCENE_UPDATE payloads and the page id to mouse-location payloads.",
+      "rules": [
+        "`ExcalidrawPage` is added to the `@excalidraw/element/types` type import.",
+        "SCENE_INIT and SCENE_UPDATE payloads gain `pages?: readonly ExcalidrawPage[];` (absent from older clients).",
+        "MOUSE_LOCATION payload gains `pageId?: string;`."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_before",
+          "from": 23,
+          "to": 23,
+          "first_line": "} from \"@excalidraw/element/types\";",
+          "rule": "Add `ExcalidrawPage,`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 86,
+          "to": 86,
+          "first_line": "elements: readonly OrderedExcalidrawElement[];",
+          "rule": "Add `pages?: readonly ExcalidrawPage[];` to SCENE_INIT."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 92,
+          "to": 92,
+          "first_line": "elements: readonly OrderedExcalidrawElement[];",
+          "rule": "Add `pages?: readonly ExcalidrawPage[];` to SCENE_UPDATE."
+        },
+        {
+          "id": "S4",
+          "at": "insert_after",
+          "from": 101,
+          "to": 101,
+          "first_line": "selectedElementIds: AppState[\"selectedElementIds\"];",
+          "rule": "Add `pageId?: string;` to MOUSE_LOCATION."
+        }
+      ],
+      "depends_on": [
+        "U01"
+      ],
+      "covers": [
+        "FR-18",
+        "FR-20",
+        "NFR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U27",
+      "path": "excalidraw-app/collab/Portal.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Sends the page list with every scene broadcast and the sender's active page with mouse locations, inside the existing encrypted payloads.",
+      "rules": [
+        "`broadcastScene` puts `pages: this.collab.excalidrawAPI.getAppState().pages` into the payload next to `elements` (pages are always sent in full; they are tiny).",
+        "`broadcastMouseLocation` adds `pageId: this.collab.excalidrawAPI.getAppState().activePageId` to the payload.",
+        "Nothing else changes: `_broadcastSocketData` still encrypts the whole JSON payload."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 169,
+          "to": 169,
+          "first_line": "elements: syncableElements,",
+          "rule": "Add the pages field."
+        },
+        {
+          "id": "S2",
+          "at": "insert_after",
+          "from": 214,
+          "to": 214,
+          "first_line": "this.collab.excalidrawAPI.getAppState().selectedElementIds,",
+          "rule": "Add the pageId field."
+        }
+      ],
+      "depends_on": [
+        "U06",
+        "U26"
+      ],
+      "covers": [
+        "FR-18",
+        "FR-20",
+        "NFR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U28",
+      "path": "excalidraw-app/data/firebase.ts",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Stores the encrypted page list next to the encrypted elements in the Firebase room and restores it on load, keeping legacy rooms loadable.",
+      "rules": [
+        "`FirebaseStoredScene` gains optional `pagesCiphertext?: Bytes` and `pagesIv?: Bytes`.",
+        "A private `encryptPages(key, pages)` / `decryptPages(data, roomKey)` pair mirrors encryptElements/decryptElements; `decryptPages` returns `restorePages(JSON)` when both fields exist, else `restorePages(undefined)` (the default page).",
+        "`createFirebaseSceneDocument(elements, pages, roomKey)` also writes `pagesCiphertext` and `pagesIv`.",
+        "`saveToFirebase(portal, elements, appState)` saves `appState.pages`; for an existing document it reconciles elements as today and pages with `reconcilePages(appState.pages, await decryptPages(prevStoredScene, roomKey))`; it returns `{ elements: RemoteExcalidrawElement[]; pages: ExcalidrawPage[] } | null` where pages come from decrypting the stored document.",
+        "`isSavedToFirebase(portal, elements, pages?)` compares the cached value with `getSceneVersion(elements) + getPagesVersion(pages ?? [])`; `FirebaseSceneVersionCache.set(socket, elements, pages)` stores the same sum.",
+        "`loadFromFirebase` returns `{ elements: readonly SyncableExcalidrawElement[]; pages: ExcalidrawPage[] } | null`, with pages from `decryptPages`.",
+        "`getPagesVersion`, `reconcilePages` and `restorePages` are imported from `@excalidraw/element` (extend the `getSceneVersion` import); `ExcalidrawPage` is added to the element type import."
+      ],
+      "exports": [
+        {
+          "name": "saveToFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "portal",
+              "type": "Portal"
+            },
+            {
+              "name": "elements",
+              "type": "readonly SyncableExcalidrawElement[]"
+            },
+            {
+              "name": "appState",
+              "type": "AppState"
+            }
+          ],
+          "returns": "Promise<{ elements: RemoteExcalidrawElement[]; pages: ExcalidrawPage[] } | null>"
+        },
+        {
+          "name": "loadFromFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "roomId",
+              "type": "string"
+            },
+            {
+              "name": "roomKey",
+              "type": "string"
+            },
+            {
+              "name": "socket",
+              "type": "Socket | null"
+            }
+          ],
+          "returns": "Promise<{ elements: readonly SyncableExcalidrawElement[]; pages: ExcalidrawPage[] } | null>"
+        },
+        {
+          "name": "isSavedToFirebase",
+          "kind": "function",
+          "params": [
+            {
+              "name": "portal",
+              "type": "Portal"
+            },
+            {
+              "name": "elements",
+              "type": "readonly ExcalidrawElement[]"
+            },
+            {
+              "name": "pages",
+              "type": "readonly ExcalidrawPage[] | undefined"
+            }
+          ],
+          "returns": "boolean"
+        }
+      ],
+      "import_line": "import { isSavedToFirebase, loadFromFirebase, saveToFirebase } from \"../data/firebase\";",
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 9,
+          "to": 9,
+          "first_line": "import { getSceneVersion } from \"@excalidraw/element\";",
+          "rule": "Import getPagesVersion, getSceneVersion, reconcilePages, restorePages."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 16,
+          "to": 16,
+          "first_line": "} from \"@excalidraw/element/types\";",
+          "rule": "Add `ExcalidrawPage,`."
+        },
+        {
+          "id": "S3",
+          "at": "replace",
+          "from": 86,
+          "to": 90,
+          "first_line": "type FirebaseStoredScene = {",
+          "last_line": "};",
+          "rule": "Add the optional page cipher fields with a comment that legacy rooms lack them."
+        },
+        {
+          "id": "S4",
+          "at": "insert_before",
+          "from": 117,
+          "to": 117,
+          "first_line": "class FirebaseSceneVersionCache {",
+          "rule": "Insert encryptPages and decryptPages, followed by a blank line."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 122,
+          "to": 137,
+          "first_line": "static set = (",
+          "last_line": "return FirebaseSceneVersionCache.get(portal.socket) === sceneVersion;",
+          "rule": "Cache and compare the elements-plus-pages version."
+        },
+        {
+          "id": "S6",
+          "at": "replace",
+          "from": 176,
+          "to": 272,
+          "first_line": "const createFirebaseSceneDocument = async (",
+          "last_line": "}",
+          "rule": "Rewrite createFirebaseSceneDocument, saveToFirebase and loadFromFirebase per the rules, keeping the transaction structure, comments and getSyncableElements/restoreElements calls."
+        }
+      ],
+      "uses": [
+        {
+          "path": "excalidraw-app/data/firebase.ts",
+          "lines": [
+            176,
+            280
+          ],
+          "reason": "Full current bodies of the rewritten functions."
+        }
+      ],
+      "depends_on": [
+        "U03"
+      ],
+      "covers": [
+        "FR-19",
+        "NFR-1",
+        "NFR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U29",
+      "path": "excalidraw-app/collab/Collab.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Broadcasts page changes, merges remote and stored pages into the local page list, and records collaborators' active pages.",
+      "rules": [
+        "A new private field `lastBroadcastedOrReceivedPagesVersion = -1`, reset to -1 next to the scene version in `destroySocketClient`.",
+        "A new public `handleRemotePagesUpdate = (remotePages: readonly ExcalidrawPage[] | undefined)`: returns when `remotePages` is undefined; `pages = reconcilePages(appState.pages, restorePages(remotePages))`; sets `lastBroadcastedOrReceivedPagesVersion = getPagesVersion(pages)`; when the local active page is no longer visible, also switches with `getSwitchPageAppState({ ...appState, pages }, getVisiblePages(pages)[0].id)`; calls `updateScene({ appState: { pages, ...switchState }, captureUpdate: CaptureUpdateAction.NEVER })`.",
+        "In the INIT and UPDATE socket cases, `this.handleRemotePagesUpdate(decryptedData.payload.pages)` runs before `handleRemoteSceneUpdate`.",
+        "MOUSE_LOCATION reads `pageId` from the payload and passes it to `updateCollaborator` together with the other fields.",
+        "`saveCollabRoomToFirebase`: `saveToFirebase` now returns `{ elements, pages }`; when collaborating and a result exists, call `this.handleRemotePagesUpdate(stored.pages)` then `this.handleRemoteSceneUpdate(this._reconcileElements(stored.elements))`.",
+        "`initializeRoom`: `loadFromFirebase` returns `{ elements, pages }`; the resolved scene becomes `{ elements, appState: { pages }, scrollToContent: true }` and the version bookkeeping uses `elements`.",
+        "`isSavedToFirebase` in `beforeUnload` receives `this.excalidrawAPI.getAppState().pages` as third argument.",
+        "`broadcastElements(elements)` also broadcasts (UPDATE, not syncAll) when `getPagesVersion(appState.pages) > lastBroadcastedOrReceivedPagesVersion`, then stores that version; `syncElements` is unchanged otherwise, so page-only changes also trigger `queueSaveToFirebase`.",
+        "`ExcalidrawPage` is added to the element type import; `getPagesVersion`, `getVisiblePages`, `reconcilePages` and `restorePages` are imported from `@excalidraw/element`; `getSwitchPageAppState` is imported from `@excalidraw/excalidraw/actions/actionPages`."
+      ],
+      "exports": [
+        {
+          "name": "Collab.handleRemotePagesUpdate",
+          "kind": "method",
+          "params": [
+            {
+              "name": "remotePages",
+              "type": "readonly ExcalidrawPage[] | undefined"
+            }
+          ],
+          "returns": "void"
+        }
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "replace",
+          "from": 24,
+          "to": 24,
+          "first_line": "import { newElementWith } from \"@excalidraw/element\";",
+          "rule": "Import getPagesVersion, getVisiblePages, newElementWith, reconcilePages, restorePages; add a separate `import { getSwitchPageAppState } from \"@excalidraw/excalidraw/actions/actionPages\";` after the `bumpElementVersions` import."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 45,
+          "to": 45,
+          "first_line": "} from \"@excalidraw/element/types\";",
+          "rule": "Add `ExcalidrawPage,`."
+        },
+        {
+          "id": "S3",
+          "at": "insert_after",
+          "from": 148,
+          "to": 148,
+          "first_line": "private lastBroadcastedOrReceivedSceneVersion: number = -1;",
+          "rule": "Add the pages version field."
+        },
+        {
+          "id": "S4",
+          "at": "replace",
+          "from": 318,
+          "to": 318,
+          "first_line": "!isSavedToFirebase(this.portal, syncableElements))",
+          "rule": "Pass the current pages."
+        },
+        {
+          "id": "S5",
+          "at": "replace",
+          "from": 339,
+          "to": 349,
+          "first_line": "const storedElements = await saveToFirebase(",
+          "last_line": "}",
+          "rule": "Use the `{ elements, pages }` result per the rules."
+        },
+        {
+          "id": "S6",
+          "at": "insert_after",
+          "from": 425,
+          "to": 425,
+          "first_line": "this.lastBroadcastedOrReceivedSceneVersion = -1;",
+          "rule": "Reset the pages version."
+        },
+        {
+          "id": "S7",
+          "at": "replace",
+          "from": 611,
+          "to": 613,
+          "first_line": "const reconciledElements =",
+          "last_line": "this.handleRemoteSceneUpdate(reconciledElements);",
+          "rule": "Merge pages before reconciling elements."
+        },
+        {
+          "id": "S8",
+          "at": "replace",
+          "from": 623,
+          "to": 629,
+          "first_line": "this.handleRemoteSceneUpdate(",
+          "last_line": ");",
+          "rule": "Merge pages, then apply the reconciled elements."
+        },
+        {
+          "id": "S9",
+          "at": "replace",
+          "from": 632,
+          "to": 645,
+          "first_line": "const { pointer, button, username, selectedElementIds } =",
+          "last_line": "});",
+          "rule": "Read and forward pageId."
+        },
+        {
+          "id": "S10",
+          "at": "replace",
+          "from": 745,
+          "to": 758,
+          "first_line": "const elements = await loadFromFirebase(",
+          "last_line": "};",
+          "rule": "Destructure `{ elements, pages }` from the result and resolve `{ elements, appState: { pages }, scrollToContent: true }`."
+        },
+        {
+          "id": "S11",
+          "at": "insert_after",
+          "from": 830,
+          "to": 830,
+          "first_line": "};",
+          "rule": "Add a blank line and the documented `handleRemotePagesUpdate` method."
+        },
+        {
+          "id": "S12",
+          "at": "replace",
+          "from": 971,
+          "to": 980,
+          "first_line": "broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {",
+          "last_line": "};",
+          "rule": "Broadcast on element or page version increase."
+        }
+      ],
+      "uses": [
+        {
+          "path": "excalidraw-app/collab/Collab.tsx",
+          "lines": [
+            598,
+            660
+          ],
+          "reason": "Socket message switch around the edited cases."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U16",
+        "U26",
+        "U27",
+        "U28"
+      ],
+      "covers": [
+        "FR-18",
+        "FR-19",
+        "FR-20"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "excalidraw-app/data/index.ts": "ee46f505eeef11b3e0014afc59dec6441f6fad711f266a4e124e19592fc88181",
+    "excalidraw-app/collab/Portal.tsx": "8e954a48319fdedd9d82604a4c642a424b33e49713e30721feaa5e95b4f57fc2",
+    "excalidraw-app/data/firebase.ts": "6684854be82a613c99dfb213c196e47cfa78753b353f55d62910055c37ec8483",
+    "excalidraw-app/collab/Collab.tsx": "4c309a23c2490e9c0ce16d67cf5e605c8a49637fbb645d0f40d026883b68f99f"
+  }
+}

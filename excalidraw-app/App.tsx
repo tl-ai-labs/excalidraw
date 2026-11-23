@@ -47,7 +47,11 @@ import {
   share,
   youtubeIcon,
 } from "@excalidraw/excalidraw/components/icons";
-import { isElementLink } from "@excalidraw/element";
+import {
+  DEFAULT_PAGE_ID,
+  getDefaultPage,
+  isElementLink,
+} from "@excalidraw/element";
 import {
   bumpElementVersions,
   restoreAppState,
@@ -271,9 +275,20 @@ const initializeScene = async (opts: {
               deleteInvisibleElements: true,
             }),
             localDataState?.elements,
+          ).map((element) =>
+            element.pageId === DEFAULT_PAGE_ID
+              ? element
+              : newElementWith(element, { pageId: DEFAULT_PAGE_ID }),
           ),
           appState: restoreAppState(
-            imported.appState,
+            {
+              ...imported.appState,
+              // share links carry no pages (server: false), so never inherit
+              // the receiver's local pages
+              pages: [getDefaultPage()],
+              activePageId: DEFAULT_PAGE_ID,
+              pageViewports: {},
+            },
             // local appState when importing from backend to ensure we restore
             // localStorage user settings which we do not persist on server.
             localDataState?.appState,

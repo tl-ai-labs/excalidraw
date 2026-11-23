@@ -25,7 +25,11 @@ import {
 } from "@excalidraw/common";
 
 import { newTextElement } from "@excalidraw/element";
-import { isTextElement, isFrameLikeElement } from "@excalidraw/element";
+import {
+  getVisiblePages,
+  isTextElement,
+  isFrameLikeElement,
+} from "@excalidraw/element";
 
 import { getDefaultFrameName } from "@excalidraw/element/frame";
 
@@ -71,6 +75,8 @@ type SearchMatchItem = {
     moreAfter: boolean;
   };
   matchedLines: SearchMatch["matchedLines"];
+  pageId: string;
+  pageName: string | null;
 };
 
 type SearchMatches = {
@@ -101,6 +107,10 @@ export const SearchMenu = () => {
   const [focusIndex, setFocusIndex] = useAtom(searchItemInFocusAtom);
   const elementsMap = app.scene.getNonDeletedElementsMap();
 
+  const focusedItemRef = useRef<SearchMatchItem | null>(null);
+  focusedItemRef.current =
+    focusIndex !== null ? searchMatches.items[focusIndex] ?? null : null;
+
   useEffect(() => {
     if (isSearching) {
       return;
@@ -115,6 +125,15 @@ export const SearchMenu = () => {
           nonce: randomInteger(),
           items: matchItems,
         });
+        const focusedItem = focusedItemRef.current;
+        if (focusedItem) {
+          const nextFocusIndex = matchItems.findIndex(
+            (item) =>
+              item.element.id === focusedItem.element.id &&
+              item.index === focusedItem.index,
+          );
+          setFocusIndex(nextFocusIndex >= 0 ? nextFocusIndex : null);
+        }
         searchedQueryRef.current = searchQuery;
         lastSceneNonceRef.current = app.scene.getSceneNonce();
         setAppState({
@@ -125,6 +144,7 @@ export const SearchMenu = () => {
                   id: searchMatch.element.id,
                   focus: false,
                   matchedLines: searchMatch.matchedLines,
+                  pageId: searchMatch.pageId,
                 })),
               }
             : null,
@@ -197,6 +217,10 @@ export const SearchMenu = () => {
       const match = searchMatches.items[focusIndex];
 
       if (match) {
+        if (match.pageId !== app.state.activePageId) {
+          app.setActivePage(match.pageId);
+          return;
+        }
         const zoomValue = app.state.zoom.value;
 
         const matchAsElement = newTextElement({
@@ -371,6 +395,7 @@ export const SearchMenu = () => {
                         id: searchMatch.element.id,
                         focus: false,
                         matchedLines: searchMatch.matchedLines,
+                        pageId: searchMatch.pageId,
                       })),
                     }
                   : null,
@@ -436,6 +461,7 @@ const ListItem = (props: {
   searchQuery: SearchQuery;
   highlighted: boolean;
   onClick?: () => void;
+  pageName?: string | null;
 }) => {
   const preview = [
     props.preview.moreBefore ? "..." : "",
@@ -468,6 +494,11 @@ const ListItem = (props: {
           <Fragment key={idx}>{idx === 2 ? <b>{text}</b> : text}</Fragment>
         ))}
       </div>
+      {props.pageName ? (
+        <div className="preview-page">
+          {t("search.onPage", { name: props.pageName })}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -505,6 +536,7 @@ const MatchListBase = (props: MatchListProps) => {
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
               highlighted={index === props.focusIndex}
+              pageName={searchMatch.pageName}
               onClick={() => props.onItemClick(index)}
             />
           ))}
@@ -525,6 +557,7 @@ const MatchListBase = (props: MatchListProps) => {
               searchQuery={props.searchQuery}
               preview={searchMatch.preview}
               highlighted={index + frameNameMatches.length === props.focusIndex}
+              pageName={searchMatch.pageName}
               onClick={() => props.onItemClick(index + frameNameMatches.length)}
             />
           ))}
@@ -800,7 +833,22 @@ const handleSearch = debounce(
       return;
     }
 
-    const elements = app.scene.getNonDeletedElements();
+    const visiblePages = getVisiblePages(app.state.pages);
+    const pageNames = new Map(visiblePages.map((page) => [page.id, page.name]));
+    const pageRank = new Map(visiblePages.map((page, rank) => [page.id, rank]));
+    const getPageId = (el: { pageId?: string }) =>
+      el.pageId ?? app.state.activePageId;
+    const getPageName = (pageId: string) =>
+      pageNames.size > 1 ? pageNames.get(pageId) ?? null : null;
+    const byPageThenY = (
+      a: { pageId?: string; y: number },
+      b: { pageId?: string; y: number },
+    ) =>
+      (pageRank.get(getPageId(a)) ?? 0) - (pageRank.get(getPageId(b)) ?? 0) ||
+      a.y - b.y;
+    const elements = app.scene
+      .getAllPagesElementsIncludingDeleted()
+      .filter((el) => !el.isDeleted && pageRank.has(getPageId(el)));
     const texts = elements.filter((el) =>
       isTextElement(el),
     ) as ExcalidrawTextElement[];
@@ -809,8 +857,8 @@ const handleSearch = debounce(
       isFrameLikeElement(el),
     ) as ExcalidrawFrameLikeElement[];
 
-    texts.sort((a, b) => a.y - b.y);
-    frames.sort((a, b) => a.y - b.y);
+    texts.sort(byPageThenY);
+    frames.sort(byPageThenY);
 
     const textMatches: SearchMatchItem[] = [];
 
@@ -830,12 +878,15 @@ const handleSearch = debounce(
         );
 
         if (matchedLines.length > 0) {
+          const pageId = getPageId(textEl);
           textMatches.push({
             element: textEl,
             searchQuery,
             preview,
             index: match.index,
             matchedLines,
+            pageId,
+            pageName: getPageName(pageId),
           });
         }
       }
@@ -858,12 +909,15 @@ const handleSearch = debounce(
         );
 
         if (matchedLines.length > 0) {
+          const pageId = getPageId(frame);
           frameMatches.push({
             element: frame,
             searchQuery,
             preview,
             index: match.index,
             matchedLines,
+            pageId,
+            pageName: getPageName(pageId),
           });
         }
       }

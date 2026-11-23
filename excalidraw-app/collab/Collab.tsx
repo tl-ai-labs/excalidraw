@@ -21,7 +21,14 @@ import {
 } from "@excalidraw/common";
 import { decryptData } from "@excalidraw/excalidraw/data/encryption";
 import { getVisibleSceneBounds } from "@excalidraw/element";
-import { newElementWith } from "@excalidraw/element";
+import {
+  getPagesVersion,
+  getVisiblePages,
+  newElementWith,
+  reconcilePages,
+  restorePages,
+} from "@excalidraw/element";
+import { getSwitchPageAppState } from "@excalidraw/excalidraw/actions/actionPages";
 import { isImageElement, isInitializedImageElement } from "@excalidraw/element";
 import { AbortError } from "@excalidraw/excalidraw/errors";
 import { t } from "@excalidraw/excalidraw/i18n";
@@ -42,6 +49,7 @@ import type {
   FileId,
   InitializedExcalidrawImageElement,
   OrderedExcalidrawElement,
+  ExcalidrawPage,
 } from "@excalidraw/element/types";
 import type {
   BinaryFileData,
@@ -146,6 +154,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private socketInitializationTimer?: number;
   private lastBroadcastedOrReceivedSceneVersion: number = -1;
+  private lastBroadcastedOrReceivedPagesVersion: number = -1;
   private collaborators = new Map<SocketId, Collaborator>();
   /** the socket ids of the users following the current user */
   private followedBy = new Set<SocketId>();
@@ -315,7 +324,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (
       this.isCollaborating() &&
       (this.fileManager.shouldPreventUnload(syncableElements) ||
-        !isSavedToFirebase(this.portal, syncableElements))
+        !isSavedToFirebase(
+          this.portal,
+          syncableElements,
+          this.excalidrawAPI.getAppState().pages,
+        ))
     ) {
       // this won't run in time if user decides to leave the site, but
       //  the purpose is to run in immediately after user decides to stay
@@ -336,7 +349,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   ) => {
     syncableElements = cloneJSON(syncableElements);
     try {
-      const storedElements = await saveToFirebase(
+      const stored = await saveToFirebase(
         this.portal,
         syncableElements,
         this.excalidrawAPI.getAppState(),
@@ -344,8 +357,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
       this.resetErrorIndicator();
 
-      if (this.isCollaborating() && storedElements) {
-        this.handleRemoteSceneUpdate(this._reconcileElements(storedElements));
+      if (this.isCollaborating() && stored) {
+        this.handleRemotePagesUpdate(stored.pages);
+        this.handleRemoteSceneUpdate(this._reconcileElements(stored.elements));
       }
     } catch (error: any) {
       const errorMessage = /is longer than.*?bytes/.test(error.message)
@@ -423,6 +437,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private destroySocketClient = (opts?: { isUnload: boolean }) => {
     this.lastBroadcastedOrReceivedSceneVersion = -1;
+    this.lastBroadcastedOrReceivedPagesVersion = -1;
     this.portal.close();
     this.fileManager.reset();
     this.followedBy = new Set();
@@ -608,6 +623,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               const remoteElements = toBrandedType<
                 readonly RemoteExcalidrawElement[]
               >(decryptedData.payload.elements);
+              this.handleRemotePagesUpdate(decryptedData.payload.pages);
               const reconciledElements =
                 this._reconcileElements(remoteElements);
               this.handleRemoteSceneUpdate(reconciledElements);
@@ -620,6 +636,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             break;
           }
           case WS_SUBTYPES.UPDATE:
+            this.handleRemotePagesUpdate(decryptedData.payload.pages);
             this.handleRemoteSceneUpdate(
               this._reconcileElements(
                 toBrandedType<readonly RemoteExcalidrawElement[]>(
@@ -629,7 +646,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             );
             break;
           case WS_SUBTYPES.MOUSE_LOCATION: {
-            const { pointer, button, username, selectedElementIds } =
+            const { pointer, button, username, selectedElementIds, pageId } =
               decryptedData.payload;
 
             const socketId: SocketUpdateDataSource["MOUSE_LOCATION"]["payload"]["socketId"] =
@@ -642,6 +659,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
               button,
               selectedElementIds,
               username,
+              pageId,
             });
 
             break;
@@ -742,18 +760,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.excalidrawAPI.resetScene();
 
       try {
-        const elements = await loadFromFirebase(
+        const result = await loadFromFirebase(
           roomLinkData.roomId,
           roomLinkData.roomKey,
           this.portal.socket,
         );
-        if (elements) {
+        if (result) {
+          const { elements, pages } = result;
           this.setLastBroadcastedOrReceivedSceneVersion(
             getSceneVersion(elements),
           );
 
           return {
             elements,
+            appState: { pages },
             scrollToContent: true,
           };
         }
@@ -827,6 +847,54 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     });
 
     this.loadImageFiles();
+  };
+
+  public handleRemotePagesUpdate = (
+    remotePages: readonly ExcalidrawPage[] | undefined,
+  ) => {
+    if (!remotePages) {
+      return;
+    }
+    const appState = this.excalidrawAPI.getAppState();
+    const pages = reconcilePages(appState.pages, restorePages(remotePages));
+    const pagesVersion = getPagesVersion(pages);
+    this.lastBroadcastedOrReceivedPagesVersion = pagesVersion;
+    if (
+      pagesVersion === getPagesVersion(appState.pages) &&
+      pages.length === appState.pages.length &&
+      pages.every((page, i) => page.id === appState.pages[i].id)
+    ) {
+      return;
+    }
+    const visiblePages = getVisiblePages(pages);
+    const isActiveVisible = visiblePages.some(
+      (page) => page.id === appState.activePageId,
+    );
+    const switchState =
+      !isActiveVisible && visiblePages.length > 0
+        ? getSwitchPageAppState({ ...appState, pages }, visiblePages[0].id)
+        : null;
+    if (!switchState) {
+      this.excalidrawAPI.updateScene({
+        appState: { pages },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+      return;
+    }
+    this.excalidrawAPI.updateScene({
+      appState: {
+        pages,
+        activePageId: switchState.activePageId ?? visiblePages[0].id,
+        scrollX: switchState.scrollX ?? appState.scrollX,
+        scrollY: switchState.scrollY ?? appState.scrollY,
+        zoom: switchState.zoom ?? appState.zoom,
+        pageViewports: switchState.pageViewports ?? appState.pageViewports,
+        selectedElementIds: switchState.selectedElementIds ?? {},
+        selectedGroupIds: switchState.selectedGroupIds ?? {},
+        editingGroupId: switchState.editingGroupId ?? null,
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
   };
 
   private onPointerMove = () => {
@@ -969,12 +1037,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   broadcastElements = (elements: readonly OrderedExcalidrawElement[]) => {
+    const pagesVersion = getPagesVersion(
+      this.excalidrawAPI.getAppState().pages,
+    );
     if (
       getSceneVersion(elements) >
-      this.getLastBroadcastedOrReceivedSceneVersion()
+        this.getLastBroadcastedOrReceivedSceneVersion() ||
+      pagesVersion > this.lastBroadcastedOrReceivedPagesVersion
     ) {
       this.portal.broadcastScene(WS_SUBTYPES.UPDATE, elements, false);
-      this.lastBroadcastedOrReceivedSceneVersion = getSceneVersion(elements);
+      this.lastBroadcastedOrReceivedSceneVersion = Math.max(
+        this.lastBroadcastedOrReceivedSceneVersion,
+        getSceneVersion(elements),
+      );
+      this.lastBroadcastedOrReceivedPagesVersion = pagesVersion;
       this.queueBroadcastAllElements();
     }
   };

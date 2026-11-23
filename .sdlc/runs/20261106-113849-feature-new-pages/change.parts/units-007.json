@@ -1,0 +1,141 @@
+{
+  "section": "units",
+  "source": "units-007.json",
+  "value": [
+    {
+      "id": "U21",
+      "path": "packages/excalidraw/components/PageTabBar.scss",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Styles the page tab bar: a horizontally scrollable row of tabs with an add button and active-tab controls, using the editor's CSS variables.",
+      "rules": [
+        "All rules are nested under `.excalidraw .page-tab-bar`; the bar is `display: flex; align-items: center; gap: 0.25rem; max-width: 50vw; overflow-x: auto; pointer-events: var(--ui-pointerEvents);` with the island look (`background-color: var(--island-bg-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-island); padding: 0.25rem;`).",
+        "`.page-tab-bar__tab` is a borderless button with `color: var(--text-primary-color)`, `border-radius: var(--border-radius-md)`, `padding: 0.25rem 0.5rem`, `white-space: nowrap`, `font-size: 0.875rem`; `&:hover` uses `background-color: var(--button-hover-bg)`; `&--active` uses `background-color: var(--color-surface-primary-container)` and `font-weight: 600`.",
+        "`.page-tab-bar__rename-input` is `width: 8rem` with `font: inherit`; `.page-tab-bar__icon-button` is a 2rem square borderless button with a 1rem svg and the same hover rule; `&:disabled` has `opacity: 0.5; cursor: not-allowed`."
+      ],
+      "style_from": {
+        "path": "packages/excalidraw/components/footer/FooterCenter.scss",
+        "reason": "Footer-hosted SCSS module shape and pointer-events variable."
+      },
+      "depends_on": [],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "prettier"
+      ]
+    },
+    {
+      "id": "U22",
+      "path": "packages/excalidraw/components/PageTabBar.tsx",
+      "action": "create",
+      "phase": "codegen",
+      "behaviour": "Renders one tab per visible page and the create, inline rename, move and delete controls, dispatching the page actions through the action manager.",
+      "rules": [
+        "Props: `{ appState: UIAppState; actionManager: ActionManager }`; reads `useApp()` for `app.scene`; computes `pages = getVisiblePages(appState.pages)`; `isEditable = !appState.viewModeEnabled`.",
+        "Markup: `<div className=\"page-tab-bar\" data-testid=\"page-tab-bar\">` containing `<div role=\"tablist\" aria-label={t(\"pages.tabBar\")}>` with one `<button type=\"button\" role=\"tab\">` per page: `className` `page-tab-bar__tab` plus `page-tab-bar__tab--active` when `page.id === appState.activePageId`, `aria-selected` true/false accordingly, `data-testid={`page-tab-${page.id}`}`, text = page name, `onClick` executes `actionSwitchPage` with value `page.id`.",
+        "When `isEditable`: double-clicking a tab, or clicking the rename button, sets local `renamingPageId`; that tab is replaced by `<input className=\"page-tab-bar__rename-input\" aria-label={t(\"pages.renameInput\")} data-testid=\"page-rename-input\" autoFocus defaultValue={page.name}>`; Enter or blur commits via `actionRenamePage` with `{ pageId, name: input.value }` (the action ignores an empty trimmed name, so the old name stays) and clears `renamingPageId`; Escape clears it without committing; key events stop propagation so editor shortcuts do not fire.",
+        "When `isEditable`, after the tablist: icon buttons (class `page-tab-bar__icon-button`, each with `aria-label` and `title` from `t`) for the active page: rename (`data-testid=\"page-rename\"`), move left (`page-move-left`, disabled when the active page is first, value `{ pageId, direction: -1 }`), move right (`page-move-right`, disabled when last, direction 1), delete (`page-delete`, disabled when `pages.length <= 1`), and the add button (`page-add`, `PlusIcon`, executes `actionCreatePage`).",
+        "Delete: when the active page has any non-deleted element in `app.scene.getAllPagesElementsIncludingDeleted()`, set local `pendingDeletePageId` and render `<ConfirmDialog title={t(\"pages.deleteConfirmTitle\")} onConfirm={...} onCancel={...}>` with `t(\"pages.deleteConfirm\", { name })`; confirm executes `actionDeletePage` with the page id and clears the state; an empty page is deleted without the dialog.",
+        "Icons: `PlusIcon`, `TrashIcon`, `chevronLeftIcon`, `chevronRight` and `pencilIcon`, all exported from `./icons`.",
+        "Imports `./PageTabBar.scss`; the component is the default export and sets `PageTabBar.displayName = \"PageTabBar\"`."
+      ],
+      "exports": [
+        {
+          "name": "default",
+          "kind": "component",
+          "params": [
+            {
+              "name": "props",
+              "type": "{ appState: UIAppState; actionManager: ActionManager }"
+            }
+          ],
+          "returns": "JSX.Element"
+        }
+      ],
+      "import_line": "import PageTabBar from \"../PageTabBar\";",
+      "style_from": {
+        "path": "packages/excalidraw/components/footer/FooterCenter.tsx",
+        "reason": "Footer component shape, clsx usage and SCSS import."
+      },
+      "uses": [
+        {
+          "path": "packages/excalidraw/components/ConfirmDialog.tsx",
+          "lines": [
+            1,
+            40
+          ],
+          "reason": "ConfirmDialog props."
+        },
+        {
+          "path": "packages/excalidraw/components/footer/Footer.tsx",
+          "reason": "Props passed into footer children (UIAppState, ActionManager)."
+        }
+      ],
+      "depends_on": [
+        "U03",
+        "U05",
+        "U06",
+        "U14",
+        "U16",
+        "U21"
+      ],
+      "covers": [
+        "FR-7",
+        "NFR-5",
+        "AC-1",
+        "AC-3",
+        "AC-4",
+        "AC-5"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    },
+    {
+      "id": "U23",
+      "path": "packages/excalidraw/components/footer/Footer.tsx",
+      "action": "edit",
+      "phase": "codegen",
+      "behaviour": "Mounts the page tab bar in the footer, hidden in zen mode.",
+      "rules": [
+        "Renders `<PageTabBar appState={appState} actionManager={actionManager} />` right before `<FooterCenterTunnel.Out />` when `defaultUIEnabled && !appState.zenModeEnabled`; view mode still renders it (the bar itself shows switching only)."
+      ],
+      "sites": [
+        {
+          "id": "S1",
+          "at": "insert_after",
+          "from": 7,
+          "to": 7,
+          "first_line": "import { HelpButton } from \"../HelpButton\";",
+          "rule": "Add `import PageTabBar from \"../PageTabBar\";`."
+        },
+        {
+          "id": "S2",
+          "at": "insert_before",
+          "from": 60,
+          "to": 60,
+          "first_line": "<FooterCenterTunnel.Out />",
+          "rule": "Render the tab bar under the condition in the rules."
+        }
+      ],
+      "depends_on": [
+        "U22"
+      ],
+      "covers": [
+        "FR-7"
+      ],
+      "checks": [
+        "eslint",
+        "prettier"
+      ]
+    }
+  ],
+  "hashes": {
+    "packages/excalidraw/components/footer/FooterCenter.scss": "a348a4b99e053564d54ebd9ec62bd0a7478ec9d218edfcfb4f4051403c1eb1ce",
+    "packages/excalidraw/components/footer/FooterCenter.tsx": "2853e42e1f3380f536247d3785beba5d5fea1df49375d1a4f7734988c9a6f185",
+    "packages/excalidraw/components/ConfirmDialog.tsx": "dcca7936efe5d2a94f627044f2f1b1914237be7b811caea49c03357863792542",
+    "packages/excalidraw/components/footer/Footer.tsx": "b3c47cfc68a42807c2805363ff2a8fb413b5cd51d9039dfe3684c96e1b41d475"
+  }
+}

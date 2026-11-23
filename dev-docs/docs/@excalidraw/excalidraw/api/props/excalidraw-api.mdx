@@ -242,7 +242,7 @@ Resets the scene. If `resetLoadingState` is passed as true then it will also for
   </a>
 </pre>
 
-Returns all the elements including the deleted in the scene.
+Returns the elements of every page, including deleted ones.
 
 ## getSceneElements
 
@@ -254,7 +254,17 @@ Returns all the elements including the deleted in the scene.
   []&#62;
 </pre>
 
-Returns all the elements excluding the deleted in the scene
+Returns the non-deleted elements of the active page.
+
+## setActivePage
+
+```tsx
+(pageId: string) => void
+```
+
+Switches the editor to the visible page with the given `pageId`. The current page's viewport (scroll and zoom) is saved and the target page's viewport is restored, and the selection is cleared. Page switches are not recorded in the undo history. Unknown or deleted page ids are ignored.
+
+To replace the page list itself, use `updateScene({ appState: { pages, activePageId } })`.
 
 ## getAppState
 
@@ -413,6 +423,8 @@ This API can be used to reset to default mouse cursor.
 ```
 
 Subscribes to change events, similar to [`props.onChange`](/docs/@excalidraw/excalidraw/api/props#onchange).
+
+The `elements` argument holds the elements of every page; use `getPageElements(elements, appState.activePageId)` to get the elements of the visible page.
 
 Returns an unsubscribe function.
 

@@ -1,0 +1,108 @@
+[
+  {
+    "id": "tp_debug_r2_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/element/src/fractionalIndex.ts",
+    "instruction": "Fix `packages/element/src/fractionalIndex.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:app regression (this test passed before this run; still failing after actionHistory.tsx was changed to pass active-page elements in scene array order):\n FAIL  packages/excalidraw/tests/history.test.tsx > history > multiplayer undo/redo > conflicts in frames and their children > should not rebind frame child with frame when frame was remotely deleted and frame child is added back through the history \nAssertionError: expected [ { id: 'id0', …(29) }, …(1) ] to deeply equal [ ObjectContaining{…}, …(1) ]\nAfter Keyboard.undo(), h.elements is [frame id0 (index a0), rect id1 (index a1)] but must be [rect, frame], the order the elements were placed in by updateScene({elements:[rect, frame]}). The test creates elements with API.createElement (no pageId) and the Scene stamps pageId only on the elements it receives, so the arrays passed to syncMovedIndices / syncInvalidIndices / generateIndices during history (delta.ts ~line 2180 calls syncMovedIndices) can mix elements whose pageId is undefined with elements whose pageId is \"page-1\". The per-page grouping added in this run (groupElementsByPage, previousPositions/nextPositions keyed by pageId) then treats undefined as a separate page, so moved elements are not re-indexed relative to their real neighbours. Make an element with an undefined pageId share the group of the page it sits among (e.g. key undefined to the first defined pageId in the array, or treat undefined as matching every page), keeping per-page independence for elements that do carry different pageIds. Verify with: yarn vitest run --watch=false packages/excalidraw/tests/history.test.tsx -t \"conflicts in frames\" and packages/element/tests/pages.test.ts.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/fractionalIndex.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/fractionalIndex.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U04.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/tests/pages.test.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/excalidraw/tests/history.test.tsx",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/fractionalIndex.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r2_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/tests/pages.collab.test.tsx",
+    "instruction": "Create `excalidraw-app/tests/pages.collab.test.tsx` so that these problems are solved, following the conventions in the shared brief:\n1. U39 has failed 6 attempts: every reply but one was not a single JSON object in the {path, content} contract, and the one written file made vitest hang for 1071 s. Create a SMALL test file (at most ~150 lines, at most 5 test cases) and answer with exactly one JSON object {\"path\":\"excalidraw-app/tests/pages.collab.test.tsx\",\"content\":\"...\"} and no prose or code fences. Test only pure functions, no rendering of the App, no socket, no timers: (1) reconcilePages from the pages module merges remote page create/rename/reorder/delete (higher version wins, equal versions keep the lower versionNonce); (2) reconcileElements keeps per-page elements of both clients; (3) the Firebase pages payload helpers in excalidraw-app/data/firebase.ts round-trip pages through encryption (use the same encryption helpers the module uses with a generated key) and a stored scene without pagesCiphertext yields the default page; (4) the localStorage save/load path in excalidraw-app/data keeps all pages across a reload (use localStorage directly in jsdom). Import only symbols that exist in those files (read them).\nReturn JSON {path, content} with the complete file.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U39.md",
+        "reason": "this file's brief and the files it depends on"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "content",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run --watch=false '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

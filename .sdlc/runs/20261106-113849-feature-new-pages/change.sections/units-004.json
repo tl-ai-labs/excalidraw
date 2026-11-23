@@ -1,0 +1,64 @@
+[
+  {
+    "id": "U11",
+    "path": "packages/excalidraw/history.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Tags each history entry with the page active when it was recorded, and makes undo/redo and the empty-stack flags act only on the active page's entries.",
+    "rules": [
+      "The constructor becomes `constructor(private readonly store: Store, private readonly getActivePageId: () => string | null = () => null)`; with the default getter every entry is untagged and the behaviour is exactly as today.",
+      "A private `entryPageIds = new WeakMap<HistoryDelta, string | null>()` holds each entry's page; `undoStack`/`redoStack` stay public `HistoryDelta[]` arrays with unchanged element type.",
+      "A private `isOnActivePage(entry)` is true when the entry's tag is null/undefined or equals `getActivePageId()`.",
+      "`isUndoStackEmpty` / `isRedoStackEmpty` are true when no entry of the respective stack is on the active page.",
+      "`record` tags the new entry with `getActivePageId()`; the redo stack reset removes only the redo entries on the active page (filter in place via splice), leaving other pages' redo entries.",
+      "The static `pop(stack)` is replaced by a private instance `popForActivePage(stack)` that removes and returns the last entry for which `isOnActivePage` holds (scanning from the end), else null.",
+      "`perform` remembers the page tag of the entry it popped; every entry it pushes (including a delta produced by `applyLatestChanges`) is tagged with that same page; the static `push` keeps its shape and returns the pushed inverse so it can be tagged.",
+      "A new public `notifyActivePageChanged()` triggers `onHistoryChangedEmitter` with the current flags, so undo/redo buttons refresh after a page switch.",
+      "`clear()` is unchanged (a WeakMap needs no clearing)."
+    ],
+    "exports": [
+      { "name": "History.notifyActivePageChanged", "kind": "method", "params": [], "returns": "void" }
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 102, "to": 113, "first_line": "public readonly undoStack: HistoryDelta[] = [];", "last_line": "constructor(private readonly store: Store) {}", "rule": "Keep both stacks; add the WeakMap and isOnActivePage; rewrite both getters; change the constructor; add notifyActivePageChanged after the constructor." },
+      { "id": "S2", "at": "replace", "from": 130, "to": 139, "first_line": "const historyDelta = HistoryDelta.inverse(delta);", "last_line": "}", "rule": "Tag the entry and reset only the active page's redo entries, keeping the existing comments." },
+      { "id": "S3", "at": "replace", "from": 146, "to": 182, "first_line": "public undo(", "last_line": "): [SceneElementsMap, AppState] | void {", "rule": "undo/redo pass `() => this.popForActivePage(stack)` and push callbacks that tag the pushed entry; the perform signature gains nothing else." },
+      { "id": "S4", "at": "replace", "from": 256, "to": 273, "first_line": "private static pop(stack: HistoryDelta[]): HistoryDelta | null {", "last_line": "}", "rule": "Replace static pop with `popForActivePage`; keep static push returning the inverse it pushed." }
+    ],
+    "depends_on": [],
+    "covers": ["FR-10"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U12",
+    "path": "packages/element/src/store.ts",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Snapshots the elements of every page when scheduling a micro action, so pages that are not active never look deleted.",
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 148, "to": 148, "first_line": "this.app.scene.getElementsMapIncludingDeleted(),", "rule": "Use `this.app.scene.getAllPagesElementsMapIncludingDeleted(),`." }
+    ],
+    "depends_on": ["U05"],
+    "covers": ["FR-10"],
+    "checks": ["eslint", "prettier"]
+  },
+  {
+    "id": "U13",
+    "path": "packages/excalidraw/actions/actionHistory.tsx",
+    "action": "edit",
+    "phase": "codegen",
+    "behaviour": "Applies undo/redo to the all-pages element map so the snapshot fallback and the result cover every page.",
+    "rules": [
+      "Both `perform` functions pass `new Map(app.scene.getAllPagesElementsMapIncludingDeleted()) as SceneElementsMap` instead of `arrayToMap(elements) as SceneElementsMap`; the `elements` parameter becomes `_elements`.",
+      "`arrayToMap` is removed from the `@excalidraw/common` import if it is no longer used."
+    ],
+    "sites": [
+      { "id": "S1", "at": "replace", "from": 1, "to": 6, "first_line": "import {", "last_line": "} from \"@excalidraw/common\";", "rule": "Drop `arrayToMap` from the import." },
+      { "id": "S2", "at": "replace", "from": 75, "to": 81, "first_line": "perform: (elements, appState, value, app) =>", "last_line": "),", "rule": "Undo on the copied all-pages map." },
+      { "id": "S3", "at": "replace", "from": 118, "to": 124, "first_line": "perform: (elements, appState, __, app) =>", "last_line": "),", "rule": "Redo on the copied all-pages map." }
+    ],
+    "depends_on": ["U05"],
+    "covers": ["FR-10"],
+    "checks": ["eslint", "prettier"]
+  }
+]

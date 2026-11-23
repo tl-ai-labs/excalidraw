@@ -1,0 +1,55 @@
+[
+  {
+    "id": "tp_debug_r7_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\nexcalidraw-app/collab/Collab.tsx(887,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.\nexcalidraw-app/collab/Collab.tsx(888,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.\nexcalidraw-app/collab/Collab.tsx(889,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.\nexcalidraw-app/collab/Collab.tsx(890,9): error TS2322: Type 'Readonly<{ value: NormalizedZoomValue; }> | undefined' is not assignable to type 'Readonly<{ value: NormalizedZoomValue; }>'.\nexcalidraw-app/collab/Collab.tsx(891,9): error TS2322: Type 'Readonly<Record<string, Readonly<{ scrollX: number; scrollY: number; zoom: number; }>>> | undefined' is not assignable to type 'Readonly<Record<string, Readonly<{ scrollX: number; scrollY: \nexcalidraw-app/collab/Collab.tsx(892,9): error TS2322: Type 'Readonly<{ [id: string]: true; }> | undefined' is not assignable to type 'Readonly<{ [id: string]: true; }>'.\nexcalidraw-app/collab/Collab.tsx(893,9): error TS2322: Type '{ [groupId: string]: boolean; } | undefined' is not assignable to type '{ [groupId: string]: boolean; }'.\nexcalidraw-app/collab/Collab.tsx(894,9): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | null'.\nCause: getSwitchPageAppState (packages/excalidraw/actions/actionPages.ts) returns `Partial<AppState> | null`, so every field read from switchState is possibly undefined, while updateScene requires each listed key to be defined. Fix ONLY the switching branch of handleRemotePagesUpdate (~lines 884-897): pass `appState: { ...switchState, pages } as Pick<AppState, \"pages\">` is NOT allowed (it reintroduces the earlier error). Instead keep the explicit keys but give each a defined fallback from the current state: `activePageId: switchState.activePageId ?? visiblePages[0].id`, `scrollX: switchState.scrollX ?? appState.scrollX`, `scrollY: switchState.scrollY ?? appState.scrollY`, `zoom: switchState.zoom ?? appState.zoom`, `pageViewports: switchState.pageViewports ?? appState.pageViewports`, `selectedElementIds: switchState.selectedElementIds ?? {}`, `selectedGroupIds: switchState.selectedGroupIds ?? {}`, `editingGroupId: switchState.editingGroupId ?? null` (appState is the local AppState already in scope). Change nothing else in the file.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/actions/actionPages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  }
+]

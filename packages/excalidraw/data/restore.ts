@@ -74,6 +74,8 @@ import {
 
 import {
   normalizeBoundElementsOrder,
+  restoreActivePageId,
+  restorePages,
   syncInvalidIndices,
   syncMovedIndices,
 } from "@excalidraw/element";
@@ -103,6 +105,7 @@ import type {
   OrderedExcalidrawElement,
   StrokeVariability,
   StrokeRoundness,
+  PageViewport,
 } from "@excalidraw/element/types";
 
 import type { MarkOptional, Mutable } from "@excalidraw/common/utility-types";
@@ -448,8 +451,9 @@ const repairBinding = <T extends ExcalidrawArrowElement>(
 };
 
 const restoreElementWithProperties = <
-  T extends Required<Omit<ExcalidrawElement, "customData">> & {
+  T extends Required<Omit<ExcalidrawElement, "customData" | "pageId">> & {
     customData?: ExcalidrawElement["customData"];
+    pageId?: ExcalidrawElement["pageId"];
     /** @deprecated */
     boundElementIds?: readonly ExcalidrawElement["id"][];
     /** @deprecated */
@@ -468,7 +472,8 @@ const restoreElementWithProperties = <
   > &
     Partial<Pick<ExcalidrawElement, "type" | "x" | "y" | "customData">>,
 ): T => {
-  const base: Pick<T, keyof ExcalidrawElement> = {
+  const base: Pick<T, Exclude<keyof ExcalidrawElement, "pageId">> &
+    Partial<Pick<T, "pageId">> = {
     type: extra.type || element.type,
     // all elements must have version > 0 so getSceneVersion() will pick up
     // newly added elements
@@ -534,6 +539,10 @@ const restoreElementWithProperties = <
   delete ret.boundElementIds;
   // not an element prop, but used to leak onto linear elements
   delete ret.moveMidPointsWithElement;
+  // malformed page ids are left for the page repair step
+  if (typeof ret.pageId !== "string" || !ret.pageId) {
+    delete (ret as Mutable<T>).pageId;
+  }
 
   return ret;
 };
@@ -1330,6 +1339,46 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+
+  // normalize pages: drop invalid pages, fall back to a visible active page,
+  // and keep only valid viewports of other existing pages
+  const pages = restorePages(nextAppState.pages);
+  const activePageId = restoreActivePageId(pages, nextAppState.activePageId);
+  const pageIds = new Set(pages.map((page) => page.id));
+  // null-prototype map so a page id like `__proto__` cannot hit the setter
+  const pageViewports: Record<string, PageViewport> = Object.create(null);
+  const suppliedViewports: unknown = nextAppState.pageViewports;
+  if (suppliedViewports && typeof suppliedViewports === "object") {
+    for (const [pageId, viewport] of Object.entries(
+      suppliedViewports as Record<string, unknown>,
+    )) {
+      if (
+        pageId === activePageId ||
+        !pageIds.has(pageId) ||
+        !viewport ||
+        typeof viewport !== "object"
+      ) {
+        continue;
+      }
+      const { scrollX, scrollY, zoom } = viewport as Record<string, unknown>;
+      if (
+        isFiniteNumber(scrollX) &&
+        isFiniteNumber(scrollY) &&
+        isFiniteNumber(zoom)
+      ) {
+        pageViewports[pageId] = {
+          scrollX,
+          scrollY,
+          zoom: getNormalizedZoom(zoom),
+        };
+      }
+    }
+  }
+  nextAppState.pages = pages;
+  nextAppState.activePageId = activePageId;
+  nextAppState.pageViewports = pageViewports as Readonly<
+    Record<string, PageViewport>
+  >;
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {

@@ -1,0 +1,210 @@
+[
+  {
+    "id": "tp_debug_r6_001",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/element/src/pages.ts",
+    "instruction": "Fix `packages/element/src/pages.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security review (Gate 3 approved fixes), see security_review.md. (1) MEDIUM: restorePages accepts any string as a page `index` and later passes it to generateKeyBetween (previousIndex / lastVisible.index, also in createPage and movePage), which throws `invalid order key` on a bad key; a collaborator or crafted file can then break page create/move for every peer and leave a Firebase room that never loads. Fix: in restorePages validate raw.index with validateOrderKey from @excalidraw/fractional-indexing inside try/catch (or an equivalent isValidIndex check); when invalid or missing, generate a fresh key with generateKeyBetween(lastValidKey, null) from the last VALID key, so every index that leaves restorePages is valid and ascending. (2) LOW: cap page name length (100 characters, truncate), cap the page count (e.g. MAX_PAGES = 500, keep the first ones), require `version` and `versionNonce` to be finite safe integers (Number.isSafeInteger, else 1 / 0), and skip page ids `__proto__`, `constructor` and `prototype`. Export the caps as constants. Keep all existing behaviour and exports.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/src/pages.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/src/pages.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U02.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/fractionalIndex.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_002",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/excalidraw/data/restore.ts",
+    "instruction": "Fix `packages/excalidraw/data/restore.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Security review LOW finding (Gate 3 approved): around lines 687-713, restoreAppState builds `pageViewports` with a `{}` literal keyed by page id, so a page id `__proto__` hits the prototype setter. Build pageViewports with Object.create(null) (then return it typed as Readonly<Record<string, PageViewport>>) or skip the ids `__proto__`, `constructor`, `prototype`; keep only entries for existing pages, as today.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/excalidraw/data/restore.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/excalidraw/data/restore.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U08.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/excalidraw/data/restore.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_003",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "excalidraw-app/collab/Collab.tsx",
+    "instruction": "Fix `excalidraw-app/collab/Collab.tsx` for these problems, changing only what they need, following the conventions in the shared brief:\n1. yarn test:typecheck:\nexcalidraw-app/collab/Collab.tsx(903,7): error TS2322: Type 'Pick<AppState, \"pages\"> & Partial<Pick<AppState, \"zoom\" | \"scrollX\" | \"scrollY\" | \"selectedElementIds\" | \"selectedGroupIds\" | \"editingGroupId\" | \"activePageId\" | \"pageViewports\">>' is not assignable to type 'Pick<AppState, \"zoom\" | \"scrollX\" | ... | \"pageViewports\"> | null | undefined'. Types of property 'zoom' are incompatible: 'Readonly<{ value: NormalizedZoomValue; }> | undefined' is not assignable.\nupdateScene infers its generic K from the object, so a Partial makes every key required-but-possibly-undefined. Fix in handleRemotePagesUpdate: call updateScene in two branches — when switchState is null, `updateScene({ appState: { pages }, captureUpdate: CaptureUpdateAction.NEVER })`; when switching, `updateScene({ appState: { pages, activePageId: switchState.activePageId, scrollX: switchState.scrollX, scrollY: switchState.scrollY, zoom: switchState.zoom, pageViewports: switchState.pageViewports, selectedElementIds: switchState.selectedElementIds, selectedGroupIds: switchState.selectedGroupIds, editingGroupId: switchState.editingGroupId }, captureUpdate: CaptureUpdateAction.NEVER })` — no Partial type, no spread of a full AppState. Keep the early return when pages did not change.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"excalidraw-app/collab/Collab.tsx\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U29.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "excalidraw-app/collab/Collab.tsx",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 120,
+      "max_retries": 2
+    }
+  },
+  {
+    "id": "tp_debug_r6_004",
+    "phase": "debug",
+    "task_type": "",
+    "module": "spec",
+    "intent": "feature-new",
+    "pass_id": "20261106-113849-feature-new-pages",
+    "artifact_path": "packages/element/tests/pages.test.ts",
+    "instruction": "Fix `packages/element/tests/pages.test.ts` for these problems, changing only what they need, following the conventions in the shared brief:\n1. Add tests (Gate 3 approved security fix) for restorePages in packages/element/src/pages.ts, keeping every existing test: (a) a page list with a malformed index followed by a page with no index, e.g. [{id:\"x\",name:\"X\",index:\"!\"},{id:\"y\",name:\"Y\"}], restores two pages whose indices are valid (validateOrderKey does not throw) and strictly ascending, and createPage/movePage on the result do not throw; (b) a name longer than the cap is truncated; (c) pages with ids __proto__, constructor, prototype are dropped; (d) a non-safe-integer version (1e308, NaN) is replaced. Use the exported cap constants rather than hard-coded numbers.\n\nThe file's current text is under Inputs, marked \"current text\"; your edits apply to exactly that text.\n\n## Answer\nReturn ONLY a JSON object {\"path\": \"packages/element/tests/pages.test.ts\", \"edits\": [{\"search\": \"<text copied exactly from the current text>\", \"replace\": \"<its replacement>\"}]} with no other text. Each search must appear exactly once in the current text; the edits apply in order.\nIf the file does not exist yet, or the change rewrites most of it, return {\"path\": \"packages/element/tests/pages.test.ts\", \"content\": \"<the complete file>\"} instead.",
+    "inputs": [
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/shared.md",
+        "reason": "shared brief: conventions, decisions, the files of this change (stable run record)"
+      },
+      {
+        "path": ".sdlc/runs/20261106-113849-feature-new-pages/briefs/U36.md",
+        "reason": "this file's brief and the files it depends on"
+      },
+      {
+        "path": "packages/element/src/pages.ts",
+        "reason": "named beside the failure"
+      },
+      {
+        "path": "packages/element/tests/pages.test.ts",
+        "reason": "current text"
+      }
+    ],
+    "acceptance": [],
+    "budget": {
+      "maxInputTokens": 400000,
+      "maxOutputTokens": 8192
+    },
+    "retry_count": 0,
+    "apply": {
+      "write": true,
+      "mode": "edits",
+      "checks": [
+        {
+          "id": "vitest",
+          "run": "node_modules/.bin/vitest run --watch=false '{path}'"
+        },
+        {
+          "id": "eslint",
+          "run": "node_modules/.bin/eslint --max-warnings=0 '{path}'",
+          "fix": "node_modules/.bin/eslint --fix '{path}'"
+        },
+        {
+          "id": "prettier",
+          "run": "node_modules/.bin/prettier --check '{path}'",
+          "fix": "node_modules/.bin/prettier --write '{path}'"
+        }
+      ],
+      "baseline": false,
+      "verify_timeout_sec": 600,
+      "max_retries": 2
+    }
+  }
+]

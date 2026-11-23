@@ -7,6 +7,12 @@ import {
   isPromiseLike,
 } from "@excalidraw/common";
 
+import {
+  getPageElements,
+  repairElementPages,
+  restoreActivePageId,
+  restorePages,
+} from "@excalidraw/element";
 import { getRenderEnvironment } from "@excalidraw/element/renderEnvironment";
 
 import type { ValueOf } from "@excalidraw/common/utility-types";
@@ -160,10 +166,19 @@ export const loadSceneOrLibraryFromBlob = async (
       throw error;
     }
     if (isValidExcalidrawData(data)) {
-      const elements = restoreElements(data.elements, localElements, {
-        repairBindings: true,
-        deleteInvisibleElements: true,
-      });
+      const pages = restorePages(data.appState?.pages);
+      const activePageId = restoreActivePageId(
+        pages,
+        data.appState?.activePageId,
+      );
+      const elements = repairElementPages(
+        restoreElements(data.elements, localElements, {
+          repairBindings: true,
+          deleteInvisibleElements: true,
+        }),
+        pages,
+        activePageId,
+      );
       return {
         type: MIME_TYPES.excalidraw,
         data: {
@@ -173,8 +188,14 @@ export const loadSceneOrLibraryFromBlob = async (
               theme: localAppState?.theme,
               fileHandle: fileHandle || blob.handle || null,
               ...cleanAppStateForExport(data.appState || {}),
+              pages,
+              activePageId,
+              pageViewports: data.appState?.pageViewports ?? {},
               ...(localAppState
-                ? getScrollToContentState(elements, localAppState)
+                ? getScrollToContentState(
+                    getPageElements(elements, activePageId),
+                    localAppState,
+                  )
                 : {}),
             },
             localAppState,

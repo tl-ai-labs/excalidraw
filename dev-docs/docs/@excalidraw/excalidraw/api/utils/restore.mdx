@@ -23,6 +23,10 @@ When `localAppState` is supplied, it's used in place of values that are missing 
 Use this as a way to not override user's defaults if you persist them.
 You can pass `null` / `undefined` if not applicable.
 
+The page keys `pages`, `activePageId` and `pageViewports` are taken like every other key (the supplied value, else the `localAppState` value, else the default) and then normalized: a missing or empty page list becomes a single default page (`id: "page-1"`, `name: "Page 1"`), invalid page entries are dropped, and of pages sharing the same `id` only the first is kept. An `activePageId` that does not match a visible page falls back to the first visible page, and `pageViewports` entries that are malformed or belong to unknown pages are dropped.
+
+[`restoreElements()`](#restoreelements) keeps an element's `pageId` when it is a string and drops a malformed one; elements without a `pageId` are placed on the active page when the scene is loaded into the editor. Hosts that restore scenes themselves can use the exported `restorePages` helper to normalize a page list and `getPageElements(elements, pageId)` to get the elements of a single page.
+
 ### restoreElements
 
 **_Signature_**

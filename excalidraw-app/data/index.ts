@@ -20,6 +20,7 @@ import type {
   ExcalidrawElement,
   FileId,
   OrderedExcalidrawElement,
+  ExcalidrawPage,
 } from "@excalidraw/element/types";
 import type {
   AppState,
@@ -84,12 +85,14 @@ export type SocketUpdateDataSource = {
     type: WS_SUBTYPES.INIT;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   SCENE_UPDATE: {
     type: WS_SUBTYPES.UPDATE;
     payload: {
       elements: readonly OrderedExcalidrawElement[];
+      pages?: readonly ExcalidrawPage[];
     };
   };
   MOUSE_LOCATION: {
@@ -99,6 +102,7 @@ export type SocketUpdateDataSource = {
       pointer: { x: number; y: number; tool: "pointer" | "laser" };
       button: "down" | "up";
       selectedElementIds: AppState["selectedElementIds"];
+      pageId?: string;
       username: string;
     };
   };

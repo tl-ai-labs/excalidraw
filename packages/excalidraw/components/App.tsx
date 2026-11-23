@@ -207,6 +207,9 @@ import {
   isEligibleFrameChildType,
   getBindingStrategyForDraggingBindingElementEndpoints,
   isNonDeletedElement,
+  DEFAULT_PAGE_ID,
+  repairElementPages,
+  restoreActivePageId,
 } from "@excalidraw/element";
 
 import type { GlobalPoint, LocalPoint } from "@excalidraw/math";
@@ -277,6 +280,7 @@ import {
   actionToggleArrowBinding,
   actionToggleMidpointSnapping,
   actionToggleCropEditor,
+  actionSwitchPage,
 } from "../actions";
 import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionPaste } from "../actions/actionClipboard";
@@ -790,6 +794,7 @@ class App extends React.Component<AppProps, AppState> {
     const api: ExcalidrawImperativeAPI = {
       isDestroyed: false,
       updateScene: this.updateScene,
+      setActivePage: this.setActivePage,
       applyDeltas: this.applyDeltas,
       mutateElement: this.mutateElement,
       updateLibrary: this.library.updateLibrary,
@@ -892,6 +897,7 @@ class App extends React.Component<AppProps, AppState> {
       this,
     );
     this.scene = new Scene();
+    this.scene.setActivePage(this.state.activePageId);
 
     this.canvas = this.ownerDocument.createElement("canvas");
     this.rc = rough.canvas(this.canvas);
@@ -899,7 +905,7 @@ class App extends React.Component<AppProps, AppState> {
     this.visibleElements = [];
 
     this.store = new Store(this);
-    this.history = new History(this.store);
+    this.history = new History(this.store, () => this.scene.getActivePageId());
 
     this.excalidrawContainerValue = {
       container: this.excalidrawContainerRef.current,
@@ -907,7 +913,7 @@ class App extends React.Component<AppProps, AppState> {
     };
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
-    this.history = new History(this.store);
+    this.history = new History(this.store, () => this.scene.getActivePageId());
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
@@ -2759,16 +2765,100 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   public getSceneElementsIncludingDeleted = () => {
-    return this.scene.getElementsIncludingDeleted();
+    return this.scene.getAllPagesElementsIncludingDeleted();
   };
 
   public getSceneElementsMapIncludingDeleted = () => {
-    return this.scene.getElementsMapIncludingDeleted();
+    return this.scene.getAllPagesElementsMapIncludingDeleted();
   };
 
   public getSceneElements = () => {
     return this.scene.getNonDeletedElements();
   };
+
+  public setActivePage = (pageId: string) => {
+    this.actionManager.executeAction(actionSwitchPage, "api", pageId);
+  };
+
+  /** Resolves the active page id of the next state to an existing page. */
+  private resolveActivePageId(
+    nextAppState: Partial<AppState> | null | undefined,
+  ): string {
+    return restoreActivePageId(
+      nextAppState?.pages ?? this.state.pages,
+      nextAppState?.activePageId ?? this.state.activePageId,
+    );
+  }
+
+  /** Returns the next state with a valid active page id when it sets pages. */
+  private withValidActivePage<T extends Partial<AppState>>(
+    nextAppState: T | null | undefined,
+  ): T | null | undefined {
+    if (
+      !nextAppState ||
+      (nextAppState.activePageId === undefined &&
+        nextAppState.pages === undefined)
+    ) {
+      return nextAppState;
+    }
+    const activePageId = this.resolveActivePageId(nextAppState);
+    return nextAppState.activePageId === activePageId
+      ? nextAppState
+      : { ...nextAppState, activePageId };
+  }
+
+  /** Stamps the page id in place on elements without a pageId (no version bump). */
+  private stampPageIds<T extends ExcalidrawElement>(
+    elements: readonly T[],
+    pageId: string,
+  ): readonly T[] {
+    for (const element of elements) {
+      if (element.pageId === undefined) {
+        (element as Mutable<ExcalidrawElement>).pageId = pageId;
+      }
+    }
+    return elements;
+  }
+
+  /** Applies elements to the scene, re-partitioning pages when needed. */
+  private applySceneElements(
+    elements: readonly ExcalidrawElement[],
+    nextAppState: Partial<AppState> | null | undefined,
+  ) {
+    const nextActive = this.resolveActivePageId(nextAppState);
+    const stamped = this.stampPageIds(elements, nextActive);
+    const prevActivePageId = this.scene.getActivePageId();
+    const nextPages = nextAppState?.pages;
+    if (nextPages && nextPages !== this.state.pages) {
+      this.scene.setActivePage(nextActive);
+      this.scene.replaceAllElements(
+        repairElementPages(stamped, nextPages, nextActive),
+        { allPages: true },
+      );
+    } else {
+      this.scene.setActivePage(nextActive);
+      this.scene.replaceAllElements(stamped);
+    }
+    if (this.scene.getActivePageId() !== prevActivePageId) {
+      this.history.notifyActivePageChanged();
+    }
+  }
+
+  /** Switches the scene's active page when the next state changes it. */
+  private syncActivePage(nextAppState: Partial<AppState> | null | undefined) {
+    const nextActive =
+      nextAppState?.activePageId !== undefined ||
+      nextAppState?.pages !== undefined
+        ? this.resolveActivePageId(nextAppState)
+        : undefined;
+    if (
+      nextActive !== undefined &&
+      nextActive !== this.scene.getActivePageId()
+    ) {
+      this.scene.setActivePage(nextActive);
+      this.history.notifyActivePageChanged();
+    }
+  }
 
   public onInsertElements = (elements: readonly ExcalidrawElement[]) => {
     this.addElementsFromPasteOrLibrary({
@@ -3131,14 +3221,24 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    const resultAppState = this.withValidActivePage(actionResult.appState);
+    if (actionResult.elements) {
+      this.stampPageIds(
+        actionResult.elements,
+        this.resolveActivePageId(resultAppState),
+      );
+    }
+
     this.store.scheduleAction(actionResult.captureUpdate);
 
     let didUpdate = false;
 
     let editingTextElement: AppState["editingTextElement"] | null = null;
     if (actionResult.elements) {
-      this.scene.replaceAllElements(actionResult.elements);
+      this.applySceneElements(actionResult.elements, resultAppState);
       didUpdate = true;
+    } else {
+      this.syncActivePage(resultAppState);
     }
 
     if (actionResult.files) {
@@ -3185,7 +3285,7 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       this.setState((prevAppState) => {
-        const actionAppState = actionResult.appState || {};
+        const actionAppState = resultAppState || {};
 
         return {
           ...prevAppState,
@@ -3554,7 +3654,8 @@ class App extends React.Component<AppProps, AppState> {
     (opts?: { resetLoadingState: boolean }) => {
       this.elementRenderOverrides = new Map();
       this.elementRenderOffsets = new Map();
-      this.scene.replaceAllElements([]);
+      this.scene.setActivePage(DEFAULT_PAGE_ID);
+      this.scene.replaceAllElements([], { allPages: true });
       this.setState((state) => ({
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
@@ -4494,15 +4595,21 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({ scrolledOutside });
     }
 
-    this.store.commit(elementsMap, this.state);
+    this.store.commit(
+      this.scene.getActivePageId() === null
+        ? elementsMap
+        : this.scene.getAllPagesElementsMapIncludingDeleted(),
+      this.state,
+    );
 
     // Do not notify consumers if we're still loading the scene. Among other
     // potential issues, this fixes a case where the tab isn't focused during
     // init, which would trigger onChange with empty elements, which would then
     // override whatever is in localStorage currently.
     if (!this.state.isLoading) {
-      this.props.onChange?.(elements, this.state, this.files);
-      this.onChangeEmitter.trigger(elements, this.state, this.files);
+      const allPagesElements = this.scene.getAllPagesElementsIncludingDeleted();
+      this.props.onChange?.(allPagesElements, this.state, this.files);
+      this.onChangeEmitter.trigger(allPagesElements, this.state, this.files);
     }
   }
 
@@ -4653,6 +4760,10 @@ class App extends React.Component<AppProps, AppState> {
 
     const { nextElements, duplicatedElements } = duplication;
 
+    for (const duplicated of duplicatedElements) {
+      (duplicated as Mutable<ExcalidrawElement>).pageId =
+        this.state.activePageId;
+    }
     this.scene.replaceAllElements(nextElements);
 
     duplicatedElements.forEach((newElement) => {
@@ -4989,7 +5100,14 @@ class App extends React.Component<AppProps, AppState> {
        */
       captureUpdate?: SceneData["captureUpdate"];
     }) => {
-      const { elements, appState, collaborators, captureUpdate } = sceneData;
+      const { collaborators, captureUpdate } = sceneData;
+      const appState = this.withValidActivePage(sceneData.appState);
+      const elements = sceneData.elements
+        ? this.stampPageIds(
+            sceneData.elements,
+            this.resolveActivePageId(appState),
+          )
+        : undefined;
 
       if (captureUpdate) {
         const nextElements = elements ? elements : undefined;
@@ -5007,12 +5125,14 @@ class App extends React.Component<AppProps, AppState> {
         });
       }
 
-      if (appState) {
-        this.setState(appState as Pick<AppState, K> | null);
+      if (elements) {
+        this.applySceneElements(elements, appState);
+      } else {
+        this.syncActivePage(appState);
       }
 
-      if (elements) {
-        this.scene.replaceAllElements(elements);
+      if (appState) {
+        this.setState(appState as Pick<AppState, K> | null);
       }
 
       if (collaborators) {
@@ -5056,7 +5176,7 @@ class App extends React.Component<AppProps, AppState> {
     // create new instance of elements map & appState, so we don't accidentaly mutate existing ones
     const nextAppState = { ...this.state };
     const nextElements = new Map(
-      this.scene.getElementsMapIncludingDeleted(),
+      this.scene.getAllPagesElementsMapIncludingDeleted(),
     ) as SceneElementsMap;
 
     return StoreDelta.applyTo(aggregatedDelta, nextElements, nextAppState, {

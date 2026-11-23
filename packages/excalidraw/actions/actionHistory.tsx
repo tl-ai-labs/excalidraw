@@ -1,9 +1,4 @@
-import {
-  KEYS,
-  matchKey,
-  arrayToMap,
-  MOBILE_ACTION_BUTTON_BG,
-} from "@excalidraw/common";
+import { KEYS, matchKey, MOBILE_ACTION_BUTTON_BG } from "@excalidraw/common";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
@@ -64,6 +59,23 @@ const executeHistoryAction = (
   return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
 };
 
+// active page elements in scene array order, followed by the other pages' elements
+const getHistoryElementsMap = (app: AppClassProperties): SceneElementsMap => {
+  const elementsMap = new Map() as SceneElementsMap;
+  for (const element of app.scene.getElementsIncludingDeleted()) {
+    elementsMap.set(element.id, element);
+  }
+  for (const [
+    id,
+    element,
+  ] of app.scene.getAllPagesElementsMapIncludingDeleted()) {
+    if (!elementsMap.has(id)) {
+      elementsMap.set(id, element);
+    }
+  }
+  return elementsMap;
+};
+
 type ActionCreator = (history: History) => Action;
 
 export const createUndoAction: ActionCreator = (history) => ({
@@ -72,13 +84,9 @@ export const createUndoAction: ActionCreator = (history) => ({
   icon: UndoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState, value, app) =>
+  perform: (_elements, appState, value, app) =>
     executeHistoryAction(app, appState, () =>
-      history.undo(
-        arrayToMap(elements) as SceneElementsMap,
-        appState,
-        app.renderEnvironment,
-      ),
+      history.undo(getHistoryElementsMap(app), appState, app.renderEnvironment),
     ),
   keyTest: (event) =>
     event[KEYS.CTRL_OR_CMD] && matchKey(event, KEYS.Z) && !event.shiftKey,
@@ -115,13 +123,9 @@ export const createRedoAction: ActionCreator = (history) => ({
   icon: RedoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState, __, app) =>
+  perform: (_elements, appState, __, app) =>
     executeHistoryAction(app, appState, () =>
-      history.redo(
-        arrayToMap(elements) as SceneElementsMap,
-        appState,
-        app.renderEnvironment,
-      ),
+      history.redo(getHistoryElementsMap(app), appState, app.renderEnvironment),
     ),
   keyTest: (event) =>
     (event[KEYS.CTRL_OR_CMD] && event.shiftKey && matchKey(event, KEYS.Z)) ||

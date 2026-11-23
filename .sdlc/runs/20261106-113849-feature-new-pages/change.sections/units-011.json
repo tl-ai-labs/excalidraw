@@ -1,0 +1,107 @@
+[
+  {
+    "id": "U36",
+    "path": "packages/element/tests/pages.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit tests for the page model helpers and per-page fractional indices.",
+    "rules": [
+      "Build elements with `API.createElement` from `@excalidraw/excalidraw/tests/helpers/api` and pass `pageId` via spread (`{ ...API.createElement({ type: \"rectangle\" }), pageId: \"p2\" }`); import helpers from `@excalidraw/element`."
+    ],
+    "tests": [
+      { "name": "getDefaultPage is deterministic", "given": "two calls", "expect": "equal objects with id page-1 and name Page 1" },
+      { "name": "createPage appends after the last visible page", "given": "the default page list", "expect": "two pages, the new one with a greater index, active list order by getVisiblePages" },
+      { "name": "renamePage rejects empty names", "given": "a page renamed to '   '", "expect": "the same array reference is returned" },
+      { "name": "renamePage bumps version", "given": "a page renamed to 'SDK flow'", "expect": "name 'SDK flow' and version + 1" },
+      { "name": "movePage reorders and refuses edges", "given": "pages A,B,C; move C left, then move A left", "expect": "order A,C,B; second call returns the same reference" },
+      { "name": "deletePage refuses the last page and tombstones otherwise", "given": "one page, then two pages", "expect": "same reference for one page; isDeleted true and hidden from getVisiblePages for two" },
+      { "name": "getAdjacentPageId prefers the next page", "given": "pages A,B,C", "expect": "B for A, C for B, B for C" },
+      { "name": "restorePages repairs invalid input", "given": "undefined, [], entries without ids, and duplicate ids", "expect": "a default page for the empty cases and the first of each duplicate id" },
+      { "name": "restoreActivePageId falls back to the first visible page", "given": "an unknown id and a deleted page id", "expect": "the first visible page id" },
+      { "name": "reconcilePages takes the higher version", "given": "local and remote copies of one page with versions 2 and 3", "expect": "the remote copy; equal versions keep the lower versionNonce" },
+      { "name": "repairElementPages moves dangling elements and cuts cross-page links", "given": "an element without pageId, one with an unknown pageId, and an arrow bound to an element on another page", "expect": "both moved to the active page and the arrow binding set to null" },
+      { "name": "syncInvalidIndices validates each page separately", "given": "elements of two pages whose indices interleave", "expect": "no index of a valid page is rewritten and validateFractionalIndices does not throw" }
+    ],
+    "style_from": { "path": "packages/element/tests/fractionalIndex.test.ts", "lines": [1, 40], "reason": "Element-package unit test imports and describe/it layout." },
+    "depends_on": ["U03", "U04"],
+    "covers": ["FR-1", "FR-2", "FR-4", "FR-12"],
+    "checks": ["vitest", "eslint", "prettier"]
+  },
+  {
+    "id": "U37",
+    "path": "packages/excalidraw/tests/data/pages.restore.test.ts",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "Unit tests for serializing and restoring multi-page drawings and legacy files.",
+    "tests": [
+      { "name": "serializeAsJSON and restore round-trip every page", "given": "an appState with three pages, a renamed page, a reorder, a viewport for a non-active page and elements on each page, serialized with serializeAsJSON 'local' then parsed and restored with restoreAppState and restoreElements", "expect": "the same page ids, names, order, pageViewports, activePageId and every element with its pageId" },
+      { "name": "a legacy file restores onto one default page", "given": "file JSON without pages and elements without pageId loaded with loadFromBlob", "expect": "appState.pages is [default page], activePageId page-1 and every element has pageId page-1" },
+      { "name": "dangling page references are repaired", "given": "a file whose element names a missing page and whose activePageId is unknown, loaded with loadFromBlob", "expect": "activePageId is the first page and the element moved to it" },
+      { "name": "duplicate page ids keep the first entry", "given": "appState.pages with two entries sharing an id", "expect": "restoreAppState returns one page with the first entry's name" },
+      { "name": "restoreElements drops a malformed pageId", "given": "an element with pageId 42", "expect": "the restored element has no pageId" }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/data/restore.test.ts", "lines": [1, 60], "reason": "Restore test imports (API helper, restore module, serializeAsJSON)." },
+    "depends_on": ["U08", "U09"],
+    "covers": ["FR-11", "FR-12", "AC-9", "AC-10", "NFR-1"],
+    "checks": ["vitest", "eslint", "prettier"]
+  },
+  {
+    "id": "U38",
+    "path": "packages/excalidraw/tests/pages.test.tsx",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "jsdom integration tests that drive the page tab bar and assert page-scoped rendering, selection, history, viewports, export, search and insertion.",
+    "rules": [
+      "Render `<Excalidraw handleKeyboardGlobally />` with `render` from `./test-utils`; drive the tab bar with `fireEvent.click` on `getByTestId` ids `page-add`, `page-tab-<id>`, `page-rename`, `page-rename-input`, `page-move-left`, `page-move-right`, `page-delete`; read state from `window.h`.",
+      "Spy on the static renderer with `vi.spyOn(StaticScene, ...)` only if the existing tests do; otherwise assert on `h.app.scene.getNonDeletedElements()` and `h.app.visibleElements`, which feed the renderer."
+    ],
+    "tests": [
+      { "name": "creating a page adds an active empty tab", "given": "a rectangle on page 1, then a click on page-add", "expect": "two tabs, the new one aria-selected, h.app.scene.getNonDeletedElements() empty and scroll 0/0 zoom 1 (AC-1)" },
+      { "name": "only the active page's elements render and are selectable", "given": "a rectangle on page 1 and an ellipse at the same spot on page 2", "expect": "on page 2 the scene and visibleElements hold only the ellipse; select-all and a click on that spot select only the ellipse (AC-2)" },
+      { "name": "renaming a page updates the tab and saved data", "given": "page-rename, typing 'Data pipeline' and Enter, then a rename to '  '", "expect": "tab text 'Data pipeline', serializeAsJSON contains the name, and the empty rename keeps it (AC-3)" },
+      { "name": "reordering pages changes tab and saved order", "given": "three pages and page-move-left on the third", "expect": "tab order 1,3,2 and getVisiblePages order in appState matches (AC-4)" },
+      { "name": "deleting a page removes its tab and elements", "given": "page 2 with a rectangle, page-delete and confirm", "expect": "one tab, the rectangle isDeleted in getSceneElementsIncludingDeleted, page 1 active and page-delete disabled (AC-5)" },
+      { "name": "undo stays on its page", "given": "a rectangle created on page A, a switch to page B where an ellipse is created, then undo on B and a switch back to A and undo", "expect": "undo on B removes only the ellipse and never changes the rectangle; undo on A removes the rectangle; switching records no history entry (AC-6)" },
+      { "name": "each page keeps its own viewport", "given": "scrollX 100 and zoom 2 on page A, a switch to page B and back", "expect": "page B at 0/0 zoom 1, page A back at 100 and zoom 2 (AC-7)" },
+      { "name": "export contains only the active page", "given": "elements on two pages and page 2 active", "expect": "the elements given to the export-to-clipboard action (copyAsPng/copyAsSvg path via actionManager) are only page 2's (AC-8)" },
+      { "name": "search finds text on another page and switches to it", "given": "a text 'pipeline' on page 2 while page 1 is active, search for 'pipeline' and click the result", "expect": "the result is labelled with page 2's name and activePageId becomes page 2 (AC-11)" },
+      { "name": "paste and library insert add to the active page", "given": "page 2 active and h.app.addElementsFromPasteOrLibrary with a rectangle", "expect": "the inserted element has pageId of page 2 and page 1 is unchanged (AC-14)" },
+      { "name": "view mode shows switch-only tabs", "given": "viewModeEnabled true with two pages", "expect": "tabs are clickable and switch pages; page-add, page-rename and page-delete are absent" },
+      { "name": "zen mode hides the tab bar", "given": "zenModeEnabled true", "expect": "no page-tab-bar in the DOM" }
+    ],
+    "style_from": { "path": "packages/excalidraw/tests/search.test.tsx", "lines": [1, 80], "reason": "jsdom editor test scaffolding with render, API, Keyboard and h." },
+    "uses": [
+      { "path": "packages/excalidraw/tests/helpers/api.ts", "lines": [60, 200], "reason": "API.setElements, updateScene, setAppState, createElement and undo stack helpers." }
+    ],
+    "depends_on": ["U19", "U23", "U24"],
+    "covers": ["FR-3", "FR-5", "FR-7", "FR-8", "FR-9", "FR-10", "FR-11", "FR-13", "FR-14", "AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-11", "AC-14", "AC-15", "NFR-5", "NFR-6"],
+    "checks": ["vitest", "eslint", "prettier"]
+  },
+  {
+    "id": "U39",
+    "path": "excalidraw-app/tests/pages.collab.test.tsx",
+    "action": "create",
+    "phase": "tests",
+    "behaviour": "App tests for page sync through the reconcile/broadcast path, the Firebase-saved room and localStorage persistence.",
+    "rules": [
+      "Mock `../../excalidraw-app/data/firebase.ts` and `socket.io-client` exactly as `excalidraw-app/tests/collab.test.tsx` does; render `<ExcalidrawApp />` and drive the second client by calling `window.collab.handleRemotePagesUpdate(pages)` and `window.collab.excalidrawAPI.updateScene` with reconciled remote elements, as a remote socket message would.",
+      "For the Firebase room, test `excalidraw-app/data/firebase.ts` in a separate `describe` that mocks `../data/firebaseSDK` with an in-memory firestore (`doc`, `getDoc`, `runTransaction`, `Bytes.fromUint8Array`) and real `encryptData`/`decryptData` with a fixed room key."
+    ],
+    "tests": [
+      { "name": "remote page create, rename, reorder and delete reach the local client", "given": "remote page lists with a new page, a higher-version rename, a moved index and a tombstone", "expect": "local appState.pages follows each change and the local active page is kept unless it was deleted, in which case the first visible page becomes active (AC-12)" },
+      { "name": "concurrent edits on different pages do not clobber each other", "given": "a local element on page 1 and a remote element on page 2 reconciled together", "expect": "both elements exist with their own pageId and page 1's element is unchanged (AC-12)" },
+      { "name": "broadcast payloads carry pages", "given": "a page rename while collaborating with Portal.broadcastScene spied", "expect": "broadcastScene is called and the payload built for it includes the renamed pages (AC-12)" },
+      { "name": "the Firebase room keeps every page", "given": "saveToFirebase with two pages and elements on both, then loadFromFirebase", "expect": "both pages and all elements come back (AC-12)" },
+      { "name": "a legacy Firebase room loads onto one page", "given": "a stored document without pagesCiphertext", "expect": "loadFromFirebase returns the default page and the elements (AC-12, NFR-1)" },
+      { "name": "localStorage keeps all pages across a reload", "given": "two pages with elements, the LocalData save flushed, then importFromLocalStorage and a fresh render", "expect": "the restored appState has both pages, names, order and activePageId and every element keeps its pageId (AC-13)" }
+    ],
+    "style_from": { "path": "excalidraw-app/tests/collab.test.tsx", "lines": [1, 80], "reason": "App test mocks for firebase and socket.io and the render setup." },
+    "uses": [
+      { "path": "excalidraw-app/data/LocalData.ts", "lines": [120, 160], "reason": "LocalData.save/flushSave used to persist before reload." },
+      { "path": "excalidraw-app/tests/firebase.test.ts", "reason": "How firebaseSDK is mocked." }
+    ],
+    "depends_on": ["U28", "U29"],
+    "covers": ["FR-17", "FR-18", "FR-19", "FR-20", "AC-12", "AC-13", "NFR-7"],
+    "checks": ["vitest", "eslint", "prettier"]
+  }
+]
