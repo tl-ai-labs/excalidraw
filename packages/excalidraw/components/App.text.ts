@@ -40,6 +40,7 @@ import {
   newElementWith,
   newTextElement,
   refreshTextDimensions,
+  shiftTextRangesOnEdit,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -220,8 +221,21 @@ export class AppText {
             return newElementWith(_element, stickyLayout.container);
           }
           if (_element.id === latestTextElement.id && isTextElement(_element)) {
+            const rangesUpdate =
+              _element.originalText !== nextOriginalText &&
+              _element.ranges &&
+              _element.ranges.length > 0
+                ? {
+                    ranges: shiftTextRangesOnEdit(
+                      _element.ranges,
+                      _element.originalText,
+                      nextOriginalText,
+                    ),
+                  }
+                : {};
             return newElementWith(_element, {
               originalText: nextOriginalText,
+              ...rangesUpdate,
               isDeleted: isDeleted ?? _element.isDeleted,
               ...(stickyLayout?.text ??
                 // returns (wrapped) text and new dimensions

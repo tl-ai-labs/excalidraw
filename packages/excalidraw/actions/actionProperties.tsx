@@ -6,6 +6,7 @@ import {
   BUCKET_FILL_BACKGROUND_PICKS,
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
+  DEFAULT_ELEMENT_BACKGROUND_PICKS,
   ARROW_TYPE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
@@ -46,9 +47,11 @@ import { newElementWith } from "@excalidraw/element";
 import { getArrowheadForPicker } from "@excalidraw/element";
 
 import {
+  applyStyleToRange,
   getBoundTextElement,
   getBaseFontSize,
   getBaseFontSizeUpdate,
+  getUniformRangeStyle,
   redrawTextBoundingBox,
 } from "@excalidraw/element";
 
@@ -166,6 +169,7 @@ import {
 } from "../scene";
 
 import {
+  getEditingTextSelection,
   withCaretPositionPreservation,
   restoreCaretPosition,
 } from "../hooks/useTextEditorFocus";
@@ -369,7 +373,7 @@ export const actionChangeStrokeColor = register<
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
-  perform: (elements, appState, value) => {
+  perform: (elements, appState, value, app) => {
     const { color, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
@@ -377,10 +381,55 @@ export const actionChangeStrokeColor = register<
         captureUpdate: CaptureUpdateAction.EVENTUALLY,
       };
     }
+    const elementsMap = arrayToMap(elements);
+    const editingText =
+      appState.editingTextElement &&
+      elementsMap.get(appState.editingTextElement.id);
+    const selection =
+      editingText && isTextElement(editingText)
+        ? getEditingTextSelection(
+            app.excalidrawContainerValue.container?.ownerDocument,
+          )
+        : null;
+    const isFullTextSelection =
+      selection !== null &&
+      editingText &&
+      isTextElement(editingText) &&
+      selection.start === 0 &&
+      selection.end === editingText.originalText.length;
+
+    // When editing a strict substring of text, color only that range
+    // instead of recoloring the whole text element.
+    if (
+      selection &&
+      editingText &&
+      isTextElement(editingText) &&
+      !isFullTextSelection
+    ) {
+      const nextRanges = applyStyleToRange(
+        editingText.ranges,
+        selection.start,
+        selection.end,
+        { color },
+        editingText.originalText.length,
+      );
+      return {
+        elements: elements.map((el) =>
+          el.id === editingText.id && isTextElement(el)
+            ? newElementWith(el, { ranges: nextRanges })
+            : el,
+        ),
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
     // resolved from the state the action runs against — never from the
     // render-time closure of the memoized picker (see `resolveColorTarget`)
     const target = resolveColorTarget(appState, elements, "strokeColor");
-    const elementsMap = arrayToMap(elements);
 
     return {
       // a note and its label share one ink: coloring the label while editing
@@ -389,13 +438,38 @@ export const actionChangeStrokeColor = register<
         changeProperty(
           elements,
           appState,
-          (el) =>
-            hasStrokeColor(el.type)
-              ? newElementWith(
-                  el,
-                  getColorUpdate(el, "strokeColor", color, elementsMap),
-                )
-              : el,
+          (el) => {
+            if (!hasStrokeColor(el.type)) {
+              return el;
+            }
+            const colorUpdate = getColorUpdate(
+              el,
+              "strokeColor",
+              color,
+              elementsMap,
+            );
+            // If the user explicitly selected all text in the editor and picked
+            // a new stroke color, clear per-range color overrides so the whole
+            // text takes the picked color.
+            if (
+              isFullTextSelection &&
+              isTextElement(el) &&
+              el.id === editingText?.id &&
+              el.ranges?.length
+            ) {
+              return newElementWith(el, {
+                ...colorUpdate,
+                ranges: applyStyleToRange(
+                  el.ranges,
+                  0,
+                  el.originalText.length,
+                  { color: null },
+                  el.originalText.length,
+                ),
+              });
+            }
+            return newElementWith(el, colorUpdate);
+          },
           true,
         ),
         elementsMap,
@@ -415,6 +489,16 @@ export const actionChangeStrokeColor = register<
     const label =
       target.kind === "sticky" ? t("labels.textColor") : t("labels.stroke");
 
+    const editingText = appState.editingTextElement
+      ? app.scene.getElement(appState.editingTextElement.id)
+      : null;
+    const editingSelection =
+      editingText && isTextElement(editingText)
+        ? getEditingTextSelection(
+            app.excalidrawContainerValue.container?.ownerDocument,
+          )
+        : null;
+
     return (
       <>
         {stylesPanelMode === "full" && <h3 aria-hidden="true">{label}</h3>}
@@ -425,13 +509,156 @@ export const actionChangeStrokeColor = register<
           excludedColors={target.excludedColors}
           type="elementStroke"
           label={label}
-          color={getFormValue(
+          color={
+            editingSelection && editingText && isTextElement(editingText)
+              ? getUniformRangeStyle(
+                  editingText.ranges,
+                  editingSelection.start,
+                  editingSelection.end,
+                  editingText.strokeColor,
+                ).color
+              : getFormValue(
+                  elements,
+                  app,
+                  (element) => element.strokeColor,
+                  true,
+                  (hasSelection) =>
+                    !hasSelection ? target.currentValue : null,
+                )
+          }
+          onChange={(color) => updateData({ color })}
+          elements={elements}
+          appState={appState}
+          updateData={updateData}
+        />
+      </>
+    );
+  },
+});
+
+export const actionChangeTextHighlight = register<
+  Partial<AppState> & { color?: string }
+>({
+  name: "changeTextHighlight",
+  label: "labels.changeTextHighlight",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const { color, ...appStateUpdates } = value ?? {};
+    if (color === undefined) {
+      return {
+        appState: { ...appState, ...appStateUpdates },
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      };
+    }
+
+    const highlight = isTransparent(color) ? null : color;
+    const elementsMap = arrayToMap(elements);
+    const editingText =
+      appState.editingTextElement &&
+      elementsMap.get(appState.editingTextElement.id);
+
+    if (editingText && isTextElement(editingText)) {
+      const selection = getEditingTextSelection(
+        app.excalidrawContainerValue.container?.ownerDocument,
+      );
+      const start = selection ? selection.start : 0;
+      const end = selection ? selection.end : editingText.originalText.length;
+      const nextRanges = applyStyleToRange(
+        editingText.ranges,
+        start,
+        end,
+        { highlight },
+        editingText.originalText.length,
+      );
+      return {
+        elements: elements.map((el) =>
+          el.id === editingText.id && isTextElement(el)
+            ? newElementWith(el, { ranges: nextRanges })
+            : el,
+        ),
+        appState: {
+          ...appState,
+          ...appStateUpdates,
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    }
+
+    return {
+      elements: changeProperty(
+        elements,
+        appState,
+        (el) => {
+          if (!isTextElement(el)) {
+            return el;
+          }
+          const nextRanges = applyStyleToRange(
+            el.ranges,
+            0,
+            el.originalText.length,
+            { highlight },
+            el.originalText.length,
+          );
+          return newElementWith(el, { ranges: nextRanges });
+        },
+        true,
+      ),
+      appState: {
+        ...appState,
+        ...appStateUpdates,
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, updateData, app }) => {
+    const { stylesPanelMode } = getStylesPanelInfo(app);
+    const editingText = appState.editingTextElement
+      ? app.scene.getElement(appState.editingTextElement.id)
+      : null;
+    const editingSelection =
+      editingText && isTextElement(editingText)
+        ? getEditingTextSelection(
+            app.excalidrawContainerValue.container?.ownerDocument,
+          )
+        : null;
+
+    const currentColor =
+      editingText && isTextElement(editingText)
+        ? getUniformRangeStyle(
+            editingText.ranges,
+            editingSelection ? editingSelection.start : 0,
+            editingSelection
+              ? editingSelection.end
+              : editingText.originalText.length,
+            editingText.strokeColor,
+          ).highlight
+        : getFormValue(
             elements,
             app,
-            (element) => element.strokeColor,
-            true,
-            (hasSelection) => (!hasSelection ? target.currentValue : null),
-          )}
+            (element) =>
+              isTextElement(element)
+                ? getUniformRangeStyle(
+                    element.ranges,
+                    0,
+                    element.originalText.length,
+                    element.strokeColor,
+                  ).highlight
+                : null,
+            (element) => isTextElement(element),
+            COLOR_PALETTE.transparent,
+          );
+
+    return (
+      <>
+        {stylesPanelMode === "full" && (
+          <h3 aria-hidden="true">{t("labels.highlight")}</h3>
+        )}
+        <ColorPicker
+          topPicks={DEFAULT_ELEMENT_BACKGROUND_PICKS}
+          palette={DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE}
+          type="textHighlight"
+          label={t("labels.highlight")}
+          color={currentColor}
           onChange={(color) => updateData({ color })}
           elements={elements}
           appState={appState}

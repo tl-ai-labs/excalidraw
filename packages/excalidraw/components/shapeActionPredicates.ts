@@ -127,6 +127,9 @@ export const getShapeActionPredicates = (
       targetElements,
       elementsMap,
     ),
+    textHighlight:
+      Boolean(appState.editingTextElement) ||
+      (targetElements.length > 0 && targetElements.every(isTextElement)),
     fill:
       // bucket fill never renders transparent (it falls back to a real
       // color), so its fill style stays relevant either way

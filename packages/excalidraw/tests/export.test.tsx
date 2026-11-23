@@ -261,4 +261,95 @@ describe("export", () => {
     // src/tests/fixtures/svg-image-exporting-reference.svg
     expect(svgText).toMatchSnapshot(`svg export output`);
   });
+
+  it("exports styled text ranges as tspans with fill and highlight rects", async () => {
+    const styledText = {
+      ...API.createElement({
+        type: "text",
+        id: "styled_text",
+        text: "Bid request timeout 120ms",
+        originalText: "Bid request timeout 120ms",
+        strokeColor: "#1e1e1e",
+        index: "a0" as FractionalIndex,
+        ranges: [
+          { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+        ],
+      }),
+      width: 250,
+      height: 25,
+    };
+
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: [styledText],
+        appState: getDefaultAppState(),
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const tspans = Array.from(svg.querySelectorAll("text tspan"));
+    expect(tspans).toHaveLength(2);
+    expect(tspans[0].textContent).toBe("Bid request timeout ");
+    expect(tspans[0].getAttribute("fill")).toBe("#1e1e1e");
+    expect(tspans[1].textContent).toBe("120ms");
+    expect(tspans[1].getAttribute("fill")).toBe("#e03131");
+
+    const highlightRects = Array.from(svg.querySelectorAll("g > rect")).filter(
+      (r) => r.getAttribute("fill") === "#ffec99",
+    );
+    expect(highlightRects).toHaveLength(1);
+    expect(Number(highlightRects[0].getAttribute("width"))).toBeGreaterThan(0);
+  });
+
+  it("exports wrapped multi-line styled text ranges across lines", async () => {
+    const wrappedStyledText = {
+      ...API.createElement({
+        type: "text",
+        id: "wrapped_styled_text",
+        text: "Bid request\ntimeout 120ms",
+        originalText: "Bid request timeout 120ms",
+        strokeColor: "#1e1e1e",
+        index: "a0" as FractionalIndex,
+        autoResize: false,
+        ranges: [
+          { start: 4, end: 19, color: "#1971c2" },
+          { start: 20, end: 25, color: "#e03131" },
+        ],
+      }),
+      width: 140,
+      height: 50,
+    };
+
+    const svg = await exportScene({
+      type: "svg",
+      data: {
+        elements: [wrappedStyledText],
+        appState: getDefaultAppState(),
+        files: {},
+      },
+      config: { canvasBackgroundColor: false },
+    });
+
+    const textNodes = Array.from(svg.querySelectorAll("text"));
+    expect(textNodes).toHaveLength(2);
+
+    const line1Tspans = Array.from(textNodes[0].querySelectorAll("tspan"));
+    expect(
+      line1Tspans.map((t) => [t.textContent, t.getAttribute("fill")]),
+    ).toEqual([
+      ["Bid ", "#1e1e1e"],
+      ["request", "#1971c2"],
+    ]);
+
+    const line2Tspans = Array.from(textNodes[1].querySelectorAll("tspan"));
+    expect(
+      line2Tspans.map((t) => [t.textContent, t.getAttribute("fill")]),
+    ).toEqual([
+      ["timeout", "#1971c2"],
+      [" ", "#1e1e1e"],
+      ["120ms", "#e03131"],
+    ]);
+  });
 });

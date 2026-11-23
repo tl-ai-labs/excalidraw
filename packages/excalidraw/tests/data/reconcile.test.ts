@@ -1,13 +1,16 @@
-import { syncInvalidIndices } from "@excalidraw/element";
+import { newTextElement, syncInvalidIndices } from "@excalidraw/element";
 
 import { randomInteger, cloneJSON } from "@excalidraw/common";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawTextElement,
+  FractionalIndex,
   OrderedExcalidrawElement,
 } from "@excalidraw/element/types";
 
 import { reconcileElements } from "../../data/reconcile";
+import { restoreElements } from "../../data/restore";
 
 import type { RemoteExcalidrawElement } from "../../data/reconcile";
 
@@ -382,5 +385,88 @@ describe("elements reconciliation", () => {
       index: "a0",
     };
     testIdentical([el1, el2], [el2, el1], ["A", "B"]);
+  });
+
+  describe("styled text ranges reconciliation and restore", () => {
+    it("preserves text ranges from winning remote version and protects local editingTextElement", () => {
+      const localText = {
+        ...newTextElement({
+          x: 0,
+          y: 0,
+          text: "Bid request timeout 120ms",
+          version: 2,
+          versionNonce: 100,
+          index: "a0" as FractionalIndex,
+        }),
+        id: "text_1",
+      } as OrderedExcalidrawElement & ExcalidrawTextElement;
+
+      const remoteText = {
+        ...localText,
+        version: 3,
+        versionNonce: 200,
+        ranges: [
+          { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+        ],
+      } as unknown as RemoteExcalidrawElement;
+
+      // Newer remote element with ranges wins
+      const reconciled = reconcileElements(
+        [localText],
+        [remoteText],
+        {} as AppState,
+      );
+      expect((reconciled[0] as ExcalidrawTextElement).ranges).toEqual([
+        { start: 20, end: 25, color: "#e03131", highlight: "#ffec99" },
+      ]);
+
+      // Local element being edited keeps its own ranges over remote update
+      const localEditing = {
+        ...localText,
+        ranges: [{ start: 0, end: 3, color: "#1971c2" }],
+      } as OrderedExcalidrawElement & ExcalidrawTextElement;
+      const reconciledWhileEditing = reconcileElements(
+        [localEditing],
+        [remoteText],
+        { editingTextElement: localEditing } as AppState,
+      );
+      expect(
+        (reconciledWhileEditing[0] as ExcalidrawTextElement).ranges,
+      ).toEqual([{ start: 0, end: 3, color: "#1971c2" }]);
+    });
+
+    it("restores legacy text elements with no ranges and sanitizes invalid ranges", () => {
+      const legacyText = newTextElement({
+        x: 0,
+        y: 0,
+        text: "Legacy text",
+      });
+      const [restoredLegacy] = restoreElements([legacyText], null) as [
+        ExcalidrawTextElement,
+      ];
+      expect(restoredLegacy.ranges).toBeUndefined();
+
+      const dirtyText = {
+        ...newTextElement({
+          x: 0,
+          y: 0,
+          text: "Hello world",
+        }),
+        ranges: [
+          { start: -5, end: 5, color: "#e03131" },
+          { start: 50, end: 60, color: "#1971c2" }, // out of bounds -> dropped
+          { start: 6, end: 100, highlight: "#ffec99" }, // clamped to 11
+          { start: 0, end: 11, highlight: "transparent" }, // transparent -> dropped
+        ],
+      } as ExcalidrawTextElement;
+
+      const [restoredDirty] = restoreElements([dirtyText], null) as [
+        ExcalidrawTextElement,
+      ];
+      expect(restoredDirty.ranges).toEqual([
+        { start: 0, end: 5, color: "#e03131" },
+        { start: 6, end: 11, highlight: "#ffec99" },
+      ]);
+    });
   });
 });
