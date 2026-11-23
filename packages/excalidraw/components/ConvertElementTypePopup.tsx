@@ -899,6 +899,10 @@ const convertElementType = <
             roundness: null,
             startArrowhead: app.state.currentItemStartArrowhead,
             endArrowhead: app.state.currentItemEndArrowhead,
+            arrowheadSize:
+              element.type === "line"
+                ? element.arrowheadSize ?? app.state.currentItemArrowheadSize
+                : app.state.currentItemArrowheadSize,
           }),
         );
       }
@@ -913,6 +917,10 @@ const convertElementType = <
             },
             startArrowhead: app.state.currentItemStartArrowhead,
             endArrowhead: app.state.currentItemEndArrowhead,
+            arrowheadSize:
+              element.type === "line"
+                ? element.arrowheadSize ?? app.state.currentItemArrowheadSize
+                : app.state.currentItemArrowheadSize,
           }),
         );
       }
@@ -924,6 +932,10 @@ const convertElementType = <
             elbowed: true,
             fixedSegments: null,
             roundness: null,
+            arrowheadSize:
+              element.type === "line"
+                ? element.arrowheadSize ?? app.state.currentItemArrowheadSize
+                : app.state.currentItemArrowheadSize,
           }),
         );
       }

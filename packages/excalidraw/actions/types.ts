@@ -72,6 +72,7 @@ export type ActionName =
   | "changeFreedrawMode"
   | "changeStrokeStyle"
   | "changeArrowhead"
+  | "changeArrowheadSize"
   | "changeArrowType"
   | "changeArrowProperties"
   | "changeOpacity"
