@@ -9,7 +9,7 @@ import {
   arrayToMap,
 } from "@excalidraw/common";
 
-import { getNonDeletedElements } from "@excalidraw/element";
+import { getNonDeletedElements, isElementOnPage } from "@excalidraw/element";
 
 import { isFrameLikeElement } from "@excalidraw/element";
 
@@ -48,10 +48,17 @@ export type ExportedElements = readonly NonDeletedExcalidrawElement[] & {
 
 export const prepareElementsForExport = (
   allElements: readonly ExcalidrawElement[],
-  { selectedElementIds }: Pick<AppState, "selectedElementIds">,
+  {
+    selectedElementIds,
+    activePageId,
+  }: Pick<AppState, "selectedElementIds"> &
+    Partial<Pick<AppState, "activePageId">>,
   exportSelectionOnly: boolean,
 ) => {
-  const elements = getNonDeletedElements(allElements);
+  const elements: readonly NonDeletedExcalidrawElement[] =
+    getNonDeletedElements(allElements).filter((element) =>
+      isElementOnPage(element, activePageId),
+    );
   const elementsMap = arrayToMap(elements);
 
   const isExportingSelection =

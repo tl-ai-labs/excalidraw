@@ -195,6 +195,20 @@ function prepareDataForJSONExport(
   const abortController = new AbortController();
   const signal = abortController.signal;
 
+  const appStateWithCurrentPageViewport: AppState = {
+    ...appState,
+    pages: appState.pages.map((page) =>
+      page.id === appState.activePageId
+        ? {
+            ...page,
+            scrollX: appState.scrollX,
+            scrollY: appState.scrollY,
+            zoom: appState.zoom,
+          }
+        : page,
+    ),
+  };
+
   const dataPromise = new Promise<JSONExportData>(async (resolve) => {
     try {
       if (app.props.onExport) {
@@ -203,7 +217,7 @@ function prepareDataForJSONExport(
             "json",
             {
               elements,
-              appState,
+              appState: appStateWithCurrentPageViewport,
               files,
             },
             {
@@ -234,7 +248,7 @@ function prepareDataForJSONExport(
 
     resolve({
       elements,
-      appState,
+      appState: appStateWithCurrentPageViewport,
       // return latest files in case they finished loading during onExport
       files: app.files,
     });

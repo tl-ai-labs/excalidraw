@@ -8,7 +8,6 @@ import {
   isTestEnv,
   toArray,
 } from "@excalidraw/common";
-import { isNonDeletedElement } from "@excalidraw/element";
 import { isFrameLikeElement } from "@excalidraw/element";
 import { getElementsInGroup } from "@excalidraw/element";
 
@@ -32,6 +31,7 @@ import type {
   NonDeletedSceneElementsMap,
   OrderedExcalidrawElement,
   Ordered,
+  PageId,
 } from "@excalidraw/element/types";
 
 import type {
@@ -39,6 +39,8 @@ import type {
   Mutable,
   SameType,
 } from "@excalidraw/common/utility-types";
+
+import { DEFAULT_PAGE_ID, isElementOnPage } from "./page";
 
 import type { AppState } from "../../excalidraw/types";
 
@@ -49,11 +51,12 @@ type SelectionHash = string & { __brand: "selectionHash" };
 
 const getNonDeletedElements = <T extends ExcalidrawElement>(
   allElements: readonly T[],
+  activePageId: PageId | null = null,
 ) => {
   const elementsMap = new Map() as NonDeletedSceneElementsMap;
   const elements: NonDeleted<T>[] = [];
   for (const element of allElements) {
-    if (!element.isDeleted) {
+    if (!element.isDeleted && isElementOnPage(element, activePageId)) {
       elements.push(element as NonDeleted<T>);
       elementsMap.set(
         element.id,
@@ -112,6 +115,12 @@ export class Scene {
 
   private callbacks: Set<SceneStateCallback> = new Set();
 
+  private activePageId: PageId | null = null;
+  private allNonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
+    [];
+  private allNonDeletedElementsMap = toBrandedType<NonDeletedSceneElementsMap>(
+    new Map(),
+  );
   private nonDeletedElements: readonly Ordered<NonDeletedExcalidrawElement>[] =
     [];
   private nonDeletedElementsMap = toBrandedType<NonDeletedSceneElementsMap>(
@@ -142,6 +151,45 @@ export class Scene {
 
   getSceneNonce() {
     return this.sceneNonce;
+  }
+
+  getActivePageId() {
+    return this.activePageId;
+  }
+
+  setActivePageId(pageId: PageId | null) {
+    if (this.activePageId === pageId) {
+      return;
+    }
+    this.activePageId = pageId;
+    this.recomputeActivePageCaches();
+    if (this.callbacks.size > 0) {
+      this.triggerUpdate();
+    }
+  }
+
+  private recomputeActivePageCaches() {
+    const nonDeletedElements = getNonDeletedElements(
+      this.elements,
+      this.activePageId,
+    );
+    this.nonDeletedElements = nonDeletedElements.elements;
+    this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames,
+      this.activePageId,
+    ).elements;
+    this.selectedElementsCache.selectedElementIds = null;
+    this.selectedElementsCache.elements = null;
+    this.selectedElementsCache.cache.clear();
+  }
+
+  getAllNonDeletedElements() {
+    return this.allNonDeletedElements;
+  }
+
+  getAllNonDeletedElementsMap() {
+    return this.allNonDeletedElementsMap;
   }
 
   getNonDeletedElementsMap() {
@@ -232,11 +280,7 @@ export class Scene {
   getNonDeletedElement(
     id: ExcalidrawElement["id"],
   ): NonDeleted<ExcalidrawElement> | null {
-    const element = this.getElement(id);
-    if (element && isNonDeletedElement(element)) {
-      return element;
-    }
-    return null;
+    return this.nonDeletedElementsMap.get(id) || null;
   }
 
   /**
@@ -290,12 +334,22 @@ export class Scene {
       }
       this.elementsMap.set(element.id, element);
     });
-    const nonDeletedElements = getNonDeletedElements(this.elements);
+    const allNonDeleted = getNonDeletedElements(this.elements, null);
+    this.allNonDeletedElements = allNonDeleted.elements;
+    this.allNonDeletedElementsMap = allNonDeleted.elementsMap;
+
+    const nonDeletedElements = getNonDeletedElements(
+      this.elements,
+      this.activePageId,
+    );
     this.nonDeletedElements = nonDeletedElements.elements;
     this.nonDeletedElementsMap = nonDeletedElements.elementsMap;
 
     this.frames = nextFrameLikes;
-    this.nonDeletedFramesLikes = getNonDeletedElements(this.frames).elements;
+    this.nonDeletedFramesLikes = getNonDeletedElements(
+      this.frames,
+      this.activePageId,
+    ).elements;
 
     this.triggerUpdate();
   }
@@ -325,6 +379,8 @@ export class Scene {
 
   destroy() {
     this.elements = [];
+    this.allNonDeletedElements = [];
+    this.allNonDeletedElementsMap.clear();
     this.nonDeletedElements = [];
     this.nonDeletedFramesLikes = [];
     this.frames = [];
@@ -356,6 +412,18 @@ export class Scene {
       throw new Error(
         "insertElementAtIndex can only be called with index >= 0",
       );
+    }
+
+    if (this.activePageId) {
+      for (const element of elements) {
+        if (this.activePageId !== DEFAULT_PAGE_ID) {
+          if (element.pageId !== this.activePageId) {
+            (element as Mutable<ExcalidrawElement>).pageId = this.activePageId;
+          }
+        } else if ("pageId" in element && element.pageId !== undefined) {
+          delete (element as Mutable<ExcalidrawElement>).pageId;
+        }
+      }
     }
 
     const nextElements = [

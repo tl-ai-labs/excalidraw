@@ -22,6 +22,7 @@ export type FontFamilyValues = typeof FONT_FAMILY[FontFamilyKeys];
 export type Theme = typeof THEME[keyof typeof THEME];
 export type FontString = string & { _brand: "fontString" };
 export type GroupId = string;
+export type PageId = string;
 export type PointerType = "mouse" | "pen" | "touch";
 export type StrokeRoundness = "round" | "sharp";
 export type RoundnessType = ValueOf<typeof ROUNDNESS>;
@@ -72,6 +73,7 @@ type _ExcalidrawElementBase = Readonly<{
       Ordered from deepest to shallowest. */
   groupIds: readonly GroupId[];
   frameId: string | null;
+  pageId?: PageId;
   /** other elements that are bound to this element */
   boundElements: readonly BoundElement[] | null;
   /** epoch (ms) timestamp of last element update */

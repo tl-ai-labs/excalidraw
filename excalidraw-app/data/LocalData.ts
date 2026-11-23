@@ -80,6 +80,19 @@ const saveDataStateToLocalStorage = (
   try {
     const _appState = clearAppStateForLocalStorage(appState);
 
+    if (_appState.pages && _appState.activePageId) {
+      _appState.pages = _appState.pages.map((page) =>
+        page.id === _appState.activePageId
+          ? {
+              ...page,
+              scrollX: appState.scrollX,
+              scrollY: appState.scrollY,
+              zoom: appState.zoom,
+            }
+          : page,
+      );
+    }
+
     if (
       _appState.openSidebar?.name === DEFAULT_SIDEBAR.name &&
       _appState.openSidebar.tab === CANVAS_SEARCH_TAB

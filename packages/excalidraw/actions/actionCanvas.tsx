@@ -8,7 +8,7 @@ import {
   KEYS,
 } from "@excalidraw/common";
 
-import { getNonDeletedElements } from "@excalidraw/element";
+import { getNonDeletedElements, isElementOnPage } from "@excalidraw/element";
 import { newElementWith } from "@excalidraw/element";
 import { getCommonBounds } from "@excalidraw/element";
 
@@ -97,11 +97,15 @@ export const actionClearCanvas = register({
     app.imageCache.clear();
     return {
       elements: elements.map((element) =>
-        newElementWith(element, { isDeleted: true }),
+        isElementOnPage(element, appState.activePageId)
+          ? newElementWith(element, { isDeleted: true })
+          : element,
       ),
       appState: {
         ...getDefaultAppState(),
         files: {},
+        pages: appState.pages,
+        activePageId: appState.activePageId,
         theme: appState.theme,
         penMode: appState.penMode,
         penDetected: appState.penDetected,
@@ -406,7 +410,7 @@ export const actionZoomToFit = register({
     // under a viewport lock, fits the locked box rather than the elements
     const bounds = appState.scrollConstraints
       ? getScrollConstraintsBounds(appState.scrollConstraints)
-      : getCommonBounds(getNonDeletedElements(elements));
+      : getCommonBounds(app.scene.getNonDeletedElements());
     const result = zoomToFitBounds({
       bounds,
       appState,
